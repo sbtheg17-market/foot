@@ -38,14 +38,14 @@ Since agent credit balances cannot be read programmatically, each session entry 
 |---|---|---|
 | DB schema | ✅ Live | Pushed to Replit PostgreSQL. Tables: users, provider_profiles, travel_zones, availability, verification_docs, services, bookings, reviews, invoices, support_tickets, support_messages |
 | API server workflow | ✅ Running | `artifacts/api-server: API Server` on Replit. Health check: `GET /api/healthz → {"status":"ok"}` |
-| Auth routes | ❌ Not built | POST /auth/login, /auth/register, /auth/me — see `docs/api-routes.md` |
+| Auth routes | ✅ Live | POST /auth/register, /auth/login, /auth/logout, GET /auth/me — all verified |
+| JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
+| Seed script | ✅ Live | 5 demo accounts + full sample data seeded. Run: `pnpm --filter @workspace/api-server run seed` |
 | Business routes | ❌ Not built | Providers, bookings, reviews, invoices, support, admin — see `docs/api-routes.md` |
-| JWT middleware | ❌ Not built | requireAuth, requireRole, requireSelf — see `docs/roles-and-permissions.md` |
-| Seed script | ❌ Not built | `pnpm --filter @workspace/api-server run seed` — 5 demo accounts + sample bookings |
 | React frontend | ❌ Does not exist | `artifacts/web/` to be created — React 19 + Vite + TanStack Query + Wouter |
-| OpenAPI spec | ⚠️ Stub only | Only /healthz defined. All other routes documented in `docs/api-routes.md` but not yet in `openapi.yaml` |
+| OpenAPI spec | ⚠️ Stub only | Only /healthz + auth routes defined. Business routes documented in `docs/api-routes.md` but not yet in `openapi.yaml` |
 
-**MVP completion estimate: ~10%** (infrastructure ready, no user-facing features yet)
+**MVP completion estimate: ~20%** (auth layer complete, business routes next)
 
 ---
 
@@ -141,6 +141,35 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** Same as Sessions 001–003. Logging infrastructure in place.
 
 **Next best action:** **Implement auth + JWT middleware.** This is the critical path blocker — nothing else (seeding, frontend) can be properly tested without it. Start a new session targeting: `artifacts/api-server/src/routes/auth.ts`, `artifacts/api-server/src/middlewares/auth.ts`. Set `JWT_SECRET` as a Replit secret first. Estimated scope: `M`.
+
+---
+
+### Session 005 — 2026-07-28
+**Agent:** Replit Main Agent  
+**Scope:** `S`  
+**Triggered by:** "Look at the repository, and continue from where the checkpoint may have stalled on install" + "make sure to push direct to repo keeping updates to repo" + "checkpoints should always directly be pushed to maintain the log for the next agent"
+
+**What was done:**
+- Diagnosed stalled install: node_modules were missing, `JWT_SECRET` not set, Zod catalog pinned at v3 while generated `lib/api-zod/src/generated/api.ts` used Zod v4 API (`zod.email()`, `zod.int()`)
+- Ran `pnpm install` to restore node_modules
+- Requested and set `JWT_SECRET` as a Replit secret
+- Upgraded Zod catalog from `^3.25.76` → `^4.0.0` in `pnpm-workspace.yaml`
+- Fixed `lib/db/src/schema/users.ts`: changed `import { z } from "zod/v4"` → `import { z } from "zod"` (v4 is now the main export)
+- Re-ran `pnpm install` to resolve lockfile with Zod v4
+- Re-pushed DB schema (`pnpm --filter @workspace/db run push`) — tables were lost after environment reset
+- Restarted API server workflow — builds clean, no warnings
+- Ran seed script — all 5 demo accounts + full sample data created
+- Verified: `GET /api/healthz → {"status":"ok"}`, `POST /api/auth/login → JWT token`, `GET /api/auth/me → full user object`
+- Established rule: every checkpoint must be pushed to `origin/main` immediately
+
+**Files changed:**
+- `pnpm-workspace.yaml` — Zod catalog `^3.25.76` → `^4.0.0`
+- `lib/db/src/schema/users.ts` — `"zod/v4"` → `"zod"`
+- `.agents/LOG.md` — updated Current Build State, added this entry
+
+**Build state at end:** API server running, DB schema live, all 5 demo accounts seeded, auth routes fully verified (register, login, me, logout)
+
+**Next best action:** Implement business routes. Start with **providers** (discovery + provider portal) as they unblock the frontend browsing flow. Files to create: `artifacts/api-server/src/routes/providers.ts`. Add each endpoint to `lib/api-spec/openapi.yaml` first (rule 5), run codegen, then implement. See `docs/api-routes.md` for the full provider surface.
 
 ---
 
