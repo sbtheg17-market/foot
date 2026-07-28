@@ -1,24 +1,32 @@
 # OnCall Foot — Agent Handbook
 
-A premium mobile-first marketplace for in-home foot care professionals and their clients.
-Three roles: **Client** (books visits), **Provider** (manages their business), **Admin** (platform oversight).
+> *The right care. At your door. Right now.*
+
+OnCall Foot is a **funded-quality, mobile-first marketplace** for in-home foot care. It pairs clients who need professional foot rejuvenation with verified mobile specialists — at their door, on their schedule.
+
+**Before writing a single line of code, read these two documents:**
+- [`docs/product-vision.md`](docs/product-vision.md) — the mission, brand posture, and what "best foot aid quickly" means in every feature decision
+- [`docs/ux-guidelines.md`](docs/ux-guidelines.md) — mobile-first UI principles, component patterns, tone of voice, and the comfort standards every user-facing screen must meet
+
+**Before writing a commit message or naming a checkpoint**, read:
+- [`docs/checkpoint-notes-guide.md`](docs/checkpoint-notes-guide.md) — how to write notes that serve the cause, not just describe code
 
 ---
 
-## Current State (as of 2026-07-28)
+## Current Build State (2026-07-28)
 
 | Layer | Status |
 |---|---|
 | DB schema | ✅ Pushed to Replit PostgreSQL |
 | API server | ✅ Running — health check only (`GET /api/healthz`) |
-| Auth routes | ❌ Not implemented yet |
-| Business routes | ❌ Not implemented yet |
-| Seed data | ❌ Seed script not written yet |
+| Auth routes | ❌ Not implemented |
+| Business routes | ❌ Not implemented |
+| Seed data | ❌ Seed script not written |
 | React frontend | ❌ `artifacts/web/` does not exist yet |
 
-**Next priorities** (see project task list):
+**Planned next (see project task list):**
 1. Implement auth + core API routes
-2. Write the seed script
+2. Write the seed script (demo accounts + sample bookings)
 3. Build the React frontend (`artifacts/web/`)
 
 ---
@@ -27,15 +35,14 @@ Three roles: **Client** (books visits), **Provider** (manages their business), *
 
 | Command | Purpose |
 |---|---|
-| `pnpm --filter @workspace/api-server run dev` | Start API server (build + run) |
+| `pnpm --filter @workspace/api-server run dev` | Build + start the API server |
 | `pnpm --filter @workspace/db run push` | Push schema changes to dev DB |
-| `pnpm --filter @workspace/db run generate` | Generate migration files |
+| `pnpm --filter @workspace/db run generate` | Generate migration files (for production) |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate Zod validators + React Query hooks from OpenAPI spec |
 | `pnpm run typecheck` | Full typecheck across all packages |
 | `pnpm run build` | Typecheck + build everything |
 
-The API server workflow is managed by Replit under the name `artifacts/api-server: API Server`.
-After any code or dependency change, restart it with the WorkflowsRestart tool.
+The API server workflow is `artifacts/api-server: API Server` — restart it after any code or dependency change.
 
 ---
 
@@ -44,11 +51,11 @@ After any code or dependency change, restart it with the WorkflowsRestart tool.
 | Variable | Required | Notes |
 |---|---|---|
 | `DATABASE_URL` | ✅ | Auto-provided by Replit. Set manually on Railway/Render/Fly. |
-| `JWT_SECRET` | ✅ (when auth is built) | Long random string. Store as a secret, never in code. |
+| `JWT_SECRET` | ✅ when auth is built | Long random string. Store as a secret, never in code. |
 | `JWT_EXPIRES_IN` | optional | Default `7d`. |
 | `PORT` | ✅ | Auto-set by Replit. Set by host on other platforms. |
 | `NODE_ENV` | optional | `development` or `production`. |
-| `CORS_ORIGINS` | optional | Comma-separated allowed origins (e.g. the frontend URL). |
+| `CORS_ORIGINS` | optional | Comma-separated allowed origins (frontend URL in prod). |
 | `SESSION_SECRET` | optional | Already set as a Replit secret. Standard env var, works anywhere. |
 
 ---
@@ -56,13 +63,13 @@ After any code or dependency change, restart it with the WorkflowsRestart tool.
 ## Stack
 
 - **Monorepo**: pnpm workspaces (Node.js 24, TypeScript 5.9)
-- **API**: Express 5, built with esbuild 0.27.3 → `dist/index.mjs`
+- **API**: Express 5, built with esbuild 0.27.3 → `artifacts/api-server/dist/index.mjs`
 - **DB**: PostgreSQL + Drizzle ORM (schema in `lib/db/src/schema/`)
 - **Auth**: JWT HS256 + bcrypt *(routes not yet implemented)*
 - **Validation**: Zod v4 + drizzle-zod
-- **API contract**: OpenAPI 3.1 spec (`lib/api-spec/openapi.yaml`) is the source of truth
-- **Codegen**: Orval generates Zod validators (`lib/api-zod/`) and TanStack Query hooks (`lib/api-client-react/`) from the spec
-- **Frontend**: React 19 + Vite *(artifact not created yet — `artifacts/web/`)*
+- **API contract**: OpenAPI 3.1 spec (`lib/api-spec/openapi.yaml`) — source of truth for all endpoints
+- **Codegen**: Orval generates Zod validators (`lib/api-zod/`) and TanStack Query hooks (`lib/api-client-react/`) from the spec — always run codegen after changing the spec
+- **Frontend**: React 19 + Vite + TanStack Query + Wouter *(artifact not created yet)*
 
 ---
 
@@ -72,22 +79,26 @@ After any code or dependency change, restart it with the WorkflowsRestart tool.
 artifacts/
   api-server/
     src/
-      routes/        ← Add new Express route files here
-      middlewares/   ← Auth middleware goes here
-      lib/           ← Shared server utilities (logger, etc.)
-    build.mjs        ← esbuild config (produces dist/)
+      routes/        ← Express route handlers (one file per domain)
+      middlewares/   ← Auth middleware (requireAuth, requireRole, requireSelf)
+      lib/           ← Server utilities (logger, etc.)
+    build.mjs        ← esbuild config → dist/
 lib/
   db/src/schema/     ← Drizzle table definitions (source of truth for DB shape)
   api-spec/
     openapi.yaml     ← OpenAPI spec (source of truth for API contracts)
-  api-zod/src/generated/       ← Auto-generated Zod validators (do not edit)
-  api-client-react/src/generated/ ← Auto-generated TanStack Query hooks (do not edit)
+  api-zod/src/generated/          ← Auto-generated Zod validators (DO NOT EDIT)
+  api-client-react/src/generated/ ← Auto-generated TanStack Query hooks (DO NOT EDIT)
 docs/
+  product-vision.md       ← Mission, brand, the "right pairing" principle — READ FIRST
+  ux-guidelines.md        ← Mobile-first UI standards every screen must meet — READ FIRST
+  checkpoint-notes-guide.md ← How to write commit/checkpoint notes that serve the cause
   roles-and-permissions.md  ← Full permission matrix per role
-  booking-statuses.md       ← Allowed booking status transitions
+  booking-statuses.md       ← Allowed booking status transitions + who triggers each
   data-models.md            ← Full column reference for every table
-  api-routes.md             ← Complete route map
+  api-routes.md             ← Complete planned route map
   deployment-notes.md       ← Railway / Render / Fly.io instructions
+  future-monetization.md    ← Stripe Connect, subscriptions, care plans, upsells
 ```
 
 ---
@@ -98,36 +109,37 @@ All defined in `lib/db/src/schema/`:
 
 | Table | Purpose |
 |---|---|
-| `users` | All roles (client, provider, admin). Has `role` column. |
+| `users` | All roles (client, provider, admin). `role` column gates access. |
 | `provider_profiles` | Provider business info + verification status |
-| `travel_zones` | Provider service areas (geofenced) |
+| `travel_zones` | Provider service areas |
 | `availability` | Provider weekly schedule |
 | `verification_docs` | Provider document metadata |
 | `services` | Services offered by each provider |
-| `bookings` | Visit requests + lifecycle state machine |
-| `reviews` | Post-visit client reviews |
+| `bookings` | Visit requests + status state machine |
+| `reviews` | Post-visit client reviews (one per completed booking) |
 | `invoices` | Payment records (Stripe-ready) |
 | `support_tickets` + `support_messages` | Internal support module |
 
 Key conventions:
 - **Prices in cents** (integer) — never floats
-- `provider_profiles` is separate from `users` (role-agnostic users table)
-- Booking status transitions documented in `docs/booking-statuses.md` and must be enforced in route handlers
+- `provider_profiles` is separate from `users` — keeps the users table role-agnostic
+- Booking status transitions are strict — see `docs/booking-statuses.md`, enforce in route handlers
+- Invoice is created automatically when booking reaches `confirmed`
 
 ---
 
 ## API Development Workflow
 
-1. **Edit `lib/api-spec/openapi.yaml`** — add or change endpoints there first
-2. **Run codegen**: `pnpm --filter @workspace/api-spec run codegen` — regenerates Zod validators and React Query hooks
+1. **Edit `lib/api-spec/openapi.yaml`** — define the endpoint shape first
+2. **Run codegen**: `pnpm --filter @workspace/api-spec run codegen`
 3. **Implement the route** in `artifacts/api-server/src/routes/`
 4. **Push schema if DB changed**: `pnpm --filter @workspace/db run push`
 
-Never edit files under `lib/api-zod/src/generated/` or `lib/api-client-react/src/generated/` directly — they are overwritten by codegen.
+Never edit files under `lib/api-zod/src/generated/` or `lib/api-client-react/src/generated/` directly.
 
 ---
 
-## Demo Logins (once seed script is written)
+## Demo Logins (once seed script exists)
 
 | Role | Email | Password |
 |---|---|---|
@@ -141,22 +153,20 @@ Never edit files under `lib/api-zod/src/generated/` or `lib/api-client-react/src
 
 ## Portability — What Is and Isn't Replit-Specific
 
-**Replit-only files (safe to ignore on other hosts):**
-- `artifact.toml` files in each artifact — Replit workspace config only
+**Replit-only (safe to ignore on other hosts):**
+- `artifact.toml` files — Replit workspace config
 - `artifacts/mockup-sandbox/` — Replit design canvas tool, never deployed
 - `.replit`, `.replitignore` — Replit IDE config
+- `pnpm-workspace.yaml` `minimumReleaseAge` field — harmless on other hosts
 
-**No Replit lock-in in application code:**
-- No `@replit/*` packages in any deployed artifact
-- `DATABASE_URL` is a standard PostgreSQL connection string — works on any host
-- `SESSION_SECRET` and `JWT_SECRET` are standard env vars
-
-See `docs/deployment-notes.md` for Railway, Render, and Fly.io setup.
+**No lock-in in application code** — no `@replit/*` packages in any deployed artifact. See `docs/deployment-notes.md` for Railway/Render/Fly.io instructions.
 
 ---
 
 ## User Preferences
 
-- Build for continuity: future agents must be able to continue from repo docs and clear structure
-- GitHub-first: codebase must remain clean, documented, and portable
-- No vendor lock-in to Replit-specific patterns in application code
+- **Vision first**: every build decision starts from `docs/product-vision.md` — comfort, trust, speed to care
+- **Mobile-first always**: every screen designed for 390px before desktop
+- **Commit notes serve the cause**: see `docs/checkpoint-notes-guide.md`
+- **GitHub-first**: codebase stays clean, documented, and portable
+- **No vendor lock-in** in application code
