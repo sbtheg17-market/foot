@@ -5,7 +5,9 @@
  * OnCall Foot API — foot rejuvenation marketplace
  * OpenAPI spec version: 0.2.0
  */
+import type { ErrorResponse } from './errorResponse';
 
-export interface HealthStatus {
-  status: string;
-}
+/**
+ * Validation error
+ */
+export type BadRequestResponse = ErrorResponse;

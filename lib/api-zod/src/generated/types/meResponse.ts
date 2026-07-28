@@ -5,7 +5,8 @@
  * OnCall Foot API — foot rejuvenation marketplace
  * OpenAPI spec version: 0.2.0
  */
+import type { MeResponseUser } from './meResponseUser';
 
-export interface HealthStatus {
-  status: string;
+export interface MeResponse {
+  user: MeResponseUser;
 }
