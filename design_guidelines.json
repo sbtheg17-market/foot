@@ -1,0 +1,146 @@
+{
+  "theme": "light",
+  "typography": {
+    "strategy": "Soft Utility (Wellness)",
+    "headings": {
+      "family": "Manrope, sans-serif",
+      "import_url": "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap",
+      "weights": ["Medium", "SemiBold", "Bold"],
+      "classes": "font-sans tracking-tight",
+      "h1": "text-3xl sm:text-4xl font-bold tracking-tight text-foreground",
+      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight text-foreground",
+      "h3": "text-xl sm:text-2xl font-semibold tracking-tight text-foreground"
+    },
+    "body": {
+      "family": "DM Sans, sans-serif",
+      "import_url": "https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap",
+      "weights": ["Regular", "Medium"],
+      "classes": "font-sans text-base leading-relaxed text-muted-foreground",
+      "small": "text-sm text-muted-foreground",
+      "label": "text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground"
+    }
+  },
+  "colors": {
+    "archetype": "ORGANIC & EARTHY",
+    "vibe": "Trust, Growth, Calm. Grounded, matte, physical.",
+    "css_vars": {
+      "light": {
+        "--background": "60 20% 98%",
+        "--foreground": "150 15% 15%",
+        "--card": "0 0% 100%",
+        "--card-foreground": "150 15% 15%",
+        "--popover": "0 0% 100%",
+        "--popover-foreground": "150 15% 15%",
+        "--primary": "140 25% 45%",
+        "--primary-foreground": "0 0% 100%",
+        "--secondary": "140 10% 90%",
+        "--secondary-foreground": "150 15% 15%",
+        "--muted": "140 10% 94%",
+        "--muted-foreground": "150 10% 45%",
+        "--accent": "140 15% 85%",
+        "--accent-foreground": "150 15% 15%",
+        "--destructive": "0 84% 60%",
+        "--destructive-foreground": "0 0% 98%",
+        "--border": "140 10% 90%",
+        "--input": "140 10% 90%",
+        "--ring": "140 25% 45%",
+        "--radius": "1rem"
+      }
+    },
+    "rules": [
+      "Use Sage green (primary) for primary actions and highlights.",
+      "Never use pure black or pure gray. Use tinted charcoal for text.",
+      "Maintain WCAG AA 4.5:1 contrast for small text, 3:1 for large text.",
+      "Explicitly set text color on hover states."
+    ]
+  },
+  "visual_enhancers": {
+    "surfaces": [
+      "Neumorphism (Tactile) variant for dashboard widgets: Off-white background, subtle soft shadows, 1px border-black/5 to ground it.",
+      "Glassmorphism (Crystal) for sticky bottom navigation: bg-white/80 backdrop-blur-xl border-t border-black/5."
+    ],
+    "shadows": [
+      "shadow-sm for cards",
+      "shadow-md for floating elements or active states",
+      "Hover effect: -translate-y-0.5 and shadow-md"
+    ],
+    "borders": "Radius --radius: 1rem (16px) for soft, approachable look."
+  },
+  "components": {
+    "buttons": "Pill-shaped (rounded-full) or highly rounded (rounded-xl) with scale-95 on active. Min height 44px (h-11) for mobile tap targets.",
+    "cards": "Flat background, 1px subtle border, no shadow by default. Hover adds slight lift and shadow.",
+    "inputs": "Shadcn UI forms. Min height 44px.",
+    "chips": "Rounded-full px-3 py-1 text-xs font-semibold. Colors based on status (e.g. green for confirmed, yellow/orange for pending).",
+    "bottom_nav": "Fixed bottom, z-50, flex justify-around items-center h-16 bg-white/80 backdrop-blur-xl border-t. Contains: Home, Bookings, Services, Earnings, Profile. Use Lucide icons.",
+    "toasts": "Sonner toasts for success/error feedback."
+  },
+  "layouts": {
+    "strategy": "Mobile-First App",
+    "container": "w-full min-h-screen bg-background pb-20 md:pb-0 md:flex",
+    "spacing": "Generous spacing. p-4 to p-6 for main sections. gap-4 or gap-6 for lists.",
+    "headers": "Sticky top headers with page title, background white/80 backdrop-blur-md, z-40.",
+    "dashboard_home": "Progressive disclosure. Top-priority metric first (e.g., Today's Appointments). Action blocks for next steps.",
+    "bookings_list": "Card stack. 3-5 priority KPIs per card. Status chips. Large touch targets."
+  },
+  "motion": {
+    "page_transitions": "Framer motion optional, but simple CSS opacity/transform transitions for tabs/routes.",
+    "interactions": "Hover and active states on all touchable elements. `transition-transform duration-200 active:scale-95`.",
+    "lists": "Staggered entrance animations for booking lists."
+  },
+  "accessibility": {
+    "tap_targets": "Minimum 44x44px for all interactive elements.",
+    "contrast": "APCA/WCAG compliant colors.",
+    "testing": "All interactive elements MUST have `data-testid` attribute (e.g., `data-testid=\"booking-accept-btn\"`)."
+  },
+  "media": {
+    "icons": "lucide-react for all standard UI icons.",
+    "images": "Use provided URLs for onboarding background and dummy avatars. Object-cover, max-h-[80vh] for hero images."
+  },
+  "image_urls": {
+    "onboarding_hero": {
+      "url": "https://images.pexels.com/photos/9146381/pexels-photo-9146381.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "A therapist providing a serene foot massage for relaxation in a modern spa setting. Use in the onboarding screen to set the wellness mood."
+    },
+    "avatars": [
+      {
+        "url": "https://images.pexels.com/photos/5998480/pexels-photo-5998480.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Female doctor confidently holding stethoscope."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1594824476967-48c8b964273f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwyfHxoZWFsdGhjYXJlJTIwcHJvZmVzc2lvbmFsJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzg1Mjc1MjE5fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Woman in blue scrub smiling."
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Build a mobile-first web app.",
+    "Use pure Tailwind/HTML for layout shells, but strictly use Shadcn UI components for interactive logic (Forms, Dialogs, Select, Calendar).",
+    "Add font links for Manrope and DM Sans in index.html or global css.",
+    "Configure Tailwind config and CSS variables with the provided Organic & Earthy Sage palette.",
+    "Implement the bottom navigation bar clearly visible on mobile viewports. On desktop, this can transform to a sidebar or stay bottom nav within a mobile-width container.",
+    "Create realistic dummy data for the dashboard (appointments, earnings, reviews).",
+    "Ensure all interactive elements have a minimum 44px tap target height (h-11 or p-3).",
+    "Never center text on dense data pages like Bookings or Earnings. Left-align for scannability.",
+    "Implement clear status chips for bookings (e.g., Pending, Confirmed, Completed, Cancelled).",
+    "DO NOT use complete `transparent` background in header, overlays, or any surface that has content under it. Example: Dropdown with transparent background is banned."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition. Eg: transition: all. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms.",
+    "You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file. This disrupts the human natural reading flow of text.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER: use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons. Use lucide-react.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "Main agent relies on these image URLs. Missing categories = main agent will use placeholder text which is FORBIDDEN.",
+    "Prioritize using pre-existing components from src/components/ui when applicable.",
+    "Create new components that match the style and conventions of existing components when needed.",
+    "Use `sonner` for toasts.",
+    "All interactive and key informational elements MUST include a `data-testid` attribute."
+  ]
+}
