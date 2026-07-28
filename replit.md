@@ -4,9 +4,12 @@
 
 OnCall Foot is a **funded-quality, mobile-first marketplace** for in-home foot care. It pairs clients who need professional foot rejuvenation with verified mobile specialists — at their door, on their schedule.
 
-**Before writing a single line of code, read these two documents:**
-- [`docs/product-vision.md`](docs/product-vision.md) — the mission, brand posture, and what "best foot aid quickly" means in every feature decision
-- [`docs/ux-guidelines.md`](docs/ux-guidelines.md) — mobile-first UI principles, component patterns, tone of voice, and the comfort standards every user-facing screen must meet
+**Every agent session starts with these three reads — no exceptions:**
+1. **[`.agents/LOG.md`](.agents/LOG.md)** — the living session log; shows exactly what was last done and where to resume. Append your own entry before the session ends.
+2. **[`docs/product-vision.md`](docs/product-vision.md)** — the mission, brand posture, and what "best foot aid quickly" means in every feature decision
+3. **[`docs/ux-guidelines.md`](docs/ux-guidelines.md)** — mobile-first UI principles, component patterns, tone of voice, and comfort standards every screen must meet
+
+**Universal agent rules**: [`.agents/AGENT-RULES.md`](.agents/AGENT-RULES.md) — 11 rules that apply on any platform, any agent type.
 
 **Before writing a commit message or naming a checkpoint**, read:
 - [`docs/checkpoint-notes-guide.md`](docs/checkpoint-notes-guide.md) — how to write notes that serve the cause, not just describe code
