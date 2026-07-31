@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Clock, MapPin } from "lucide-react";
+import { Clock, MapPin, Sparkles } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { formatApiErrorDetail } from "../../lib/api";
 import { WeeklyEditor, weeklyIsValid } from "./WeeklyEditor";
 import { TravelZoneEditor } from "./TravelZoneEditor";
+import { AVAILABILITY_PRESETS } from "./presets";
 import { useAvailability, useUpdateAvailability } from "./hooks";
 
 const emptyWeekly = { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] };
@@ -92,6 +93,25 @@ export default function AvailabilityPage() {
                 title="Weekly hours"
                 subtitle="Set the recurring hours you're available for home visits."
               />
+              <div className="flex flex-wrap gap-2 mb-4" data-testid="availability-presets">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground pr-1">
+                  <Sparkles size={12} /> Presets
+                </span>
+                {AVAILABILITY_PRESETS.map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => {
+                      setWeeklyDirty(p.weekly);
+                      toast.success(`Applied "${p.label}"`);
+                    }}
+                    className="h-9 px-3 rounded-full text-xs font-semibold border border-border bg-transparent text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                    data-testid={`availability-preset-${p.key}`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
               <WeeklyEditor value={weekly} onChange={setWeeklyDirty} />
             </section>
 

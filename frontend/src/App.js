@@ -14,6 +14,8 @@ import Profile from "@/pages/Profile";
 import ComingSoon from "@/pages/ComingSoon";
 import ServicesPage from "@/features/services/ServicesPage";
 import AvailabilityPage from "@/features/availability/AvailabilityPage";
+import BookingsPage from "@/features/bookings/BookingsPage";
+import BookingDetailPage from "@/features/bookings/BookingDetailPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,7 +55,8 @@ function App() {
               <Route path={ROUTES.provider.home} element={<Home />} />
               <Route path={ROUTES.provider.services} element={<ServicesPage />} />
               <Route path={ROUTES.provider.availability} element={<AvailabilityPage />} />
-              <Route path={ROUTES.provider.bookings} element={<ComingSoon title="Bookings" checkpoint={4} />} />
+              <Route path={ROUTES.provider.bookings} element={<BookingsPage />} />
+              <Route path="/provider/bookings/:id" element={<BookingDetailPage />} />
               <Route path={ROUTES.provider.earnings} element={<ComingSoon title="Earnings" checkpoint={5} />} />
               <Route path={ROUTES.provider.profile} element={<Profile />} />
             </Route>

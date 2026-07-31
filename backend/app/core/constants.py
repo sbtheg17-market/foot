@@ -8,7 +8,8 @@ class Collections:
     LOGIN_ATTEMPTS = "login_attempts"
     SERVICES = "services"
     AVAILABILITY = "availability"
-    # Future: bookings, invoices, reviews, travel_zones,
+    BOOKINGS = "bookings"
+    # Future: invoices, reviews, travel_zones,
     # verification_submissions, plans, subscriptions, commission_rules,
     # featured_slots, payout_records, audit_logs
 

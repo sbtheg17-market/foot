@@ -1,12 +1,11 @@
 """Provider dashboard summary composer: profile completion + verification hint."""
 from bson import ObjectId
 
-from app.services import availability_service, catalog_service
+from app.services import availability_service, booking_service, catalog_service
 
 from app.core.constants import DEFAULT_CURRENCY
 
 
-# Ordered so the checklist shows the natural progression the provider follows.
 _COMPLETION_STEPS = [
     ("photo", "Add a profile photo", "/provider/profile"),
     ("bio", "Write a short bio", "/provider/profile"),
@@ -39,6 +38,7 @@ async def build_provider_summary(user: dict) -> dict:
     availability = await availability_service.get_availability(provider_id)
     has_availability = availability_service.has_weekly_slots(availability)
     has_travel = availability_service.has_travel_zone(availability)
+    upcoming_bookings = await booking_service.count_upcoming(provider_id)
 
     done = 0
     missing: list[dict] = []
@@ -53,7 +53,7 @@ async def build_provider_summary(user: dict) -> dict:
 
     return {
         "active_services": active_services,
-        "upcoming_bookings": 0,
+        "upcoming_bookings": upcoming_bookings,
         "earnings_week_cents": 0,
         "currency": DEFAULT_CURRENCY,
         "verification_status": user.get("verification_status") or "draft",

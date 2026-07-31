@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { CalendarCheck, Briefcase, Wallet, Star, ChevronRight, CalendarClock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useProviderSummary } from "../features/services/hooks";
+import { VerificationSheet } from "../features/verification/VerificationSheet";
 import { ProfileCompletionCard } from "../components/ProfileCompletionCard";
 import { VerificationBadge } from "../components/VerificationBadge";
 import { ROUTES } from "../lib/routes";
@@ -23,6 +25,7 @@ const StatCard = ({ label, value, sub, testId }) => (
 export default function Home() {
   const { user } = useAuth();
   const { data: summary } = useProviderSummary();
+  const [verifOpen, setVerifOpen] = useState(false);
   const firstName = user?.name?.split(" ")[0] || "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -36,6 +39,13 @@ export default function Home() {
 
   const quickLinks = [
     {
+      to: ROUTES.provider.bookings,
+      label: "Bookings inbox",
+      desc: upcomingBookings > 0 ? `${upcomingBookings} upcoming` : "No requests yet",
+      icon: CalendarCheck,
+      testId: "home-link-bookings",
+    },
+    {
       to: ROUTES.provider.services,
       label: "My services",
       desc: activeServices > 0 ? `${activeServices} active` : "Add your first service",
@@ -48,13 +58,6 @@ export default function Home() {
       desc: hasAvailability && hasTravel ? "Set" : hasAvailability ? "Add travel zone" : "Set your hours",
       icon: CalendarClock,
       testId: "home-link-availability",
-    },
-    {
-      to: ROUTES.provider.bookings,
-      label: "Bookings inbox",
-      desc: "Coming in Checkpoint 4",
-      icon: CalendarCheck,
-      testId: "home-link-bookings",
     },
     {
       to: ROUTES.provider.earnings,
@@ -85,16 +88,28 @@ export default function Home() {
 
       <main className="px-5 py-6 space-y-6">
         <section className="rounded-2xl bg-primary text-primary-foreground p-6 relative overflow-hidden" data-testid="home-hero-card">
-          <div className="absolute top-4 right-4">
+          <button
+            type="button"
+            onClick={() => setVerifOpen(true)}
+            className="absolute top-4 right-4 z-10 active:scale-95 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-white/50 rounded-full"
+            data-testid="home-verification-chip"
+            aria-label="Verification details"
+          >
             <VerificationBadge status={verification} />
-          </div>
+          </button>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-80 mb-2">Your practice</p>
           <h2 className="text-2xl font-bold tracking-tight mb-1">
-            {activeServices > 0 ? "You're open for business" : "Finish setting up"}
+            {upcomingBookings > 0
+              ? `${upcomingBookings} upcoming booking${upcomingBookings === 1 ? "" : "s"}`
+              : activeServices > 0
+              ? "You're open for business"
+              : "Finish setting up"}
           </h2>
           <p className="text-sm opacity-90 leading-relaxed">
-            {activeServices > 0
-              ? "Bookings, earnings and reviews arrive in the next checkpoints."
+            {upcomingBookings > 0
+              ? "Head to the inbox to accept, confirm and complete your visits."
+              : activeServices > 0
+              ? "Booking requests will appear in the inbox as they come in."
               : "Add services next so clients know what you offer."}
           </p>
         </section>
@@ -102,17 +117,8 @@ export default function Home() {
         <ProfileCompletionCard completion={summary?.profile_completion} />
 
         <section className="flex gap-3" data-testid="home-stats">
-          <StatCard
-            label="Active services"
-            value={activeServices}
-            testId="stat-active-services"
-          />
-          <StatCard
-            label="This week"
-            value={formatMoney(earningsCents)}
-            sub={upcomingBookings > 0 ? `${upcomingBookings} upcoming` : "No bookings yet"}
-            testId="stat-earnings"
-          />
+          <StatCard label="Upcoming" value={upcomingBookings} sub={activeServices > 0 ? `${activeServices} active service${activeServices === 1 ? "" : "s"}` : ""} testId="stat-upcoming" />
+          <StatCard label="This week" value={formatMoney(earningsCents)} sub="No completed bookings yet" testId="stat-earnings" />
         </section>
 
         <section className="space-y-3">
@@ -146,6 +152,8 @@ export default function Home() {
           </div>
         </section>
       </main>
+
+      <VerificationSheet open={verifOpen} onOpenChange={setVerifOpen} status={verification} />
     </>
   );
 }

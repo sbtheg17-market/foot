@@ -15,6 +15,7 @@ export const ROUTES = {
     services: "/provider/services",
     availability: "/provider/availability",
     bookings: "/provider/bookings",
+    bookingDetail: (id) => `/provider/bookings/${id}`,
     earnings: "/provider/earnings",
     invoices: "/provider/invoices",
     reviews: "/provider/reviews",
