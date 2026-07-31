@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Clock, Briefcase } from "lucide-react";
+import { Plus, Pencil, Trash2, Clock, Briefcase, Tag } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Switch } from "../../components/ui/switch";
 import { formatMoney, formatDuration } from "../../lib/format";
+import { CATEGORY_LABEL } from "../../lib/serviceCategories";
 import { useServices, useToggleService } from "./hooks";
 import { ServiceFormSheet } from "./ServiceFormSheet";
 import { DeleteServiceDialog } from "./DeleteServiceDialog";
@@ -64,13 +65,21 @@ const ServiceCard = ({ svc, onEdit, onDelete, onToggle }) => (
       />
     </div>
 
-    <div className="flex items-center gap-4 text-sm">
+    <div className="flex items-center gap-4 text-sm flex-wrap">
       <span className="inline-flex items-center gap-1.5 text-muted-foreground">
         <Clock size={14} /> {formatDuration(svc.duration_minutes)}
       </span>
       <span className="font-semibold text-foreground" data-testid={`service-price-${svc.id}`}>
         {formatMoney(svc.price_cents, svc.currency)}
       </span>
+      {svc.category && (
+        <span
+          className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+          data-testid={`service-category-${svc.id}`}
+        >
+          <Tag size={10} /> {CATEGORY_LABEL[svc.category] || svc.category}
+        </span>
+      )}
     </div>
 
     <div className="flex gap-2 pt-1">

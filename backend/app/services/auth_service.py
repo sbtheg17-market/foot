@@ -29,6 +29,7 @@ async def register_user(email: str, password: str, name: str) -> dict:
         "bio": "",
         "certifications": [],
         "onboarding_complete": False,
+        "verification_status": "draft",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     inserted_id = await user_repository.insert(doc)

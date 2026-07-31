@@ -15,6 +15,7 @@ class UserOut(BaseModel):
     bio: Optional[str] = None
     certifications: List[str] = []
     onboarding_complete: bool = False
+    verification_status: str = "draft"
 
     model_config = {"populate_by_name": True}
 

@@ -1,7 +1,9 @@
-import { CalendarCheck, Briefcase, Wallet, Star, ChevronRight } from "lucide-react";
+import { CalendarCheck, Briefcase, Wallet, Star, ChevronRight, CalendarClock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useProviderSummary } from "../features/services/hooks";
+import { ProfileCompletionCard } from "../components/ProfileCompletionCard";
+import { VerificationBadge } from "../components/VerificationBadge";
 import { ROUTES } from "../lib/routes";
 import { formatMoney } from "../lib/format";
 
@@ -28,6 +30,9 @@ export default function Home() {
   const activeServices = summary?.active_services ?? 0;
   const upcomingBookings = summary?.upcoming_bookings ?? 0;
   const earningsCents = summary?.earnings_week_cents ?? 0;
+  const verification = summary?.verification_status || user?.verification_status || "draft";
+  const hasAvailability = !!summary?.has_availability;
+  const hasTravel = !!summary?.has_travel_zone;
 
   const quickLinks = [
     {
@@ -36,6 +41,13 @@ export default function Home() {
       desc: activeServices > 0 ? `${activeServices} active` : "Add your first service",
       icon: Briefcase,
       testId: "home-link-services",
+    },
+    {
+      to: ROUTES.provider.availability,
+      label: "Availability & travel",
+      desc: hasAvailability && hasTravel ? "Set" : hasAvailability ? "Add travel zone" : "Set your hours",
+      icon: CalendarClock,
+      testId: "home-link-availability",
     },
     {
       to: ROUTES.provider.bookings,
@@ -72,17 +84,22 @@ export default function Home() {
       </header>
 
       <main className="px-5 py-6 space-y-6">
-        <section className="rounded-2xl bg-primary text-primary-foreground p-6" data-testid="home-hero-card">
+        <section className="rounded-2xl bg-primary text-primary-foreground p-6 relative overflow-hidden" data-testid="home-hero-card">
+          <div className="absolute top-4 right-4">
+            <VerificationBadge status={verification} />
+          </div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-80 mb-2">Your practice</p>
           <h2 className="text-2xl font-bold tracking-tight mb-1">
             {activeServices > 0 ? "You're open for business" : "Finish setting up"}
           </h2>
           <p className="text-sm opacity-90 leading-relaxed">
             {activeServices > 0
-              ? "Bookings, availability and earnings arrive in the next checkpoints."
+              ? "Bookings, earnings and reviews arrive in the next checkpoints."
               : "Add services next so clients know what you offer."}
           </p>
         </section>
+
+        <ProfileCompletionCard completion={summary?.profile_completion} />
 
         <section className="flex gap-3" data-testid="home-stats">
           <StatCard

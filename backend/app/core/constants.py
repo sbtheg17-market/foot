@@ -7,7 +7,8 @@ class Collections:
     USERS = "users"
     LOGIN_ATTEMPTS = "login_attempts"
     SERVICES = "services"
-    # Future: bookings, invoices, reviews, availability, travel_zones,
+    AVAILABILITY = "availability"
+    # Future: bookings, invoices, reviews, travel_zones,
     # verification_submissions, plans, subscriptions, commission_rules,
     # featured_slots, payout_records, audit_logs
 

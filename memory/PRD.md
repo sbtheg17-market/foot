@@ -78,9 +78,9 @@ Provider portal is the **only active build**. All other work is deferred until p
 | # | Checkpoint | Status |
 | --- | --- | --- |
 | 1 | Foundation & Auth (register, login, onboarding, shell, guards) | ✅ Built |
-| 2 | Services CRUD (name, description, duration, price, active, soft delete) | ✅ Built |
-| 3 | Weekly Availability + Travel Zones (radius / pincodes) | ⏳ Next |
-| 4 | Bookings Inbox + state machine + **seed mock bookings** | Planned |
+| 2 | Services CRUD (name, description, category, duration, price, active, soft delete) | ✅ Built |
+| 3 | Weekly Availability + Travel Zones (radius / pincodes) | ✅ Built |
+| 4 | Bookings Inbox + state machine + **seed mock bookings** | ⏳ Next |
 | 5 | Earnings summary + Invoices (printable HTML + PDF download) | Planned |
 | 6 | Reviews (read-only list + rating breakdown + seed) | Planned |
 
@@ -94,7 +94,7 @@ Demo-ready upgrades to add during the remaining provider checkpoints: active ser
 | --- | --- |
 | Provider auth / onboarding / shell | Built |
 | Provider services | Built |
-| Provider availability | Planned (Checkpoint 3) |
+| Provider availability | Built |
 | Provider bookings | Planned (Checkpoint 4) |
 | Provider earnings / invoices | Planned (Checkpoint 5) |
 | Provider reviews | Planned (Checkpoint 6) |

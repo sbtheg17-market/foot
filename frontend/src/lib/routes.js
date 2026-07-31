@@ -13,6 +13,7 @@ export const ROUTES = {
   provider: {
     home: "/provider",
     services: "/provider/services",
+    availability: "/provider/availability",
     bookings: "/provider/bookings",
     earnings: "/provider/earnings",
     invoices: "/provider/invoices",

@@ -5,8 +5,10 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Switch } from "../../components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "../../components/ui/sheet";
 import { formatApiErrorDetail } from "../../lib/api";
+import { SERVICE_CATEGORIES } from "../../lib/serviceCategories";
 import { useCreateService, useUpdateService } from "./hooks";
 
 const DURATION_PRESETS = [15, 30, 45, 60, 90, 120];
@@ -14,6 +16,7 @@ const DURATION_PRESETS = [15, 30, 45, 60, 90, 120];
 const emptyForm = {
   name: "",
   description: "",
+  category: "",
   duration_minutes: 45,
   price_dollars: "",
   active: true,
@@ -24,6 +27,7 @@ const toForm = (svc) =>
     ? {
         name: svc.name || "",
         description: svc.description || "",
+        category: svc.category || "",
         duration_minutes: svc.duration_minutes || 45,
         price_dollars: ((svc.price_cents || 0) / 100).toFixed(2),
         active: svc.active !== false,
@@ -53,6 +57,7 @@ export const ServiceFormSheet = ({ open, onOpenChange, service }) => {
     const payload = {
       name,
       description: form.description.trim(),
+      category: form.category || null,
       duration_minutes: Number(form.duration_minutes),
       price_cents: Math.round(priceNum * 100),
       currency: "USD",
@@ -114,6 +119,25 @@ export const ServiceFormSheet = ({ open, onOpenChange, service }) => {
               className="rounded-xl resize-none"
               data-testid="service-description-input"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="svc-category">Category</Label>
+            <Select
+              value={form.category || undefined}
+              onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}
+            >
+              <SelectTrigger id="svc-category" className="h-12 rounded-xl" data-testid="service-category-select">
+                <SelectValue placeholder="Choose a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {SERVICE_CATEGORIES.map((c) => (
+                  <SelectItem key={c.value} value={c.value} data-testid={`service-category-option-${c.value}`}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
