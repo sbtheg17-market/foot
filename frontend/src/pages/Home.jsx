@@ -1,0 +1,78 @@
+import { CalendarCheck, Briefcase, Wallet, Star, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { AppShell } from "../components/AppShell";
+
+const quickLinks = [
+  { to: "/bookings", label: "Bookings inbox", desc: "Coming in Checkpoint 4", icon: CalendarCheck, testId: "home-link-bookings" },
+  { to: "/services", label: "My services", desc: "Coming in Checkpoint 2", icon: Briefcase, testId: "home-link-services" },
+  { to: "/earnings", label: "Earnings", desc: "Coming in Checkpoint 5", icon: Wallet, testId: "home-link-earnings" },
+];
+
+export default function Home() {
+  const { user } = useAuth();
+  const firstName = user?.name?.split(" ")[0] || "there";
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  return (
+    <AppShell>
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-black/5 px-5 py-4">
+        <div className="flex items-center gap-3">
+          {user?.photo ? (
+            <img src={user.photo} alt={user.name} className="h-11 w-11 rounded-full object-cover" data-testid="home-avatar" />
+          ) : (
+            <div className="h-11 w-11 rounded-full bg-primary/15 flex items-center justify-center text-primary font-bold" data-testid="home-avatar">
+              {firstName[0]?.toUpperCase()}
+            </div>
+          )}
+          <div>
+            <p className="text-sm text-muted-foreground">{greeting}</p>
+            <h1 className="text-lg font-bold tracking-tight text-foreground" data-testid="home-greeting">{firstName}</h1>
+          </div>
+        </div>
+      </header>
+
+      <main className="px-5 py-6 space-y-6">
+        <section className="rounded-2xl bg-primary text-primary-foreground p-6" data-testid="home-hero-card">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-80 mb-2">Your practice</p>
+          <h2 className="text-2xl font-bold tracking-tight mb-1">You're all set up</h2>
+          <p className="text-sm opacity-90 leading-relaxed">
+            Your provider profile is live. Services, availability and bookings arrive in the next checkpoints.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Quick access</h3>
+          {quickLinks.map(({ to, label, desc, icon: Icon, testId }) => (
+            <Link
+              key={to}
+              to={to}
+              data-testid={testId}
+              className="flex items-center gap-4 rounded-2xl bg-card border border-black/5 p-4 hover:shadow-md hover:-translate-y-0.5 transition-shadow duration-200"
+            >
+              <div className="h-11 w-11 rounded-xl bg-secondary flex items-center justify-center text-primary shrink-0">
+                <Icon size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-foreground">{label}</p>
+                <p className="text-sm text-muted-foreground">{desc}</p>
+              </div>
+              <ChevronRight size={18} className="text-muted-foreground" />
+            </Link>
+          ))}
+        </section>
+
+        <section className="rounded-2xl bg-card border border-black/5 p-5 flex items-center gap-4" data-testid="home-reviews-teaser">
+          <div className="h-11 w-11 rounded-xl bg-secondary flex items-center justify-center text-primary shrink-0">
+            <Star size={20} />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground">Reviews</p>
+            <p className="text-sm text-muted-foreground">Client reviews will appear here once you complete bookings.</p>
+          </div>
+        </section>
+      </main>
+    </AppShell>
+  );
+}

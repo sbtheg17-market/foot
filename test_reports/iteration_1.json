@@ -1,0 +1,40 @@
+{
+  "summary": "Tested Checkpoint 1 of OnCall Foot provider dashboard: backend auth (register/login/me/logout/onboarding) via pytest (9/10 pass) and end-to-end frontend flow on mobile 390px viewport (signup -> 3-step onboarding -> home dashboard -> profile -> logout -> re-login as seed user -> protected route redirects). All UI flows pass. One backend issue: brute-force lockout does not trigger reliably via the public URL (6 consecutive failed logins all returned 401, none returned 429).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/login", "issue": "Brute-force lockout after 5 failed attempts does not trigger via the public/ingress URL. Identifier is built from request.client.host + email; behind Kubernetes ingress the client host may vary per request (or be a shared ingress IP shared with all traffic causing the counter to not isolate), so the per-account counter never crosses the threshold from a single caller. Recommend using X-Forwarded-For (first IP) OR email-only identifier for per-account lockout. Test observed: 6 attempts -> [401,401,401,401,401,401]."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Profile", "issues": ["When success toast 'Profile complete. Welcome aboard!' fires on landing, it briefly overlaps the sticky 'Profile' header title (cosmetic, animation-only)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_auth.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix brute-force lockout identifier so it works behind the ingress (use X-Forwarded-For header or email-only key). Currently the 429 lockout never triggers through the public URL."
+  ],
+  "critical_code_review_comments": [
+    "server.py check_lockout/record_failure uses request.client.host which is often the ingress LB IP behind K8s; consider request.headers.get('x-forwarded-for', request.client.host).split(',')[0].strip() to identify caller, or lock by email only.",
+    "set_auth_cookies uses secure=True + samesite='none' which is correct for cross-site cookies over HTTPS; verified cookies are set on the frontend session (login/register/me all work).",
+    "user_to_out mutates the input dict (pops password_hash) - harmless but a side effect. Consider copying.",
+    "AuthContext: user state uses null (checking), false (logged out), object (logged in) - clever but slightly non-obvious; consider a typed state machine (status: 'loading'|'authed'|'anon').",
+    "No tests for /api/auth/refresh flow - not required for Checkpoint 1 but good to add later."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_auth.py (new)"
+  ],
+  "success_rate": {"backend": "90% (9/10 pytest tests passed)", "frontend": "100% (all Checkpoint 1 UI flows passed)"},
+  "test_credentials": "provider@test.com / test1234 (seed user, onboarding complete) - verified working",
+  "seed_data_creation": "Test data created via API with 'TEST_' or 'test_<uuid>' prefixed emails; not cleaned up (each run uses unique email).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend + frontend Checkpoint 1 are functional. Only unresolved issue is brute-force lockout not triggering via public URL. After main agent fixes identifier extraction, re-run pytest /app/backend/tests/test_auth.py::TestBruteForce to confirm 6th attempt returns 429. All other 9 pytest tests and full frontend Playwright flow pass reliably.",
+  "rca of the issue": "TestBruteForce failure RCA: server.py builds lockout identifier as `f\"{request.client.host}:{email}\"`. When traffic flows through the Emergent K8s ingress + FastAPI/uvicorn, request.client.host is the immediate socket peer (typically the ingress proxy). If the reverse proxy pools/multiplexes connections or if multiple backend replicas each hold independent lockout counters (MongoDB is shared so counters aggregate correctly), the identifier should still stabilize. Empirically 6 consecutive failed logins returned 401,401,401,401,401,401 - so either (a) the peer IP is changing per request, or (b) something is resetting the record. Mitigation: change identifier to email-only (per-account lockout) or use X-Forwarded-For to preserve original client IP."
+}
