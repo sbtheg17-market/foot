@@ -8,7 +8,7 @@ Valid transitions:
 
 Ownership is enforced by scoping every query with provider_id = current user.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
 from fastapi import HTTPException
@@ -80,3 +80,11 @@ async def update_status(booking_id: str, provider_id: ObjectId, target: str, rea
 async def count_upcoming(provider_id: ObjectId) -> int:
     now = datetime.now(timezone.utc).isoformat()
     return await booking_repository.count(provider_id, _UPCOMING, now)
+
+
+async def get_next_confirmed(provider_id: ObjectId) -> dict | None:
+    """Earliest confirmed booking scheduled from ~1h ago onwards.
+    The 1h lookback covers 'currently in progress' visits so the Home banner
+    can still surface them until they're marked completed."""
+    from_iso = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    return await booking_repository.find_next_confirmed(provider_id, from_iso)

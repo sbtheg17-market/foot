@@ -157,6 +157,11 @@ class TestSummaryUpcomingCount:
     def test_seed_updates_summary(self, provider):
         s0 = provider.get(f"{API}/dashboard/provider-summary").json()
         assert s0["upcoming_bookings"] == 0
+        assert s0["next_visit"] is None
         provider.post(f"{API}/dev/seed-bookings")
         s1 = provider.get(f"{API}/dashboard/provider-summary").json()
         assert s1["upcoming_bookings"] >= 3
+        # seed forces one confirmed-today to ~45 min from now → next_visit populated
+        assert s1["next_visit"] is not None
+        assert "id" in s1["next_visit"]
+        assert s1["next_visit"]["scheduled_at"]

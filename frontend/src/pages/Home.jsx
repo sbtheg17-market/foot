@@ -6,6 +6,7 @@ import { useProviderSummary } from "../features/services/hooks";
 import { VerificationSheet } from "../features/verification/VerificationSheet";
 import { ProfileCompletionCard } from "../components/ProfileCompletionCard";
 import { VerificationBadge } from "../components/VerificationBadge";
+import { NextVisitBanner } from "../components/NextVisitBanner";
 import { ROUTES } from "../lib/routes";
 import { formatMoney } from "../lib/format";
 
@@ -87,6 +88,8 @@ export default function Home() {
       </header>
 
       <main className="px-5 py-6 space-y-6">
+        <NextVisitBanner nextVisit={summary?.next_visit} />
+
         <section className="rounded-2xl bg-primary text-primary-foreground p-6 relative overflow-hidden" data-testid="home-hero-card">
           <button
             type="button"

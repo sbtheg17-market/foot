@@ -39,6 +39,7 @@ async def build_provider_summary(user: dict) -> dict:
     has_availability = availability_service.has_weekly_slots(availability)
     has_travel = availability_service.has_travel_zone(availability)
     upcoming_bookings = await booking_service.count_upcoming(provider_id)
+    next_confirmed = await booking_service.get_next_confirmed(provider_id)
 
     done = 0
     missing: list[dict] = []
@@ -51,6 +52,15 @@ async def build_provider_summary(user: dict) -> dict:
     total = len(_COMPLETION_STEPS)
     percent = int(round(done / total * 100))
 
+    next_visit = None
+    if next_confirmed:
+        next_visit = {
+            "id": str(next_confirmed["_id"]),
+            "client_name": (next_confirmed.get("client") or {}).get("name", ""),
+            "service_name": (next_confirmed.get("service") or {}).get("name", ""),
+            "scheduled_at": next_confirmed.get("scheduled_at"),
+        }
+
     return {
         "active_services": active_services,
         "upcoming_bookings": upcoming_bookings,
@@ -59,6 +69,7 @@ async def build_provider_summary(user: dict) -> dict:
         "verification_status": user.get("verification_status") or "draft",
         "has_availability": has_availability,
         "has_travel_zone": has_travel,
+        "next_visit": next_visit,
         "profile_completion": {
             "percent": percent,
             "done": done,

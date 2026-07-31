@@ -44,19 +44,42 @@ const ActionButton = ({ action, onClick, disabled }) => {
   );
 };
 
-const Row = ({ icon: Icon, label, value, mono }) => (
-  <div className="flex items-start gap-3 py-2.5" data-testid={`booking-row-${label.toLowerCase()}`}>
-    <div className="h-9 w-9 rounded-xl bg-secondary text-primary flex items-center justify-center shrink-0">
-      <Icon size={16} />
+const Row = ({ icon: Icon, label, value, href, mono }) => {
+  const content = (
+    <>
+      <div className="h-9 w-9 rounded-xl bg-secondary text-primary flex items-center justify-center shrink-0">
+        <Icon size={16} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p
+          className={`text-sm ${href ? "text-primary font-semibold" : "text-foreground"} ${mono ? "font-mono" : ""} whitespace-pre-wrap break-words`}
+        >
+          {value || "—"}
+        </p>
+      </div>
+    </>
+  );
+  const base = "flex items-start gap-3 py-2.5 px-2 -mx-2 rounded-lg";
+  if (href && value) {
+    return (
+      <a
+        href={href}
+        target={href.startsWith("http") ? "_blank" : undefined}
+        rel={href.startsWith("http") ? "noreferrer" : undefined}
+        className={`${base} hover:bg-muted transition-colors duration-200 active:scale-[0.98]`}
+        data-testid={`booking-row-${label.toLowerCase()}`}
+      >
+        {content}
+      </a>
+    );
+  }
+  return (
+    <div className={base} data-testid={`booking-row-${label.toLowerCase()}`}>
+      {content}
     </div>
-    <div className="min-w-0 flex-1">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={`text-sm text-foreground ${mono ? "font-mono" : ""} whitespace-pre-wrap break-words`}>
-        {value || "—"}
-      </p>
-    </div>
-  </div>
-);
+  );
+};
 
 export default function BookingDetailPage() {
   const { id } = useParams();
@@ -137,11 +160,22 @@ export default function BookingDetailPage() {
 
             <section className="rounded-2xl bg-card border border-black/5 p-3">
               <Row icon={User} label="Client" value={b.client?.name} />
-              <Row icon={Phone} label="Phone" value={b.client?.phone} mono />
+              <Row
+                icon={Phone}
+                label="Phone"
+                value={b.client?.phone}
+                href={b.client?.phone ? `tel:${(b.client.phone || "").replace(/[^\d+]/g, "")}` : null}
+                mono
+              />
               <Row
                 icon={MapPin}
                 label="Address"
                 value={[b.client?.address, b.client?.pincode].filter(Boolean).join(" · ")}
+                href={
+                  b.client?.address
+                    ? `https://maps.google.com/?q=${encodeURIComponent([b.client.address, b.client.pincode].filter(Boolean).join(", "))}`
+                    : null
+                }
               />
               <Row icon={StickyNote} label="Notes" value={b.notes} />
             </section>

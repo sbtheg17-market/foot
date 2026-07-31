@@ -146,6 +146,23 @@ async def seed_bookings_for_provider(user: dict) -> int:
         })
 
     inserted = await booking_repository.insert_many(docs)
+
+    # Demo boost: patch the first confirmed-today booking to be ~45 min from now
+    # so the Home "next visit" banner always demos convincingly right after seed.
+    now_plus_45 = (now + timedelta(minutes=45)).isoformat()
+    for doc in docs:
+        if doc["status"] == "confirmed":
+            sched = datetime.fromisoformat(doc["scheduled_at"])
+            if sched.date() == now.date():
+                await booking_repository.update_status(
+                    doc["_id"], provider_id, "confirmed",
+                    {"status": "confirmed", "at": now.isoformat(), "reason": "demo_slot_adjust"},
+                )
+                await booking_repository._coll.update_one(
+                    {"_id": doc["_id"]}, {"$set": {"scheduled_at": now_plus_45}}
+                )
+                break
+
     return len(inserted)
 
 

@@ -63,6 +63,13 @@ async def delete_seeded(provider_id: ObjectId) -> int:
     return result.deleted_count
 
 
+async def find_next_confirmed(provider_id: ObjectId, from_iso: str) -> Optional[dict]:
+    return await _coll.find_one(
+        {"provider_id": provider_id, "status": "confirmed", "scheduled_at": {"$gte": from_iso}},
+        sort=[("scheduled_at", 1)],
+    )
+
+
 async def ensure_indexes() -> None:
     await _coll.create_index("provider_id")
     await _coll.create_index([("provider_id", 1), ("status", 1)])
