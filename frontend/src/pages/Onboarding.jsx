@@ -8,6 +8,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
+import { ROUTES } from "../lib/routes";
 
 const STEPS = ["Your details", "About you", "Certifications"];
 
@@ -48,7 +49,7 @@ export default function Onboarding() {
       const { data } = await api.put("/providers/me", { name, photo, bio, certifications: certs });
       setUser(data);
       toast.success("Profile complete. Welcome aboard!");
-      navigate("/");
+      navigate(ROUTES.provider.home);
     } catch (err) {
       toast.error(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally {

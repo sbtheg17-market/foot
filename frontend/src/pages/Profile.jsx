@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { Award, LogOut, Mail } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { AppShell } from "../components/AppShell";
 import { Button } from "../components/ui/button";
+import { ROUTES } from "../lib/routes";
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -10,11 +10,11 @@ export default function Profile() {
 
   const onLogout = async () => {
     await logout();
-    navigate("/login");
+    navigate(ROUTES.auth.login);
   };
 
   return (
-    <AppShell>
+    <>
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-black/5 px-5 py-4">
         <h1 className="text-lg font-bold tracking-tight text-foreground">Profile</h1>
       </header>
@@ -70,6 +70,6 @@ export default function Profile() {
           <LogOut size={18} className="mr-2" /> Sign out
         </Button>
       </main>
-    </AppShell>
+    </>
   );
 }

@@ -1,9 +1,8 @@
 import { Hourglass } from "lucide-react";
-import { AppShell } from "../components/AppShell";
 
 export default function ComingSoon({ title, checkpoint }) {
   return (
-    <AppShell>
+    <>
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-black/5 px-5 py-4">
         <h1 className="text-lg font-bold tracking-tight text-foreground">{title}</h1>
       </header>
@@ -16,6 +15,6 @@ export default function ComingSoon({ title, checkpoint }) {
           This section arrives in Checkpoint {checkpoint}. We're building it next.
         </p>
       </main>
-    </AppShell>
+    </>
   );
 }

@@ -1,25 +1,37 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { Navigate } from "react-router-dom";
+import { ProviderLayout } from "@/layouts/ProviderLayout";
+import { ROUTES } from "@/lib/routes";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import Onboarding from "@/pages/Onboarding";
 import Home from "@/pages/Home";
 import Profile from "@/pages/Profile";
 import ComingSoon from "@/pages/ComingSoon";
+import ServicesPage from "@/features/services/ServicesPage";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { refetchOnWindowFocus: false, retry: 1 },
+  },
+});
 
 const PublicOnly = ({ children }) => {
   const { user } = useAuth();
   if (user === null) return null;
-  if (user) return <Navigate to={user.onboarding_complete ? "/" : "/onboarding"} replace />;
+  if (user) return <Navigate to={user.onboarding_complete ? ROUTES.provider.home : ROUTES.auth.onboarding} replace />;
   return children;
 };
+
+const ProviderRoutes = () => (
+  <ProtectedRoute>
+    <ProviderLayout />
+  </ProtectedRoute>
+);
 
 function App() {
   return (
@@ -27,15 +39,26 @@ function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
-            <Route path="/signup" element={<PublicOnly><Signup /></PublicOnly>} />
-            <Route path="/onboarding" element={<ProtectedRoute requireOnboarding={false}><Onboarding /></ProtectedRoute>} />
-            <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="/bookings" element={<ProtectedRoute><ComingSoon title="Bookings" checkpoint={4} /></ProtectedRoute>} />
-            <Route path="/services" element={<ProtectedRoute><ComingSoon title="Services" checkpoint={2} /></ProtectedRoute>} />
-            <Route path="/earnings" element={<ProtectedRoute><ComingSoon title="Earnings" checkpoint={5} /></ProtectedRoute>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Public / auth flow */}
+            <Route path={ROUTES.auth.login} element={<PublicOnly><Login /></PublicOnly>} />
+            <Route path={ROUTES.auth.signup} element={<PublicOnly><Signup /></PublicOnly>} />
+            <Route
+              path={ROUTES.auth.onboarding}
+              element={<ProtectedRoute requireOnboarding={false}><Onboarding /></ProtectedRoute>}
+            />
+
+            {/* Provider portal (nested layout) */}
+            <Route element={<ProviderRoutes />}>
+              <Route path={ROUTES.provider.home} element={<Home />} />
+              <Route path={ROUTES.provider.services} element={<ServicesPage />} />
+              <Route path={ROUTES.provider.bookings} element={<ComingSoon title="Bookings" checkpoint={4} />} />
+              <Route path={ROUTES.provider.earnings} element={<ComingSoon title="Earnings" checkpoint={5} />} />
+              <Route path={ROUTES.provider.profile} element={<Profile />} />
+            </Route>
+
+            {/* Root -> canonical provider home for now */}
+            <Route path="/" element={<Navigate to={ROUTES.provider.home} replace />} />
+            <Route path="*" element={<Navigate to={ROUTES.provider.home} replace />} />
           </Routes>
         </BrowserRouter>
         <Toaster position="top-center" richColors />

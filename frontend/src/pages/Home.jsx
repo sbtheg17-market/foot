@@ -1,22 +1,60 @@
 import { CalendarCheck, Briefcase, Wallet, Star, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { AppShell } from "../components/AppShell";
+import { useProviderSummary } from "../features/services/hooks";
+import { ROUTES } from "../lib/routes";
+import { formatMoney } from "../lib/format";
 
-const quickLinks = [
-  { to: "/bookings", label: "Bookings inbox", desc: "Coming in Checkpoint 4", icon: CalendarCheck, testId: "home-link-bookings" },
-  { to: "/services", label: "My services", desc: "Coming in Checkpoint 2", icon: Briefcase, testId: "home-link-services" },
-  { to: "/earnings", label: "Earnings", desc: "Coming in Checkpoint 5", icon: Wallet, testId: "home-link-earnings" },
-];
+const StatCard = ({ label, value, sub, testId }) => (
+  <div
+    className="rounded-2xl bg-card border border-black/5 p-4 flex-1 min-w-0"
+    data-testid={testId}
+  >
+    <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-1">
+      {label}
+    </p>
+    <p className="text-2xl font-bold tracking-tight text-foreground">{value}</p>
+    {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+  </div>
+);
 
 export default function Home() {
   const { user } = useAuth();
+  const { data: summary } = useProviderSummary();
   const firstName = user?.name?.split(" ")[0] || "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
+  const activeServices = summary?.active_services ?? 0;
+  const upcomingBookings = summary?.upcoming_bookings ?? 0;
+  const earningsCents = summary?.earnings_week_cents ?? 0;
+
+  const quickLinks = [
+    {
+      to: ROUTES.provider.services,
+      label: "My services",
+      desc: activeServices > 0 ? `${activeServices} active` : "Add your first service",
+      icon: Briefcase,
+      testId: "home-link-services",
+    },
+    {
+      to: ROUTES.provider.bookings,
+      label: "Bookings inbox",
+      desc: "Coming in Checkpoint 4",
+      icon: CalendarCheck,
+      testId: "home-link-bookings",
+    },
+    {
+      to: ROUTES.provider.earnings,
+      label: "Earnings",
+      desc: "Coming in Checkpoint 5",
+      icon: Wallet,
+      testId: "home-link-earnings",
+    },
+  ];
+
   return (
-    <AppShell>
+    <>
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-black/5 px-5 py-4">
         <div className="flex items-center gap-3">
           {user?.photo ? (
@@ -36,10 +74,28 @@ export default function Home() {
       <main className="px-5 py-6 space-y-6">
         <section className="rounded-2xl bg-primary text-primary-foreground p-6" data-testid="home-hero-card">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-80 mb-2">Your practice</p>
-          <h2 className="text-2xl font-bold tracking-tight mb-1">You're all set up</h2>
+          <h2 className="text-2xl font-bold tracking-tight mb-1">
+            {activeServices > 0 ? "You're open for business" : "Finish setting up"}
+          </h2>
           <p className="text-sm opacity-90 leading-relaxed">
-            Your provider profile is live. Services, availability and bookings arrive in the next checkpoints.
+            {activeServices > 0
+              ? "Bookings, availability and earnings arrive in the next checkpoints."
+              : "Add services next so clients know what you offer."}
           </p>
+        </section>
+
+        <section className="flex gap-3" data-testid="home-stats">
+          <StatCard
+            label="Active services"
+            value={activeServices}
+            testId="stat-active-services"
+          />
+          <StatCard
+            label="This week"
+            value={formatMoney(earningsCents)}
+            sub={upcomingBookings > 0 ? `${upcomingBookings} upcoming` : "No bookings yet"}
+            testId="stat-earnings"
+          />
         </section>
 
         <section className="space-y-3">
@@ -73,6 +129,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-    </AppShell>
+    </>
   );
 }

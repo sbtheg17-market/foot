@@ -6,6 +6,7 @@ import { formatApiErrorDetail } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { ROUTES } from "../lib/routes";
 
 export default function Signup() {
   const { register } = useAuth();
@@ -22,7 +23,7 @@ export default function Signup() {
     setLoading(true);
     try {
       await register(email, password, name);
-      navigate("/onboarding");
+      navigate(ROUTES.auth.onboarding);
     } catch (err) {
       setError(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally {
@@ -98,7 +99,7 @@ export default function Signup() {
 
         <p className="mt-8 text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link to="/login" className="text-primary font-semibold" data-testid="go-to-login-link">
+          <Link to={ROUTES.auth.login} className="text-primary font-semibold" data-testid="go-to-login-link">
             Sign in
           </Link>
         </p>

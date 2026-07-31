@@ -6,6 +6,7 @@ import { formatApiErrorDetail } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { ROUTES } from "../lib/routes";
 
 export default function Login() {
   const { login } = useAuth();
@@ -21,7 +22,7 @@ export default function Login() {
     setLoading(true);
     try {
       const u = await login(email, password);
-      navigate(u.onboarding_complete ? "/" : "/onboarding");
+      navigate(u.onboarding_complete ? ROUTES.provider.home : ROUTES.auth.onboarding);
     } catch (err) {
       setError(formatApiErrorDetail(err.response?.data?.detail) || err.message);
     } finally {
@@ -84,7 +85,7 @@ export default function Login() {
 
         <p className="mt-8 text-sm text-muted-foreground">
           New to OnCall Foot?{" "}
-          <Link to="/signup" className="text-primary font-semibold" data-testid="go-to-signup-link">
+          <Link to={ROUTES.auth.signup} className="text-primary font-semibold" data-testid="go-to-signup-link">
             Create an account
           </Link>
         </p>
