@@ -161,7 +161,8 @@ async def register(body: RegisterInput, response: Response):
 @api_router.post("/auth/login", response_model=UserOut, response_model_by_alias=False)
 async def login(body: LoginInput, request: Request, response: Response):
     email = body.email.lower().strip()
-    identifier = f"{request.client.host if request.client else 'unknown'}:{email}"
+    client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown").split(",")[0].strip()
+    identifier = f"{client_ip}:{email}"
     await check_lockout(identifier)
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(body.password, user["password_hash"]):
