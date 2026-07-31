@@ -19,10 +19,11 @@ from app.repositories import (
     booking_repository,
     invoice_repository,
     login_attempt_repository,
+    review_repository,
     service_repository,
     user_repository,
 )
-from app.routers import auth, availability, bookings, dashboard, dev, earnings, health, invoices, providers, services
+from app.routers import auth, availability, bookings, dashboard, dev, earnings, health, invoices, providers, reviews, services
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
     api.include_router(bookings.router)
     api.include_router(invoices.router)
     api.include_router(earnings.router)
+    api.include_router(reviews.router)
     api.include_router(dev.router)
     api.include_router(dashboard.router)
     app.include_router(api)
@@ -61,6 +63,7 @@ def create_app() -> FastAPI:
         await availability_repository.ensure_indexes()
         await booking_repository.ensure_indexes()
         await invoice_repository.ensure_indexes()
+        await review_repository.ensure_indexes()
 
     @app.on_event("shutdown")
     async def _shutdown():

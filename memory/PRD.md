@@ -82,7 +82,7 @@ Provider portal is the **only active build**. All other work is deferred until p
 | 3 | Weekly Availability + Travel Zones (radius / pincodes) | ✅ Built |
 | 4 | Bookings Inbox + state machine + **seed mock bookings** | ✅ Built |
 | 5 | Earnings summary + Invoices (printable HTML + PDF download) | ✅ Built |
-| 6 | Reviews (read-only list + rating breakdown + seed) | ⏳ Next |
+| 6 | Reviews (read-only list + rating breakdown + seed) | ✅ Built |
 | 5 | Earnings summary + Invoices (printable HTML + PDF download) | Planned |
 | 6 | Reviews (read-only list + rating breakdown + seed) | Planned |
 
@@ -99,7 +99,7 @@ Demo-ready upgrades to add during the remaining provider checkpoints: active ser
 | Provider availability | Built |
 | Provider bookings | Built |
 | Provider earnings / invoices | Built |
-| Provider reviews | Planned (Checkpoint 6) |
+| Provider reviews | Built |
 | Provider earnings / invoices | Planned (Checkpoint 5) |
 | Provider reviews | Planned (Checkpoint 6) |
 | Client portal | Not built |

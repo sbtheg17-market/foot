@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 
 from app.core.constants import BookingStatus
-from app.repositories import booking_repository, invoice_repository, service_repository
+from app.repositories import booking_repository, invoice_repository, review_repository, service_repository
 from app.services import invoice_service
 
 
@@ -112,6 +112,8 @@ async def _provider_services(provider_id: ObjectId) -> list[dict]:
 
 async def seed_bookings_for_provider(user: dict) -> int:
     provider_id: ObjectId = user["_id"]
+    await review_repository.delete_seeded(provider_id)
+    await invoice_repository.delete_seeded(provider_id)
     await booking_repository.delete_seeded(provider_id)
 
     services = await _provider_services(provider_id)
@@ -174,9 +176,41 @@ async def seed_bookings_for_provider(user: dict) -> int:
         if doc["status"] == BookingStatus.COMPLETED.value:
             await invoice_service.create_from_completed_booking(doc, is_seed=True)
 
+    # Seed reviews tied to each completed booking (verified) so the trust loop
+    # is visible before the client portal exists.
+    review_docs: list[dict] = []
+    review_i = 0
+    for doc in docs:
+        if doc["status"] != BookingStatus.COMPLETED.value:
+            continue
+        rating, comment = REVIEW_TEMPLATES[review_i % len(REVIEW_TEMPLATES)]
+        review_docs.append({
+            "provider_id": provider_id,
+            "booking_id": doc["_id"],
+            "client_name": doc["client"]["name"],
+            "rating": rating,
+            "comment": comment,
+            "is_verified": True,
+            "is_seed": True,
+            "created_at": doc.get("updated_at") or doc["scheduled_at"],
+        })
+        review_i += 1
+    if review_docs:
+        await review_repository.insert_many(review_docs)
+
     return len(inserted)
 
 
 async def clear_seeded_bookings(provider_id: ObjectId) -> int:
+    await review_repository.delete_seeded(provider_id)
     await invoice_repository.delete_seeded(provider_id)
     return await booking_repository.delete_seeded(provider_id)
+
+
+REVIEW_TEMPLATES: list[tuple[int, str]] = [
+    (5, "Kind, patient, and thorough. Explained everything and worked with my mother's pace."),
+    (5, "Punctual, professional, and gentle. Best foot care visit we've ever had at home."),
+    (4, "Great service overall. Would have appreciated a bit more time discussing follow-up care."),
+    (5, "Highly recommend. My father actually looks forward to the visits now."),
+    (5, "Amazing bedside manner. Careful, clean, and made everyone feel comfortable."),
+]

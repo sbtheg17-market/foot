@@ -1,7 +1,7 @@
 """Provider dashboard summary composer: profile completion + verification hint."""
 from bson import ObjectId
 
-from app.services import availability_service, booking_service, catalog_service, earnings_service
+from app.services import availability_service, booking_service, catalog_service, earnings_service, review_service
 
 from app.core.constants import DEFAULT_CURRENCY
 
@@ -41,6 +41,7 @@ async def build_provider_summary(user: dict) -> dict:
     upcoming_bookings = await booking_service.count_upcoming(provider_id)
     next_confirmed = await booking_service.get_next_confirmed(provider_id)
     earnings_week = await earnings_service.week_total_cents(provider_id)
+    reviews = await review_service.get_summary(provider_id)
 
     done = 0
     missing: list[dict] = []
@@ -71,6 +72,7 @@ async def build_provider_summary(user: dict) -> dict:
         "has_availability": has_availability,
         "has_travel_zone": has_travel,
         "next_visit": next_visit,
+        "reviews": {"average": reviews["average"], "count": reviews["count"]},
         "profile_completion": {
             "percent": percent,
             "done": done,

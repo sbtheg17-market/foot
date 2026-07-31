@@ -149,10 +149,17 @@ export default function Home() {
           <div className="h-11 w-11 rounded-xl bg-secondary flex items-center justify-center text-primary shrink-0">
             <Star size={20} />
           </div>
-          <div>
+          <Link to={ROUTES.provider.reviews} className="flex-1 min-w-0" data-testid="home-reviews-link">
             <p className="font-semibold text-foreground">Reviews</p>
-            <p className="text-sm text-muted-foreground">Client reviews will appear here once you complete bookings.</p>
-          </div>
+            {summary?.reviews?.count > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {summary.reviews.average.toFixed(1)} · {summary.reviews.count} verified review{summary.reviews.count === 1 ? "" : "s"}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Client reviews will appear here once you complete bookings.</p>
+            )}
+          </Link>
+          <ChevronRight size={18} className="text-muted-foreground shrink-0" />
         </section>
       </main>
 
