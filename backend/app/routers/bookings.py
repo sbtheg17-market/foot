@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from app.core.permissions import Permission, require_permission
-from app.models.booking import BookingOut, BookingStatusUpdate
+from app.models.booking import BookingNotesUpdate, BookingOut, BookingStatusUpdate
 from app.services import booking_service
 
 
@@ -34,4 +34,14 @@ async def update_status(
     user: dict = Depends(require_permission(Permission.BOOKING_UPDATE_SELF)),
 ):
     doc = await booking_service.update_status(booking_id, user["_id"], body.status, body.reason)
+    return BookingOut(**doc)
+
+
+@router.patch("/{booking_id}/notes", response_model=BookingOut, response_model_by_alias=False)
+async def update_notes(
+    booking_id: str,
+    body: BookingNotesUpdate,
+    user: dict = Depends(require_permission(Permission.BOOKING_UPDATE_SELF)),
+):
+    doc = await booking_service.update_notes(booking_id, user["_id"], body.provider_notes)
     return BookingOut(**doc)

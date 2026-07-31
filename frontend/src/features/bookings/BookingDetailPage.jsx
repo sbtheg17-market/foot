@@ -6,6 +6,7 @@ import { ROUTES } from "../../lib/routes";
 import { formatApiErrorDetail } from "../../lib/api";
 import { formatBookingDateTime, formatMoney } from "../../lib/format";
 import { StatusChip, BOOKING_STATUS_LABEL } from "./StatusChip";
+import { BookingNotes } from "./BookingNotes";
 import { useBooking, useUpdateBookingStatus } from "./hooks";
 
 const ACTIONS_BY_STATUS = {
@@ -203,6 +204,8 @@ export default function BookingDetailPage() {
                 ))}
               </ol>
             </section>
+
+            {b.status === "completed" && <BookingNotes booking={b} />}
           </>
         )}
       </main>

@@ -18,6 +18,7 @@ export const ROUTES = {
     bookingDetail: (id) => `/provider/bookings/${id}`,
     earnings: "/provider/earnings",
     invoices: "/provider/invoices",
+    invoiceDetail: (id) => `/provider/invoices/${id}`,
     reviews: "/provider/reviews",
     profile: "/provider/profile",
     settings: "/provider/settings",

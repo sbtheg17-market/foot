@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Award, LogOut, Mail } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
+import { ReseedButton } from "../features/dev/ReseedButton";
 import { ROUTES } from "../lib/routes";
 
 export default function Profile() {
@@ -69,6 +70,18 @@ export default function Profile() {
         >
           <LogOut size={18} className="mr-2" /> Sign out
         </Button>
+
+        <section className="rounded-2xl bg-card border border-black/5 p-6 space-y-3" data-testid="profile-demo-tools">
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground mb-1">
+              Demo tools
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Reset the inbox to a fresh, believable state for a live pitch.
+            </p>
+          </div>
+          <ReseedButton />
+        </section>
       </main>
     </>
   );

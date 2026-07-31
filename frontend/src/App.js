@@ -16,6 +16,9 @@ import ServicesPage from "@/features/services/ServicesPage";
 import AvailabilityPage from "@/features/availability/AvailabilityPage";
 import BookingsPage from "@/features/bookings/BookingsPage";
 import BookingDetailPage from "@/features/bookings/BookingDetailPage";
+import EarningsPage from "@/features/earnings/EarningsPage";
+import InvoicesPage from "@/features/invoices/InvoicesPage";
+import InvoiceDetailPage from "@/features/invoices/InvoiceDetailPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,7 +60,9 @@ function App() {
               <Route path={ROUTES.provider.availability} element={<AvailabilityPage />} />
               <Route path={ROUTES.provider.bookings} element={<BookingsPage />} />
               <Route path="/provider/bookings/:id" element={<BookingDetailPage />} />
-              <Route path={ROUTES.provider.earnings} element={<ComingSoon title="Earnings" checkpoint={5} />} />
+              <Route path={ROUTES.provider.earnings} element={<EarningsPage />} />
+              <Route path={ROUTES.provider.invoices} element={<InvoicesPage />} />
+              <Route path="/provider/invoices/:id" element={<InvoiceDetailPage />} />
               <Route path={ROUTES.provider.profile} element={<Profile />} />
             </Route>
 

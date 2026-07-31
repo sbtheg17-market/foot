@@ -12,7 +12,8 @@ from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 
 from app.core.constants import BookingStatus
-from app.repositories import booking_repository, service_repository
+from app.repositories import booking_repository, invoice_repository, service_repository
+from app.services import invoice_service
 
 
 FAKE_CLIENTS = [
@@ -139,6 +140,11 @@ async def seed_bookings_for_provider(user: dict) -> int:
             "scheduled_at": scheduled.isoformat(),
             "status": status,
             "notes": NOTES[i % len(NOTES)],
+            "provider_notes": (
+                "Client tolerated visit well. Vitals stable, no concerns to escalate."
+                if status == BookingStatus.COMPLETED.value and i % 2 == 0
+                else ""
+            ),
             "status_history": _status_history(status, created_iso, updated_iso),
             "is_seed": True,
             "created_at": created_iso,
@@ -163,8 +169,14 @@ async def seed_bookings_for_provider(user: dict) -> int:
                 )
                 break
 
+    # Auto-invoice all seeded completed bookings so Earnings + Invoices demo instantly.
+    for doc in docs:
+        if doc["status"] == BookingStatus.COMPLETED.value:
+            await invoice_service.create_from_completed_booking(doc, is_seed=True)
+
     return len(inserted)
 
 
 async def clear_seeded_bookings(provider_id: ObjectId) -> int:
+    await invoice_repository.delete_seeded(provider_id)
     return await booking_repository.delete_seeded(provider_id)

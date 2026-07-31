@@ -9,7 +9,8 @@ class Collections:
     SERVICES = "services"
     AVAILABILITY = "availability"
     BOOKINGS = "bookings"
-    # Future: invoices, reviews, travel_zones,
+    INVOICES = "invoices"
+    # Future: reviews, travel_zones,
     # verification_submissions, plans, subscriptions, commission_rules,
     # featured_slots, payout_records, audit_logs
 

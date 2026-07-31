@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { useBookings, useSeedBookings } from "./hooks";
 import { BookingCard } from "./BookingCard";
+import { TodayTimeline } from "./TodayTimeline";
 import { formatBookingDate, isBookingToday } from "../../lib/format";
 
 const TABS = [
@@ -180,6 +181,10 @@ export default function BookingsPage() {
       </header>
 
       <main className="px-5 py-6 space-y-4" data-testid="bookings-page">
+        {tab === "upcoming" && filter === "all" && data && (
+          <TodayTimeline bookings={data} />
+        )}
+
         {isLoading && (
           <>
             <SkeletonCard />

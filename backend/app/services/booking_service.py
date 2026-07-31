@@ -74,6 +74,31 @@ async def update_status(booking_id: str, provider_id: ObjectId, target: str, rea
     updated = await booking_repository.update_status(_to_object_id(booking_id), provider_id, target, entry)
     if not updated:
         raise HTTPException(status_code=404, detail="Booking not found")
+
+    # Auto-create invoice when a booking completes.
+    if target == BookingStatus.COMPLETED.value:
+        from app.services import invoice_service  # local import avoids cycle
+        await invoice_service.create_from_completed_booking(updated)
+
+    return updated
+
+
+async def update_notes(booking_id: str, provider_id: ObjectId, provider_notes: str) -> dict:
+    doc = await get_booking(booking_id, provider_id)
+    if doc.get("status") != BookingStatus.COMPLETED.value:
+        raise HTTPException(
+            status_code=400,
+            detail="Private notes can only be edited on completed bookings",
+        )
+    from datetime import datetime as _dt
+    now = _dt.now(timezone.utc).isoformat()
+    updated = await booking_repository._coll.find_one_and_update(
+        {"_id": _to_object_id(booking_id), "provider_id": provider_id},
+        {"$set": {"provider_notes": provider_notes.strip(), "updated_at": now}},
+        return_document=True,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Booking not found")
     return updated
 
 

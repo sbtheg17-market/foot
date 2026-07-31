@@ -39,6 +39,7 @@ class BookingOut(BaseModel):
     scheduled_at: str
     status: str
     notes: str = ""
+    provider_notes: str = ""
     status_history: List[StatusHistoryEntry] = []
     created_at: str
     updated_at: str
@@ -49,3 +50,7 @@ class BookingOut(BaseModel):
 class BookingStatusUpdate(BaseModel):
     status: str
     reason: Optional[str] = None
+
+
+class BookingNotesUpdate(BaseModel):
+    provider_notes: str = Field(max_length=4000)
