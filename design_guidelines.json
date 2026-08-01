@@ -1,0 +1,153 @@
+{
+  "theme": "light",
+  "typography": {
+    "heading_font": "Outfit",
+    "body_font": "DM Sans",
+    "notes": "Font MUST NOT be Inter or Roboto. Outfit provides a premium, calm, and friendly appearance for headings. DM Sans offers exceptional legibility for senior users. Both fonts should be imported via Google Fonts."
+  },
+  "colors": {
+    "background": "#F9FBF9",
+    "surface": "#FFFFFF",
+    "primary": {
+      "DEFAULT": "#2C4C3B",
+      "light": "#4A7059",
+      "dark": "#1E3F20"
+    },
+    "secondary": {
+      "DEFAULT": "#8A9A86",
+      "light": "#E9EFE8"
+    },
+    "accent": {
+      "DEFAULT": "#C08261",
+      "light": "#D4A373"
+    },
+    "text": {
+      "primary": "#111827",
+      "secondary": "#4B5563",
+      "muted": "#9CA3AF"
+    },
+    "status": {
+      "success_bg": "#D1FAE5",
+      "success_text": "#065F46",
+      "warning_bg": "#FEF3C7",
+      "warning_text": "#92400E",
+      "error_bg": "#FEE2E2",
+      "error_text": "#991B1B",
+      "info_bg": "#DBEAFE",
+      "info_text": "#1E40AF"
+    }
+  },
+  "general_ui_ux": {
+    "mobile_first": true,
+    "senior_friendly": true,
+    "tap_targets": "Minimum 48px height for all interactive elements (buttons, inputs, list items) to ensure senior-friendliness.",
+    "spacing": "Generous spacing. Use p-6 or p-8 for cards instead of default p-4. Wide gaps (gap-6, gap-8) between sections.",
+    "borders_and_shadows": "Soft clay/neumorphic feel. Use rounded-2xl or rounded-3xl for cards and buttons. Shadows should be soft (shadow-sm or shadow-md with low opacity).",
+    "testing": "All interactive and key informational elements MUST include a `data-testid` attribute."
+  },
+  "component_patterns": {
+    "status_badges": {
+      "shape": "rounded-full (pill)",
+      "padding": "px-3 py-1",
+      "typography": "text-xs font-medium tracking-wide uppercase",
+      "mapping": {
+        "requested/pending": "bg-amber-100 text-amber-800",
+        "accepted/completed/approved": "bg-emerald-100 text-emerald-800",
+        "declined/rejected": "bg-rose-100 text-rose-800"
+      }
+    },
+    "trust_badges": {
+      "verified": "Green check icon with a soft green background or inside a shield, placed prominently next to provider names."
+    },
+    "provider_cards": {
+      "layout": "Flex column, large high-quality avatar, verification badge, name, rating, city. Services offered listed as subtle tags.",
+      "spacing": "p-6 gap-4"
+    },
+    "plan_badges": {
+      "free": "bg-gray-100 text-gray-700",
+      "pro": "bg-blue-100 text-blue-800",
+      "premium": "bg-accent-light/20 text-accent-dark"
+    },
+    "time_picker": {
+      "layout": "Horizontal scroll for dates (large hit areas for days). Grid layout for time slots. Disabled states for blocked dates must be visually distinct but not totally hidden.",
+      "lead_time": "Visually indicate if slots are unavailable due to minimum lead hours."
+    }
+  },
+  "screens_blueprints": {
+    "client_landing": {
+      "hero": "Calm spa background image with a welcoming, large-typography headline. Search input with filters (city, category).",
+      "filters": "Pill-based horizontal scroll for 'Senior-Friendly', 'Verified', 'Top Rated'.",
+      "list": "Grid of Provider Cards (1 col mobile, 2-3 col desktop)."
+    },
+    "provider_profile": {
+      "header": "Cover image with overlapping Provider Avatar.",
+      "info": "Name, Verification Badge, Bio, Location.",
+      "services": "List of services with clear pricing and duration.",
+      "booking": "Availability-aware time picker. On mobile, 'Book Now' should be a sticky bottom bar."
+    },
+    "client_bookings_history": {
+      "layout": "List of booking cards. Each card shows provider, service, date, time, and prominent consistent Status Badge."
+    },
+    "provider_dashboard": {
+      "monetization": "Earnings widget prominently placed. Must show explicit breakdown: GMV, Platform Fee (Commission), and Provider Net Amount.",
+      "bookings": "List of requested bookings with large 'Accept' and 'Decline' actions.",
+      "availability": "Editor for weekly hours and a calendar view to manage blocked dates.",
+      "plan": "Card showing current plan tier (Free/Pro/Premium) with an upgrade CTA."
+    },
+    "admin_verification_queue": {
+      "layout": "Data-dense table or list of providers awaiting verification. Clicking opens a side panel or modal to review documents.",
+      "actions": "Large Approve/Reject buttons. Status badges matching the global system."
+    },
+    "admin_revenue_dashboard": {
+      "stats": "Top cards showing Total Bookings, GMV, Commission Revenue. Toggle between Weekly/Daily views.",
+      "table": "List of providers with a toggle switch for 'listing_active'."
+    }
+  },
+  "media": {
+    "images": {
+      "hero_background": {
+        "url": "https://images.unsplash.com/photo-1567016376408-0226e4d0c1ea?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAxODF8MHwxfHNlYXJjaHwxfHxjbGVhbiUyMG1pbmltYWwlMjBzcGElMjBpbnRlcmlvcnxlbnwwfHx8fDE3ODU1NTQzODB8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Clean minimal spa interior, perfect for welcoming client landing page hero."
+      },
+      "service_massage": {
+        "url": "https://images.unsplash.com/photo-1741522509407-41cfe73b0b75?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODR8MHwxfHNlYXJjaHwxfHxzZW5pb3IlMjBtYXNzYWdlJTIwdGhlcmFweSUyMGhvbWV8ZW58MHx8fHwxNzg1NTU0MzgwfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Senior massage therapy at home, representing the core service."
+      },
+      "service_pedicure": {
+        "url": "https://images.pexels.com/photos/34930123/pexels-photo-34930123.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Professional pedicure treatment for service cards."
+      },
+      "provider_avatar_1": {
+        "url": "https://images.unsplash.com/photo-1594743795047-2ecc81153a5c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHw0fHx3ZWxsbmVzcyUyMHRoZXJhcGlzdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc4NTU1NDM4MHww&ixlib=rb-4.1.0&q=85",
+        "description": "Warm, professional portrait for provider."
+      },
+      "provider_avatar_2": {
+        "url": "https://images.unsplash.com/photo-1592621385612-4d7129426394?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwxfHx3ZWxsbmVzcyUyMHRoZXJhcGlzdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc4NTU1NDM4MHww&ixlib=rb-4.1.0&q=85",
+        "description": "Calm wellness therapist portrait."
+      }
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the color palette. Do not use generic tailwind blue/purple gradients.",
+    "Import Outfit and DM Sans fonts from Google Fonts and apply them in tailwind.config.js.",
+    "Ensure the application structure matches the existing artifacts/solecare shells if present, preserving layout continuity.",
+    "All buttons, list items, and clickable cards must have a minimum height of 48px to meet senior-friendly accessibility guidelines.",
+    "Implement consistent `data-testid` tags on all interactive elements across the application.",
+    "Use Lucide icons for UI elements, ensuring clear visual metaphors for seniors.",
+    "Create a provider monetization widget that explicitly displays Commission Rate, Platform Fee, and Net Amount clearly.",
+    "Adhere to mobile-first principles: prioritize single-column scrollable layouts on small screens, leveraging sticky footers for primary CTAs like 'Book Now'."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": {
+    "design": [
+      "Avoid generic AI-slop layouts. Create depth with soft layered shadows and z-index hierarchy.",
+      "Use glass-morphism effects with backdrop filters (12-24px blur) only where it enhances readability (e.g., sticky headers). DO NOT use fully transparent backgrounds where content can clash.",
+      "DO NOT apply universal transition (e.g., transition: all). Add transitions to specific properties to avoid breaking transforms.",
+      "DO NOT center align the app container (.App { text-align: center; }). Maintain natural reading flow (left-aligned for most content)."
+    ],
+    "components": [
+      "Prioritize existing components from src/components/ui. Customize Shadcn UI to fit the soft wellness theme (rounded-2xl borders, softer shadows).",
+      "Use sonner for toast notifications, maintaining the soft green/red palette for success/error.",
+      "Never use emoji characters like 🤖🧠 for icons. Use proper SVG icons (Lucide React)."
+    ]
+  }
+}
