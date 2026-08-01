@@ -1,53 +1,38 @@
 import { useEffect } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Toaster } from "sonner";
 import axios from "axios";
-import { HOME } from "@/constants/testIds";
+
+import Shell from "@/components/Shell";
+import ClientHome from "@/pages/ClientHome";
+import ProviderProfile from "@/pages/ProviderProfile";
+import ClientBookings from "@/pages/ClientBookings";
+import ProviderDashboard from "@/pages/ProviderDashboard";
+import AdminPortal from "@/pages/AdminPortal";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
+function App() {
   useEffect(() => {
-    helloWorldApi();
+    // Warm the API so first-time visits feel snappy.
+    axios.get(`${API}/`).catch(() => {});
   }, []);
 
   return (
-    <div>
-      <header className="App-header">
-        <a
-          data-testid={HOME.emergentLink}
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
-
-function App() {
-  return (
     <div className="App">
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
+        <Shell>
+          <Routes>
+            <Route path="/" element={<ClientHome />} />
+            <Route path="/providers/:providerId" element={<ProviderProfile />} />
+            <Route path="/bookings" element={<ClientBookings />} />
+            <Route path="/provider" element={<ProviderDashboard />} />
+            <Route path="/admin" element={<AdminPortal />} />
+          </Routes>
+        </Shell>
+        <Toaster position="top-right" richColors closeButton />
       </BrowserRouter>
     </div>
   );
