@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { getProvider, listServices, getAvailability, createBooking, cents } from "../lib/api";
+import { getProvider, listServices, getAvailability, createBooking, listReviews, cents } from "../lib/api";
 import { PROFILE } from "../constants/testIds";
 import PlanBadge from "../components/PlanBadge";
 import { LoadingBlock, ErrorBlock } from "../components/States";
@@ -19,6 +19,45 @@ function formatSlot(iso) {
 function formatDay(iso) {
   const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+function ReviewsSection({ providerId }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["reviews", providerId],
+    queryFn: () => listReviews(providerId),
+  });
+  if (isLoading) return null;
+  if (!data || data.length === 0) {
+    return (
+      <section data-testid="provider-reviews" className="rounded-3xl border border-border bg-card p-6 soft-shadow">
+        <h2 className="font-heading text-base md:text-lg font-semibold">Reviews</h2>
+        <p className="mt-2 text-sm text-muted-foreground">No reviews yet — be the first to book.</p>
+      </section>
+    );
+  }
+  return (
+    <section data-testid="provider-reviews" className="rounded-3xl border border-border bg-card p-6 soft-shadow">
+      <div className="flex items-center justify-between">
+        <h2 className="font-heading text-base md:text-lg font-semibold">Reviews ({data.length})</h2>
+      </div>
+      <div className="mt-4 space-y-4">
+        {data.map((r) => (
+          <div key={r.id} data-testid={`review-${r.id}`} className="border-b border-border last:border-b-0 pb-4 last:pb-0">
+            <div className="flex items-center gap-2">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Star key={n} className={`h-4 w-4 ${n <= r.rating ? "fill-amber-500 text-amber-500" : "text-muted-foreground/40"}`} />
+                ))}
+              </div>
+              <span className="text-sm font-medium">{r.client_name}</span>
+              <span className="text-xs text-muted-foreground ml-auto">{new Date(r.created_at).toLocaleDateString()}</span>
+            </div>
+            {r.comment && <p className="mt-2 text-sm text-muted-foreground">{r.comment}</p>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export default function ProviderProfile() {
@@ -134,6 +173,8 @@ export default function ProviderProfile() {
               ))}
             </div>
           </section>
+
+          <ReviewsSection providerId={providerId} />
 
           <section data-testid={PROFILE.services} className="rounded-3xl border border-border bg-card p-6 soft-shadow">
             <h2 className="font-heading text-base md:text-lg font-semibold">Services</h2>

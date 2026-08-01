@@ -25,7 +25,10 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from starlette.middleware.cors import CORSMiddleware
 
+from emails import review_request_html, send_email
 from opportunities import compute_opportunities
+from plans import PLAN_CONFIG, PLAN_ORDER, commission_rate_for, plan_by_lookup_key, price_lookup_for
+from reminders import process_reminders
 from sms import booking_accepted_message, booking_requested_message, send_sms
 from storage_client import init_storage, upload_provider_doc
 
@@ -104,6 +107,8 @@ class Provider(BaseModel):
     travel_zone: TravelZone
     owner_email: Optional[str] = None
     owner_user_id: Optional[str] = None
+    stripe_account_id: Optional[str] = None  # Stripe Connect (payouts)
+    stripe_subscription_id: Optional[str] = None
     created_at: str = Field(default_factory=_now_iso)
 
 
@@ -443,7 +448,8 @@ async def create_booking(payload: BookingCreate, user: dict | None = Depends(cur
         raise HTTPException(409, "This time slot has already been booked")
 
     gmv = int(service["price_cents"])
-    rate = float(provider.get("commission_rate", 0.15))
+    # Commission derives from the provider's plan (single source of truth).
+    rate = commission_rate_for(provider.get("plan", "free"))
     platform_fee = round(gmv * rate)
     net = gmv - platform_fee
 
@@ -469,7 +475,7 @@ async def create_booking(payload: BookingCreate, user: dict | None = Depends(cur
     checkout_url = None
     session_id = None
     try:
-        session = stripe.checkout.Session.create(
+        session_kwargs = dict(
             mode="payment",
             line_items=[{
                 "price_data": {
@@ -489,8 +495,17 @@ async def create_booking(payload: BookingCreate, user: dict | None = Depends(cur
                 "provider_id": provider["id"],
                 "service_id": service["id"],
                 "commission_rate": str(rate),
+                "plan": provider.get("plan", "free"),
+                "kind": "booking",
             },
         )
+        # If the provider has completed Stripe Connect, route the payout directly.
+        if provider.get("stripe_account_id"):
+            session_kwargs["payment_intent_data"] = {
+                "application_fee_amount": platform_fee,
+                "transfer_data": {"destination": provider["stripe_account_id"]},
+            }
+        session = stripe.checkout.Session.create(**session_kwargs)
         checkout_url = session.url
         session_id = session.id
         booking.stripe_session_id = session_id
@@ -599,11 +614,17 @@ async def payment_status(session_id: str):
         except stripe.error.StripeError as e:  # noqa
             logger.error(f"Stripe status poll error: {e}")
     booking = await db.bookings.find_one({"stripe_session_id": session_id}, {"_id": 0})
+    provider = None
+    if record.get("kind") == "plan_upgrade" and record.get("provider_id"):
+        provider = await db.providers.find_one({"id": record["provider_id"]}, {"_id": 0})
     return {
         "session_id": record["session_id"],
         "status": record["status"],
         "payment_status": record["payment_status"],
+        "kind": record.get("kind", "booking"),
+        "plan": record.get("plan"),
         "booking": booking,
+        "provider": provider,
     }
 
 
@@ -619,19 +640,23 @@ async def stripe_webhook(request: Request):
     t = event["type"]
     obj = event["data"]["object"]
     if t == "checkout.session.completed":
-        await db.payment_transactions.update_one(
-            {"session_id": obj["id"], "payment_status": {"$ne": "paid"}},
-            {"$set": {
-                "status": "completed",
-                "payment_status": obj.get("payment_status", "paid"),
-                "stripe_payment_intent_id": obj.get("payment_intent"),
-                "updated_at": _now_iso(),
-            }},
-        )
-        await db.bookings.update_one(
-            {"stripe_session_id": obj["id"]},
-            {"$set": {"payment_status": "paid"}},
-        )
+        meta = obj.get("metadata") or {}
+        if meta.get("kind") == "plan_upgrade":
+            await _apply_plan_upgrade(meta.get("provider_id"), meta.get("plan"), obj.get("subscription"))
+        else:
+            await db.payment_transactions.update_one(
+                {"session_id": obj["id"], "payment_status": {"$ne": "paid"}},
+                {"$set": {
+                    "status": "completed",
+                    "payment_status": obj.get("payment_status", "paid"),
+                    "stripe_payment_intent_id": obj.get("payment_intent"),
+                    "updated_at": _now_iso(),
+                }},
+            )
+            await db.bookings.update_one(
+                {"stripe_session_id": obj["id"]},
+                {"$set": {"payment_status": "paid"}},
+            )
     elif t == "checkout.session.expired":
         await db.payment_transactions.update_one(
             {"session_id": obj["id"]},
@@ -641,7 +666,27 @@ async def stripe_webhook(request: Request):
             {"stripe_session_id": obj["id"]},
             {"$set": {"payment_status": "cancelled"}},
         )
+    elif t in ("customer.subscription.deleted", "customer.subscription.updated"):
+        sub_id = obj.get("id")
+        if sub_id and obj.get("status") in ("canceled", "unpaid", "incomplete_expired"):
+            await db.providers.update_one(
+                {"stripe_subscription_id": sub_id},
+                {"$set": {"plan": "free", "commission_rate": commission_rate_for("free"), "stripe_subscription_id": None}},
+            )
     return {"status": "ok"}
+
+
+async def _apply_plan_upgrade(provider_id: Optional[str], plan: Optional[str], subscription_id: Optional[str]) -> None:
+    if not provider_id or plan not in PLAN_CONFIG:
+        return
+    await db.providers.update_one(
+        {"id": provider_id},
+        {"$set": {
+            "plan": plan,
+            "commission_rate": commission_rate_for(plan),
+            "stripe_subscription_id": subscription_id,
+        }},
+    )
 
 
 # --- provider self-management -----------------------------------------------
@@ -841,6 +886,190 @@ async def admin_revenue(
         },
         "series": [{"period": k, **v} for k, v in buckets.items()],
     }
+
+
+# --- reviews ----------------------------------------------------------------
+class ReviewCreate(BaseModel):
+    booking_id: str
+    rating: int = Field(ge=1, le=5)
+    comment: str = ""
+
+
+@api.post("/reviews")
+async def create_review(payload: ReviewCreate, user: dict = Depends(require_user)):
+    booking = await db.bookings.find_one({"id": payload.booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    if booking["client_email"].lower() != user["email"].lower() and booking.get("client_user_id") != user["user_id"]:
+        raise HTTPException(403, "Only the client on this booking can leave a review")
+    if booking["status"] != "completed":
+        raise HTTPException(400, "You can review a booking after it's completed")
+    if await db.reviews.find_one({"booking_id": payload.booking_id}):
+        raise HTTPException(409, "You already reviewed this booking")
+
+    review = {
+        "id": _uid(),
+        "booking_id": payload.booking_id,
+        "provider_id": booking["provider_id"],
+        "client_name": booking["client_name"],
+        "client_user_id": user["user_id"],
+        "rating": payload.rating,
+        "comment": payload.comment,
+        "created_at": _now_iso(),
+    }
+    await db.reviews.insert_one(review)
+    review.pop("_id", None)
+
+    # Recompute provider's aggregate rating.
+    reviews = await db.reviews.find({"provider_id": booking["provider_id"]}, {"_id": 0}).to_list(1000)
+    total = sum(int(r["rating"]) for r in reviews)
+    n = len(reviews)
+    await db.providers.update_one(
+        {"id": booking["provider_id"]},
+        {"$set": {"rating": round(total / n, 2) if n else 0, "reviews_count": n}},
+    )
+    return review
+
+
+@api.get("/providers/{provider_id}/reviews")
+async def list_reviews(provider_id: str) -> List[dict]:
+    return await db.reviews.find({"provider_id": provider_id}, {"_id": 0}).sort("created_at", -1).to_list(200)
+
+
+@api.get("/bookings/{booking_id}/review")
+async def get_review_for_booking(booking_id: str) -> dict:
+    r = await db.reviews.find_one({"booking_id": booking_id}, {"_id": 0})
+    return {"review": r}
+
+
+# --- Stripe Connect (provider payouts) --------------------------------------
+class ConnectOnboardRequest(BaseModel):
+    origin_url: str
+
+
+@api.post("/provider/{provider_id}/connect/onboard")
+async def connect_onboard(provider_id: str, payload: ConnectOnboardRequest, user: dict = Depends(require_user)):
+    provider = await db.providers.find_one({"id": provider_id}, {"_id": 0})
+    if not provider:
+        raise HTTPException(404, "Provider not found")
+    if user.get("role") != "admin" and provider.get("owner_user_id") != user["user_id"]:
+        raise HTTPException(403, "You can only onboard your own provider account")
+
+    origin = payload.origin_url.rstrip("/")
+    try:
+        acct_id = provider.get("stripe_account_id")
+        if not acct_id:
+            acct = stripe.Account.create(
+                type="express",
+                email=provider.get("owner_email"),
+                capabilities={"card_payments": {"requested": True}, "transfers": {"requested": True}},
+                metadata={"provider_id": provider_id},
+            )
+            acct_id = acct.id
+            await db.providers.update_one({"id": provider_id}, {"$set": {"stripe_account_id": acct_id}})
+        link = stripe.AccountLink.create(
+            account=acct_id,
+            refresh_url=f"{origin}/provider?connect=refresh",
+            return_url=f"{origin}/provider?connect=complete",
+            type="account_onboarding",
+        )
+        return {"stripe_account_id": acct_id, "onboarding_url": link.url}
+    except stripe.error.StripeError as e:  # noqa
+        logger.error(f"Connect onboard error: {e}")
+        raise HTTPException(500, "Could not start payout onboarding")
+
+
+@api.get("/provider/{provider_id}/connect/status")
+async def connect_status(provider_id: str):
+    provider = await db.providers.find_one({"id": provider_id}, {"_id": 0})
+    if not provider:
+        raise HTTPException(404, "Provider not found")
+    acct_id = provider.get("stripe_account_id")
+    if not acct_id:
+        return {"connected": False, "payouts_enabled": False, "details_submitted": False}
+    try:
+        acct = stripe.Account.retrieve(acct_id)
+        return {
+            "connected": True,
+            "stripe_account_id": acct_id,
+            "payouts_enabled": bool(acct.payouts_enabled),
+            "details_submitted": bool(acct.details_submitted),
+            "charges_enabled": bool(acct.charges_enabled),
+        }
+    except stripe.error.StripeError as e:  # noqa
+        logger.error(f"Connect status error: {e}")
+        return {"connected": True, "stripe_account_id": acct_id, "payouts_enabled": False, "details_submitted": False, "error": str(e)}
+
+
+# --- Plan upgrades (Stripe subscriptions) -----------------------------------
+class PlanCheckoutRequest(BaseModel):
+    plan: Literal["pro", "premium"]
+    origin_url: str
+
+
+@api.get("/plans")
+async def get_plans():
+    return {"plans": PLAN_CONFIG}
+
+
+@api.post("/provider/{provider_id}/plan/checkout")
+async def plan_checkout(provider_id: str, payload: PlanCheckoutRequest, user: dict = Depends(require_user)):
+    provider = await db.providers.find_one({"id": provider_id}, {"_id": 0})
+    if not provider:
+        raise HTTPException(404, "Provider not found")
+    if user.get("role") != "admin" and provider.get("owner_user_id") != user["user_id"]:
+        raise HTTPException(403, "Only the provider owner can change their plan")
+
+    lookup = price_lookup_for(payload.plan)
+    if not lookup:
+        raise HTTPException(400, "Plan is not available for subscription")
+    prices = stripe.Price.list(lookup_keys=[lookup], active=True, limit=1).data
+    if not prices:
+        raise HTTPException(500, f"Stripe price not found for {payload.plan} — run setup_stripe.py")
+
+    origin = payload.origin_url.rstrip("/")
+    session = stripe.checkout.Session.create(
+        mode="subscription",
+        line_items=[{"price": prices[0].id, "quantity": 1}],
+        success_url=f"{origin}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{origin}/provider?upgrade=cancelled",
+        client_reference_id=provider_id,
+        customer_email=provider.get("owner_email") or user.get("email"),
+        metadata={
+            "kind": "plan_upgrade",
+            "provider_id": provider_id,
+            "plan": payload.plan,
+        },
+    )
+    await db.payment_transactions.insert_one({
+        "session_id": session.id,
+        "kind": "plan_upgrade",
+        "provider_id": provider_id,
+        "plan": payload.plan,
+        "amount": PLAN_CONFIG[payload.plan]["monthly_price_cents"],
+        "currency": "usd",
+        "status": "initiated",
+        "payment_status": "pending",
+        "created_at": _now_iso(),
+        "updated_at": _now_iso(),
+    })
+    return {"checkout_url": session.url, "session_id": session.id}
+
+
+# --- Cron webhook (booking reminders) ---------------------------------------
+@api.post("/cron/reminders")
+async def cron_reminders(request: Request, authorization: Optional[str] = Header(None)):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    import hmac
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    provided = ""
+    if authorization and authorization.lower().startswith("bearer "):
+        provided = authorization.split(" ", 1)[1]
+    if not secret or not hmac.compare_digest(secret, provided):
+        raise HTTPException(401, "Unauthorized")
+    # Small enough to run inline; if this grows, hand off to a task queue.
+    result = await process_reminders(db)
+    return {"ok": True, **result}
 
 
 # --- health -----------------------------------------------------------------

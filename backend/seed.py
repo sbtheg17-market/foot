@@ -1,4 +1,4 @@
-"""Curated seed data — providers, services, bookings, and search-demand signals.
+"""Curated seed data — providers, services, bookings, reviews, search-demand signals.
 
 Includes seeded owner_emails so a demo user can log in as a provider (e.g.
 maya@solecare.demo). Also seeds `search_events` so provider opportunity cards
@@ -162,12 +162,22 @@ SEARCH_EVENTS = [
 ]
 
 
+REVIEWS = [
+    {"id": "rv_maya_1", "booking_id": "bk_prov_maya_-9_11", "provider_id": "prov_maya", "client_name": "Priya Shah", "client_user_id": None, "rating": 5, "comment": "Maya is a magician. My mother felt like a new person after her visit.", "created_at": _iso(_now() - timedelta(days=8))},
+    {"id": "rv_maya_2", "booking_id": "bk_prov_maya_-4_14", "provider_id": "prov_maya", "client_name": "Ellen Wu", "client_user_id": None, "rating": 5, "comment": "Calm, professional, exactly what I needed on a busy Tuesday.", "created_at": _iso(_now() - timedelta(days=3))},
+    {"id": "rv_jordan_1", "booking_id": "bk_prov_jordan_-6_19", "provider_id": "prov_jordan", "client_name": "Hana Kim", "client_user_id": None, "rating": 5, "comment": "Best pedicure I've had at home — sterile, careful, gorgeous polish.", "created_at": _iso(_now() - timedelta(days=5))},
+    {"id": "rv_alex_1", "booking_id": "bk_prov_alex_-10_11", "provider_id": "prov_alex", "client_name": "Ellen Wu", "client_user_id": None, "rating": 5, "comment": "Very gentle with my dad after his hip surgery. Highly recommended.", "created_at": _iso(_now() - timedelta(days=9))},
+]
+
+
 async def seed_all(db) -> None:
     await db.providers.delete_many({})
     await db.services.delete_many({})
     await db.bookings.delete_many({})
     await db.search_events.delete_many({})
+    await db.reviews.delete_many({})
     if PROVIDERS: await db.providers.insert_many([{**p} for p in PROVIDERS])
     if SERVICES: await db.services.insert_many([{**s} for s in SERVICES])
     if BOOKINGS: await db.bookings.insert_many([{**b} for b in BOOKINGS])
     if SEARCH_EVENTS: await db.search_events.insert_many([{**s} for s in SEARCH_EVENTS])
+    if REVIEWS: await db.reviews.insert_many([{**r} for r in REVIEWS])

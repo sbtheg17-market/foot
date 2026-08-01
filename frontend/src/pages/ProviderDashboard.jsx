@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   listBookings, updateBookingStatus, getEarnings, getProvider, getOpportunities,
-  updateAvailability, adminListProviders, cents, pct,
+  updateAvailability, adminListProviders, listPlans, planCheckout,
+  connectStatus, connectOnboard, cents, pct,
 } from "../lib/api";
 import { PROVIDER } from "../constants/testIds";
 import { useAuth } from "../context/AuthContext";
@@ -290,6 +291,131 @@ function AvailabilityPanel({ providerId }) {
   );
 }
 
+function PlanPanel({ providerId }) {
+  const providerQ = useQuery({ queryKey: ["provider", providerId], queryFn: () => getProvider(providerId) });
+  const plansQ = useQuery({ queryKey: ["plans"], queryFn: listPlans });
+  const mut = useMutation({
+    mutationFn: (plan) => planCheckout(providerId, plan, window.location.origin),
+    onSuccess: (data) => {
+      if (data.checkout_url) window.location.href = data.checkout_url;
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || e.message),
+  });
+  if (providerQ.isLoading || plansQ.isLoading) return <LoadingBlock />;
+  const currentPlan = providerQ.data?.plan || "free";
+  const plans = plansQ.data?.plans || {};
+  return (
+    <div data-testid="provider-plan-panel" className="grid gap-4 md:grid-cols-3">
+      {Object.entries(plans).map(([key, p]) => {
+        const isCurrent = key === currentPlan;
+        return (
+          <Card key={key} data-testid={`plan-card-${key}`}
+            className={`rounded-3xl border-border soft-shadow relative ${isCurrent ? "ring-2 ring-primary" : ""}`}>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2">
+                <h3 className="font-heading text-xl font-semibold">{p.label}</h3>
+                {isCurrent && <span className="text-[11px] font-semibold uppercase text-primary">Current</span>}
+              </div>
+              <div className="mt-3 font-heading text-4xl font-semibold">
+                {p.monthly_price_cents === 0 ? "$0" : `$${(p.monthly_price_cents / 100).toFixed(0)}`}
+                <span className="text-sm text-muted-foreground font-normal">/mo</span>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">{p.description}</p>
+              <ul className="mt-4 space-y-2 text-sm">
+                <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> {(p.commission_rate * 100).toFixed(0)}% commission</li>
+                {p.features.priority_placement && <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Priority placement</li>}
+                {p.features.advanced_analytics && <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Advanced analytics</li>}
+                {p.features.featured_badge && <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Featured badge</li>}
+              </ul>
+              {!isCurrent && key !== "free" && (
+                <Button data-testid={`plan-upgrade-${key}`} onClick={() => mut.mutate(key)} disabled={mut.isPending}
+                  className="mt-6 w-full h-11 rounded-full bg-primary hover:bg-primary/90">
+                  {mut.isPending ? "Opening checkout…" : `Upgrade to ${p.label}`}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function PayoutsPanel({ providerId }) {
+  const qc = useQueryClient();
+  const statusQ = useQuery({ queryKey: ["connect", providerId], queryFn: () => connectStatus(providerId) });
+  const earningsQ = useQuery({ queryKey: ["earnings", providerId], queryFn: () => getEarnings(providerId) });
+  const mut = useMutation({
+    mutationFn: () => connectOnboard(providerId, window.location.origin),
+    onSuccess: (data) => {
+      if (data.onboarding_url) window.location.href = data.onboarding_url;
+    },
+    onError: (e) => toast.error(e?.response?.data?.detail || e.message),
+  });
+  if (statusQ.isLoading || earningsQ.isLoading) return <LoadingBlock />;
+  const s = statusQ.data;
+  const e = earningsQ.data;
+  return (
+    <div data-testid="provider-payouts-panel" className="space-y-6">
+      <Card className="rounded-3xl border-border soft-shadow">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-primary" />
+            <h3 className="font-heading text-lg font-semibold">Stripe Payouts</h3>
+          </div>
+          {s?.payouts_enabled ? (
+            <div className="mt-3 rounded-2xl bg-emerald-50 border border-emerald-100 p-4">
+              <div className="flex items-center gap-2 text-emerald-800 font-medium text-sm">
+                <CheckCircle2 className="h-4 w-4" /> Payouts enabled
+              </div>
+              <p className="mt-1 text-xs text-emerald-800/80">Your net earnings are transferred to your bank automatically after each completed visit.</p>
+              <div className="mt-3 text-xs text-muted-foreground">Stripe account: <span className="font-mono">{s.stripe_account_id}</span></div>
+            </div>
+          ) : s?.connected ? (
+            <div className="mt-3 rounded-2xl bg-amber-50 border border-amber-100 p-4">
+              <div className="flex items-center gap-2 text-amber-800 font-medium text-sm">
+                <AlertCircle className="h-4 w-4" /> Onboarding incomplete
+              </div>
+              <p className="mt-1 text-xs text-amber-800/80">Finish your Stripe onboarding to start receiving payouts.</p>
+              <Button data-testid="connect-continue" onClick={() => mut.mutate()} disabled={mut.isPending} className="mt-3 h-10 rounded-full bg-primary">
+                <ExternalLink className="h-4 w-4 mr-2" /> Continue onboarding
+              </Button>
+            </div>
+          ) : (
+            <div className="mt-3 rounded-2xl bg-secondary/50 border border-border p-4">
+              <p className="text-sm">Connect your bank via Stripe to receive your net earnings automatically after each visit.</p>
+              <Button data-testid="connect-start" onClick={() => mut.mutate()} disabled={mut.isPending} className="mt-3 h-10 rounded-full bg-primary">
+                {mut.isPending ? "Opening Stripe…" : (<><ExternalLink className="h-4 w-4 mr-2" /> Set up payouts</>)}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {e && (
+        <Card className="rounded-3xl border-border soft-shadow">
+          <CardContent className="p-6">
+            <h3 className="font-heading text-lg font-semibold">Your earnings breakdown</h3>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl bg-secondary/40 p-4">
+                <div className="text-xs uppercase text-muted-foreground tracking-wide">Paid out (to date)</div>
+                <div className="font-heading text-2xl font-semibold mt-1">{cents(e.totals.provider_net_cents)}</div>
+                <div className="text-xs text-muted-foreground mt-1">Across {e.totals.completed_count} completed visits</div>
+              </div>
+              <div className="rounded-2xl bg-secondary/40 p-4">
+                <div className="text-xs uppercase text-muted-foreground tracking-wide">Platform commission</div>
+                <div className="font-heading text-2xl font-semibold mt-1">{cents(e.totals.platform_fee_cents)}</div>
+                <div className="text-xs text-muted-foreground mt-1">{pct(e.commission_rate)} on plan {e.plan}</div>
+              </div>
+            </div>
+            <div className="mt-4 text-xs text-muted-foreground">Upgrade to Pro or Premium to lower your commission rate.</div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function ProviderDashboard() {
   const { status, user, provider } = useAuth();
   const navigate = useNavigate();
@@ -370,14 +496,18 @@ export default function ProviderDashboard() {
 
       {activeProviderId && (
         <Tabs defaultValue="bookings">
-          <TabsList className="rounded-full bg-secondary p-1 h-12">
+          <TabsList className="rounded-full bg-secondary p-1 h-12 flex-wrap">
             <TabsTrigger data-testid={PROVIDER.tabBookings} value="bookings" className="rounded-full h-10 px-5">Bookings</TabsTrigger>
             <TabsTrigger data-testid={PROVIDER.tabEarnings} value="earnings" className="rounded-full h-10 px-5">Earnings</TabsTrigger>
             <TabsTrigger data-testid={PROVIDER.tabAvailability} value="availability" className="rounded-full h-10 px-5">Availability</TabsTrigger>
+            <TabsTrigger data-testid="provider-tab-payouts" value="payouts" className="rounded-full h-10 px-5">Payouts</TabsTrigger>
+            <TabsTrigger data-testid="provider-tab-plan" value="plan" className="rounded-full h-10 px-5">Plan</TabsTrigger>
           </TabsList>
           <TabsContent value="bookings" className="mt-6"><BookingsPanel providerId={activeProviderId} /></TabsContent>
           <TabsContent value="earnings" className="mt-6"><EarningsWidget providerId={activeProviderId} /></TabsContent>
           <TabsContent value="availability" className="mt-6"><AvailabilityPanel providerId={activeProviderId} /></TabsContent>
+          <TabsContent value="payouts" className="mt-6"><PayoutsPanel providerId={activeProviderId} /></TabsContent>
+          <TabsContent value="plan" className="mt-6"><PlanPanel providerId={activeProviderId} /></TabsContent>
         </Tabs>
       )}
     </div>

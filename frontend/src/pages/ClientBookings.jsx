@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listBookings, cents } from "../lib/api";
 import { CLIENT } from "../constants/testIds";
 import StatusBadge from "../components/StatusBadge";
+import ReviewForm from "../components/ReviewForm";
 import { useAuth } from "../context/AuthContext";
 import { EmptyState, LoadingBlock, ErrorBlock } from "../components/States";
 import { Input } from "../components/ui/input";
@@ -82,6 +83,9 @@ export default function ClientBookings() {
                   <div className="text-right">
                     <div className="text-xs text-muted-foreground">Total</div>
                     <div className="font-heading text-xl font-semibold">{cents(b.gmv_cents)}</div>
+                    {b.status === "completed" && user && (
+                      <div className="mt-3"><ReviewForm bookingId={b.id} providerName={b.provider?.name} /></div>
+                    )}
                   </div>
                 </article>
               ))}

@@ -58,6 +58,22 @@ export const paymentStatus = (session_id) =>
 // --- Analytics ---
 export const trackSearch = (payload) => api.post("/analytics/search", payload).catch(() => {});
 
+// --- Reviews ---
+export const listReviews = (providerId) => api.get(`/providers/${providerId}/reviews`).then((r) => r.data);
+export const getBookingReview = (bookingId) => api.get(`/bookings/${bookingId}/review`).then((r) => r.data);
+export const createReview = (payload) => api.post("/reviews", payload).then((r) => r.data);
+
+// --- Stripe Connect (payouts) ---
+export const connectOnboard = (providerId, origin_url) =>
+  api.post(`/provider/${providerId}/connect/onboard`, { origin_url }).then((r) => r.data);
+export const connectStatus = (providerId) =>
+  api.get(`/provider/${providerId}/connect/status`).then((r) => r.data);
+
+// --- Plans (subscriptions) ---
+export const listPlans = () => api.get("/plans").then((r) => r.data);
+export const planCheckout = (providerId, plan, origin_url) =>
+  api.post(`/provider/${providerId}/plan/checkout`, { plan, origin_url }).then((r) => r.data);
+
 // --- Utils ---
 export const cents = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;
 export const pct = (r) => `${Math.round(Number(r || 0) * 100)}%`;
