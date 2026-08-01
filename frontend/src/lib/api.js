@@ -3,12 +3,19 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API_BASE = `${BACKEND_URL}/api`;
 
-export const api = axios.create({ baseURL: API_BASE });
+export const api = axios.create({
+  baseURL: API_BASE,
+  withCredentials: true, // send session cookies cross-subdomain
+});
+
+// --- Auth ---
+export const me = () => api.get("/auth/me").then((r) => r.data);
+export const exchangeSession = (session_id) =>
+  api.post("/auth/session", { session_id }).then((r) => r.data);
+export const logout = () => api.post("/auth/logout").then((r) => r.data);
 
 // --- Providers ---
-export const listProviders = (params = {}) =>
-  api.get("/providers", { params }).then((r) => r.data);
-
+export const listProviders = (params = {}) => api.get("/providers", { params }).then((r) => r.data);
 export const getProvider = (id) => api.get(`/providers/${id}`).then((r) => r.data);
 export const listServices = (id) => api.get(`/providers/${id}/services`).then((r) => r.data);
 export const getAvailability = (id, days = 14) =>
@@ -21,10 +28,18 @@ export const updateBookingStatus = (id, status) =>
   api.patch(`/bookings/${id}/status`, { status }).then((r) => r.data);
 
 // --- Provider self ---
-export const getEarnings = (providerId) =>
-  api.get(`/provider/${providerId}/earnings`).then((r) => r.data);
-export const updateAvailability = (providerId, payload) =>
-  api.patch(`/provider/${providerId}/availability`, payload).then((r) => r.data);
+export const getEarnings = (id) => api.get(`/provider/${id}/earnings`).then((r) => r.data);
+export const getOpportunities = (id) => api.get(`/provider/${id}/opportunities`).then((r) => r.data);
+export const updateAvailability = (id, payload) =>
+  api.patch(`/provider/${id}/availability`, payload).then((r) => r.data);
+export const providerSignup = (payload) => api.post("/provider/self-signup", payload).then((r) => r.data);
+export const uploadDoc = (file) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  return api.post("/provider/upload-doc", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  }).then((r) => r.data);
+};
 
 // --- Admin ---
 export const adminListProviders = (params = {}) =>
@@ -35,6 +50,13 @@ export const adminToggleListing = (id, listing_active) =>
   api.patch(`/admin/providers/${id}/listing-active`, { listing_active }).then((r) => r.data);
 export const adminRevenue = (window = "weekly") =>
   api.get("/admin/revenue", { params: { window } }).then((r) => r.data);
+
+// --- Payments ---
+export const paymentStatus = (session_id) =>
+  api.get(`/payments/status/${session_id}`).then((r) => r.data);
+
+// --- Analytics ---
+export const trackSearch = (payload) => api.post("/analytics/search", payload).catch(() => {});
 
 // --- Utils ---
 export const cents = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;

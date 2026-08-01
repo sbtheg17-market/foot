@@ -1,0 +1,50 @@
+{
+  "summary": "Phase 2 backend + integration testing on Foot-Care Marketplace OS. Extended pytest suite from 27 to 51 tests (24 new phase-2 tests in test_phase2.py). Found and fixed 1 CRITICAL backend bug: create_booking was calling current_user(request) directly, but the Header default made this raise AttributeError → all bookings returned 500. Fixed by using Depends(current_user) as a proper FastAPI dependency. After fix, all 51 tests pass (auth me/logout/session, role gating 401/403/200, opportunities cat-pedicure + evening-demand for prov_alex, analytics search insertion, provider self-signup + linked_provider_id + role upgrade, doc upload via Emergent storage, Stripe checkout session creation + payment_transactions insert, payment status endpoint, SMS stub log entries for booking_requested and booking_accepted). Frontend flows also verified: /login shows Google btn, /admin loads for admin session via cookie, provider-identity-picker + provider-opportunities render, PaymentSuccess shows loading state.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/admin/providers/{id}/status", "issue": "Approve sets verified=true; a subsequent 'rejected' resets verified=false, but transition rejected->pending is not supported (no way to reset a rejected provider to pending via API)."},
+      {"endpoint": "POST /api/provider/upload-doc", "issue": "Emergent object storage init succeeds and upload works, but failure path returns 503 with a generic message; consider surfacing a correlation id for debugging."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ProviderDashboard identity picker", "issues": ["Hydration warning in console: <span> cannot be a child of <option>. Tooling injects a wrapper span inside each <option>. Not a functional bug but produces a console error on /provider (carried over from iteration_1)."]},
+      {"screen": "BecomeProvider (unauthed)", "issues": ["Displays a 'Please sign in first' gate with a link to /login instead of hard-redirecting. Functionally equivalent (unauthed cannot access the form) but the test-request spec said 'redirects to sign-in'. Not blocking, just a UX design choice — flagging for main agent awareness."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_marketplace.py",
+    "/app/backend/tests/test_phase2.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/pytest/pytest_phase2.xml"
+  ],
+  "action_items": [
+    "(FIXED) server.py: create_booking now uses Depends(current_user) — prior code raised AttributeError because Header defaults are Depends objects, not values. Please review the fix and keep the pattern for any other manual current_user(request) calls (none remain).",
+    "(Optional) Ensure ProviderDashboard <option> children are plain strings (avoid string interpolation that may be wrapped by tooling) to remove the hydration warning."
+  ],
+  "critical_code_review_comments": [
+    "server.py create_booking previously invoked current_user(request) directly, which is UNSAFE with FastAPI dependencies — the `authorization: Header(None)` param becomes a `Header` sentinel object outside of Depends, causing runtime AttributeError. Fix applied: switched to `user: dict | None = Depends(current_user)`. Recommend adding a lint/test to prevent regression.",
+    "storage_client.py `_storage_key` is a module-level global — makes unit-testing race-y and cross-request state harder to reason about. Consider a small class or app.state.",
+    "server.py stripe.checkout.Session.create is a synchronous (blocking) requests call inside an async endpoint; under load this will hold event-loop threads. Consider stripe.async or run_in_threadpool.",
+    "server.py _fetch_session_from_emergent uses synchronous `requests` in an async function — same blocking concern; low-priority as it's called only on login.",
+    "opportunities.py `since` is passed as isoformat to Mongo but `search_events` stores `created_at` as ISO strings — this comparison works only because ISO-8601 sorts lexically. Fine, but subtle.",
+    "server.py auth_me / current_user do not include a fallback for expired sessions cleanup — old rows accumulate indefinitely.",
+    "SelfSignup: does not verify that `owner_email` collision with an existing seeded provider is handled (a client signing up with an owner_email that already exists as a seeded provider would create a duplicate provider record).",
+    "Payment status endpoint returns payment_transactions verbatim but should probably scope to caller (a user could probe arbitrary Stripe session_ids)."
+  ],
+  "updated_files": [
+    "/app/backend/server.py (fixed create_booking to use Depends(current_user))",
+    "/app/backend/tests/test_marketplace.py (added origin_url to booking payloads; added _admin_headers helper and admin_headers fixture for admin endpoints since Phase 2 introduced auth)",
+    "/app/backend/tests/test_phase2.py (new — 24 tests)"
+  ],
+  "success_rate": {"backend": "100% (51/51 pytest)", "frontend": "100% of critical flows verified via Playwright"},
+  "test_credentials": "Admin email sbtheg04@gmail.com (auto-promoted via ADMIN_EMAILS). Test sessions created directly in mongosh using auth_testing.md recipe (both cookie and Bearer supported via current_user dependency).",
+  "seed_data_creation": "Auto-seeded on empty DB. Tests created ephemeral test users/sessions (prefixed test-user-/test-admin-) in the users + user_sessions collections, and a TEST_ prefixed self-signup provider — all cleaned up post-run. Ran 5 extra analytics search events for Berkeley pedicure (persisted in search_events) and 5 for San Francisco reflexology.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Two pytest files at /app/backend/tests: test_marketplace.py (Phase 1, 27 tests, now requires origin_url on booking payloads and Bearer auth on admin routes) and test_phase2.py (Phase 2, 24 tests, uses pymongo to seed sessions). Set REACT_APP_BACKEND_URL env before running: `REACT_APP_BACKEND_URL=https://footcare-marketplace.preview.emergentagent.com pytest backend/tests/ -v`. Auto-seed only fires when providers count == 0; be careful about DB state between iterations.",
+  "rca_of_the_issue": "BUG: POST /api/bookings returned 500 with AttributeError: 'Header' object has no attribute 'lower'. RCA: In create_booking, `user = await current_user(request)` was invoked as a plain function, but current_user's signature is `(request, authorization: Optional[str] = Header(None))`. When called outside FastAPI's dependency-injection layer, the `authorization` param retains its Depends/Header sentinel default (a `fastapi.params.Header` object) rather than resolving to None. The subsequent `authorization.lower().startswith('bearer ')` check then raised because Header objects have no `.lower()`. REPRODUCTION: any POST to /api/bookings with a valid payload after Phase 2 changes. FIX APPLIED: convert to `user: dict | None = Depends(current_user)` in the create_booking signature so FastAPI resolves the Header properly, and removed the manual call. Verified via re-running test_phase2.py — all Stripe checkout / SMS stub / payment_transactions assertions now pass."
+}

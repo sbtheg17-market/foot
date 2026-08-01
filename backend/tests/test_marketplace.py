@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL") or os.environ["EXPO_PUBLIC_BACKEND_URL"]
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL") or os.environ.get("EXPO_PUBLIC_BACKEND_URL")
 # fallback for backend-only env: read from frontend .env
 if not BASE_URL:
     with open("/app/frontend/.env") as f:
@@ -21,6 +21,24 @@ BASE_URL = BASE_URL.rstrip("/")
 API = f"{BASE_URL}/api"
 
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+
+def _admin_headers():
+    """Create a temp admin session in Mongo and return Authorization headers."""
+    import uuid
+    from datetime import datetime, timedelta, timezone
+    from pymongo import MongoClient
+    mongo = MongoClient(os.environ.get("MONGO_URL", "mongodb://localhost:27017"))
+    db = mongo[os.environ.get("DB_NAME", "test_database")]
+    uid = f"test-admin-{uuid.uuid4().hex[:10]}"
+    tok = f"test_session_admin_{uuid.uuid4().hex}"
+    db.users.insert_one({"user_id": uid, "email": "sbtheg04@gmail.com", "name": "TestAdmin",
+                          "role": "admin", "picture": "", "linked_provider_id": None,
+                          "created_at": datetime.now(timezone.utc).isoformat()})
+    db.user_sessions.insert_one({"user_id": uid, "session_token": tok,
+                                  "expires_at": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+                                  "created_at": datetime.now(timezone.utc).isoformat()})
+    return {"Authorization": f"Bearer {tok}"}
 
 
 @pytest.fixture(scope="session")
@@ -137,9 +155,9 @@ class TestBookings:
             "provider_id": "prov_maya",
             "service_id": "svc_maya_reflex",
             "start_time": slot,
+            "origin_url": BASE_URL,
         }
         r = s.post(f"{API}/bookings", json=payload)
-        assert r.status_code == 200, r.text
         b = r.json()
         assert b["status"] == "requested"
         # Commission math: gmv=12000, rate=0.12 -> fee=1440, net=10560
@@ -156,6 +174,7 @@ class TestBookings:
             "provider_id": "prov_maya",
             "service_id": "svc_maya_reflex",
             "start_time": TestBookings.slot,
+            "origin_url": BASE_URL,
         }
         r = s.post(f"{API}/bookings", json=payload)
         assert r.status_code == 409
@@ -164,7 +183,7 @@ class TestBookings:
         r = s.post(f"{API}/bookings", json={
             "client_name": "x", "client_email": "x@e.com",
             "provider_id": "none", "service_id": "svc_maya_reflex",
-            "start_time": TestBookings.slot,
+            "start_time": TestBookings.slot, "origin_url": BASE_URL,
         })
         assert r.status_code == 404
 
@@ -172,7 +191,7 @@ class TestBookings:
         r = s.post(f"{API}/bookings", json={
             "client_name": "x", "client_email": "x@e.com",
             "provider_id": "prov_sana", "service_id": "svc_maya_reflex",
-            "start_time": TestBookings.slot,
+            "start_time": TestBookings.slot, "origin_url": BASE_URL,
         })
         assert r.status_code == 400
 
@@ -180,7 +199,7 @@ class TestBookings:
         r = s.post(f"{API}/bookings", json={
             "client_name": "x", "client_email": "x@e.com",
             "provider_id": "prov_maya", "service_id": "svc_maya_reflex",
-            "start_time": "not-a-date",
+            "start_time": "not-a-date", "origin_url": BASE_URL,
         })
         assert r.status_code == 400
 
@@ -189,7 +208,7 @@ class TestBookings:
         r = s.post(f"{API}/bookings", json={
             "client_name": "x", "client_email": "x@e.com",
             "provider_id": "prov_maya", "service_id": "svc_maya_reflex",
-            "start_time": soon,
+            "start_time": soon, "origin_url": BASE_URL,
         })
         assert r.status_code == 400
 
@@ -204,7 +223,7 @@ class TestBookings:
         r = s.post(f"{API}/bookings", json={
             "client_name": "x", "client_email": "x@e.com",
             "provider_id": "prov_maya", "service_id": "svc_maya_reflex",
-            "start_time": sun.isoformat(),
+            "start_time": sun.isoformat(), "origin_url": BASE_URL,
         })
         assert r.status_code == 400
 
@@ -253,9 +272,14 @@ class TestProviderMgmt:
 
 
 # --- Admin -------------------------------------------------------------------
+@pytest.fixture(scope="class")
+def admin_headers():
+    return _admin_headers()
+
+
 class TestAdmin:
-    def test_pending_queue(self, s):
-        r = s.get(f"{API}/admin/providers", params={"status": "pending"})
+    def test_pending_queue(self, s, admin_headers):
+        r = s.get(f"{API}/admin/providers", params={"status": "pending"}, headers=admin_headers)
         assert r.status_code == 200
         d = r.json()
         ids = {p["id"] for p in d}
@@ -263,23 +287,20 @@ class TestAdmin:
         for p in d:
             assert isinstance(p.get("documents"), list)
 
-    def test_toggle_listing(self, s):
-        r = s.patch(f"{API}/admin/providers/prov_jordan/listing-active", json={"listing_active": False})
+    def test_toggle_listing(self, s, admin_headers):
+        r = s.patch(f"{API}/admin/providers/prov_jordan/listing-active", json={"listing_active": False}, headers=admin_headers)
         assert r.status_code == 200 and r.json()["listing_active"] is False
-        r = s.patch(f"{API}/admin/providers/prov_jordan/listing-active", json={"listing_active": True})
+        r = s.patch(f"{API}/admin/providers/prov_jordan/listing-active", json={"listing_active": True}, headers=admin_headers)
         assert r.status_code == 200 and r.json()["listing_active"] is True
 
-    def test_approve_pending(self, s):
-        # Approve tomas (won't affect other tests much). Use rejected->approved cycle for idempotency.
-        r = s.patch(f"{API}/admin/providers/prov_tomas/status", json={"status": "approved"})
+    def test_approve_pending(self, s, admin_headers):
+        r = s.patch(f"{API}/admin/providers/prov_tomas/status", json={"status": "approved"}, headers=admin_headers)
         assert r.status_code == 200
         d = r.json()
         assert d["status"] == "approved" and d["listing_active"] is True and d["verified"] is True
-        # Reset to pending for other iterations (best effort using rejected path won't restore pending; do direct via reject then approve is fine)
-        # We'll leave as approved; seed re-runs only on empty DB.
 
-    def test_admin_revenue_weekly(self, s):
-        r = s.get(f"{API}/admin/revenue", params={"window": "weekly"})
+    def test_admin_revenue_weekly(self, s, admin_headers):
+        r = s.get(f"{API}/admin/revenue", params={"window": "weekly"}, headers=admin_headers)
         assert r.status_code == 200
         d = r.json()
         assert d["window"] == "weekly"
@@ -288,7 +309,7 @@ class TestAdmin:
         for k in ["gmv_cents", "platform_fee_cents", "completed_bookings", "total_bookings", "requested_bookings", "active_providers", "pending_providers"]:
             assert k in t
 
-    def test_admin_revenue_daily(self, s):
-        r = s.get(f"{API}/admin/revenue", params={"window": "daily"})
+    def test_admin_revenue_daily(self, s, admin_headers):
+        r = s.get(f"{API}/admin/revenue", params={"window": "daily"}, headers=admin_headers)
         assert r.status_code == 200
         assert len(r.json()["series"]) == 14

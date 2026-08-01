@@ -1,22 +1,15 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { listProviders } from "../lib/api";
+import { listProviders, trackSearch } from "../lib/api";
 import ProviderCard from "../components/ProviderCard";
 import { CATEGORIES, CITIES } from "../constants/seed";
 import { CLIENT } from "../constants/testIds";
 import { EmptyState, LoadingBlock, ErrorBlock } from "../components/States";
 import { Input } from "../components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Search, Sparkles } from "lucide-react";
 
-const HERO_IMG =
-  "https://images.unsplash.com/photo-1567016376408-0226e4d0c1ea?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200";
+const HERO_IMG = "https://images.unsplash.com/photo-1567016376408-0226e4d0c1ea?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200";
 
 export default function ClientHome() {
   const [q, setQ] = useState("");
@@ -39,6 +32,21 @@ export default function ClientHome() {
     queryKey: ["providers", params],
     queryFn: () => listProviders(params),
   });
+
+  // Track meaningful searches (debounced) so the provider opportunities engine has real data.
+  useEffect(() => {
+    if (!q && city === "all" && category === "all" && !seniorOnly && !verifiedOnly) return;
+    const t = setTimeout(() => {
+      trackSearch({
+        q: q || null,
+        city: city !== "all" ? city : null,
+        category: category !== "all" ? category : null,
+        senior_friendly: seniorOnly || null,
+        verified: verifiedOnly || null,
+      });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [q, city, category, seniorOnly, verifiedOnly]);
 
   return (
     <div data-testid={CLIENT.home} className="space-y-10">
@@ -77,11 +85,7 @@ export default function ClientHome() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Any city</SelectItem>
-              {CITIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
+              {CITIES.map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}
             </SelectContent>
           </Select>
           <Select value={category} onValueChange={setCategory}>
@@ -90,11 +94,7 @@ export default function ClientHome() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Any service</SelectItem>
-              {CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c} className="capitalize">
-                  {c.replace("-", " ")}
-                </SelectItem>
-              ))}
+              {CATEGORIES.map((c) => (<SelectItem key={c} value={c} className="capitalize">{c.replace("-", " ")}</SelectItem>))}
             </SelectContent>
           </Select>
         </div>
@@ -103,24 +103,16 @@ export default function ClientHome() {
             data-testid={CLIENT.filterSenior}
             onClick={() => setSeniorOnly((v) => !v)}
             className={`h-10 rounded-full px-4 text-sm font-medium border transition-colors ${
-              seniorOnly
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-white text-foreground border-border hover:bg-secondary"
+              seniorOnly ? "bg-primary text-primary-foreground border-primary" : "bg-white text-foreground border-border hover:bg-secondary"
             }`}
-          >
-            Senior-friendly
-          </button>
+          >Senior-friendly</button>
           <button
             data-testid={CLIENT.filterVerified}
             onClick={() => setVerifiedOnly((v) => !v)}
             className={`h-10 rounded-full px-4 text-sm font-medium border transition-colors ${
-              verifiedOnly
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-white text-foreground border-border hover:bg-secondary"
+              verifiedOnly ? "bg-primary text-primary-foreground border-primary" : "bg-white text-foreground border-border hover:bg-secondary"
             }`}
-          >
-            Verified only
-          </button>
+          >Verified only</button>
         </div>
       </section>
 
@@ -128,19 +120,11 @@ export default function ClientHome() {
         {isLoading && <LoadingBlock label="Finding calm providers near you…" />}
         {error && <ErrorBlock error={error} retry={refetch} />}
         {data && data.length === 0 && (
-          <EmptyState
-            title="No providers match yet"
-            message="Try clearing a filter or exploring another city."
-          />
+          <EmptyState title="No providers match yet" message="Try clearing a filter or exploring another city." />
         )}
         {data && data.length > 0 && (
-          <div
-            data-testid={CLIENT.providerGrid}
-            className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
-          >
-            {data.map((p) => (
-              <ProviderCard key={p.id} provider={p} />
-            ))}
+          <div data-testid={CLIENT.providerGrid} className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {data.map((p) => (<ProviderCard key={p.id} provider={p} />))}
           </div>
         )}
       </section>

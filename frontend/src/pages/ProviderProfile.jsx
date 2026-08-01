@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { getProvider, listServices, getAvailability, createBooking, cents } from "../lib/api";
 import { PROFILE } from "../constants/testIds";
 import PlanBadge from "../components/PlanBadge";
-import StatusBadge from "../components/StatusBadge";
 import { LoadingBlock, ErrorBlock } from "../components/States";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
+import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { BadgeCheck, MapPin, Clock, Star, ArrowLeft, Route } from "lucide-react";
 
@@ -24,7 +24,7 @@ function formatDay(iso) {
 export default function ProviderProfile() {
   const { providerId } = useParams();
   const navigate = useNavigate();
-  const qc = useQueryClient();
+  const { user } = useAuth();
 
   const providerQ = useQuery({ queryKey: ["provider", providerId], queryFn: () => getProvider(providerId) });
   const servicesQ = useQuery({ queryKey: ["services", providerId], queryFn: () => listServices(providerId) });
@@ -36,10 +36,14 @@ export default function ProviderProfile() {
   const [selectedService, setSelectedService] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
-  const [confirmed, setConfirmed] = useState(null);
+
+  React.useEffect(() => {
+    if (user) { setName(user.name || ""); setEmail(user.email || ""); }
+  }, [user]);
 
   const dayEntries = useMemo(() => {
     if (!availabilityQ.data) return [];
@@ -56,10 +60,12 @@ export default function ProviderProfile() {
   const bookMutation = useMutation({
     mutationFn: createBooking,
     onSuccess: (data) => {
-      setConfirmed(data);
-      qc.invalidateQueries({ queryKey: ["availability", providerId] });
-      qc.invalidateQueries({ queryKey: ["bookings"] });
-      toast.success("Booking requested! The provider will confirm shortly.");
+      if (data.checkout_url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.checkout_url;
+      } else {
+        toast.success("Booking requested!");
+      }
     },
     onError: (err) => {
       const detail = err?.response?.data?.detail || err?.message || "Booking failed";
@@ -69,53 +75,22 @@ export default function ProviderProfile() {
 
   const submit = (e) => {
     e.preventDefault();
-    if (!selectedService || !selectedSlot) {
-      toast.error("Choose a service and time");
-      return;
-    }
+    if (!selectedService || !selectedSlot) return toast.error("Choose a service and time");
     bookMutation.mutate({
       client_name: name,
       client_email: email,
+      client_phone: phone || null,
       provider_id: providerId,
       service_id: selectedService.id,
       start_time: selectedSlot,
       notes,
+      origin_url: window.location.origin,
     });
   };
 
   if (providerQ.isLoading) return <LoadingBlock />;
   if (providerQ.error) return <ErrorBlock error={providerQ.error} />;
   const provider = providerQ.data;
-
-  if (confirmed) {
-    return (
-      <div data-testid={PROFILE.confirmScreen} className="max-w-xl mx-auto space-y-6 pt-4">
-        <div className="rounded-3xl border border-border bg-card p-8 soft-shadow text-center">
-          <div className="mx-auto h-14 w-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-            <BadgeCheck className="h-7 w-7" />
-          </div>
-          <h1 className="mt-4 font-heading text-2xl font-semibold">You're on the list</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {provider.name} received your request. You'll get a confirmation once it's accepted.
-          </p>
-          <div className="mt-6 rounded-2xl border border-border bg-secondary/40 p-4 text-left">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Status</span>
-              <StatusBadge status={confirmed.status} />
-            </div>
-            <div className="mt-3 text-sm">
-              <div className="flex justify-between py-1"><span className="text-muted-foreground">When</span><span>{new Date(confirmed.start_time).toLocaleString()}</span></div>
-              <div className="flex justify-between py-1"><span className="text-muted-foreground">Total</span><span className="font-semibold">{cents(confirmed.gmv_cents)}</span></div>
-            </div>
-          </div>
-          <div className="mt-6 flex gap-3 justify-center">
-            <Button variant="outline" className="rounded-full h-11" onClick={() => navigate("/")}>Back to discover</Button>
-            <Button className="rounded-full h-11 bg-primary" onClick={() => navigate(`/bookings?email=${encodeURIComponent(email)}`)}>My bookings</Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div data-testid={PROFILE.root} className="space-y-8">
@@ -132,8 +107,7 @@ export default function ProviderProfile() {
               <h1 className="font-heading text-2xl sm:text-3xl font-semibold">{provider.name}</h1>
               {provider.verified && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/90 text-emerald-700 px-2 py-0.5 text-[11px] font-medium">
-                  <BadgeCheck className="h-3.5 w-3.5" />
-                  Verified
+                  <BadgeCheck className="h-3.5 w-3.5" /> Verified
                 </span>
               )}
               <PlanBadge plan={provider.plan} />
@@ -156,9 +130,7 @@ export default function ProviderProfile() {
             <p className="mt-2 text-sm text-muted-foreground">{provider.bio}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               {provider.categories.map((c) => (
-                <span key={c} className="rounded-full bg-secondary text-secondary-foreground px-2.5 py-1 text-[11px] font-medium capitalize">
-                  {c.replace("-", " ")}
-                </span>
+                <span key={c} className="rounded-full bg-secondary text-secondary-foreground px-2.5 py-1 text-[11px] font-medium capitalize">{c.replace("-", " ")}</span>
               ))}
             </div>
           </section>
@@ -175,13 +147,7 @@ export default function ProviderProfile() {
                     selectedService?.id === s.id ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-secondary/50"
                   }`}
                 >
-                  <input
-                    type="radio"
-                    name="service"
-                    className="mt-1 h-4 w-4 accent-primary"
-                    checked={selectedService?.id === s.id}
-                    onChange={() => setSelectedService(s)}
-                  />
+                  <input type="radio" name="service" className="mt-1 h-4 w-4 accent-primary" checked={selectedService?.id === s.id} onChange={() => setSelectedService(s)} />
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between gap-3">
                       <h3 className="font-medium">{s.title}</h3>
@@ -189,8 +155,7 @@ export default function ProviderProfile() {
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>
                     <div className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3.5 w-3.5" />
-                      {s.duration_min} min
+                      <Clock className="h-3.5 w-3.5" /> {s.duration_min} min
                     </div>
                   </div>
                 </label>
@@ -202,7 +167,7 @@ export default function ProviderProfile() {
         <aside className="rounded-3xl border border-border bg-card p-6 soft-shadow lg:sticky lg:top-24 h-fit">
           <h2 className="font-heading text-base md:text-lg font-semibold">Book a visit</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Min lead time: {availabilityQ.data?.minimum_lead_hours ?? provider.minimum_lead_hours}h
+            Min lead time: {availabilityQ.data?.minimum_lead_hours ?? provider.minimum_lead_hours}h · Secured by Stripe
           </p>
 
           <div className="mt-4">
@@ -218,10 +183,8 @@ export default function ProviderProfile() {
                     disabled={disabled}
                     onClick={() => { setSelectedDay(day); setSelectedSlot(null); }}
                     className={`shrink-0 rounded-2xl px-3 py-2 text-left min-w-[92px] h-14 text-sm border transition-colors ${
-                      active
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : disabled
-                        ? "border-border bg-secondary/40 text-muted-foreground/70 cursor-not-allowed"
+                      active ? "border-primary bg-primary text-primary-foreground"
+                        : disabled ? "border-border bg-secondary/40 text-muted-foreground/70 cursor-not-allowed"
                         : "border-border bg-white hover:bg-secondary"
                     }`}
                   >
@@ -242,13 +205,9 @@ export default function ProviderProfile() {
                   data-testid={PROFILE.timeSlot(iso)}
                   onClick={() => setSelectedSlot(iso)}
                   className={`h-11 rounded-xl text-sm font-medium border transition-colors ${
-                    selectedSlot === iso
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-white hover:bg-secondary"
+                    selectedSlot === iso ? "border-primary bg-primary text-primary-foreground" : "border-border bg-white hover:bg-secondary"
                   }`}
-                >
-                  {formatSlot(iso)}
-                </button>
+                >{formatSlot(iso)}</button>
               ))}
               {selectedDay && (availabilityQ.data?.slots?.[selectedDay] || []).length === 0 && (
                 <div className="col-span-3 text-xs text-muted-foreground py-4 text-center">No open slots this day</div>
@@ -259,40 +218,24 @@ export default function ProviderProfile() {
           <form onSubmit={submit} className="mt-6 space-y-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground">Your name</label>
-              <Input
-                data-testid={PROFILE.formName}
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-11 rounded-xl mt-1"
-                placeholder="Full name"
-              />
+              <Input data-testid={PROFILE.formName} required value={name} onChange={(e) => setName(e.target.value)} className="h-11 rounded-xl mt-1" placeholder="Full name" />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">Email</label>
-              <Input
-                data-testid={PROFILE.formEmail}
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-11 rounded-xl mt-1"
-                placeholder="you@example.com"
-              />
+              <Input data-testid={PROFILE.formEmail} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="h-11 rounded-xl mt-1" placeholder="you@example.com" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Phone (for SMS confirmation)</label>
+              <Input data-testid="booking-form-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11 rounded-xl mt-1" placeholder="+1 415 555 0100" />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">Notes (optional)</label>
-              <Textarea
-                data-testid={PROFILE.formNotes}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="rounded-xl mt-1"
-                placeholder="Access instructions, health notes…"
-              />
+              <Textarea data-testid={PROFILE.formNotes} value={notes} onChange={(e) => setNotes(e.target.value)} className="rounded-xl mt-1" placeholder="Access instructions, health notes…" />
             </div>
             {selectedService && (
               <div className="rounded-2xl bg-secondary/50 p-3 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">{selectedService.title}</span><span className="font-medium">{cents(selectedService.price_cents)}</span></div>
+                <div className="mt-1 text-[11px] text-muted-foreground">You'll be redirected to Stripe to complete payment.</div>
               </div>
             )}
             <Button
@@ -301,9 +244,7 @@ export default function ProviderProfile() {
               size="lg"
               disabled={!selectedService || !selectedSlot || bookMutation.isPending}
               className="w-full rounded-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground text-base"
-            >
-              {bookMutation.isPending ? "Requesting…" : "Confirm booking"}
-            </Button>
+            >{bookMutation.isPending ? "Preparing checkout…" : "Continue to payment"}</Button>
           </form>
         </aside>
       </div>

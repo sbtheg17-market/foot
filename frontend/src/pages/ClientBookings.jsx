@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { listBookings, cents } from "../lib/api";
 import { CLIENT } from "../constants/testIds";
 import StatusBadge from "../components/StatusBadge";
+import { useAuth } from "../context/AuthContext";
 import { EmptyState, LoadingBlock, ErrorBlock } from "../components/States";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -11,9 +12,18 @@ import { CalendarDays, Clock, MapPin } from "lucide-react";
 
 export default function ClientBookings() {
   const [params] = useSearchParams();
-  const initialEmail = params.get("email") || "";
+  const { user } = useAuth();
+  const initialEmail = params.get("email") || user?.email || "";
   const [email, setEmail] = useState(initialEmail);
   const [applied, setApplied] = useState(initialEmail);
+
+  // If user logs in later, auto-load their bookings.
+  useEffect(() => {
+    if (user?.email && !applied) {
+      setEmail(user.email);
+      setApplied(user.email);
+    }
+  }, [user, applied]);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["bookings", "client", applied],
@@ -25,46 +35,42 @@ export default function ClientBookings() {
     <div className="space-y-8">
       <div className="rounded-3xl border border-border bg-card p-6 soft-shadow">
         <h1 className="font-heading text-2xl md:text-3xl font-semibold">My bookings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Enter the email you booked with to see status updates.</p>
-        <form
-          onSubmit={(e) => { e.preventDefault(); setApplied(email); }}
-          className="mt-4 flex gap-3 flex-wrap"
-        >
-          <Input
-            type="email"
-            required
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="h-12 rounded-full flex-1 min-w-[240px]"
-            data-testid="client-bookings-email"
-          />
-          <Button type="submit" size="lg" className="h-12 rounded-full bg-primary" data-testid="client-bookings-load">
-            Show bookings
-          </Button>
-        </form>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {user ? "Signed in — showing bookings tied to your email." : "Enter the email you booked with to see status updates."}
+        </p>
+        {!user && (
+          <form
+            onSubmit={(e) => { e.preventDefault(); setApplied(email); }}
+            className="mt-4 flex gap-3 flex-wrap"
+          >
+            <Input type="email" required placeholder="you@example.com" value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="h-12 rounded-full flex-1 min-w-[240px]" data-testid="client-bookings-email" />
+            <Button type="submit" size="lg" className="h-12 rounded-full bg-primary" data-testid="client-bookings-load">
+              Show bookings
+            </Button>
+          </form>
+        )}
       </div>
 
       {applied && (
         <section>
           {isLoading && <LoadingBlock />}
           {error && <ErrorBlock error={error} retry={refetch} />}
-          {data && data.length === 0 && (
-            <EmptyState title="No bookings yet" message="When you book a visit, it'll show up here." />
-          )}
+          {data && data.length === 0 && (<EmptyState title="No bookings yet" message="When you book a visit, it'll show up here." />)}
           {data && data.length > 0 && (
             <div data-testid={CLIENT.bookingsList} className="grid gap-4">
               {data.map((b) => (
-                <article
-                  key={b.id}
-                  data-testid={CLIENT.bookingRow(b.id)}
-                  className="rounded-3xl border border-border bg-card p-6 soft-shadow flex flex-col md:flex-row md:items-center gap-4"
-                >
+                <article key={b.id} data-testid={CLIENT.bookingRow(b.id)}
+                  className="rounded-3xl border border-border bg-card p-6 soft-shadow flex flex-col md:flex-row md:items-center gap-4">
                   <img src={b.provider?.avatar_url} alt="" className="h-14 w-14 rounded-2xl object-cover border border-border" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-heading font-semibold">{b.provider?.name}</h3>
                       <StatusBadge status={b.status} />
+                      {b.payment_status === "paid" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[11px] font-medium">Paid</span>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">{b.service?.title}</p>
                     <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
