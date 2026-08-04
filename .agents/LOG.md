@@ -38,8 +38,9 @@ Since agent credit balances cannot be read programmatically, each session entry 
 |---|---|---|
 | DB schema | ✅ Live | Pushed to Replit PostgreSQL. Tables: users, provider_profiles, travel_zones, availability, verification_docs, services, bookings, reviews, invoices, support_tickets, support_messages |
 | API server workflow | ✅ Running | `artifacts/api-server: API Server` on Replit. Health check: `GET /api/healthz → {"status":"ok"}` |
-| Auth routes | ✅ Live | POST /auth/register, /auth/login, /auth/logout, GET /auth/me — all verified |
+| Auth routes | ✅ Live | POST /auth/register, /auth/login, /auth/logout, GET /auth/me — all verified (JWT token + user object confirmed) |
 | JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
+| JWT_SECRET | ✅ Set | Stored as Replit Secret. API server confirmed signing tokens correctly. |
 | Seed script | ✅ Live | 5 demo accounts + full sample data seeded. Run: `pnpm --filter @workspace/api-server run seed` |
 | Business routes | ❌ Not built | Providers, bookings, reviews, invoices, support, admin — see `docs/api-routes.md` |
 | React frontend | ❌ Does not exist | `artifacts/web/` to be created — React 19 + Vite + TanStack Query + Wouter |
@@ -175,27 +176,35 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ### Session 006 — 2026-08-04
 **Agent:** Replit Main Agent  
-**Scope:** `XS`  
+**Scope:** `S`  
 **Triggered by:** Fresh import on Replit — "get API server running again, then business routes, then frontend. Provider-first scope, small checkpoints."
 
 **What was done:**
-- Ran `pnpm install` — node_modules were absent after fresh import (8.5s, all 480 packages resolved)
+- Ran `pnpm install` — node_modules were absent after fresh import (all 480 packages resolved)
 - Restarted `artifacts/api-server: API Server` workflow — builds cleanly via esbuild, server listens on port 8080
 - Pushed DB schema via `pnpm --filter @workspace/db run push` — all tables confirmed present
 - Ran seed script — all 5 demo accounts + full sample data seeded successfully
-- Requested `JWT_SECRET` as a Replit secret (pending user input at session close)
+- Set `JWT_SECRET` as a Replit secret (user entered via secure form)
+- Verified auth routes: `POST /api/auth/login → JWT token`, `GET /api/auth/me → full user object` (tested against admin + provider accounts)
+- Fixed TypeScript typecheck: `jwt.verify(...)` cast now goes through `unknown` to satisfy strict overlap check
+- Built project-reference declaration outputs: `pnpm tsc -p lib/db/tsconfig.json` and `pnpm tsc -p lib/api-zod/tsconfig.json` — both emit to `dist/` cleanly
+- All 4 typecheck errors resolved; `pnpm --filter @workspace/api-server run typecheck` now passes with 0 errors
+- Moved user-provided commit-strategy guidance from uploaded asset into `docs/commit-strategy.md`
+- Removed the raw uploaded asset file
 
 **Files changed:**
+- `artifacts/api-server/src/lib/jwt.ts` — fixed JWT verify cast (`as unknown as JwtPayload`)
+- `docs/commit-strategy.md` — new; captures user's preferred commit/sync rhythm and provider-first constraints
 - `.agents/LOG.md` — updated Current Build State, added this entry
 
-**Build state at end:** API server running and healthy (`GET /api/healthz → {"status":"ok"}`). Auth routes will error until `JWT_SECRET` is set — user has been prompted for it via the Replit Secrets form.
+**Build state at end:** API server running and healthy. Auth fully verified. TypeScript clean. DB schema live. All 5 demo accounts seeded.
 
-**Next best action:** Once `JWT_SECRET` is set, verify auth routes (`POST /api/auth/login`, `GET /api/auth/me`). Then implement provider business routes. Start with `GET /api/providers` (public discovery) — add to `lib/api-spec/openapi.yaml` first (rule 5), run codegen, then implement in `artifacts/api-server/src/routes/providers.ts`. See `docs/api-routes.md` for the full provider surface.
+**Next best action:** Implement provider business routes. Start with `GET /api/providers` (public discovery) and `GET /api/providers/:id` — add to `lib/api-spec/openapi.yaml` first (rule 5), run codegen, then implement in `artifacts/api-server/src/routes/providers.ts`. Commit provider-discovery as its own checkpoint before moving to booking routes. See `docs/api-routes.md` for the full surface and `docs/commit-strategy.md` for commit rhythm.
 
-**Constraints for next session (user-stated):**
+**Constraints for next session (user-stated, also in `docs/commit-strategy.md`):**
 - Provider-first scope only — no client/admin portals yet
 - No monetization UI yet
-- Small checkpoints with clean commits after each
+- Small checkpoints with clean commits after each; GitHub is the sync anchor
 - Separate refactors from feature work in commits
 - No new seed data unless required for current checkpoint
 - Report broken references before changing them
