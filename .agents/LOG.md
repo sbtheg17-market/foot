@@ -173,6 +173,35 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 006 — 2026-08-04
+**Agent:** Replit Main Agent  
+**Scope:** `XS`  
+**Triggered by:** Fresh import on Replit — "get API server running again, then business routes, then frontend. Provider-first scope, small checkpoints."
+
+**What was done:**
+- Ran `pnpm install` — node_modules were absent after fresh import (8.5s, all 480 packages resolved)
+- Restarted `artifacts/api-server: API Server` workflow — builds cleanly via esbuild, server listens on port 8080
+- Pushed DB schema via `pnpm --filter @workspace/db run push` — all tables confirmed present
+- Ran seed script — all 5 demo accounts + full sample data seeded successfully
+- Requested `JWT_SECRET` as a Replit secret (pending user input at session close)
+
+**Files changed:**
+- `.agents/LOG.md` — updated Current Build State, added this entry
+
+**Build state at end:** API server running and healthy (`GET /api/healthz → {"status":"ok"}`). Auth routes will error until `JWT_SECRET` is set — user has been prompted for it via the Replit Secrets form.
+
+**Next best action:** Once `JWT_SECRET` is set, verify auth routes (`POST /api/auth/login`, `GET /api/auth/me`). Then implement provider business routes. Start with `GET /api/providers` (public discovery) — add to `lib/api-spec/openapi.yaml` first (rule 5), run codegen, then implement in `artifacts/api-server/src/routes/providers.ts`. See `docs/api-routes.md` for the full provider surface.
+
+**Constraints for next session (user-stated):**
+- Provider-first scope only — no client/admin portals yet
+- No monetization UI yet
+- Small checkpoints with clean commits after each
+- Separate refactors from feature work in commits
+- No new seed data unless required for current checkpoint
+- Report broken references before changing them
+
+---
+
 ## New Session Template
 
 Copy and append below the last entry:
