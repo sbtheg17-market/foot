@@ -1,0 +1,71 @@
+Yes — the safest way is to **push in small, checkpoint-sized commits** so Replit stays under limits and each merge is easy to review. The goal is to avoid one giant “merge everything” change, because that is what usually causes conflicts and broken checkpoints.
+
+## Best workflow
+
+Use this cycle:
+
+1. **Let Replit finish one checkpoint only.**
+2. **Review the diff immediately.**
+3. **Commit and push that checkpoint to GitHub.**
+4. **Pull/fetch the latest branch in the other environment.**
+5. **Start the next checkpoint from that synced state.**
+
+That keeps each change set small, coherent, and much easier to merge cleanly.
+
+## What to tell Replit
+
+Paste this:
+
+```md
+I need you to work in small checkpoint-sized batches and push changes incrementally.
+
+Rules:
+1. Do not wait until the whole repo is finished before pushing.
+2. After each completed checkpoint, stop and prepare a clean git commit.
+3. Keep each commit focused on one logical unit of work.
+4. Before moving to the next checkpoint, confirm the repo is in a clean state.
+5. Do not make large unrelated refactors in the same commit as feature work.
+6. If a checkpoint touches shared structure, split that cleanup into its own commit first, then the feature commit.
+7. Preserve a smooth merge path with GitHub by keeping commits small and reviewable.
+8. If anything is risky to merge, explain it before committing.
+
+Goal:
+avoid hitting limits, keep progress safely synced, and make merging into GitHub smooth.
+```
+
+## Commit strategy
+
+A good pattern is:
+
+- **commit 1:** shared refactor / route restructure / RBAC scaffolding.
+- **commit 2:** feature checkpoint UI.
+- **commit 3:** related backend logic.
+- **commit 4:** polish or bug fixes.
+
+If a checkpoint is large, split it into:
+- backend/model changes,
+- frontend changes,
+- tests or cleanup.
+
+## Important rule
+
+Do **not** let Replit keep building several checkpoints locally without pushing. That is how the repo gets too far ahead of GitHub and the merge becomes painful.
+
+Instead, make GitHub the sync anchor after every meaningful checkpoint.
+
+## Recommended merge rhythm
+
+- Replit builds one chunk.
+- GitHub receives it.
+- Replit continues from the synced branch.
+- If Emergent also made changes, reconcile those before the next checkpoint.
+
+## If you want the smoothest possible setup
+
+Ask Replit to always:
+- show changed files before commit,
+- keep commit messages checkpoint-based,
+- avoid unrelated formatting changes,
+- and preserve one clean branch for the provider build.
+
+If you want, I can also write you a **tiny git workflow prompt** for Replit and Emergent together so both tools stay aligned without stepping on each other.
