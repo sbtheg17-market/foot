@@ -45,10 +45,14 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/:id, PATCH /bookings/:id/status — strict state machine, auto-invoice on confirm |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, GET /invoices, GET /invoices/:id — all role-scoped |
-| React frontend | ❌ Does not exist | `artifacts/web/` to be created — React 19 + Vite + TanStack Query + Wouter |
+| React frontend | ✅ Running | Web app: discovery, provider profile, booking modal, bookings page, provider portal all live |
+| Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
+| Web booking flow | ✅ Live | BookingModal on provider profile → `/bookings` page with Upcoming/Past/Cancelled tabs + cancel |
+| Expo mobile app | ✅ Running | All screens: Discover, Bookings, Account, Provider Profile, Login, Register — JWT auth via AsyncStorage |
+| Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
 
-**MVP completion estimate: ~55%** (auth + all provider/booking/review/invoice API routes complete, frontend next)
+**MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
 ---
 
