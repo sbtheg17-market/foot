@@ -41,7 +41,7 @@ export default function PortalDashboard() {
 
       {/* Action required alerts */}
       {requestedCount > 0 && (
-        <Link href="/portal/bookings">
+        <Link href="/provider/bookings">
           <div className="bg-accent/10 border border-accent/20 rounded-2xl p-4 flex items-start gap-4 cursor-pointer hover:bg-accent/15 transition-colors">
             <div className="mt-0.5 bg-accent/20 p-2 rounded-full text-accent">
               <AlertCircle className="w-5 h-5" />
@@ -73,7 +73,7 @@ export default function PortalDashboard() {
       </div>
 
       {/* Earnings Summary Card */}
-      <Link href="/portal/earnings">
+      <Link href="/provider/earnings">
         <div className="bg-primary text-primary-foreground rounded-3xl p-6 shadow-md relative overflow-hidden group cursor-pointer">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10" />
           <p className="text-primary-foreground/80 font-medium mb-1 relative z-10">Lifetime Earnings</p>
@@ -93,7 +93,7 @@ export default function PortalDashboard() {
       <section>
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-xl font-serif font-semibold">Next Up</h2>
-          <Link href="/portal/bookings" className="text-sm font-medium text-primary hover:underline">
+          <Link href="/provider/bookings" className="text-sm font-medium text-primary hover:underline">
             See all
           </Link>
         </div>

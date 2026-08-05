@@ -34,6 +34,12 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
+// Any unmatched /api/* route returns JSON (never Express's default HTML 404),
+// so API clients always get a parseable response.
+app.use("/api", (_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not found" });
+});
+
 // ── Static web app (co-hosted single-service deploy) ──────────────────────────
 // In production the built React SPA (artifacts/web/dist/public) is served by
 // this same server, so one host serves both the API (/api/*) and the web app.

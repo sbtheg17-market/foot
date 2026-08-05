@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Route, Switch, Router as WouterRouter } from 'wouter';
+import { Route, Switch, Redirect, Router as WouterRouter } from 'wouter';
 import { setAuthTokenGetter } from '@workspace/api-client-react';
 import NotFound from '@/pages/not-found';
 import Login from '@/pages/login';
@@ -17,6 +17,7 @@ import PortalCredentials from '@/pages/portal/credentials';
 import AdminVerification from '@/pages/admin/verification';
 import ProviderLayout from '@/components/layout/provider-layout';
 import ClientLayout from '@/components/layout/client-layout';
+import { ROUTES, LEGACY_PORTAL_REDIRECTS } from '@/lib/routes';
 import { Toaster } from 'sonner';
 
 // Attach auth token to API calls
@@ -31,99 +32,59 @@ const queryClient = new QueryClient({
   },
 });
 
+/** Wraps a provider-portal page in the provider shell (nested layout). */
+function providerRoute(Page: React.ComponentType) {
+  return () => (
+    <ProviderLayout>
+      <Page />
+    </ProviderLayout>
+  );
+}
+
+/** Wraps a client-facing page in the client shell. */
+function clientRoute(Page: React.ComponentType) {
+  return () => (
+    <ClientLayout>
+      <Page />
+    </ClientLayout>
+  );
+}
+
 function Router() {
   return (
     <Switch>
-      <Route path="/login" component={Login} />
-      <Route path="/register" component={Register} />
-      
-      {/* Public Discovery routes */}
-      <Route path="/">
-        {() => (
-          <ClientLayout>
-            <Discover />
-          </ClientLayout>
-        )}
-      </Route>
-      <Route path="/discover">
-        {() => (
-          <ClientLayout>
-            <Discover />
-          </ClientLayout>
-        )}
-      </Route>
-      <Route path="/providers/:id">
-        {() => (
-          <ClientLayout>
-            <ProviderProfile />
-          </ClientLayout>
-        )}
+      {/* Auth */}
+      <Route path={ROUTES.login} component={Login} />
+      <Route path={ROUTES.register} component={Register} />
+
+      {/* Provider-first: root redirects to the provider home */}
+      <Route path={ROUTES.home}>
+        <Redirect to={ROUTES.provider.root} />
       </Route>
 
-      {/* Client bookings */}
-      <Route path="/bookings">
-        {() => (
-          <ClientLayout>
-            <ClientBookings />
-          </ClientLayout>
-        )}
-      </Route>
+      {/* ── Provider portal (canonical /provider/*) ─────────────────────── */}
+      <Route path={ROUTES.provider.dashboard}>{providerRoute(PortalDashboard)}</Route>
+      <Route path={ROUTES.provider.bookings}>{providerRoute(PortalBookings)}</Route>
+      <Route path={ROUTES.provider.services}>{providerRoute(PortalServices)}</Route>
+      <Route path={ROUTES.provider.availability}>{providerRoute(PortalAvailability)}</Route>
+      <Route path={ROUTES.provider.earnings}>{providerRoute(PortalEarnings)}</Route>
+      <Route path={ROUTES.provider.profile}>{providerRoute(PortalProfile)}</Route>
+      <Route path={ROUTES.provider.credentials}>{providerRoute(PortalCredentials)}</Route>
 
-      {/* Provider Portal routes */}
-      <Route path="/portal">
-        {() => (
-          <ProviderLayout>
-            <PortalDashboard />
-          </ProviderLayout>
-        )}
-      </Route>
-      <Route path="/portal/bookings">
-        {() => (
-          <ProviderLayout>
-            <PortalBookings />
-          </ProviderLayout>
-        )}
-      </Route>
-      <Route path="/portal/services">
-        {() => (
-          <ProviderLayout>
-            <PortalServices />
-          </ProviderLayout>
-        )}
-      </Route>
-      <Route path="/portal/availability">
-        {() => (
-          <ProviderLayout>
-            <PortalAvailability />
-          </ProviderLayout>
-        )}
-      </Route>
-      <Route path="/portal/earnings">
-        {() => (
-          <ProviderLayout>
-            <PortalEarnings />
-          </ProviderLayout>
-        )}
-      </Route>
-      <Route path="/portal/profile">
-        {() => (
-          <ProviderLayout>
-            <PortalProfile />
-          </ProviderLayout>
-        )}
-      </Route>
-      <Route path="/portal/credentials">
-        {() => (
-          <ProviderLayout>
-            <PortalCredentials />
-          </ProviderLayout>
-        )}
-      </Route>
+      {/* ── Legacy /portal/* → /provider/* redirects (backward compat) ──── */}
+      {LEGACY_PORTAL_REDIRECTS.map(({ from, to }) => (
+        <Route key={from} path={from}>
+          <Redirect to={to} />
+        </Route>
+      ))}
 
-      {/* Admin routes */}
-      <Route path="/admin/verification">
-        {() => <AdminVerification />}
-      </Route>
+      {/* ── Client (roadmap — reachable, not active build scope) ────────── */}
+      <Route path={ROUTES.client.discover}>{clientRoute(Discover)}</Route>
+      <Route path="/providers/:id">{clientRoute(ProviderProfile)}</Route>
+      <Route path={ROUTES.client.bookings}>{clientRoute(ClientBookings)}</Route>
+
+      {/* ── Admin (roadmap — reachable, not active build scope) ─────────── */}
+      <Route path={ROUTES.admin.verification} component={AdminVerification} />
 
       <Route component={NotFound} />
     </Switch>

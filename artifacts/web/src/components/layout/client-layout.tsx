@@ -20,7 +20,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col mx-auto max-w-[500px] shadow-2xl bg-white relative">
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-border/50 h-16 flex items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/discover" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-serif font-bold text-lg shadow-sm">
             O
           </div>
@@ -30,7 +30,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           {me?.user ? (
             <div className="flex items-center gap-3">
               {me.user.role === 'provider' && (
-                <Link href="/portal" className="text-sm font-medium text-primary hover:underline">
+                <Link href="/provider" className="text-sm font-medium text-primary hover:underline">
                   Portal
                 </Link>
               )}

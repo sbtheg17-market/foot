@@ -59,7 +59,7 @@ export function useProviderNotifications() {
           action: {
             label: 'View',
             onClick: () => {
-              window.location.href = `${base}/portal/bookings`;
+              window.location.href = `${base}/provider/bookings`;
             },
           },
         });

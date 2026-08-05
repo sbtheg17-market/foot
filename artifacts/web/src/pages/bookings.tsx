@@ -122,7 +122,7 @@ export default function ClientBookings() {
                   Find a provider and request your first appointment.
                 </p>
                 <Link
-                  href="/"
+                  href="/discover"
                   className="inline-block bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-xl shadow-sm hover:bg-primary/90 transition-colors"
                 >
                   Find a provider

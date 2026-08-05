@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import { useRegister, RegisterRequestRole } from '@workspace/api-client-react';
 import { toast } from 'sonner';
+import { ROUTES } from '@/lib/routes';
 
 export default function Register() {
   const [, setLocation] = useLocation();
@@ -26,9 +27,9 @@ export default function Register() {
         onSuccess: (res) => {
           localStorage.setItem('oncallfoot_token', res.token);
           if (res.user.role === 'provider') {
-            setLocation('/portal');
+            setLocation(ROUTES.provider.root);
           } else {
-            setLocation('/discover');
+            setLocation(ROUTES.client.discover);
           }
         },
         onError: () => {
