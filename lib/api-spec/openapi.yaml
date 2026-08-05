@@ -1474,6 +1474,18 @@ components:
         cancellationReason:
           type: string
           nullable: true
+        clientFirstName:
+          type: string
+          nullable: true
+          description: Client first name (joined; present on list responses)
+        clientLastName:
+          type: string
+          nullable: true
+          description: Client last name (joined; present on list responses)
+        clientPhone:
+          type: string
+          nullable: true
+          description: Client phone (joined; present on list responses)
         createdAt:
           type: string
           format: date-time

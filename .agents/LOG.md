@@ -572,6 +572,29 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Next best action:** Provider-portal depth — wire the "9–5 weekdays" availability preset UI (`/provider/availability`), or add status-chip filters to the provider bookings inbox (`/provider/bookings`). Both are provider-first and checkpoint-sized. Do NOT add Stripe or new client/admin portals unless requested.
 
 
+### Session 018 — 2026-06 (checkpoint 3/4)
+**Agent:** Emergent Agent  
+**Scope:** `S`  
+**Triggered by:** Task 3 — tap-to-reach (tappable client phone + address on provider booking cards).
+
+**What was done:**
+- Smallest API mapping: `GET /bookings` list now left-joins `users` on `clientId` and returns `clientFirstName` / `clientLastName` / `clientPhone` (additive, optional fields in the OpenAPI `Booking` schema; client regenerated via orval codegen). No write-path or state-machine changes.
+- Booking cards now show the client's real name, a `tel:` phone link (digits sanitized), and a `https://maps.google.com/?q=` address link (URL-encoded, includes postal code, opens in new tab on desktop).
+- Verified live: `tel:9055550143` and encoded maps URL render on mobile viewport; 63+16+3 tests still green.
+
+**Files changed:**
+- `lib/api-spec/openapi.yaml`, regenerated `lib/api-client-react` + `lib/api-zod`
+- `artifacts/api-server/src/routes/bookings.ts`
+- `artifacts/web/src/pages/portal/bookings.tsx`
+- `.agents/LOG.md`
+
+**Build state at end:** build + typecheck green; all 82 tests passing.
+
+**Next best action:** Task 4 — printable earnings/invoice export on `/provider/earnings` (browser print-to-PDF, no PDF dependency).
+
+---
+
+
 ### Session 018 — 2026-06 (checkpoint 2/4)
 **Agent:** Emergent Agent  
 **Scope:** `S`  

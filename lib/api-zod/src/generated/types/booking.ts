@@ -20,6 +20,12 @@ export interface Booking {
   careNotes?: string | null;
   clientNotes?: string | null;
   cancellationReason?: string | null;
+  /** Client first name (joined; present on list responses) */
+  clientFirstName?: string | null;
+  /** Client last name (joined; present on list responses) */
+  clientLastName?: string | null;
+  /** Client phone (joined; present on list responses) */
+  clientPhone?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

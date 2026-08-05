@@ -622,6 +622,9 @@ export const ListBookingsResponse = zod.object({
   "careNotes": zod.string().nullish(),
   "clientNotes": zod.string().nullish(),
   "cancellationReason": zod.string().nullish(),
+  "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
+  "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
+  "clientPhone": zod.string().nullish().describe('Client phone (joined; present on list responses)'),
   "createdAt": zod.coerce.date().optional(),
   "updatedAt": zod.coerce.date().optional()
 })),
@@ -663,6 +666,9 @@ export const CreateBookingResponse = zod.object({
   "careNotes": zod.string().nullish(),
   "clientNotes": zod.string().nullish(),
   "cancellationReason": zod.string().nullish(),
+  "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
+  "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
+  "clientPhone": zod.string().nullish().describe('Client phone (joined; present on list responses)'),
   "createdAt": zod.coerce.date().optional(),
   "updatedAt": zod.coerce.date().optional()
 })
@@ -690,6 +696,9 @@ export const GetBookingResponse = zod.object({
   "careNotes": zod.string().nullish(),
   "clientNotes": zod.string().nullish(),
   "cancellationReason": zod.string().nullish(),
+  "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
+  "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
+  "clientPhone": zod.string().nullish().describe('Client phone (joined; present on list responses)'),
   "createdAt": zod.coerce.date().optional(),
   "updatedAt": zod.coerce.date().optional()
 })
@@ -723,6 +732,9 @@ export const UpdateBookingStatusResponse = zod.object({
   "careNotes": zod.string().nullish(),
   "clientNotes": zod.string().nullish(),
   "cancellationReason": zod.string().nullish(),
+  "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
+  "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
+  "clientPhone": zod.string().nullish().describe('Client phone (joined; present on list responses)'),
   "createdAt": zod.coerce.date().optional(),
   "updatedAt": zod.coerce.date().optional()
 })

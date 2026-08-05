@@ -1,11 +1,12 @@
 import { Router, type Request, type Response } from "express";
-import { eq, and, or, sql } from "drizzle-orm";
+import { eq, and, or, sql, getTableColumns } from "drizzle-orm";
 import {
   db,
   bookingsTable,
   providerProfilesTable,
   servicesTable,
   invoicesTable,
+  usersTable,
 } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 import {
@@ -59,8 +60,14 @@ router.get(
 
     const [bookings, countRows] = await Promise.all([
       db
-        .select()
+        .select({
+          ...getTableColumns(bookingsTable),
+          clientFirstName: usersTable.firstName,
+          clientLastName: usersTable.lastName,
+          clientPhone: usersTable.phone,
+        })
         .from(bookingsTable)
+        .leftJoin(usersTable, eq(usersTable.id, bookingsTable.clientId))
         .where(whereClause)
         .orderBy(sql`${bookingsTable.scheduledAt} desc`)
         .limit(limit)

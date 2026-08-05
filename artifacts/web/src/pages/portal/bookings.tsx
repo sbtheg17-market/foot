@@ -1,7 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useListBookings, useUpdateBookingStatus, ListBookingsStatus } from '@workspace/api-client-react';
-import { Calendar, MapPin, Clock, FileText, ChevronRight, X, Check } from 'lucide-react';
+import { Calendar, MapPin, Clock, FileText, Phone, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
+
+const mapsUrl = (address: string, city: string, postalCode?: string | null) =>
+  `https://maps.google.com/?q=${encodeURIComponent([address, city, postalCode].filter(Boolean).join(', '))}`;
+
+const telUrl = (phone: string) => `tel:${phone.replace(/[^+\d]/g, '')}`;
 
 export default function PortalBookings() {
   const [activeTab, setActiveTab] = useState<ListBookingsStatus>('requested');
@@ -134,11 +139,31 @@ export default function PortalBookings() {
                       hour: 'numeric', minute: '2-digit' 
                     })}
                   </div>
-                  <h3 className="font-serif font-bold text-lg text-foreground">Client ID: {booking.clientId}</h3>
-                  <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                  <h3 className="font-serif font-bold text-lg text-foreground" data-testid={`booking-${booking.id}-client-name`}>
+                    {booking.clientFirstName
+                      ? `${booking.clientFirstName} ${booking.clientLastName ?? ''}`.trim()
+                      : `Client ID: ${booking.clientId}`}
+                  </h3>
+                  {booking.clientPhone && (
+                    <a
+                      href={telUrl(booking.clientPhone)}
+                      data-testid={`booking-${booking.id}-phone-link`}
+                      className="text-sm text-primary font-medium mt-0.5 flex items-center gap-1.5 hover:underline active:opacity-70"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      {booking.clientPhone}
+                    </a>
+                  )}
+                  <a
+                    href={mapsUrl(booking.address, booking.city, booking.postalCode)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid={`booking-${booking.id}-address-link`}
+                    className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1.5 hover:text-primary hover:underline active:opacity-70"
+                  >
                     <MapPin className="w-3.5 h-3.5" />
                     {booking.address}, {booking.city}
-                  </p>
+                  </a>
                 </div>
               </div>
 
