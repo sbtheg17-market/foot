@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import * as Constants from 'expo-constants';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 
 const BASE = process.env.EXPO_PUBLIC_DOMAIN

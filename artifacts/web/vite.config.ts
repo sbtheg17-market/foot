@@ -6,26 +6,15 @@ import { defineConfig } from 'vite';
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
 const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    'PORT environment variable is required but was not provided.',
-  );
-}
-
-const port = Number(rawPort);
+const port = rawPort ? Number(rawPort) : 5173;
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
-
-if (!basePath) {
-  throw new Error(
-    'BASE_PATH environment variable is required but was not provided.',
-  );
-}
+// Base path for the SPA. Defaults to root so production builds work on any
+// host without extra config. Set BASE_PATH only when serving under a sub-path.
+const basePath = process.env.BASE_PATH || '/';
 
 export default defineConfig({
   base: basePath,

@@ -1,0 +1,18 @@
+# Nixpacks build config for Railway / any Nixpacks-based host.
+# Node 20 + pnpm (via corepack, pinned by the root package.json "packageManager").
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = [
+  "corepack enable",
+  "corepack prepare pnpm@9.15.0 --activate",
+  "pnpm install --frozen-lockfile"
+]
+
+[phases.build]
+cmds = ["pnpm run build:deploy"]
+
+[start]
+cmd = "pnpm run db:push && pnpm run start"

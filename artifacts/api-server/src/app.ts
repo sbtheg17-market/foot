@@ -1,4 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
+import path from "node:path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -30,6 +33,30 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// ── Static web app (co-hosted single-service deploy) ──────────────────────────
+// In production the built React SPA (artifacts/web/dist/public) is served by
+// this same server, so one host serves both the API (/api/*) and the web app.
+// Path is resolved relative to the bundled server file, overridable via
+// WEB_DIST_PATH for non-standard layouts. If the build isn't present (e.g. API
+// running standalone in dev), this block is skipped silently.
+const thisDir = path.dirname(fileURLToPath(import.meta.url));
+const webDist =
+  process.env["WEB_DIST_PATH"] ??
+  path.resolve(thisDir, "../../web/dist/public");
+
+if (fs.existsSync(path.join(webDist, "index.html"))) {
+  const indexHtml = path.join(webDist, "index.html");
+  logger.info({ webDist }, "Serving static web app");
+
+  app.use(express.static(webDist, { index: false }));
+
+  // SPA fallback: any non-API GET returns index.html so client-side routing works.
+  app.get(/^\/(?!api\/).*/, (req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== "GET") return next();
+    res.sendFile(indexHtml);
+  });
+}
 
 // ── Catch-all JSON error handler ──────────────────────────────────────────────
 // Must be the last middleware (4 parameters). Express calls this whenever a

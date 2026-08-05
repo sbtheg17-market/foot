@@ -37,23 +37,29 @@ node artifacts/api-server/dist/index.mjs
 
 ---
 
-## Railway
+## Railway (single service — recommended)
 
-1. Create a Railway project, add a **PostgreSQL** plugin → copy `DATABASE_URL` into Variables
-2. Add a **Web Service** pointed at the repo root
-3. Set **Build command**: `pnpm install && pnpm --filter @workspace/db run push && pnpm --filter @workspace/api-server run build`
-4. Set **Start command**: `node artifacts/api-server/dist/index.mjs`
-5. Add all required environment variables (see table above)
+The repo ships a `railway.json` and `nixpacks.toml`, so Railway auto-configures:
+
+1. Create a Railway project → add a **PostgreSQL** plugin. Railway exposes `DATABASE_URL` to the service automatically.
+2. Deploy the repo. Railway reads `railway.json`:
+   - **Build**: `pnpm run build:deploy` (builds the React web app + bundles the API server)
+   - **Start**: `pnpm run db:push && pnpm run start` (pushes the schema, then serves API **and** the web app on one port)
+   - **Healthcheck**: `/api/healthz`
+3. Set the remaining variables: `JWT_SECRET` (required), optionally `JWT_EXPIRES_IN`, `NODE_ENV=production`. `PORT` is injected by Railway.
+4. (First deploy only) seed demo data from the Railway shell: `pnpm run seed`.
+
+The Express server serves the built SPA (`artifacts/web/dist/public`) for all non-`/api` routes, so the whole app runs as **one service** — no separate frontend host or CORS setup needed.
 
 ---
 
-## Render
+## Render / Fly.io / any Node host
 
-1. Create a **PostgreSQL** database service → copy `DATABASE_URL`
-2. Create a **Web Service** (Node runtime)
-3. **Build command**: `pnpm install && pnpm --filter @workspace/db run push && pnpm --filter @workspace/api-server run build`
-4. **Start command**: `node artifacts/api-server/dist/index.mjs`
-5. Set all env vars
+Same single-service model:
+
+- **Build command**: `pnpm install && pnpm run build:deploy`
+- **Start command**: `pnpm run db:push && pnpm run start`
+- Provide `DATABASE_URL`, `JWT_SECRET`, and let the host inject `PORT`.
 
 ---
 
@@ -87,12 +93,11 @@ Schema is managed with Drizzle ORM:
 
 ---
 
-## Frontend Deployment (once built)
+## Frontend Deployment
 
-The React frontend (`artifacts/web/`) is a Vite SPA. It can be deployed:
+By default the React SPA (`artifacts/web/`) is **co-hosted** by the Express API server: `pnpm run build:deploy` builds it to `artifacts/web/dist/public`, and the server serves it for all non-`/api` routes (see `artifacts/api-server/src/app.ts`). This is the single-service model used above.
 
-- **Separately** on Vercel, Netlify, or Cloudflare Pages → set `VITE_API_URL` to the production API URL
-- **Co-hosted** by serving the built `dist/` from Express (add a static middleware in `artifacts/api-server/src/app.ts`)
+If you prefer to host the frontend **separately** (Vercel, Netlify, Cloudflare Pages), build just the web package (`pnpm --filter @workspace/web run build`) and point it at the API origin. The generated API client uses relative `/api/*` paths, so serve it behind the same domain or set a base URL via `setBaseUrl()`.
 
 ---
 

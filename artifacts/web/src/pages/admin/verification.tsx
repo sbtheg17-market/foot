@@ -229,7 +229,7 @@ export default function AdminVerification() {
                           </label>
                           <select
                             value={providerStatusByDoc[doc.id] ?? ''}
-                            onChange={(e) => setProviderStatusByDoc((p) => ({ ...p, [doc.id]: e.target.value }))}
+                            onChange={(e) => setProviderStatusByDoc((p) => ({ ...p, [doc.id]: e.target.value as ReviewVerificationDocRequestUpdateProviderStatus | '' }))}
                             className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                           >
                             {PROVIDER_STATUS_OPTIONS.map((o) => (

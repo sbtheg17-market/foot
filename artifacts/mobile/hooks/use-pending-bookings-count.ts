@@ -18,6 +18,7 @@ export function usePendingBookingsCount(): number {
     { status: ListBookingsStatus.requested },
     {
       query: {
+        queryKey: ['bookings', 'pending-count'],
         enabled: isProvider,
         refetchInterval: 30_000,
       },

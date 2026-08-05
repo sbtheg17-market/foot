@@ -37,7 +37,7 @@ export default function ProviderScreen() {
   const { data: servicesRes } = useListProviderServices(providerId, {
     query: { enabled: !!providerId, queryKey: ['services', providerId] },
   });
-  const { data: reviewsRes } = useListProviderReviews(providerId, {
+  const { data: reviewsRes } = useListProviderReviews(providerId, undefined, {
     query: { enabled: !!providerId, queryKey: ['reviews', providerId] },
   });
 
