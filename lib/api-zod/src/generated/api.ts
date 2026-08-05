@@ -430,6 +430,115 @@ export const GetMyEarningsResponse = zod.object({
 
 
 /**
+ * @summary Get own verification docs and overall status
+ */
+export const GetMyVerificationResponse = zod.object({
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected']),
+  "docs": zod.array(zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "docType": zod.string().describe('e.g. \"license\", \"insurance\", \"certification\", \"other\"'),
+  "fileName": zod.string().describe('URL or descriptive reference to the credential document'),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullish()
+}))
+})
+
+
+/**
+ * @summary Submit a credential document for admin review
+ */
+export const SubmitVerificationDocBody = zod.object({
+  "docType": zod.enum(['license', 'insurance', 'certification', 'other']),
+  "fileName": zod.string().describe('URL or descriptive reference to the document'),
+  "notes": zod.string().optional().describe('Optional context for the reviewer')
+})
+
+export const SubmitVerificationDocResponse = zod.object({
+  "doc": zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "docType": zod.string().describe('e.g. \"license\", \"insurance\", \"certification\", \"other\"'),
+  "fileName": zod.string().describe('URL or descriptive reference to the credential document'),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullish()
+})
+})
+
+
+/**
+ * @summary List all pending verification documents (admin only)
+ */
+export const getAdminVerificationQueueQueryStatusDefault = `pending`;
+export const getAdminVerificationQueueQueryLimitDefault = 50;
+export const getAdminVerificationQueueQueryOffsetDefault = 0;
+
+export const GetAdminVerificationQueueQueryParams = zod.object({
+  "status": zod.enum(['pending', 'approved', 'rejected']).default(getAdminVerificationQueueQueryStatusDefault),
+  "limit": zod.coerce.number().int().default(getAdminVerificationQueueQueryLimitDefault),
+  "offset": zod.coerce.number().int().default(getAdminVerificationQueueQueryOffsetDefault)
+})
+
+export const GetAdminVerificationQueueResponse = zod.object({
+  "items": zod.array(zod.object({
+  "doc": zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "docType": zod.string().describe('e.g. \"license\", \"insurance\", \"certification\", \"other\"'),
+  "fileName": zod.string().describe('URL or descriptive reference to the credential document'),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullish()
+}),
+  "provider": zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "email": zod.string(),
+  "city": zod.string(),
+  "verificationStatus": zod.string()
+})
+})),
+  "total": zod.int(),
+  "limit": zod.int(),
+  "offset": zod.int()
+})
+
+
+/**
+ * @summary Approve or reject a verification document (admin only)
+ */
+export const ReviewVerificationDocParams = zod.object({
+  "docId": zod.coerce.number().int()
+})
+
+export const ReviewVerificationDocBody = zod.object({
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewerNotes": zod.string().optional(),
+  "updateProviderStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected']).optional().describe('Optionally update the provider\'s overall verification status')
+})
+
+export const ReviewVerificationDocResponse = zod.object({
+  "doc": zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "docType": zod.string().describe('e.g. \"license\", \"insurance\", \"certification\", \"other\"'),
+  "fileName": zod.string().describe('URL or descriptive reference to the credential document'),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "reviewerNotes": zod.string().nullish(),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullish()
+})
+})
+
+
+/**
  * @summary Get a provider's public profile
  */
 export const GetProviderByIdParams = zod.object({

@@ -445,6 +445,122 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /providers/me/verification:
+    get:
+      operationId: getMyVerification
+      tags: [providers]
+      summary: Get own verification docs and overall status
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Verification status and submitted docs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      operationId: submitVerificationDoc
+      tags: [providers]
+      summary: Submit a credential document for admin review
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitVerificationDocRequest"
+      responses:
+        "201":
+          description: Document submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationDocResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/verification/queue:
+    get:
+      operationId: getAdminVerificationQueue
+      tags: [admin]
+      summary: List all pending verification documents (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+            default: pending
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Verification queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminVerificationQueueResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/verification/docs/{docId}:
+    patch:
+      operationId: reviewVerificationDoc
+      tags: [admin]
+      summary: Approve or reject a verification document (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: docId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewVerificationDocRequest"
+      responses:
+        "200":
+          description: Document reviewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationDocResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /providers/{providerId}:
     get:
       operationId: getProviderById
@@ -1555,3 +1671,147 @@ components:
         - totalCents
         - completedBookings
         - pendingPayoutCents
+
+    # ── Verification / Credential Schemas ──────────────────────────────────────
+
+    VerificationDocStatus:
+      type: string
+      enum: [pending, approved, rejected]
+
+    VerificationDoc:
+      type: object
+      properties:
+        id:
+          type: integer
+        providerId:
+          type: integer
+        docType:
+          type: string
+          description: e.g. "license", "insurance", "certification", "other"
+        fileName:
+          type: string
+          description: URL or descriptive reference to the credential document
+        status:
+          $ref: "#/components/schemas/VerificationDocStatus"
+        reviewerNotes:
+          type: string
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - providerId
+        - docType
+        - fileName
+        - status
+        - submittedAt
+
+    VerificationDocResponse:
+      type: object
+      properties:
+        doc:
+          $ref: "#/components/schemas/VerificationDoc"
+      required:
+        - doc
+
+    VerificationStatusResponse:
+      type: object
+      properties:
+        verificationStatus:
+          type: string
+          enum: [pending, under_review, approved, rejected]
+        docs:
+          type: array
+          items:
+            $ref: "#/components/schemas/VerificationDoc"
+      required:
+        - verificationStatus
+        - docs
+
+    SubmitVerificationDocRequest:
+      type: object
+      properties:
+        docType:
+          type: string
+          enum: [license, insurance, certification, other]
+        fileName:
+          type: string
+          description: URL or descriptive reference to the document
+        notes:
+          type: string
+          description: Optional context for the reviewer
+      required:
+        - docType
+        - fileName
+
+    AdminVerificationQueueItem:
+      type: object
+      properties:
+        doc:
+          $ref: "#/components/schemas/VerificationDoc"
+        provider:
+          type: object
+          properties:
+            id:
+              type: integer
+            userId:
+              type: integer
+            firstName:
+              type: string
+            lastName:
+              type: string
+            email:
+              type: string
+            city:
+              type: string
+            verificationStatus:
+              type: string
+          required:
+            - id
+            - userId
+            - firstName
+            - lastName
+            - email
+            - city
+            - verificationStatus
+      required:
+        - doc
+        - provider
+
+    AdminVerificationQueueResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminVerificationQueueItem"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - items
+        - total
+        - limit
+        - offset
+
+    ReviewVerificationDocRequest:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/VerificationDocStatus"
+        reviewerNotes:
+          type: string
+        updateProviderStatus:
+          type: string
+          enum: [pending, under_review, approved, rejected]
+          description: Optionally update the provider's overall verification status
+      required:
+        - status

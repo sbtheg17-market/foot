@@ -13,6 +13,8 @@ import PortalServices from '@/pages/portal/services';
 import PortalAvailability from '@/pages/portal/availability';
 import PortalEarnings from '@/pages/portal/earnings';
 import PortalProfile from '@/pages/portal/profile';
+import PortalCredentials from '@/pages/portal/credentials';
+import AdminVerification from '@/pages/admin/verification';
 import ProviderLayout from '@/components/layout/provider-layout';
 import ClientLayout from '@/components/layout/client-layout';
 import { Toaster } from 'sonner';
@@ -109,6 +111,18 @@ function Router() {
             <PortalProfile />
           </ProviderLayout>
         )}
+      </Route>
+      <Route path="/portal/credentials">
+        {() => (
+          <ProviderLayout>
+            <PortalCredentials />
+          </ProviderLayout>
+        )}
+      </Route>
+
+      {/* Admin routes */}
+      <Route path="/admin/verification">
+        {() => <AdminVerification />}
       </Route>
 
       <Route component={NotFound} />

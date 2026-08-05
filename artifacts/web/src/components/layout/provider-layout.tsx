@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
-import { LayoutDashboard, CalendarDays, ClipboardList, Wallet, User as UserIcon } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, ClipboardList, Wallet, User as UserIcon, ShieldCheck } from 'lucide-react';
 import { useGetMe, useListBookings, ListBookingsStatus } from '@workspace/api-client-react';
 import { useProviderNotifications } from '@/hooks/use-provider-notifications';
 
@@ -36,7 +36,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     { name: 'Dashboard', path: '/portal', icon: LayoutDashboard, badge: 0 },
     { name: 'Bookings', path: '/portal/bookings', icon: CalendarDays, badge: pendingCount },
     { name: 'Services', path: '/portal/services', icon: ClipboardList, badge: 0 },
-    { name: 'Earnings', path: '/portal/earnings', icon: Wallet, badge: 0 },
+    { name: 'Credentials', path: '/portal/credentials', icon: ShieldCheck, badge: 0 },
     { name: 'Profile', path: '/portal/profile', icon: UserIcon, badge: 0 },
   ];
 

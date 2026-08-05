@@ -398,6 +398,107 @@ export interface EarningsSummaryResponse {
   pendingPayoutCents: number;
 }
 
+export type VerificationDocStatus = typeof VerificationDocStatus[keyof typeof VerificationDocStatus];
+
+
+export const VerificationDocStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface VerificationDoc {
+  id: number;
+  providerId: number;
+  /** e.g. "license", "insurance", "certification", "other" */
+  docType: string;
+  /** URL or descriptive reference to the credential document */
+  fileName: string;
+  status: VerificationDocStatus;
+  reviewerNotes?: string | null;
+  submittedAt: string;
+  reviewedAt?: string | null;
+}
+
+export interface VerificationDocResponse {
+  doc: VerificationDoc;
+}
+
+export type VerificationStatusResponseVerificationStatus = typeof VerificationStatusResponseVerificationStatus[keyof typeof VerificationStatusResponseVerificationStatus];
+
+
+export const VerificationStatusResponseVerificationStatus = {
+  pending: 'pending',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface VerificationStatusResponse {
+  verificationStatus: VerificationStatusResponseVerificationStatus;
+  docs: VerificationDoc[];
+}
+
+export type SubmitVerificationDocRequestDocType = typeof SubmitVerificationDocRequestDocType[keyof typeof SubmitVerificationDocRequestDocType];
+
+
+export const SubmitVerificationDocRequestDocType = {
+  license: 'license',
+  insurance: 'insurance',
+  certification: 'certification',
+  other: 'other',
+} as const;
+
+export interface SubmitVerificationDocRequest {
+  docType: SubmitVerificationDocRequestDocType;
+  /** URL or descriptive reference to the document */
+  fileName: string;
+  /** Optional context for the reviewer */
+  notes?: string;
+}
+
+export type AdminVerificationQueueItemProvider = {
+  id: number;
+  userId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  city: string;
+  verificationStatus: string;
+};
+
+export interface AdminVerificationQueueItem {
+  doc: VerificationDoc;
+  provider: AdminVerificationQueueItemProvider;
+}
+
+export interface AdminVerificationQueueResponse {
+  items: AdminVerificationQueueItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Optionally update the provider's overall verification status
+ */
+export type ReviewVerificationDocRequestUpdateProviderStatus = typeof ReviewVerificationDocRequestUpdateProviderStatus[keyof typeof ReviewVerificationDocRequestUpdateProviderStatus];
+
+
+export const ReviewVerificationDocRequestUpdateProviderStatus = {
+  pending: 'pending',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface ReviewVerificationDocRequest {
+  status: VerificationDocStatus;
+  reviewerNotes?: string;
+  /** Optionally update the provider's overall verification status */
+  updateProviderStatus?: ReviewVerificationDocRequestUpdateProviderStatus;
+}
+
 /**
  * Validation error
  */
@@ -446,6 +547,21 @@ limit?: number;
  */
 offset?: number;
 };
+
+export type GetAdminVerificationQueueParams = {
+status?: GetAdminVerificationQueueStatus;
+limit?: number;
+offset?: number;
+};
+
+export type GetAdminVerificationQueueStatus = typeof GetAdminVerificationQueueStatus[keyof typeof GetAdminVerificationQueueStatus];
+
+
+export const GetAdminVerificationQueueStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
 
 export type ListBookingsParams = {
 /**

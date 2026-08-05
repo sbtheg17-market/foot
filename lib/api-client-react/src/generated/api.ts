@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminVerificationQueueResponse,
   AuthResponse,
   AvailabilityListResponse,
   BadRequestResponse,
@@ -32,6 +33,7 @@ import type {
   CreateTravelZoneRequest,
   EarningsSummaryResponse,
   ForbiddenResponse,
+  GetAdminVerificationQueueParams,
   HealthStatus,
   InvoiceListResponse,
   InvoiceResponse,
@@ -48,15 +50,19 @@ import type {
   RegisterRequest,
   ReviewListResponse,
   ReviewResponse,
+  ReviewVerificationDocRequest,
   ServiceListResponse,
   ServiceResponse,
   SetAvailabilityRequest,
+  SubmitVerificationDocRequest,
   TravelZoneListResponse,
   TravelZoneResponse,
   UnauthorizedResponse,
   UpdateBookingStatusRequest,
   UpdateProviderProfileRequest,
-  UpdateServiceRequest
+  UpdateServiceRequest,
+  VerificationDocResponse,
+  VerificationStatusResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1421,6 +1427,310 @@ export function useGetMyEarnings<TData = Awaited<ReturnType<typeof getMyEarnings
 
 
 
+
+export const getGetMyVerificationUrl = () => {
+
+
+
+
+  return `/api/providers/me/verification`
+}
+
+/**
+ * @summary Get own verification docs and overall status
+ */
+export const getMyVerification = async ( options?: Parameters<typeof customFetch>[1]): Promise<VerificationStatusResponse> => {
+
+  return customFetch<VerificationStatusResponse>(getGetMyVerificationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyVerificationQueryKey = () => {
+    return [
+    `/api/providers/me/verification`
+    ] as const;
+    }
+
+
+export const getGetMyVerificationQueryOptions = <TData = Awaited<ReturnType<typeof getMyVerification>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyVerification>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyVerificationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyVerification>>> = ({ signal }) => getMyVerification({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyVerification>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyVerificationQueryResult = NonNullable<Awaited<ReturnType<typeof getMyVerification>>>
+export type GetMyVerificationQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Get own verification docs and overall status
+ */
+
+export function useGetMyVerification<TData = Awaited<ReturnType<typeof getMyVerification>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyVerification>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyVerificationQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitVerificationDocUrl = () => {
+
+
+
+
+  return `/api/providers/me/verification`
+}
+
+/**
+ * @summary Submit a credential document for admin review
+ */
+export const submitVerificationDoc = async (submitVerificationDocRequest: SubmitVerificationDocRequest, options?: Parameters<typeof customFetch>[1]): Promise<VerificationDocResponse> => {
+
+  return customFetch<VerificationDocResponse>(getSubmitVerificationDocUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submitVerificationDocRequest)
+  }
+);}
+
+
+
+
+
+export const getSubmitVerificationDocMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitVerificationDoc>>, TError,{data: BodyType<SubmitVerificationDocRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitVerificationDoc>>, TError,{data: BodyType<SubmitVerificationDocRequest>}, TContext> => {
+
+const mutationKey = ['submitVerificationDoc'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitVerificationDoc>>, {data: BodyType<SubmitVerificationDocRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitVerificationDoc(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitVerificationDocMutationResult = NonNullable<Awaited<ReturnType<typeof submitVerificationDoc>>>
+    export type SubmitVerificationDocMutationBody = BodyType<SubmitVerificationDocRequest>
+    export type SubmitVerificationDocMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+    /**
+ * @summary Submit a credential document for admin review
+ */
+export const useSubmitVerificationDoc = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitVerificationDoc>>, TError,{data: BodyType<SubmitVerificationDocRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitVerificationDoc>>,
+        TError,
+        {data: BodyType<SubmitVerificationDocRequest>},
+        TContext
+      > => {
+      return useMutation(getSubmitVerificationDocMutationOptions(options));
+    }
+
+export const getGetAdminVerificationQueueUrl = (params?: GetAdminVerificationQueueParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/verification/queue?${stringifiedParams}` : `/api/admin/verification/queue`
+}
+
+/**
+ * @summary List all pending verification documents (admin only)
+ */
+export const getAdminVerificationQueue = async (params?: GetAdminVerificationQueueParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminVerificationQueueResponse> => {
+
+  return customFetch<AdminVerificationQueueResponse>(getGetAdminVerificationQueueUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminVerificationQueueQueryKey = (params?: GetAdminVerificationQueueParams,) => {
+    return [
+    `/api/admin/verification/queue`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAdminVerificationQueueQueryOptions = <TData = Awaited<ReturnType<typeof getAdminVerificationQueue>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(params?: GetAdminVerificationQueueParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminVerificationQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminVerificationQueueQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminVerificationQueue>>> = ({ signal }) => getAdminVerificationQueue(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminVerificationQueue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminVerificationQueueQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminVerificationQueue>>>
+export type GetAdminVerificationQueueQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List all pending verification documents (admin only)
+ */
+
+export function useGetAdminVerificationQueue<TData = Awaited<ReturnType<typeof getAdminVerificationQueue>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+ params?: GetAdminVerificationQueueParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminVerificationQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminVerificationQueueQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReviewVerificationDocUrl = (docId: number,) => {
+
+
+
+
+  return `/api/admin/verification/docs/${docId}`
+}
+
+/**
+ * @summary Approve or reject a verification document (admin only)
+ */
+export const reviewVerificationDoc = async (docId: number,
+    reviewVerificationDocRequest: ReviewVerificationDocRequest, options?: Parameters<typeof customFetch>[1]): Promise<VerificationDocResponse> => {
+
+  return customFetch<VerificationDocResponse>(getReviewVerificationDocUrl(docId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reviewVerificationDocRequest)
+  }
+);}
+
+
+
+
+
+export const getReviewVerificationDocMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewVerificationDoc>>, TError,{docId: number;data: BodyType<ReviewVerificationDocRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewVerificationDoc>>, TError,{docId: number;data: BodyType<ReviewVerificationDocRequest>}, TContext> => {
+
+const mutationKey = ['reviewVerificationDoc'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewVerificationDoc>>, {docId: number;data: BodyType<ReviewVerificationDocRequest>}> = (props) => {
+          const {docId,data} = props ?? {};
+
+          return  reviewVerificationDoc(docId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewVerificationDocMutationResult = NonNullable<Awaited<ReturnType<typeof reviewVerificationDoc>>>
+    export type ReviewVerificationDocMutationBody = BodyType<ReviewVerificationDocRequest>
+    export type ReviewVerificationDocMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Approve or reject a verification document (admin only)
+ */
+export const useReviewVerificationDoc = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewVerificationDoc>>, TError,{docId: number;data: BodyType<ReviewVerificationDocRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewVerificationDoc>>,
+        TError,
+        {docId: number;data: BodyType<ReviewVerificationDocRequest>},
+        TContext
+      > => {
+      return useMutation(getReviewVerificationDocMutationOptions(options));
+    }
 
 export const getGetProviderByIdUrl = (providerId: number,) => {
 

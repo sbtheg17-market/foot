@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.3.0
  */
 
+export * from './adminVerificationQueueItem';
+export * from './adminVerificationQueueItemProvider';
+export * from './adminVerificationQueueResponse';
 export * from './authResponse';
 export * from './availabilityListResponse';
 export * from './availabilitySlot';
@@ -23,6 +26,8 @@ export * from './earningsSummaryResponse';
 export * from './errorResponse';
 export * from './errorResponseDetails';
 export * from './forbiddenResponse';
+export * from './getAdminVerificationQueueParams';
+export * from './getAdminVerificationQueueStatus';
 export * from './healthStatus';
 export * from './invoice';
 export * from './invoiceListResponse';
@@ -47,11 +52,15 @@ export * from './registerRequestRole';
 export * from './review';
 export * from './reviewListResponse';
 export * from './reviewResponse';
+export * from './reviewVerificationDocRequest';
+export * from './reviewVerificationDocRequestUpdateProviderStatus';
 export * from './service';
 export * from './serviceListResponse';
 export * from './serviceResponse';
 export * from './setAvailabilityRequest';
 export * from './setAvailabilityRequestSlotsItem';
+export * from './submitVerificationDocRequest';
+export * from './submitVerificationDocRequestDocType';
 export * from './travelZone';
 export * from './travelZoneListResponse';
 export * from './travelZoneResponse';
@@ -61,4 +70,9 @@ export * from './updateProviderProfileRequest';
 export * from './updateServiceRequest';
 export * from './userRole';
 export * from './userSummary';
+export * from './verificationDoc';
+export * from './verificationDocResponse';
+export * from './verificationDocStatus';
 export * from './verificationStatus';
+export * from './verificationStatusResponse';
+export * from './verificationStatusResponseVerificationStatus';

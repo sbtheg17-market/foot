@@ -9,6 +9,7 @@ import {
   reviewsTable,
   usersTable,
   invoicesTable,
+  verificationDocsTable,
 } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 
@@ -558,6 +559,85 @@ router.get(
       );
 
     res.json({ services });
+  }
+);
+
+// ── Verification / Credentials ────────────────────────────────────────────────
+
+/** GET /providers/me/verification — Own docs + overall status */
+router.get(
+  "/me/verification",
+  requireAuth,
+  requireRole("provider"),
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const docs = await db
+      .select()
+      .from(verificationDocsTable)
+      .where(eq(verificationDocsTable.providerId, profile.id))
+      .orderBy(sql`${verificationDocsTable.submittedAt} desc`);
+
+    res.json({
+      verificationStatus: profile.verificationStatus,
+      docs,
+    });
+  }
+);
+
+/** POST /providers/me/verification — Submit a credential document */
+router.post(
+  "/me/verification",
+  requireAuth,
+  requireRole("provider"),
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const { docType, fileName, notes } = req.body as {
+      docType?: string;
+      fileName?: string;
+      notes?: string;
+    };
+
+    const ALLOWED_DOC_TYPES = ["license", "insurance", "certification", "other"];
+    if (!docType || !ALLOWED_DOC_TYPES.includes(docType)) {
+      res.status(400).json({ error: `docType must be one of: ${ALLOWED_DOC_TYPES.join(", ")}.` });
+      return;
+    }
+    if (!fileName || fileName.trim().length < 3) {
+      res.status(400).json({ error: "fileName (document URL or reference) is required." });
+      return;
+    }
+
+    // If provider was in "pending" state with no submissions, bump to under_review
+    const [inserted] = await db
+      .insert(verificationDocsTable)
+      .values({
+        providerId: profile.id,
+        docType,
+        fileName: fileName.trim(),
+        reviewerNotes: notes?.trim() ?? null,
+        status: "pending",
+      })
+      .returning();
+
+    // Auto-advance provider's overall status to under_review when they submit their first doc
+    if (profile.verificationStatus === "pending") {
+      await db
+        .update(providerProfilesTable)
+        .set({ verificationStatus: "under_review", updatedAt: new Date() })
+        .where(eq(providerProfilesTable.id, profile.id));
+    }
+
+    res.status(201).json({ doc: inserted });
   }
 );
 
