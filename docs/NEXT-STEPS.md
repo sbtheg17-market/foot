@@ -59,8 +59,12 @@ Files: `artifacts/api-server/src/routes/bookings.ts`, `lib/api-spec/openapi.yaml
 Printable HTML earnings statement (browser print-to-PDF; no PDF dependency) derived from **completed bookings only** via read-only `GET /providers/me/earnings/export`. Page: `/provider/earnings/statement` with print-CSS (`print:` variants hide navs/toolbar). No Stripe.
 Files: `artifacts/api-server/src/routes/providers.ts`, `artifacts/web/src/pages/portal/earnings-statement.tsx`, `earnings.tsx`, `lib/routes.ts`, `App.tsx`, `components/layout/provider-layout.tsx`.
 
-## What's next (not started — pick with the user)
-- Provider profile depth (avatar upload / richer profile editing).
+## Provider profile depth ✅ DONE
+- Added a provider trust checklist with completion progress and direct links to finish profile, services, and credentials.
+- Public web and mobile profiles now show real avatars when available, clearer credential verification, new-client availability, service-area notes, and service eligibility notes.
+- No schema, upload dependency, booking, notification, or payment changes were needed.
+
+## What's next (pick with the user)
 - Client portal activation (currently scaffolding only — needs explicit request).
 - Stripe payments (explicitly out of scope until requested).
 

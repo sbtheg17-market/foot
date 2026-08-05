@@ -37,7 +37,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Layer | Status | Notes |
 |---|---|---|
 | DB schema | ✅ Live | Pushed to Replit PostgreSQL. Tables: users, provider_profiles, travel_zones, availability, verification_docs, services, bookings, reviews, invoices, support_tickets, support_messages |
-| API server workflow | ✅ Running | `artifacts/api-server: API Server` on Replit. Health check: `GET /api/healthz → {"status":"ok"}` |
+| API server workflow | ⚠️ Environment blocked | Application source is unchanged and previously healthy, but the managed workflow currently fails before startup while bootstrapping pnpm (`pthread_create: Resource temporarily unavailable`). |
 | Auth routes | ✅ Live | POST /auth/register, /auth/login, /auth/logout, GET /auth/me — all verified (JWT token + user object confirmed) |
 | JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
 | JWT_SECRET | ✅ Set | Stored as Replit Secret. API server confirmed signing tokens correctly. |
@@ -45,10 +45,10 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/:id, PATCH /bookings/:id/status — strict state machine, auto-invoice on confirm |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, GET /invoices, GET /invoices/:id — all role-scoped |
-| React frontend | ✅ Running | Web app: discovery, provider profile, booking modal, bookings page, provider portal all live |
+| React frontend | ✅ Built | Web app: discovery, provider profile, booking modal, bookings page, provider portal, and provider trust-profile surfaces |
 | Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
 | Web booking flow | ✅ Live | BookingModal on provider profile → `/bookings` page with Upcoming/Past/Cancelled tabs + cancel |
-| Expo mobile app | ✅ Running | All screens: Discover, Bookings, Account, Provider Profile, Login, Register — JWT auth via AsyncStorage |
+| Expo mobile app | ✅ Running | All screens: Discover, Bookings, Account, Provider Profile, Login, Register — provider profile trust surfaces added; JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
 | GitHub sync | ✅ Current | Local `main` is synchronized with `origin/main`; separate `conflict_*` branches were inspected and are unrelated projects with no shared history. |
@@ -79,6 +79,32 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** Application source unchanged; local `main` and GitHub `origin/main` are synchronized. No conflict branches were modified.
 
 **Next best action:** Implement provider profile depth as a small, provider-first checkpoint: richer profile editing, lightweight trust/credential presentation, and service presentation while preserving auth, bookings, notifications, and deployment.
+
+---
+
+### Session 020 — 2026-08-05
+**Agent:** Replit Main Agent
+**Scope:** `M`
+**Triggered by:** Provider profile depth task and requirement to push every checkpoint to GitHub.
+
+**What was done:**
+- Added a provider-portal trust profile card with completion progress and direct links to finish profile details, services, and credentials.
+- Strengthened public provider profiles on web and mobile with real avatar rendering when available, clearer credential verification, new-client availability, service-area notes, and service eligibility notes.
+- Kept the implementation provider-first and data-only: no new schema, upload dependency, API route, booking state-machine, notification, client-portal, or Stripe changes.
+- Committed the feature as `Build trust into provider profiles` and pushed the full local `main` history to `origin/main`.
+- Ran `git diff --check`, conflict-marker scans, and LSP diagnostics for the changed files. Diagnostics returned no errors.
+- Attempted to restart the web and API workflows. Both are blocked before application startup by a managed pnpm bootstrap resource failure: `pthread_create: Resource temporarily unavailable`.
+
+**Files changed:**
+- `artifacts/web/src/pages/portal/profile.tsx`
+- `artifacts/web/src/pages/provider-profile.tsx`
+- `artifacts/mobile/app/provider/[id].tsx`
+- `docs/NEXT-STEPS.md`
+- `.agents/LOG.md`
+
+**Build state at end:** Provider profile trust surfaces are implemented and pushed. `main` matches `origin/main`; the uploaded task brief remains untracked. Web/API preview verification is pending resolution of the Replit workflow resource issue, not an application error.
+
+**Next best action:** Resolve the managed pnpm/thread-resource issue, restart the API and web workflows, then verify the provider profile surfaces at mobile width. After that, choose whether to activate the client portal; keep Stripe deferred.
 
 ---
 

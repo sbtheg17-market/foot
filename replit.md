@@ -71,11 +71,11 @@ The API server workflow is `artifacts/api-server: API Server` — restart it aft
 - **Monorepo**: pnpm workspaces (Node.js 24, TypeScript 5.9)
 - **API**: Express 5, built with esbuild 0.27.3 → `artifacts/api-server/dist/index.mjs`
 - **DB**: PostgreSQL + Drizzle ORM (schema in `lib/db/src/schema/`)
-- **Auth**: JWT HS256 + bcrypt *(routes not yet implemented)*
+- **Auth**: JWT HS256 + bcrypt with provider/client/admin role enforcement
 - **Validation**: Zod v4 + drizzle-zod
 - **API contract**: OpenAPI 3.1 spec (`lib/api-spec/openapi.yaml`) — source of truth for all endpoints
 - **Codegen**: Orval generates Zod validators (`lib/api-zod/`) and TanStack Query hooks (`lib/api-client-react/`) from the spec — always run codegen after changing the spec
-- **Frontend**: React 19 + Vite + TanStack Query + Wouter *(artifact not created yet)*
+- **Frontend**: React 19 + Vite + TanStack Query + Wouter (provider portal and public provider discovery/profile surfaces)
 
 ---
 
