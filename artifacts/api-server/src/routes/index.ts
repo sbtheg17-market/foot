@@ -5,6 +5,7 @@ import providersRouter from "./providers.js";
 import bookingsRouter from "./bookings.js";
 import reviewsRouter from "./reviews.js";
 import invoicesRouter from "./invoices.js";
+import notificationsRouter from "./notifications.js";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use("/providers", providersRouter);
 router.use("/bookings", bookingsRouter);
 router.use("/reviews", reviewsRouter);
 router.use("/invoices", invoicesRouter);
+router.use("/notifications", notificationsRouter);
 
 export default router;

@@ -12,6 +12,7 @@ import {
   isTransitionAllowed,
   type BookingStatus,
 } from "../lib/booking-state-machine.js";
+import { emitNewBooking } from "../lib/notification-bus.js";
 
 const router = Router();
 
@@ -140,6 +141,14 @@ router.post(
         clientNotes: clientNotes !== undefined ? String(clientNotes) : null,
       })
       .returning();
+
+    // Notify provider's connected SSE clients
+    emitNewBooking({
+      providerId: Number(providerId),
+      bookingId: booking!.id,
+      city: String(city),
+      scheduledAt: booking!.scheduledAt.toISOString(),
+    });
 
     res.status(201).json({ booking });
   }

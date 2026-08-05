@@ -275,6 +275,37 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 010 — 2026-08-05
+**Agent:** Replit Main Agent  
+**Scope:** `S`  
+**Triggered by:** "Proceed with instant alerts for new bookings" — provider-first, checkpoint-sized, no Stripe/credential work
+
+**What was done:**
+- Implemented in-process `NotificationBus` (Node EventEmitter singleton) — `artifacts/api-server/src/lib/notification-bus.ts`
+- Added `GET /api/notifications/stream` SSE endpoint (provider auth only, token via `?token=` query param for browser EventSource compatibility) — `artifacts/api-server/src/routes/notifications.ts`
+- Wired `POST /bookings` to call `emitNewBooking(...)` after the DB insert — `artifacts/api-server/src/routes/bookings.ts`
+- Registered notifications router in `artifacts/api-server/src/routes/index.ts`
+- Added `useProviderNotifications` hook on web — opens SSE stream, shows sonner toast with city + time + "View" CTA on new booking, invalidates `['bookings', 'requested']` query — `artifacts/web/src/hooks/use-provider-notifications.ts`
+- Mounted hook in `artifacts/web/src/components/layout/provider-layout.tsx` (renders for all portal pages)
+- Added `refetchInterval: 15_000` to mobile bookings query when user role is `provider` — `artifacts/mobile/app/(tabs)/bookings.tsx`
+- API typecheck: 0 errors. Web typecheck: 0 errors.
+- End-to-end smoke test verified: SSE stream receives `connected` event on connect, then `new-booking` event instantly when client POSTs a booking
+
+**Files changed:**
+- `artifacts/api-server/src/lib/notification-bus.ts` — new
+- `artifacts/api-server/src/routes/notifications.ts` — new
+- `artifacts/api-server/src/routes/bookings.ts` — import + emit after insert
+- `artifacts/api-server/src/routes/index.ts` — register notifications router
+- `artifacts/web/src/hooks/use-provider-notifications.ts` — new
+- `artifacts/web/src/components/layout/provider-layout.tsx` — mount hook
+- `artifacts/mobile/app/(tabs)/bookings.tsx` — refetchInterval for providers
+
+**Build state at end:** All 4 workflows running. Provider SSE alert stream live. Web portal shows toast on new booking. Mobile bookings auto-refresh every 15s for providers. TypeScript clean across API + web.
+
+**Next best action:** Expo push notifications for background alerts (provider receives notification even when app is not open). Requires `expo-notifications` on mobile, push token registration endpoint on API, `expo-server-sdk` on API server, and a push_tokens table (or column) in the DB. Keep as a separate checkpoint. See `docs/product-vision.md` for the notification milestone.
+
+---
+
 ### Session 009 — 2026-08-05
 **Agent:** Replit Main Agent  
 **Scope:** `XS`  

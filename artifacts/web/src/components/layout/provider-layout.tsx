@@ -2,10 +2,14 @@ import React, { useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
 import { LayoutDashboard, CalendarDays, ClipboardList, Wallet, User as UserIcon } from 'lucide-react';
 import { useGetMe } from '@workspace/api-client-react';
+import { useProviderNotifications } from '@/hooks/use-provider-notifications';
 
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { data: me, isLoading, error } = useGetMe();
+
+  // Opens SSE stream and shows toast when a new booking arrives
+  useProviderNotifications();
 
   useEffect(() => {
     if (!isLoading && (error || !me)) {

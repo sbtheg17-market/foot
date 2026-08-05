@@ -39,8 +39,14 @@ export default function BookingsScreen() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('upcoming');
 
+  // Providers need to know about incoming requests quickly — poll every 15 s
+  // while the screen is mounted and the app is in the foreground.
+  const isProvider = user?.role === 'provider';
   const { data, isLoading, refetch } = useListBookings(undefined, {
-    query: { queryKey: ['bookings'] },
+    query: {
+      queryKey: ['bookings'],
+      ...(isProvider ? { refetchInterval: 15_000 } : {}),
+    },
   });
 
   const updateStatus = useUpdateBookingStatus();
