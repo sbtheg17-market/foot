@@ -7,6 +7,7 @@ import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Tabs } from 'expo-router';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { SymbolView } from 'expo-symbols';
+import { usePendingBookingsCount } from '@/hooks/use-pending-bookings-count';
 
 function NativeTabLayout() {
   return (
@@ -31,6 +32,7 @@ function ClassicTabLayout() {
   const colors = useColors();
   const isIOS = Platform.OS === 'ios';
   const isWeb = Platform.OS === 'web';
+  const pendingCount = usePendingBookingsCount();
 
   return (
     <Tabs
@@ -70,6 +72,7 @@ function ClassicTabLayout() {
         name="bookings"
         options={{
           title: 'Bookings',
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="calendar" tintColor={color} size={22} />

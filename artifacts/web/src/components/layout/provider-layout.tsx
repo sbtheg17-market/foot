@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
 import { LayoutDashboard, CalendarDays, ClipboardList, Wallet, User as UserIcon } from 'lucide-react';
-import { useGetMe } from '@workspace/api-client-react';
+import { useGetMe, useListBookings, ListBookingsStatus } from '@workspace/api-client-react';
 import { useProviderNotifications } from '@/hooks/use-provider-notifications';
 
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
@@ -10,6 +10,13 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
 
   // Opens SSE stream and shows toast when a new booking arrives
   useProviderNotifications();
+
+  // Badge: count of pending booking requests waiting on provider action
+  const { data: pendingData } = useListBookings(
+    { status: ListBookingsStatus.requested },
+    { query: { queryKey: ['bookings', 'requested', 'badge'], refetchInterval: 30_000 } }
+  );
+  const pendingCount = pendingData?.total ?? 0;
 
   useEffect(() => {
     if (!isLoading && (error || !me)) {
@@ -26,11 +33,11 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   }
 
   const tabs = [
-    { name: 'Dashboard', path: '/portal', icon: LayoutDashboard },
-    { name: 'Bookings', path: '/portal/bookings', icon: CalendarDays },
-    { name: 'Services', path: '/portal/services', icon: ClipboardList },
-    { name: 'Earnings', path: '/portal/earnings', icon: Wallet },
-    { name: 'Profile', path: '/portal/profile', icon: UserIcon },
+    { name: 'Dashboard', path: '/portal', icon: LayoutDashboard, badge: 0 },
+    { name: 'Bookings', path: '/portal/bookings', icon: CalendarDays, badge: pendingCount },
+    { name: 'Services', path: '/portal/services', icon: ClipboardList, badge: 0 },
+    { name: 'Earnings', path: '/portal/earnings', icon: Wallet, badge: 0 },
+    { name: 'Profile', path: '/portal/profile', icon: UserIcon, badge: 0 },
   ];
 
   return (
@@ -42,7 +49,14 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
           const isActive = location === tab.path || (tab.path !== '/portal' && location.startsWith(tab.path));
           return (
             <Link key={tab.path} href={tab.path} className={`flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
-              <Icon className={`w-6 h-6 ${isActive ? 'fill-primary/20 stroke-primary' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
+              <div className="relative">
+                <Icon className={`w-6 h-6 ${isActive ? 'fill-primary/20 stroke-primary' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
+                {tab.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center leading-none">
+                    {tab.badge > 99 ? '99+' : tab.badge}
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] font-medium">{tab.name}</span>
             </Link>
           );
@@ -59,8 +73,15 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
             const Icon = tab.icon;
             const isActive = location === tab.path || (tab.path !== '/portal' && location.startsWith(tab.path));
             return (
-              <Link key={tab.path} href={tab.path} className={`flex flex-col items-center justify-center w-full aspect-square rounded-2xl gap-1 transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
-                <Icon className={`w-6 h-6 ${isActive ? 'fill-primary/20 stroke-primary' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
+              <Link key={tab.path} href={tab.path} className={`relative flex flex-col items-center justify-center w-full aspect-square rounded-2xl gap-1 transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
+                <div className="relative">
+                  <Icon className={`w-6 h-6 ${isActive ? 'fill-primary/20 stroke-primary' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
+                  {tab.badge > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center leading-none">
+                      {tab.badge > 99 ? '99+' : tab.badge}
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] font-medium">{tab.name}</span>
               </Link>
             );

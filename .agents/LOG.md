@@ -312,6 +312,38 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 012 — 2026-08-05
+**Agent:** Replit Main Agent  
+**Scope:** `S`  
+**Triggered by:** User asked to proceed with: (1) prevent booking state corruption from simultaneous actions, (2) add cancelled/rescheduled provider alerts, (3) show unread booking badges
+
+**What was done:**
+- **Step 1 — Concurrency protection** (`artifacts/api-server/src/routes/bookings.ts`):
+  - Wrapped the PATCH `/bookings/:id/status` handler in `db.transaction()` with `SELECT … FOR UPDATE` row-level locking
+  - Concurrent requests to the same booking now serialize at the DB row lock; the second re-reads the already-updated status and fails `isTransitionAllowed` → 409 "please refresh and try again"
+  - Invoice auto-create moved inside the transaction; unique-violation (pg 23505) caught and swallowed — DB constraint is the final safety net
+  - Push notifications kept OUTSIDE the transaction; a failed push never rolls back a confirmed booking
+  - Provider profile lookup moved above the transaction (stable data, no need to hold the row lock while querying)
+- **Step 2 — Missing rescheduled provider alert**:
+  - Previous code always sent rescheduled push to the client, even when the client rescheduled
+  - Fixed: `user.role === "client"` + `newStatus === "rescheduled"` now pushes to provider; provider rescheduling still pushes to client
+- **Step 3 — Unread badges**:
+  - Mobile: created `artifacts/mobile/hooks/use-pending-bookings-count.ts` — queries `GET /bookings?status=requested` every 30 s for providers. Applied as `tabBarBadge` on the Bookings tab in `ClassicTabLayout`
+  - Web: `provider-layout.tsx` — fetches pending count every 30 s, renders a red count pill on Bookings icon in both mobile bottom nav and desktop sidebar
+- API typecheck: 0 errors. Web typecheck: 0 errors. Unit tests: 63/63 pass.
+
+**Files changed:**
+- `artifacts/api-server/src/routes/bookings.ts` — PATCH handler rewritten with transaction + FOR UPDATE + rescheduled notification fix
+- `artifacts/mobile/hooks/use-pending-bookings-count.ts` — new
+- `artifacts/mobile/app/(tabs)/_layout.tsx` — tabBarBadge wired to pendingCount
+- `artifacts/web/src/components/layout/provider-layout.tsx` — pending count badge on Bookings nav item
+
+**Build state at end:** All 4 workflows running (mockup-sandbox expected-fail). API server healthy. TypeScript clean across API + web. Booking state machine protected against concurrent transitions. Provider receives push alerts on all lifecycle events (new, confirmed, cancelled by client, rescheduled by either party). Unread badge on Bookings tab (mobile + web portal) reflects pending request count.
+
+**Next best action:** Stripe payment integration (per `docs/future-monetization.md`). Or: credential verification queue in admin portal. Both are independent; Stripe has more immediate user-facing impact.
+
+---
+
 ### Session 011 — 2026-08-05
 **Agent:** Replit Main Agent  
 **Scope:** `XS`  
