@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "OnCall Foot — Provider Portal"
+description = "Mobile-first provider portal for OnCall Foot, a marketplace for in-home foot care professionals. Providers log in to manage their business: view and act on bookings, manage their service catalog, set weekly availability, and track earnings. Clients can browse and discover providers. Built for phones first — 390px viewport, thumb-zone navigation, bottom tab bar."
+version = "1.0.0"
+id = "artifacts/web"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22333
+
+[services.development]
+run = "pnpm --filter @workspace/web run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/web", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/web/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22333"
+BASE_PATH = "/"
