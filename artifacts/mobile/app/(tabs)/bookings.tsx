@@ -50,6 +50,8 @@ export default function BookingsScreen() {
   });
 
   const updateStatus = useUpdateBookingStatus();
+  // Track which booking has a request in flight so we can disable its button.
+  const [pendingId, setPendingId] = useState<number | null>(null);
 
   if (!user) {
     return (
@@ -73,15 +75,34 @@ export default function BookingsScreen() {
   const filtered = allBookings.filter(b => TAB_STATUSES[activeTab].includes(b.status));
 
   const handleCancel = (id: number) => {
+    if (pendingId !== null) return; // guard against tap while another request is in flight
     Alert.alert('Cancel booking?', 'This cannot be undone.', [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Cancel booking',
         style: 'destructive',
         onPress: () => {
+          setPendingId(id);
           updateStatus.mutate(
-            { bookingId: id, data: { status: 'cancelled' } },
-            { onSuccess: () => refetch() }
+            {
+              bookingId: id,
+              data: { status: 'cancelled', cancellationReason: 'Cancelled by user' },
+            },
+            {
+              onSuccess: () => {
+                refetch();
+                setPendingId(null);
+              },
+              onError: (err) => {
+                // 409 = booking status changed before this request landed — just refresh
+                if ((err as { status?: number }).status === 409) {
+                  refetch();
+                } else {
+                  Alert.alert('Could not cancel', 'Something went wrong. Please try again.');
+                }
+                setPendingId(null);
+              },
+            }
           );
         },
       },
@@ -154,8 +175,16 @@ export default function BookingsScreen() {
                     <Text style={[styles.statusText, { color: meta.text }]}>{meta.label}</Text>
                   </View>
                   {canCancel && (
-                    <TouchableOpacity onPress={() => handleCancel(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                      <Feather name="x" size={16} color={colors.mutedForeground} />
+                    <TouchableOpacity
+                      onPress={() => handleCancel(item.id)}
+                      disabled={pendingId === item.id}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ opacity: pendingId === item.id ? 0.4 : 1 }}
+                    >
+                      {pendingId === item.id
+                        ? <ActivityIndicator size="small" color={colors.mutedForeground} />
+                        : <Feather name="x" size={16} color={colors.mutedForeground} />
+                      }
                     </TouchableOpacity>
                   )}
                 </View>

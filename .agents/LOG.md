@@ -312,6 +312,40 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 013 — 2026-08-05
+**Agent:** Replit Main Agent  
+**Scope:** `S`  
+**Triggered by:** Protect providers from repeated taps cancelling or confirming twice
+
+**What was done:**
+- **Mobile `artifacts/mobile/app/(tabs)/bookings.tsx`**:
+  - Added `pendingId` state — tracks which booking has a request in flight
+  - `handleCancel` now guards against double-tap (`if (pendingId !== null) return`), sets `pendingId` on start, clears it on success or error
+  - Cancel X button disabled and shows `ActivityIndicator` while `pendingId === item.id`
+  - Added `cancellationReason: 'Cancelled by user'` (was missing; API requires it for non-admin users — would have caused 400)
+  - 409 response: silently refetches instead of showing a generic error alert
+- **Web portal `artifacts/web/src/pages/portal/bookings.tsx`**:
+  - Added `pendingId` state
+  - `handleStatusChange` now accepts optional `cancellationReason`, guards against double submission, sets/clears `pendingId`
+  - Accept, Decline, and Mark Completed buttons disabled + show inline spinner while `pendingId === booking.id`
+  - 409 response: `toast.info('This booking was already updated — refreshing.')` + refetch (calm, non-alarming)
+  - Added `cancellationReason: 'Request declined by provider'` to decline calls (was missing)
+- **Web client `artifacts/web/src/pages/bookings.tsx`**:
+  - Already had `cancellingId` state and disabled button — hardened with early-return guard (`if (cancellingId !== null) return`) and same 409 handling
+  - Added `cancellationReason: 'Cancelled by client'` (was missing)
+- Web typecheck: 0 errors. API tests: 63/63 pass.
+
+**Files changed:**
+- `artifacts/mobile/app/(tabs)/bookings.tsx` — pendingId guard, spinner, cancellationReason, 409 handling
+- `artifacts/web/src/pages/portal/bookings.tsx` — pendingId guard, spinners, cancellationReason, 409 handling
+- `artifacts/web/src/pages/bookings.tsx` — double-tap guard, cancellationReason, 409 handling
+
+**Build state at end:** All workflows running. TypeScript clean. 63/63 tests pass. Booking actions are now safe against double-tap and retry spam on both mobile and web. 409 responses handled calmly everywhere. cancellationReason sent on all cancel paths.
+
+**Next best action:** Stripe payment integration — invoices are created, stripe_payment_intent_id column exists, just needs the checkout flow. Or: integration tests that fire concurrent PATCH requests against the real DB to verify the FOR UPDATE lock holds. See `docs/future-monetization.md`.
+
+---
+
 ### Session 012 — 2026-08-05
 **Agent:** Replit Main Agent  
 **Scope:** `S`  

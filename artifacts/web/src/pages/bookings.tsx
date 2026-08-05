@@ -36,17 +36,26 @@ export default function ClientBookings() {
   );
 
   const handleCancel = (id: number) => {
+    if (cancellingId !== null) return; // guard against double-tap
     setCancellingId(id);
     updateStatus.mutate(
-      { bookingId: id, data: { status: 'cancelled' } },
+      {
+        bookingId: id,
+        data: { status: 'cancelled', cancellationReason: 'Cancelled by client' },
+      },
       {
         onSuccess: () => {
           toast.success('Booking cancelled.');
           refetch();
           setCancellingId(null);
         },
-        onError: () => {
-          toast.error('Could not cancel booking.');
+        onError: (err) => {
+          if ((err as { status?: number }).status === 409) {
+            toast.info('This booking was already updated — refreshing.');
+            refetch();
+          } else {
+            toast.error('Could not cancel booking. Please try again.');
+          }
           setCancellingId(null);
         },
       }

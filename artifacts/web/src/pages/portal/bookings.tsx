@@ -12,16 +12,46 @@ export default function PortalBookings() {
   );
 
   const updateStatus = useUpdateBookingStatus();
+  // Per-booking in-flight guard: only one action per booking at a time.
+  const [pendingId, setPendingId] = useState<number | null>(null);
 
-  const handleStatusChange = (id: number, newStatus: ListBookingsStatus) => {
+  const handleStatusChange = (
+    id: number,
+    newStatus: ListBookingsStatus,
+    cancellationReason?: string,
+  ) => {
+    if (pendingId !== null) return; // another request is already in flight
+    setPendingId(id);
     updateStatus.mutate(
-      { bookingId: id, data: { status: newStatus } },
+      {
+        bookingId: id,
+        data: {
+          status: newStatus,
+          ...(cancellationReason ? { cancellationReason } : {}),
+        },
+      },
       {
         onSuccess: () => {
-          toast.success(`Booking marked as ${newStatus.replace('_', ' ')}`);
+          const labels: Partial<Record<ListBookingsStatus, string>> = {
+            confirmed: 'Booking accepted ✓',
+            cancelled: 'Booking declined',
+            completed: 'Marked as completed ✓',
+          };
+          toast.success(labels[newStatus] ?? `Booking marked as ${newStatus.replace('_', ' ')}`);
           refetch();
+          setPendingId(null);
         },
-        onError: () => toast.error('Failed to update booking status')
+        onError: (err) => {
+          // 409 means the booking status changed before we could act on it.
+          // Silently refetch so the UI shows the real current state.
+          if ((err as { status?: number }).status === 409) {
+            toast.info('This booking was already updated — refreshing.');
+            refetch();
+          } else {
+            toast.error('Could not update booking. Please try again.');
+          }
+          setPendingId(null);
+        },
       }
     );
   };
@@ -95,32 +125,44 @@ export default function PortalBookings() {
               {/* Actions based on status */}
               {activeTab === 'requested' && (
                 <div className="flex gap-3">
-                  <button 
+                  <button
                     onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                    className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
+                    disabled={pendingId === booking.id}
+                    className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Check className="w-5 h-5" /> Accept
+                    {pendingId === booking.id
+                      ? <span className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                      : <><Check className="w-5 h-5" /> Accept</>
+                    }
                   </button>
-                  <button 
-                    onClick={() => handleStatusChange(booking.id, 'cancelled')}
-                    className="w-12 h-12 bg-secondary text-secondary-foreground rounded-xl flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors shrink-0"
+                  <button
+                    onClick={() => handleStatusChange(booking.id, 'cancelled', 'Request declined by provider')}
+                    disabled={pendingId === booking.id}
+                    className="w-12 h-12 bg-secondary text-secondary-foreground rounded-xl flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <X className="w-5 h-5" />
+                    {pendingId === booking.id
+                      ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      : <X className="w-5 h-5" />
+                    }
                   </button>
                 </div>
               )}
 
               {activeTab === 'confirmed' && (
                 <div className="flex gap-3">
-                  <button 
+                  <button
                     onClick={() => handleStatusChange(booking.id, 'completed')}
-                    className="flex-1 py-3 border-2 border-primary text-primary bg-primary/5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+                    disabled={pendingId === booking.id}
+                    className="flex-1 py-3 border-2 border-primary text-primary bg-primary/5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary hover:text-primary-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Mark Completed
+                    {pendingId === booking.id
+                      ? <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      : 'Mark Completed'
+                    }
                   </button>
                 </div>
               )}
-              
+
               {activeTab === 'completed' && (
                 <div className="w-full text-center py-2 text-sm font-medium text-muted-foreground bg-secondary/30 rounded-xl">
                   Completed
