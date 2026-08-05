@@ -247,6 +247,30 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 008 — 2026-08-05
+**Agent:** Replit Main Agent  
+**Scope:** `XS`  
+**Triggered by:** Fresh import on Replit — handoff prompt uploaded, inherited in-progress build
+
+**What was done:**
+- Ran `pnpm install` — all 490 packages resolved (node_modules absent after fresh import)
+- Pushed DB schema via `pnpm --filter @workspace/db run push` — all tables confirmed present
+- Ran seed script — all 5 demo accounts + full sample data seeded successfully
+- Requested and set `JWT_SECRET` as a Replit secret (was missing from new environment)
+- Restarted all workflows — API server and web frontend both running
+- Verified auth: `POST /api/auth/login → 200` with JWT token
+- Verified frontend: discovery page loads, shows Sarah Chen + Mike Okafor from seed data
+- Verified health check: `GET /api/healthz → {"status":"ok"}`
+
+**Files changed:**
+- `.agents/LOG.md` — updated Current Build State, added this entry
+
+**Build state at end:** API server running. Web frontend running. Auth verified. DB schema live. All 5 demo accounts seeded. All provider routes live from previous session (Session 007).
+
+**Next best action:** Implement booking routes. Add to `lib/api-spec/openapi.yaml` first (rule 5): `GET/POST /bookings`, `GET/PATCH /bookings/:id/status`. Enforce status-machine transitions per `docs/booking-statuses.md`. Auto-create invoice when booking reaches `confirmed`. Implement in `artifacts/api-server/src/routes/bookings.ts`. Commit as its own checkpoint before reviews/invoices.
+
+---
+
 ## New Session Template
 
 Copy and append below the last entry:
