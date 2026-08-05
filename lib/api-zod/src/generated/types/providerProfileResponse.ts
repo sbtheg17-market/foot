@@ -5,9 +5,8 @@
  * OnCall Foot API — foot rejuvenation marketplace
  * OpenAPI spec version: 0.3.0
  */
-import type { UserSummary } from './userSummary';
+import type { ProviderProfile } from './providerProfile';
 
-export type MeResponseUser = UserSummary & {
-  isActive?: boolean;
-  createdAt?: Date;
-};
+export interface ProviderProfileResponse {
+  provider: ProviderProfile;
+}

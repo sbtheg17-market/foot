@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * OnCall Foot API — foot rejuvenation marketplace
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 import * as zod from 'zod';
 
@@ -95,6 +95,431 @@ export const GetMeResponse = zod.object({
  */
 export const LogoutResponse = zod.object({
   "message": zod.string()
+})
+
+
+/**
+ * Public provider discovery with optional filters
+ * @summary Browse providers
+ */
+export const listProvidersQueryLimitDefault = 20;
+export const listProvidersQueryLimitMax = 100;
+
+export const listProvidersQueryOffsetDefault = 0;
+export const listProvidersQueryOffsetMin = 0;
+
+
+
+export const ListProvidersQueryParams = zod.object({
+  "city": zod.coerce.string().optional().describe('Filter by city (case-insensitive partial match)'),
+  "category": zod.coerce.string().optional().describe('Filter by service category'),
+  "verified": zod.coerce.boolean().optional().describe('Only return verified providers'),
+  "limit": zod.coerce.number().int().min(1).max(listProvidersQueryLimitMax).default(listProvidersQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(listProvidersQueryOffsetMin).default(listProvidersQueryOffsetDefault)
+})
+
+export const ListProvidersResponse = zod.object({
+  "providers": zod.array(zod.object({
+  "id": zod.int().describe('provider_profiles.id'),
+  "userId": zod.int(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "title": zod.string(),
+  "city": zod.string(),
+  "rating": zod.string().describe('Numeric string, e.g. \"4.85\"'),
+  "reviewCount": zod.int(),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected']),
+  "acceptsNewClients": zod.boolean(),
+  "yearsExperience": zod.int().nullish()
+}).describe('Condensed provider card for list views')),
+  "total": zod.int(),
+  "limit": zod.int(),
+  "offset": zod.int()
+})
+
+
+/**
+ * @summary Get own provider profile
+ */
+export const GetMyProviderProfileResponse = zod.object({
+  "provider": zod.object({
+  "id": zod.int().describe('provider_profiles.id'),
+  "userId": zod.int(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "title": zod.string(),
+  "city": zod.string(),
+  "rating": zod.string().describe('Numeric string, e.g. \"4.85\"'),
+  "reviewCount": zod.int(),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected']),
+  "acceptsNewClients": zod.boolean(),
+  "yearsExperience": zod.int().nullish()
+}).describe('Condensed provider card for list views').and(zod.object({
+  "bio": zod.string().nullish(),
+  "serviceAreaNotes": zod.string().nullish(),
+  "profileComplete": zod.boolean().optional(),
+  "createdAt": zod.coerce.date().optional()
+})).describe('Full provider profile including bio and service area')
+})
+
+
+/**
+ * @summary Update own provider profile
+ */
+
+
+export const updateMyProviderProfileBodyYearsExperienceMin = 0;
+
+
+
+export const UpdateMyProviderProfileBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "bio": zod.string().optional(),
+  "city": zod.string().min(1).optional(),
+  "serviceAreaNotes": zod.string().optional(),
+  "yearsExperience": zod.int().min(updateMyProviderProfileBodyYearsExperienceMin).optional(),
+  "acceptsNewClients": zod.boolean().optional()
+})
+
+export const UpdateMyProviderProfileResponse = zod.object({
+  "provider": zod.object({
+  "id": zod.int().describe('provider_profiles.id'),
+  "userId": zod.int(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "title": zod.string(),
+  "city": zod.string(),
+  "rating": zod.string().describe('Numeric string, e.g. \"4.85\"'),
+  "reviewCount": zod.int(),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected']),
+  "acceptsNewClients": zod.boolean(),
+  "yearsExperience": zod.int().nullish()
+}).describe('Condensed provider card for list views').and(zod.object({
+  "bio": zod.string().nullish(),
+  "serviceAreaNotes": zod.string().nullish(),
+  "profileComplete": zod.boolean().optional(),
+  "createdAt": zod.coerce.date().optional()
+})).describe('Full provider profile including bio and service area')
+})
+
+
+/**
+ * @summary List own services
+ */
+export const ListMyServicesResponse = zod.object({
+  "services": zod.array(zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "durationMinutes": zod.int(),
+  "priceCents": zod.int().describe('Price in cents (CAD)'),
+  "category": zod.string(),
+  "eligibilityNotes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date().optional()
+}))
+})
+
+
+/**
+ * @summary Add a new service
+ */
+
+export const createServiceBodyDurationMinutesMin = 15;
+
+export const createServiceBodyPriceCentsMin = 0;
+
+export const createServiceBodyCategoryDefault = `foot_care`;
+export const createServiceBodyIsActiveDefault = true;
+
+export const CreateServiceBody = zod.object({
+  "title": zod.string().min(1),
+  "description": zod.string().optional(),
+  "durationMinutes": zod.int().min(createServiceBodyDurationMinutesMin),
+  "priceCents": zod.int().min(createServiceBodyPriceCentsMin).describe('Price in cents'),
+  "category": zod.string().default(createServiceBodyCategoryDefault),
+  "eligibilityNotes": zod.string().optional(),
+  "isActive": zod.boolean().default(createServiceBodyIsActiveDefault)
+})
+
+export const CreateServiceResponse = zod.object({
+  "service": zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "durationMinutes": zod.int(),
+  "priceCents": zod.int().describe('Price in cents (CAD)'),
+  "category": zod.string(),
+  "eligibilityNotes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
+ * @summary Update a service
+ */
+export const UpdateServiceParams = zod.object({
+  "serviceId": zod.coerce.number().int()
+})
+
+
+export const updateServiceBodyDurationMinutesMin = 15;
+
+export const updateServiceBodyPriceCentsMin = 0;
+
+
+
+export const UpdateServiceBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "description": zod.string().optional(),
+  "durationMinutes": zod.int().min(updateServiceBodyDurationMinutesMin).optional(),
+  "priceCents": zod.int().min(updateServiceBodyPriceCentsMin).optional(),
+  "category": zod.string().optional(),
+  "eligibilityNotes": zod.string().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateServiceResponse = zod.object({
+  "service": zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "durationMinutes": zod.int(),
+  "priceCents": zod.int().describe('Price in cents (CAD)'),
+  "category": zod.string(),
+  "eligibilityNotes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
+ * @summary Deactivate a service
+ */
+export const DeleteServiceParams = zod.object({
+  "serviceId": zod.coerce.number().int()
+})
+
+export const DeleteServiceResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Get own availability schedule
+ */
+export const getMyAvailabilityResponseSlotsItemDayOfWeekMin = 0;
+export const getMyAvailabilityResponseSlotsItemDayOfWeekMax = 6;
+
+export const getMyAvailabilityResponseSlotsItemStartTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+export const getMyAvailabilityResponseSlotsItemEndTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+
+
+export const GetMyAvailabilityResponse = zod.object({
+  "slots": zod.array(zod.object({
+  "id": zod.int(),
+  "dayOfWeek": zod.int().min(getMyAvailabilityResponseSlotsItemDayOfWeekMin).max(getMyAvailabilityResponseSlotsItemDayOfWeekMax).describe('0 = Sunday, 6 = Saturday'),
+  "startTime": zod.string().regex(getMyAvailabilityResponseSlotsItemStartTimeRegExp).describe('HH:MM 24-hour'),
+  "endTime": zod.string().regex(getMyAvailabilityResponseSlotsItemEndTimeRegExp).describe('HH:MM 24-hour')
+}))
+})
+
+
+/**
+ * @summary Replace own availability schedule
+ */
+export const setMyAvailabilityBodySlotsItemDayOfWeekMin = 0;
+export const setMyAvailabilityBodySlotsItemDayOfWeekMax = 6;
+
+export const setMyAvailabilityBodySlotsItemStartTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+export const setMyAvailabilityBodySlotsItemEndTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+
+
+export const SetMyAvailabilityBody = zod.object({
+  "slots": zod.array(zod.object({
+  "dayOfWeek": zod.int().min(setMyAvailabilityBodySlotsItemDayOfWeekMin).max(setMyAvailabilityBodySlotsItemDayOfWeekMax),
+  "startTime": zod.string().regex(setMyAvailabilityBodySlotsItemStartTimeRegExp),
+  "endTime": zod.string().regex(setMyAvailabilityBodySlotsItemEndTimeRegExp)
+}))
+}).describe('Replaces all availability slots for the provider')
+
+export const setMyAvailabilityResponseSlotsItemDayOfWeekMin = 0;
+export const setMyAvailabilityResponseSlotsItemDayOfWeekMax = 6;
+
+export const setMyAvailabilityResponseSlotsItemStartTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+export const setMyAvailabilityResponseSlotsItemEndTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+
+
+export const SetMyAvailabilityResponse = zod.object({
+  "slots": zod.array(zod.object({
+  "id": zod.int(),
+  "dayOfWeek": zod.int().min(setMyAvailabilityResponseSlotsItemDayOfWeekMin).max(setMyAvailabilityResponseSlotsItemDayOfWeekMax).describe('0 = Sunday, 6 = Saturday'),
+  "startTime": zod.string().regex(setMyAvailabilityResponseSlotsItemStartTimeRegExp).describe('HH:MM 24-hour'),
+  "endTime": zod.string().regex(setMyAvailabilityResponseSlotsItemEndTimeRegExp).describe('HH:MM 24-hour')
+}))
+})
+
+
+/**
+ * @summary List own travel zones
+ */
+export const ListMyTravelZonesResponse = zod.object({
+  "zones": zod.array(zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "zoneName": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Add a travel zone
+ */
+
+
+
+
+export const CreateTravelZoneBody = zod.object({
+  "zoneName": zod.string().min(1),
+  "city": zod.string().min(1),
+  "notes": zod.string().optional()
+})
+
+export const CreateTravelZoneResponse = zod.object({
+  "zone": zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "zoneName": zod.string(),
+  "city": zod.string(),
+  "notes": zod.string().nullish()
+})
+})
+
+
+/**
+ * @summary Remove a travel zone
+ */
+export const DeleteTravelZoneParams = zod.object({
+  "zoneId": zod.coerce.number().int()
+})
+
+export const DeleteTravelZoneResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Get earnings summary
+ */
+export const GetMyEarningsResponse = zod.object({
+  "totalCents": zod.int().describe('Lifetime earnings in cents'),
+  "completedBookings": zod.int(),
+  "pendingPayoutCents": zod.int().describe('Placeholder — Stripe Connect not yet active')
+})
+
+
+/**
+ * @summary Get a provider's public profile
+ */
+export const GetProviderByIdParams = zod.object({
+  "providerId": zod.coerce.number().int()
+})
+
+export const GetProviderByIdResponse = zod.object({
+  "provider": zod.object({
+  "id": zod.int().describe('provider_profiles.id'),
+  "userId": zod.int(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "title": zod.string(),
+  "city": zod.string(),
+  "rating": zod.string().describe('Numeric string, e.g. \"4.85\"'),
+  "reviewCount": zod.int(),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected']),
+  "acceptsNewClients": zod.boolean(),
+  "yearsExperience": zod.int().nullish()
+}).describe('Condensed provider card for list views').and(zod.object({
+  "bio": zod.string().nullish(),
+  "serviceAreaNotes": zod.string().nullish(),
+  "profileComplete": zod.boolean().optional(),
+  "createdAt": zod.coerce.date().optional()
+})).describe('Full provider profile including bio and service area')
+})
+
+
+/**
+ * @summary List a provider's active services
+ */
+export const ListProviderServicesParams = zod.object({
+  "providerId": zod.coerce.number().int()
+})
+
+export const ListProviderServicesResponse = zod.object({
+  "services": zod.array(zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "durationMinutes": zod.int(),
+  "priceCents": zod.int().describe('Price in cents (CAD)'),
+  "category": zod.string(),
+  "eligibilityNotes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date().optional()
+}))
+})
+
+
+/**
+ * @summary List a provider's visible reviews
+ */
+export const ListProviderReviewsParams = zod.object({
+  "providerId": zod.coerce.number().int()
+})
+
+export const listProviderReviewsQueryLimitDefault = 20;
+export const listProviderReviewsQueryLimitMax = 50;
+
+export const listProviderReviewsQueryOffsetDefault = 0;
+export const listProviderReviewsQueryOffsetMin = 0;
+
+
+
+export const ListProviderReviewsQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listProviderReviewsQueryLimitMax).default(listProviderReviewsQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(listProviderReviewsQueryOffsetMin).default(listProviderReviewsQueryOffsetDefault)
+})
+
+export const listProviderReviewsResponseReviewsItemRatingMax = 5;
+
+
+
+export const ListProviderReviewsResponse = zod.object({
+  "reviews": zod.array(zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "clientId": zod.int(),
+  "providerId": zod.int(),
+  "rating": zod.int().min(1).max(listProviderReviewsResponseReviewsItemRatingMax),
+  "comment": zod.string().nullish(),
+  "clientFirstName": zod.string(),
+  "createdAt": zod.coerce.date().optional()
+})),
+  "total": zod.int(),
+  "limit": zod.int(),
+  "offset": zod.int()
 })
 
 

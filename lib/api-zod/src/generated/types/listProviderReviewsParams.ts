@@ -5,9 +5,15 @@
  * OnCall Foot API — foot rejuvenation marketplace
  * OpenAPI spec version: 0.3.0
  */
-import type { UserSummary } from './userSummary';
 
-export type MeResponseUser = UserSummary & {
-  isActive?: boolean;
-  createdAt?: Date;
+export type ListProviderReviewsParams = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
 };

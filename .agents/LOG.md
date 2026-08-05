@@ -42,11 +42,13 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
 | JWT_SECRET | ✅ Set | Stored as Replit Secret. API server confirmed signing tokens correctly. |
 | Seed script | ✅ Live | 5 demo accounts + full sample data seeded. Run: `pnpm --filter @workspace/api-server run seed` |
-| Business routes | ❌ Not built | Providers, bookings, reviews, invoices, support, admin — see `docs/api-routes.md` |
+| Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
+| Business routes — bookings | ❌ Not built | See `docs/api-routes.md` |
+| Business routes — reviews/invoices | ❌ Not built | See `docs/api-routes.md` |
 | React frontend | ❌ Does not exist | `artifacts/web/` to be created — React 19 + Vite + TanStack Query + Wouter |
-| OpenAPI spec | ⚠️ Stub only | Only /healthz + auth routes defined. Business routes documented in `docs/api-routes.md` but not yet in `openapi.yaml` |
+| OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
 
-**MVP completion estimate: ~20%** (auth layer complete, business routes next)
+**MVP completion estimate: ~35%** (auth + provider API complete, bookings next)
 
 ---
 
@@ -208,6 +210,40 @@ Since agent credit balances cannot be read programmatically, each session entry 
 - Separate refactors from feature work in commits
 - No new seed data unless required for current checkpoint
 - Report broken references before changing them
+
+---
+
+### Session 007 — 2026-08-04
+**Agent:** Replit Main Agent  
+**Scope:** `M`  
+**Triggered by:** Master prompt uploaded — "inspect full repo, reconcile fragmentation, continue provider-first in checkpoint-sized increments"
+
+**What was done:**
+- Full repo scan — confirmed no fragmentation; one clean API server, no duplicate portals, no `artifacts/web/` yet
+- Moved uploaded master prompt file to `docs/master-prompt.md`; moved earlier commit-strategy content already in `docs/commit-strategy.md`
+- Expanded `lib/api-spec/openapi.yaml` from v0.2.0 (auth stub) to v0.3.0: added all provider discovery + provider portal routes plus all supporting schemas (ProviderSummary, ProviderProfile, Service, AvailabilitySlot, TravelZone, Review, EarningsSummary, and all request/response wrappers)
+- Ran codegen — hit TS2308 ambiguity: Orval split-mode generates same name (`ListProviderReviewsParams`) in both `generated/api.ts` (Zod const) and `generated/types/` (TS type); fixed by updating `lib/api-zod/src/index.ts` to export only from `./generated/api` (consumers derive TS types via `z.infer`)
+- Rebuilt `lib/db` and `lib/api-zod` declaration outputs (`pnpm tsc --build`)
+- Implemented `artifacts/api-server/src/routes/providers.ts` — 14 endpoints:
+  - Public: `GET /providers`, `GET /providers/:id`, `GET /providers/:id/services`, `GET /providers/:id/reviews`
+  - Portal: `GET/PUT /providers/me`, `GET/POST /providers/me/services`, `PUT/DELETE /providers/me/services/:id`, `GET/PUT /providers/me/availability`, `GET/POST /providers/me/travel-zones`, `DELETE /providers/me/travel-zones/:id`, `GET /providers/me/earnings`
+- Registered `providersRouter` in `routes/index.ts`
+- TypeScript typecheck: 0 errors
+- All 14 endpoints tested and verified against seed data
+
+**Files changed:**
+- `lib/api-spec/openapi.yaml` — v0.2.0 → v0.3.0 (provider routes + schemas)
+- `lib/api-zod/src/index.ts` — drop types re-export to fix TS2308
+- `lib/api-zod/src/generated/` — regenerated (Orval)
+- `lib/api-client-react/src/generated/` — regenerated (Orval)
+- `artifacts/api-server/src/routes/providers.ts` — new
+- `artifacts/api-server/src/routes/index.ts` — register providers router
+- `docs/master-prompt.md` — new (master prompt reference doc)
+- `.agents/LOG.md` — updated Current Build State, added this entry
+
+**Build state at end:** API server running. All provider discovery + portal routes live and tested. TypeScript clean.
+
+**Next best action:** **Checkpoint 2 — Bookings routes.** Add to `lib/api-spec/openapi.yaml` first (rule 5): `GET/POST /bookings`, `GET/PATCH /bookings/:id/status`. Enforce status-machine transitions per `docs/booking-statuses.md`. Auto-create invoice when booking reaches `confirmed`. Implement in `artifacts/api-server/src/routes/bookings.ts`. Commit as its own checkpoint before reviews/invoices.
 
 ---
 

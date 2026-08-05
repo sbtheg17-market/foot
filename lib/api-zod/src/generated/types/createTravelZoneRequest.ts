@@ -5,9 +5,11 @@
  * OnCall Foot API — foot rejuvenation marketplace
  * OpenAPI spec version: 0.3.0
  */
-import type { UserSummary } from './userSummary';
 
-export type MeResponseUser = UserSummary & {
-  isActive?: boolean;
-  createdAt?: Date;
-};
+export interface CreateTravelZoneRequest {
+  /** @minLength 1 */
+  zoneName: string;
+  /** @minLength 1 */
+  city: string;
+  notes?: string;
+}

@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * OnCall Foot API — foot rejuvenation marketplace
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 import {
   useMutation,
@@ -21,14 +21,32 @@ import type {
 
 import type {
   AuthResponse,
+  AvailabilityListResponse,
   BadRequestResponse,
   ConflictResponse,
+  CreateServiceRequest,
+  CreateTravelZoneRequest,
+  EarningsSummaryResponse,
+  ForbiddenResponse,
   HealthStatus,
+  ListProviderReviewsParams,
+  ListProvidersParams,
   LoginRequest,
   MeResponse,
   MessageResponse,
+  NotFoundResponse,
+  ProviderListResponse,
+  ProviderProfileResponse,
   RegisterRequest,
-  UnauthorizedResponse
+  ReviewListResponse,
+  ServiceListResponse,
+  ServiceResponse,
+  SetAvailabilityRequest,
+  TravelZoneListResponse,
+  TravelZoneResponse,
+  UnauthorizedResponse,
+  UpdateProviderProfileRequest,
+  UpdateServiceRequest
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -425,4 +443,1215 @@ export const useLogout = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getLogoutMutationOptions(options));
     }
+
+export const getListProvidersUrl = (params?: ListProvidersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/providers?${stringifiedParams}` : `/api/providers`
+}
+
+/**
+ * Public provider discovery with optional filters
+ * @summary Browse providers
+ */
+export const listProviders = async (params?: ListProvidersParams, options?: Parameters<typeof customFetch>[1]): Promise<ProviderListResponse> => {
+
+  return customFetch<ProviderListResponse>(getListProvidersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProvidersQueryKey = (params?: ListProvidersParams,) => {
+    return [
+    `/api/providers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProvidersQueryOptions = <TData = Awaited<ReturnType<typeof listProviders>>, TError = ErrorType<unknown>>(params?: ListProvidersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProviders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProvidersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProviders>>> = ({ signal }) => listProviders(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProviders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProvidersQueryResult = NonNullable<Awaited<ReturnType<typeof listProviders>>>
+export type ListProvidersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Browse providers
+ */
+
+export function useListProviders<TData = Awaited<ReturnType<typeof listProviders>>, TError = ErrorType<unknown>>(
+ params?: ListProvidersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProviders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProvidersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyProviderProfileUrl = () => {
+
+
+
+
+  return `/api/providers/me`
+}
+
+/**
+ * @summary Get own provider profile
+ */
+export const getMyProviderProfile = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderProfileResponse> => {
+
+  return customFetch<ProviderProfileResponse>(getGetMyProviderProfileUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyProviderProfileQueryKey = () => {
+    return [
+    `/api/providers/me`
+    ] as const;
+    }
+
+
+export const getGetMyProviderProfileQueryOptions = <TData = Awaited<ReturnType<typeof getMyProviderProfile>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyProviderProfileQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyProviderProfile>>> = ({ signal }) => getMyProviderProfile({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyProviderProfile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyProviderProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getMyProviderProfile>>>
+export type GetMyProviderProfileQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get own provider profile
+ */
+
+export function useGetMyProviderProfile<TData = Awaited<ReturnType<typeof getMyProviderProfile>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyProviderProfileQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMyProviderProfileUrl = () => {
+
+
+
+
+  return `/api/providers/me`
+}
+
+/**
+ * @summary Update own provider profile
+ */
+export const updateMyProviderProfile = async (updateProviderProfileRequest: UpdateProviderProfileRequest, options?: Parameters<typeof customFetch>[1]): Promise<ProviderProfileResponse> => {
+
+  return customFetch<ProviderProfileResponse>(getUpdateMyProviderProfileUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateProviderProfileRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateMyProviderProfileMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyProviderProfile>>, TError,{data: BodyType<UpdateProviderProfileRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMyProviderProfile>>, TError,{data: BodyType<UpdateProviderProfileRequest>}, TContext> => {
+
+const mutationKey = ['updateMyProviderProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMyProviderProfile>>, {data: BodyType<UpdateProviderProfileRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateMyProviderProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMyProviderProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateMyProviderProfile>>>
+    export type UpdateMyProviderProfileMutationBody = BodyType<UpdateProviderProfileRequest>
+    export type UpdateMyProviderProfileMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+    /**
+ * @summary Update own provider profile
+ */
+export const useUpdateMyProviderProfile = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyProviderProfile>>, TError,{data: BodyType<UpdateProviderProfileRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMyProviderProfile>>,
+        TError,
+        {data: BodyType<UpdateProviderProfileRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateMyProviderProfileMutationOptions(options));
+    }
+
+export const getListMyServicesUrl = () => {
+
+
+
+
+  return `/api/providers/me/services`
+}
+
+/**
+ * @summary List own services
+ */
+export const listMyServices = async ( options?: Parameters<typeof customFetch>[1]): Promise<ServiceListResponse> => {
+
+  return customFetch<ServiceListResponse>(getListMyServicesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyServicesQueryKey = () => {
+    return [
+    `/api/providers/me/services`
+    ] as const;
+    }
+
+
+export const getListMyServicesQueryOptions = <TData = Awaited<ReturnType<typeof listMyServices>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyServices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyServicesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyServices>>> = ({ signal }) => listMyServices({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyServices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyServicesQueryResult = NonNullable<Awaited<ReturnType<typeof listMyServices>>>
+export type ListMyServicesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List own services
+ */
+
+export function useListMyServices<TData = Awaited<ReturnType<typeof listMyServices>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyServices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyServicesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateServiceUrl = () => {
+
+
+
+
+  return `/api/providers/me/services`
+}
+
+/**
+ * @summary Add a new service
+ */
+export const createService = async (createServiceRequest: CreateServiceRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceResponse> => {
+
+  return customFetch<ServiceResponse>(getCreateServiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createServiceRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateServiceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createService>>, TError,{data: BodyType<CreateServiceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createService>>, TError,{data: BodyType<CreateServiceRequest>}, TContext> => {
+
+const mutationKey = ['createService'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createService>>, {data: BodyType<CreateServiceRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createService(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateServiceMutationResult = NonNullable<Awaited<ReturnType<typeof createService>>>
+    export type CreateServiceMutationBody = BodyType<CreateServiceRequest>
+    export type CreateServiceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+    /**
+ * @summary Add a new service
+ */
+export const useCreateService = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createService>>, TError,{data: BodyType<CreateServiceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createService>>,
+        TError,
+        {data: BodyType<CreateServiceRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateServiceMutationOptions(options));
+    }
+
+export const getUpdateServiceUrl = (serviceId: number,) => {
+
+
+
+
+  return `/api/providers/me/services/${serviceId}`
+}
+
+/**
+ * @summary Update a service
+ */
+export const updateService = async (serviceId: number,
+    updateServiceRequest: UpdateServiceRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceResponse> => {
+
+  return customFetch<ServiceResponse>(getUpdateServiceUrl(serviceId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateServiceRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateServiceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateService>>, TError,{serviceId: number;data: BodyType<UpdateServiceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateService>>, TError,{serviceId: number;data: BodyType<UpdateServiceRequest>}, TContext> => {
+
+const mutationKey = ['updateService'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateService>>, {serviceId: number;data: BodyType<UpdateServiceRequest>}> = (props) => {
+          const {serviceId,data} = props ?? {};
+
+          return  updateService(serviceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateServiceMutationResult = NonNullable<Awaited<ReturnType<typeof updateService>>>
+    export type UpdateServiceMutationBody = BodyType<UpdateServiceRequest>
+    export type UpdateServiceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Update a service
+ */
+export const useUpdateService = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateService>>, TError,{serviceId: number;data: BodyType<UpdateServiceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateService>>,
+        TError,
+        {serviceId: number;data: BodyType<UpdateServiceRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateServiceMutationOptions(options));
+    }
+
+export const getDeleteServiceUrl = (serviceId: number,) => {
+
+
+
+
+  return `/api/providers/me/services/${serviceId}`
+}
+
+/**
+ * @summary Deactivate a service
+ */
+export const deleteService = async (serviceId: number, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeleteServiceUrl(serviceId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteServiceMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteService>>, TError,{serviceId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteService>>, TError,{serviceId: number}, TContext> => {
+
+const mutationKey = ['deleteService'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteService>>, {serviceId: number}> = (props) => {
+          const {serviceId} = props ?? {};
+
+          return  deleteService(serviceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteServiceMutationResult = NonNullable<Awaited<ReturnType<typeof deleteService>>>
+
+    export type DeleteServiceMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Deactivate a service
+ */
+export const useDeleteService = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteService>>, TError,{serviceId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteService>>,
+        TError,
+        {serviceId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteServiceMutationOptions(options));
+    }
+
+export const getGetMyAvailabilityUrl = () => {
+
+
+
+
+  return `/api/providers/me/availability`
+}
+
+/**
+ * @summary Get own availability schedule
+ */
+export const getMyAvailability = async ( options?: Parameters<typeof customFetch>[1]): Promise<AvailabilityListResponse> => {
+
+  return customFetch<AvailabilityListResponse>(getGetMyAvailabilityUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyAvailabilityQueryKey = () => {
+    return [
+    `/api/providers/me/availability`
+    ] as const;
+    }
+
+
+export const getGetMyAvailabilityQueryOptions = <TData = Awaited<ReturnType<typeof getMyAvailability>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyAvailabilityQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyAvailability>>> = ({ signal }) => getMyAvailability({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyAvailability>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyAvailabilityQueryResult = NonNullable<Awaited<ReturnType<typeof getMyAvailability>>>
+export type GetMyAvailabilityQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Get own availability schedule
+ */
+
+export function useGetMyAvailability<TData = Awaited<ReturnType<typeof getMyAvailability>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyAvailabilityQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetMyAvailabilityUrl = () => {
+
+
+
+
+  return `/api/providers/me/availability`
+}
+
+/**
+ * @summary Replace own availability schedule
+ */
+export const setMyAvailability = async (setAvailabilityRequest: SetAvailabilityRequest, options?: Parameters<typeof customFetch>[1]): Promise<AvailabilityListResponse> => {
+
+  return customFetch<AvailabilityListResponse>(getSetMyAvailabilityUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(setAvailabilityRequest)
+  }
+);}
+
+
+
+
+
+export const getSetMyAvailabilityMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMyAvailability>>, TError,{data: BodyType<SetAvailabilityRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setMyAvailability>>, TError,{data: BodyType<SetAvailabilityRequest>}, TContext> => {
+
+const mutationKey = ['setMyAvailability'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMyAvailability>>, {data: BodyType<SetAvailabilityRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setMyAvailability(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetMyAvailabilityMutationResult = NonNullable<Awaited<ReturnType<typeof setMyAvailability>>>
+    export type SetMyAvailabilityMutationBody = BodyType<SetAvailabilityRequest>
+    export type SetMyAvailabilityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+    /**
+ * @summary Replace own availability schedule
+ */
+export const useSetMyAvailability = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMyAvailability>>, TError,{data: BodyType<SetAvailabilityRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setMyAvailability>>,
+        TError,
+        {data: BodyType<SetAvailabilityRequest>},
+        TContext
+      > => {
+      return useMutation(getSetMyAvailabilityMutationOptions(options));
+    }
+
+export const getListMyTravelZonesUrl = () => {
+
+
+
+
+  return `/api/providers/me/travel-zones`
+}
+
+/**
+ * @summary List own travel zones
+ */
+export const listMyTravelZones = async ( options?: Parameters<typeof customFetch>[1]): Promise<TravelZoneListResponse> => {
+
+  return customFetch<TravelZoneListResponse>(getListMyTravelZonesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyTravelZonesQueryKey = () => {
+    return [
+    `/api/providers/me/travel-zones`
+    ] as const;
+    }
+
+
+export const getListMyTravelZonesQueryOptions = <TData = Awaited<ReturnType<typeof listMyTravelZones>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyTravelZones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyTravelZonesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyTravelZones>>> = ({ signal }) => listMyTravelZones({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyTravelZones>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyTravelZonesQueryResult = NonNullable<Awaited<ReturnType<typeof listMyTravelZones>>>
+export type ListMyTravelZonesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List own travel zones
+ */
+
+export function useListMyTravelZones<TData = Awaited<ReturnType<typeof listMyTravelZones>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyTravelZones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyTravelZonesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTravelZoneUrl = () => {
+
+
+
+
+  return `/api/providers/me/travel-zones`
+}
+
+/**
+ * @summary Add a travel zone
+ */
+export const createTravelZone = async (createTravelZoneRequest: CreateTravelZoneRequest, options?: Parameters<typeof customFetch>[1]): Promise<TravelZoneResponse> => {
+
+  return customFetch<TravelZoneResponse>(getCreateTravelZoneUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createTravelZoneRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateTravelZoneMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTravelZone>>, TError,{data: BodyType<CreateTravelZoneRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTravelZone>>, TError,{data: BodyType<CreateTravelZoneRequest>}, TContext> => {
+
+const mutationKey = ['createTravelZone'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTravelZone>>, {data: BodyType<CreateTravelZoneRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTravelZone(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTravelZoneMutationResult = NonNullable<Awaited<ReturnType<typeof createTravelZone>>>
+    export type CreateTravelZoneMutationBody = BodyType<CreateTravelZoneRequest>
+    export type CreateTravelZoneMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+    /**
+ * @summary Add a travel zone
+ */
+export const useCreateTravelZone = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTravelZone>>, TError,{data: BodyType<CreateTravelZoneRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTravelZone>>,
+        TError,
+        {data: BodyType<CreateTravelZoneRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateTravelZoneMutationOptions(options));
+    }
+
+export const getDeleteTravelZoneUrl = (zoneId: number,) => {
+
+
+
+
+  return `/api/providers/me/travel-zones/${zoneId}`
+}
+
+/**
+ * @summary Remove a travel zone
+ */
+export const deleteTravelZone = async (zoneId: number, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeleteTravelZoneUrl(zoneId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTravelZoneMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTravelZone>>, TError,{zoneId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTravelZone>>, TError,{zoneId: number}, TContext> => {
+
+const mutationKey = ['deleteTravelZone'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTravelZone>>, {zoneId: number}> = (props) => {
+          const {zoneId} = props ?? {};
+
+          return  deleteTravelZone(zoneId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTravelZoneMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTravelZone>>>
+
+    export type DeleteTravelZoneMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Remove a travel zone
+ */
+export const useDeleteTravelZone = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTravelZone>>, TError,{zoneId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTravelZone>>,
+        TError,
+        {zoneId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteTravelZoneMutationOptions(options));
+    }
+
+export const getGetMyEarningsUrl = () => {
+
+
+
+
+  return `/api/providers/me/earnings`
+}
+
+/**
+ * @summary Get earnings summary
+ */
+export const getMyEarnings = async ( options?: Parameters<typeof customFetch>[1]): Promise<EarningsSummaryResponse> => {
+
+  return customFetch<EarningsSummaryResponse>(getGetMyEarningsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyEarningsQueryKey = () => {
+    return [
+    `/api/providers/me/earnings`
+    ] as const;
+    }
+
+
+export const getGetMyEarningsQueryOptions = <TData = Awaited<ReturnType<typeof getMyEarnings>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyEarnings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyEarningsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyEarnings>>> = ({ signal }) => getMyEarnings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyEarnings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyEarningsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyEarnings>>>
+export type GetMyEarningsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Get earnings summary
+ */
+
+export function useGetMyEarnings<TData = Awaited<ReturnType<typeof getMyEarnings>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyEarnings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyEarningsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetProviderByIdUrl = (providerId: number,) => {
+
+
+
+
+  return `/api/providers/${providerId}`
+}
+
+/**
+ * @summary Get a provider's public profile
+ */
+export const getProviderById = async (providerId: number, options?: Parameters<typeof customFetch>[1]): Promise<ProviderProfileResponse> => {
+
+  return customFetch<ProviderProfileResponse>(getGetProviderByIdUrl(providerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProviderByIdQueryKey = (providerId: number,) => {
+    return [
+    `/api/providers/${providerId}`
+    ] as const;
+    }
+
+
+export const getGetProviderByIdQueryOptions = <TData = Awaited<ReturnType<typeof getProviderById>>, TError = ErrorType<NotFoundResponse>>(providerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderById>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProviderByIdQueryKey(providerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderById>>> = ({ signal }) => getProviderById(providerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: providerId !== null && providerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderById>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProviderByIdQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderById>>>
+export type GetProviderByIdQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Get a provider's public profile
+ */
+
+export function useGetProviderById<TData = Awaited<ReturnType<typeof getProviderById>>, TError = ErrorType<NotFoundResponse>>(
+ providerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderById>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProviderByIdQueryOptions(providerId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListProviderServicesUrl = (providerId: number,) => {
+
+
+
+
+  return `/api/providers/${providerId}/services`
+}
+
+/**
+ * @summary List a provider's active services
+ */
+export const listProviderServices = async (providerId: number, options?: Parameters<typeof customFetch>[1]): Promise<ServiceListResponse> => {
+
+  return customFetch<ServiceListResponse>(getListProviderServicesUrl(providerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProviderServicesQueryKey = (providerId: number,) => {
+    return [
+    `/api/providers/${providerId}/services`
+    ] as const;
+    }
+
+
+export const getListProviderServicesQueryOptions = <TData = Awaited<ReturnType<typeof listProviderServices>>, TError = ErrorType<NotFoundResponse>>(providerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProviderServices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProviderServicesQueryKey(providerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProviderServices>>> = ({ signal }) => listProviderServices(providerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: providerId !== null && providerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProviderServices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProviderServicesQueryResult = NonNullable<Awaited<ReturnType<typeof listProviderServices>>>
+export type ListProviderServicesQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary List a provider's active services
+ */
+
+export function useListProviderServices<TData = Awaited<ReturnType<typeof listProviderServices>>, TError = ErrorType<NotFoundResponse>>(
+ providerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProviderServices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProviderServicesQueryOptions(providerId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListProviderReviewsUrl = (providerId: number,
+    params?: ListProviderReviewsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/providers/${providerId}/reviews?${stringifiedParams}` : `/api/providers/${providerId}/reviews`
+}
+
+/**
+ * @summary List a provider's visible reviews
+ */
+export const listProviderReviews = async (providerId: number,
+    params?: ListProviderReviewsParams, options?: Parameters<typeof customFetch>[1]): Promise<ReviewListResponse> => {
+
+  return customFetch<ReviewListResponse>(getListProviderReviewsUrl(providerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProviderReviewsQueryKey = (providerId: number,
+    params?: ListProviderReviewsParams,) => {
+    return [
+    `/api/providers/${providerId}/reviews`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProviderReviewsQueryOptions = <TData = Awaited<ReturnType<typeof listProviderReviews>>, TError = ErrorType<NotFoundResponse>>(providerId: number,
+    params?: ListProviderReviewsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProviderReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProviderReviewsQueryKey(providerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProviderReviews>>> = ({ signal }) => listProviderReviews(providerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: providerId !== null && providerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProviderReviews>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProviderReviewsQueryResult = NonNullable<Awaited<ReturnType<typeof listProviderReviews>>>
+export type ListProviderReviewsQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary List a provider's visible reviews
+ */
+
+export function useListProviderReviews<TData = Awaited<ReturnType<typeof listProviderReviews>>, TError = ErrorType<NotFoundResponse>>(
+ providerId: number,
+    params?: ListProviderReviewsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProviderReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProviderReviewsQueryOptions(providerId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

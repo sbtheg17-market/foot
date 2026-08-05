@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * OnCall Foot API — foot rejuvenation marketplace
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 export interface HealthStatus {
   status: string;
@@ -78,6 +78,217 @@ export interface ErrorResponse {
   details?: ErrorResponseDetails;
 }
 
+export type VerificationStatus = typeof VerificationStatus[keyof typeof VerificationStatus];
+
+
+export const VerificationStatus = {
+  pending: 'pending',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+/**
+ * Condensed provider card for list views
+ */
+export interface ProviderSummary {
+  /** provider_profiles.id */
+  id: number;
+  userId: number;
+  firstName: string;
+  lastName: string;
+  avatarUrl?: string | null;
+  title: string;
+  city: string;
+  /** Numeric string, e.g. "4.85" */
+  rating: string;
+  reviewCount: number;
+  verificationStatus: VerificationStatus;
+  acceptsNewClients: boolean;
+  yearsExperience?: number | null;
+}
+
+/**
+ * Full provider profile including bio and service area
+ */
+export type ProviderProfile = ProviderSummary & ({
+  bio?: string | null;
+  serviceAreaNotes?: string | null;
+  profileComplete?: boolean;
+  createdAt?: string;
+});
+
+export interface ProviderProfileResponse {
+  provider: ProviderProfile;
+}
+
+export interface ProviderListResponse {
+  providers: ProviderSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface UpdateProviderProfileRequest {
+  /** @minLength 1 */
+  title?: string;
+  bio?: string;
+  /** @minLength 1 */
+  city?: string;
+  serviceAreaNotes?: string;
+  /** @minimum 0 */
+  yearsExperience?: number;
+  acceptsNewClients?: boolean;
+}
+
+export interface Service {
+  id: number;
+  providerId: number;
+  title: string;
+  description?: string | null;
+  durationMinutes: number;
+  /** Price in cents (CAD) */
+  priceCents: number;
+  category: string;
+  eligibilityNotes?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface ServiceResponse {
+  service: Service;
+}
+
+export interface ServiceListResponse {
+  services: Service[];
+}
+
+export interface CreateServiceRequest {
+  /** @minLength 1 */
+  title: string;
+  description?: string;
+  /** @minimum 15 */
+  durationMinutes: number;
+  /**
+     * Price in cents
+     * @minimum 0
+     */
+  priceCents: number;
+  category?: string;
+  eligibilityNotes?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateServiceRequest {
+  /** @minLength 1 */
+  title?: string;
+  description?: string;
+  /** @minimum 15 */
+  durationMinutes?: number;
+  /** @minimum 0 */
+  priceCents?: number;
+  category?: string;
+  eligibilityNotes?: string;
+  isActive?: boolean;
+}
+
+export interface AvailabilitySlot {
+  id: number;
+  /**
+     * 0 = Sunday, 6 = Saturday
+     * @minimum 0
+     * @maximum 6
+     */
+  dayOfWeek: number;
+  /**
+     * HH:MM 24-hour
+     * @pattern ^([01]\d|2[0-3]):[0-5]\d$
+     */
+  startTime: string;
+  /**
+     * HH:MM 24-hour
+     * @pattern ^([01]\d|2[0-3]):[0-5]\d$
+     */
+  endTime: string;
+}
+
+export interface AvailabilityListResponse {
+  slots: AvailabilitySlot[];
+}
+
+export type SetAvailabilityRequestSlotsItem = {
+  /**
+     * @minimum 0
+     * @maximum 6
+     */
+  dayOfWeek: number;
+  /** @pattern ^([01]\d|2[0-3]):[0-5]\d$ */
+  startTime: string;
+  /** @pattern ^([01]\d|2[0-3]):[0-5]\d$ */
+  endTime: string;
+};
+
+/**
+ * Replaces all availability slots for the provider
+ */
+export interface SetAvailabilityRequest {
+  slots: SetAvailabilityRequestSlotsItem[];
+}
+
+export interface TravelZone {
+  id: number;
+  providerId: number;
+  zoneName: string;
+  city: string;
+  notes?: string | null;
+}
+
+export interface TravelZoneResponse {
+  zone: TravelZone;
+}
+
+export interface TravelZoneListResponse {
+  zones: TravelZone[];
+}
+
+export interface CreateTravelZoneRequest {
+  /** @minLength 1 */
+  zoneName: string;
+  /** @minLength 1 */
+  city: string;
+  notes?: string;
+}
+
+export interface Review {
+  id: number;
+  bookingId: number;
+  clientId: number;
+  providerId: number;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  rating: number;
+  comment?: string | null;
+  clientFirstName: string;
+  createdAt?: string;
+}
+
+export interface ReviewListResponse {
+  reviews: Review[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface EarningsSummaryResponse {
+  /** Lifetime earnings in cents */
+  totalCents: number;
+  completedBookings: number;
+  /** Placeholder — Stripe Connect not yet active */
+  pendingPayoutCents: number;
+}
+
 /**
  * Validation error
  */
@@ -102,4 +313,40 @@ export type NotFoundResponse = ErrorResponse;
  * Resource already exists
  */
 export type ConflictResponse = ErrorResponse;
+
+export type ListProvidersParams = {
+/**
+ * Filter by city (case-insensitive partial match)
+ */
+city?: string;
+/**
+ * Filter by service category
+ */
+category?: string;
+/**
+ * Only return verified providers
+ */
+verified?: boolean;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
+};
+
+export type ListProviderReviewsParams = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
+};
 

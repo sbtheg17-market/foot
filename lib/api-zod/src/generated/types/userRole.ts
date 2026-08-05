@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * OnCall Foot API — foot rejuvenation marketplace
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 
 export type UserRole = typeof UserRole[keyof typeof UserRole];

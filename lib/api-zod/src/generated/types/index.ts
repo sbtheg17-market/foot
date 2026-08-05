@@ -3,23 +3,47 @@
  * Do not edit manually.
  * Api
  * OnCall Foot API — foot rejuvenation marketplace
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.0
  */
 
 export * from './authResponse';
+export * from './availabilityListResponse';
+export * from './availabilitySlot';
 export * from './badRequestResponse';
 export * from './conflictResponse';
+export * from './createServiceRequest';
+export * from './createTravelZoneRequest';
+export * from './earningsSummaryResponse';
 export * from './errorResponse';
 export * from './errorResponseDetails';
 export * from './forbiddenResponse';
 export * from './healthStatus';
+export * from './listProviderReviewsParams';
+export * from './listProvidersParams';
 export * from './loginRequest';
 export * from './meResponse';
 export * from './meResponseUser';
 export * from './messageResponse';
 export * from './notFoundResponse';
+export * from './providerListResponse';
+export * from './providerProfile';
+export * from './providerProfileResponse';
+export * from './providerSummary';
 export * from './registerRequest';
 export * from './registerRequestRole';
+export * from './review';
+export * from './reviewListResponse';
+export * from './service';
+export * from './serviceListResponse';
+export * from './serviceResponse';
+export * from './setAvailabilityRequest';
+export * from './setAvailabilityRequestSlotsItem';
+export * from './travelZone';
+export * from './travelZoneListResponse';
+export * from './travelZoneResponse';
 export * from './unauthorizedResponse';
+export * from './updateProviderProfileRequest';
+export * from './updateServiceRequest';
 export * from './userRole';
 export * from './userSummary';
+export * from './verificationStatus';
