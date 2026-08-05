@@ -1,14 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useListBookings, useUpdateBookingStatus, ListBookingsStatus } from '@workspace/api-client-react';
 import { Calendar, MapPin, Clock, FileText, ChevronRight, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function PortalBookings() {
   const [activeTab, setActiveTab] = useState<ListBookingsStatus>('requested');
-  
+
+  // Single fetch; filtering is local + presentational (no booking writes).
   const { data, isLoading, refetch } = useListBookings(
-    { status: activeTab },
-    { query: { queryKey: ['bookings', activeTab] } }
+    { limit: 100 },
+    { query: { queryKey: ['bookings'] } }
+  );
+
+  const countsByStatus = useMemo(() => {
+    const counts: Partial<Record<ListBookingsStatus, number>> = {};
+    for (const b of data?.bookings ?? []) {
+      counts[b.status] = (counts[b.status] ?? 0) + 1;
+    }
+    return counts;
+  }, [data]);
+
+  const filteredBookings = useMemo(
+    () => (data?.bookings ?? []).filter(b => b.status === activeTab),
+    [data, activeTab]
   );
 
   const updateStatus = useUpdateBookingStatus();
@@ -66,20 +80,33 @@ export default function PortalBookings() {
     <div className="p-6 pt-10 pb-32 max-w-4xl mx-auto h-full flex flex-col">
       <h1 className="text-3xl font-serif font-bold text-foreground mb-6">Bookings</h1>
 
-      <div className="flex bg-secondary p-1 rounded-xl mb-6 shadow-inner overflow-x-auto no-scrollbar">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-              activeTab === tab.id 
-                ? 'bg-card text-foreground shadow-sm' 
-                : 'text-muted-foreground hover:text-foreground hover:bg-black/5'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar" data-testid="booking-status-filters">
+        {tabs.map(tab => {
+          const count = countsByStatus[tab.id] ?? 0;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              data-testid={`booking-filter-${tab.id}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap border transition-colors ${
+                isActive
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                  : 'bg-card text-muted-foreground border-border hover:text-foreground hover:border-primary/40'
+              }`}
+            >
+              {tab.label}
+              <span
+                data-testid={`booking-filter-${tab.id}-count`}
+                className={`min-w-[1.5rem] px-1.5 py-0.5 rounded-full text-xs font-bold text-center ${
+                  isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-secondary text-foreground/70'
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex-1 flex flex-col gap-4">
@@ -87,7 +114,7 @@ export default function PortalBookings() {
           Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="bg-card border border-border rounded-2xl h-32 animate-pulse" />
           ))
-        ) : data?.bookings.length === 0 ? (
+        ) : filteredBookings.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-12 text-center">
             <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-4 text-muted-foreground">
               <Calendar className="w-8 h-8" />
@@ -96,7 +123,7 @@ export default function PortalBookings() {
             <p className="text-muted-foreground">There are no {activeTab} bookings.</p>
           </div>
         ) : (
-          data?.bookings.map(booking => (
+          filteredBookings.map(booking => (
             <div key={booking.id} className="bg-card border border-border rounded-3xl p-5 shadow-sm">
               <div className="flex justify-between items-start mb-4 border-b border-border pb-4">
                 <div>

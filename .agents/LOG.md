@@ -572,6 +572,27 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Next best action:** Provider-portal depth — wire the "9–5 weekdays" availability preset UI (`/provider/availability`), or add status-chip filters to the provider bookings inbox (`/provider/bookings`). Both are provider-first and checkpoint-sized. Do NOT add Stripe or new client/admin portals unless requested.
 
 
+### Session 018 — 2026-06 (checkpoint 2/4)
+**Agent:** Emergent Agent  
+**Scope:** `S`  
+**Triggered by:** Task 2 — booking status-chip filters on the provider bookings inbox.
+
+**What was done:**
+- `/provider/bookings` now fetches once (`limit: 100`, no server status param) and filters locally via a compact horizontal chip row (Requests / Upcoming / Past) with live per-status count badges.
+- Purely presentational: counts + filtered list derived with `useMemo` from the existing booking data; no changes to booking writes, state machine, or notifications. Default view stays "Requests".
+- Verified on mobile viewport in the running preview (chips, counts, switching); availability preset from checkpoint 1 also verified live.
+
+**Files changed:**
+- `artifacts/web/src/pages/portal/bookings.tsx`
+- `.agents/LOG.md`
+
+**Build state at end:** typecheck + build green; 63 unit + 16 concurrency + 3 availability tests passing.
+
+**Next best action:** Task 3 — tap-to-reach (tel:/maps links on booking cards; needs client name/phone join in GET /bookings for providers).
+
+---
+
+
 ### Session 018 — 2026-06 (checkpoint 1/4)
 **Agent:** Emergent Agent  
 **Scope:** `S`  
