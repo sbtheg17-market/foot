@@ -1,2 +1,3 @@
 - [Session Log](../LOG.md) — living log of all agent sessions; read first, append before ending every session
 - [Agent Rules](../AGENT-RULES.md) — 11 rules every agent follows on this repo (read before writing any code)
+- [Workflow bootstrap resource limits](workflow-bootstrap-resource-limits.md) — managed pnpm bootstrap can recurse and exhaust thread resources before app startup
