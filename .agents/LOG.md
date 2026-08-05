@@ -312,6 +312,39 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 015 — 2026-08-05
+**Agent:** Replit Main Agent  
+**Scope:** `S`  
+**Triggered by:** "Confirm concurrent booking changes can't corrupt state under load" — uploaded file with exact requirements
+
+**What was done:**
+- Restarted all workflows after port collision from previous session (EADDRINUSE on 8080 and 22333)
+- Created `artifacts/api-server/src/__tests__/booking-concurrency.test.ts` — 16 integration tests across 8 suites:
+  - Setup: healthcheck, auth, provider profile discovery
+  - 8 simultaneous confirms → exactly 1 wins (200), 7 rejected (409)
+  - 5 simultaneous same-actor cancels → 1 wins, 4 rejected
+  - 4 client + 4 provider concurrent cancels → 1 wins, 7 rejected
+  - Back-to-back valid sequences: confirmed→completed, confirmed→cancelled, confirmed→rescheduled→confirmed
+  - Invalid transitions: terminal states, role violations, skipped steps, missing fields
+  - 409 response body check (human-readable message)
+  - Auth enforcement (401 on unauthenticated PATCH)
+- Added `test:integration` script to `artifacts/api-server/package.json`
+- **Fixed real bug discovered by tests**: `confirmed → rescheduled → confirmed` threw HTTP 500 — the second confirm tried to insert a duplicate invoice, but the `try/catch` checked `err.code` directly while Drizzle ORM nests the postgres error under `err.cause.code`. Fixed by replacing the fragile catch with `.onConflictDoNothing()` on the insert.
+- Unit tests: 63/63 pass. Integration tests: 16/16 pass. TypeScript: 0 errors.
+- Committed and pushed to origin/main.
+
+**Files changed:**
+- `artifacts/api-server/src/__tests__/booking-concurrency.test.ts` — new (16 integration tests)
+- `artifacts/api-server/package.json` — added `test:integration` script
+- `artifacts/api-server/src/routes/bookings.ts` — `.onConflictDoNothing()` on invoice insert (bug fix)
+- `.agents/LOG.md` — updated Current Build State, added this entry
+
+**Build state at end:** All 4 workflows running. 63 unit tests + 16 integration tests, all passing. Booking state machine proven safe under concurrent load. Re-confirm after reschedule works correctly. TypeScript clean.
+
+**Next best action:** Stripe payment integration — invoices exist, `stripe_payment_intent_id` column exists, checkout flow not yet built. Or: credential verification workflow for admin portal. See `docs/future-monetization.md`.
+
+---
+
 ### Session 014 — 2026-08-05
 **Agent:** Replit Main Agent  
 **Scope:** `XS`  
