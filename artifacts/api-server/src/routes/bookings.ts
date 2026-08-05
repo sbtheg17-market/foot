@@ -355,19 +355,20 @@ router.patch(
             .limit(1);
 
           if (serviceRows[0]) {
-            try {
-              await tx.insert(invoicesTable).values({
+            // onConflictDoNothing: if an invoice already exists for this
+            // booking (e.g. confirmed → rescheduled → re-confirmed), the
+            // unique constraint on booking_id fires; we simply skip the
+            // duplicate insert and keep the original invoice.
+            await tx
+              .insert(invoicesTable)
+              .values({
                 bookingId,
                 clientId: booking.clientId,
                 providerId: booking.providerId,
                 amountCents: serviceRows[0].priceCents,
                 status: "pending",
-              });
-            } catch (err: unknown) {
-              // 23505 = unique_violation — a concurrent confirm already created
-              // the invoice. The DB constraint did its job; swallow and continue.
-              if ((err as { code?: string }).code !== "23505") throw err;
-            }
+              })
+              .onConflictDoNothing();
           }
         }
 
