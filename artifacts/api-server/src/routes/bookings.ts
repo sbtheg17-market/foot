@@ -147,9 +147,15 @@ router.post(
       })
       .returning();
 
+    // Guard: if the DB insert did not return a row the write did not persist.
+    // Throw so the JSON error handler returns 500 — never lie to the client.
+    if (!booking) {
+      throw new Error("Booking insert did not return a row — write may not have persisted.");
+    }
+
     const providerUserId = provider[0].userId;
     const bookingCity = String(city);
-    const bookingAt = booking!.scheduledAt.toISOString();
+    const bookingAt = booking.scheduledAt.toISOString();
 
     // Notify provider via SSE (web portal — real-time while open)
     emitNewBooking({
@@ -346,6 +352,15 @@ router.patch(
           .where(eq(bookingsTable.id, bookingId))
           .returning();
 
+        // Guard: the row lock means the row must exist at this point.
+        // If returning() is empty the write did not persist — throw so the
+        // caller gets 500 (JSON) rather than silently returning stale data.
+        if (!updatedBooking) {
+          throw new Error(
+            "Booking update did not return a row — write may not have persisted."
+          );
+        }
+
         // Auto-create invoice when confirmed
         if (newStatus === "confirmed") {
           const serviceRows = await tx
@@ -372,7 +387,7 @@ router.patch(
           }
         }
 
-        return { updatedBooking: updatedBooking!, originalBooking: booking };
+        return { updatedBooking, originalBooking: booking };
       });
     } catch (err: unknown) {
       const e = err as { statusCode?: number; userMessage?: string };

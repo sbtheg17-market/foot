@@ -10,7 +10,8 @@
     "seed": "node --enable-source-maps --import tsx/esm ./src/seed.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx/esm --test src/__tests__/booking-state-machine.test.ts",
-    "test:integration": "node --import tsx/esm --test src/__tests__/booking-concurrency.test.ts"
+    "test:integration": "node --import tsx/esm --test src/__tests__/booking-concurrency.test.ts",
+    "test:pressure": "node --import tsx/esm --test src/__tests__/booking-pressure.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",
