@@ -20,6 +20,8 @@ tags:
     description: Client reviews
   - name: invoices
     description: Payment invoices
+  - name: reviews
+    description: Client reviews for completed bookings
 
 paths:
   /healthz:
@@ -482,6 +484,252 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServiceListResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Bookings ─────────────────────────────────────────────────────────────────
+
+  /bookings:
+    get:
+      operationId: listBookings
+      tags: [bookings]
+      summary: List own bookings (scoped by role)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [requested, confirmed, completed, cancelled, rescheduled, no_show]
+          description: Filter by status
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Bookings list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createBooking
+      tags: [bookings]
+      summary: Create a booking request (client only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingRequest"
+      responses:
+        "201":
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bookings/{bookingId}:
+    get:
+      operationId: getBooking
+      tags: [bookings]
+      summary: Get booking detail (own only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Booking detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bookings/{bookingId}/status:
+    patch:
+      operationId: updateBookingStatus
+      tags: [bookings]
+      summary: Update booking status (role-restricted transitions)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBookingStatusRequest"
+      responses:
+        "200":
+          description: Updated booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Reviews ───────────────────────────────────────────────────────────────────
+
+  /reviews:
+    post:
+      operationId: createReview
+      tags: [reviews]
+      summary: Submit a review (client only, completed booking)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReviewRequest"
+      responses:
+        "201":
+          description: Review submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /reviews/{reviewId}:
+    get:
+      operationId: getReview
+      tags: [reviews]
+      summary: Get review detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Review detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Invoices ──────────────────────────────────────────────────────────────────
+
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: [invoices]
+      summary: List own invoices (scoped by role)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Invoices list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /invoices/{invoiceId}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get invoice detail (own only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -1068,6 +1316,224 @@ components:
           type: integer
       required:
         - reviews
+        - total
+        - limit
+        - offset
+
+    # ── Booking Schemas ────────────────────────────────────────────────────────
+
+    BookingStatus:
+      type: string
+      enum: [requested, confirmed, completed, cancelled, rescheduled, no_show]
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+        providerId:
+          type: integer
+        serviceId:
+          type: integer
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        scheduledAt:
+          type: string
+          format: date-time
+        address:
+          type: string
+        city:
+          type: string
+        postalCode:
+          type: string
+          nullable: true
+        careNotes:
+          type: string
+          nullable: true
+        clientNotes:
+          type: string
+          nullable: true
+        cancellationReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - clientId
+        - providerId
+        - serviceId
+        - status
+        - scheduledAt
+        - address
+        - city
+
+    BookingResponse:
+      type: object
+      properties:
+        booking:
+          $ref: "#/components/schemas/Booking"
+      required:
+        - booking
+
+    BookingListResponse:
+      type: object
+      properties:
+        bookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - bookings
+        - total
+        - limit
+        - offset
+
+    CreateBookingRequest:
+      type: object
+      properties:
+        providerId:
+          type: integer
+          description: provider_profiles.id
+        serviceId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        address:
+          type: string
+          minLength: 1
+        city:
+          type: string
+          minLength: 1
+        postalCode:
+          type: string
+        careNotes:
+          type: string
+        clientNotes:
+          type: string
+      required:
+        - providerId
+        - serviceId
+        - scheduledAt
+        - address
+        - city
+
+    UpdateBookingStatusRequest:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        cancellationReason:
+          type: string
+          description: Required when transitioning to cancelled
+        scheduledAt:
+          type: string
+          format: date-time
+          description: Required when transitioning to rescheduled
+      required:
+        - status
+
+    # ── Review Schemas (create/get) ────────────────────────────────────────────
+
+    ReviewResponse:
+      type: object
+      properties:
+        review:
+          $ref: "#/components/schemas/Review"
+      required:
+        - review
+
+    CreateReviewRequest:
+      type: object
+      properties:
+        bookingId:
+          type: integer
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+      required:
+        - bookingId
+        - rating
+
+    # ── Invoice Schemas ────────────────────────────────────────────────────────
+
+    InvoiceStatus:
+      type: string
+      enum: [pending, paid, cancelled]
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        clientId:
+          type: integer
+        providerId:
+          type: integer
+        amountCents:
+          type: integer
+          description: Amount in cents (CAD)
+        status:
+          $ref: "#/components/schemas/InvoiceStatus"
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - bookingId
+        - clientId
+        - providerId
+        - amountCents
+        - status
+
+    InvoiceResponse:
+      type: object
+      properties:
+        invoice:
+          $ref: "#/components/schemas/Invoice"
+      required:
+        - invoice
+
+    InvoiceListResponse:
+      type: object
+      properties:
+        invoices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - invoices
         - total
         - limit
         - offset

@@ -43,12 +43,12 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | JWT_SECRET | ✅ Set | Stored as Replit Secret. API server confirmed signing tokens correctly. |
 | Seed script | ✅ Live | 5 demo accounts + full sample data seeded. Run: `pnpm --filter @workspace/api-server run seed` |
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
-| Business routes — bookings | ❌ Not built | See `docs/api-routes.md` |
-| Business routes — reviews/invoices | ❌ Not built | See `docs/api-routes.md` |
+| Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/:id, PATCH /bookings/:id/status — strict state machine, auto-invoice on confirm |
+| Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, GET /invoices, GET /invoices/:id — all role-scoped |
 | React frontend | ❌ Does not exist | `artifacts/web/` to be created — React 19 + Vite + TanStack Query + Wouter |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
 
-**MVP completion estimate: ~35%** (auth + provider API complete, bookings next)
+**MVP completion estimate: ~55%** (auth + all provider/booking/review/invoice API routes complete, frontend next)
 
 ---
 

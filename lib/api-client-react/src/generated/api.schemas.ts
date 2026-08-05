@@ -281,6 +281,115 @@ export interface ReviewListResponse {
   offset: number;
 }
 
+export type BookingStatus = typeof BookingStatus[keyof typeof BookingStatus];
+
+
+export const BookingStatus = {
+  requested: 'requested',
+  confirmed: 'confirmed',
+  completed: 'completed',
+  cancelled: 'cancelled',
+  rescheduled: 'rescheduled',
+  no_show: 'no_show',
+} as const;
+
+export interface Booking {
+  id: number;
+  clientId: number;
+  providerId: number;
+  serviceId: number;
+  status: BookingStatus;
+  scheduledAt: string;
+  address: string;
+  city: string;
+  postalCode?: string | null;
+  careNotes?: string | null;
+  clientNotes?: string | null;
+  cancellationReason?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BookingResponse {
+  booking: Booking;
+}
+
+export interface BookingListResponse {
+  bookings: Booking[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface CreateBookingRequest {
+  /** provider_profiles.id */
+  providerId: number;
+  serviceId: number;
+  scheduledAt: string;
+  /** @minLength 1 */
+  address: string;
+  /** @minLength 1 */
+  city: string;
+  postalCode?: string;
+  careNotes?: string;
+  clientNotes?: string;
+}
+
+export interface UpdateBookingStatusRequest {
+  status: BookingStatus;
+  /** Required when transitioning to cancelled */
+  cancellationReason?: string;
+  /** Required when transitioning to rescheduled */
+  scheduledAt?: string;
+}
+
+export interface ReviewResponse {
+  review: Review;
+}
+
+export interface CreateReviewRequest {
+  bookingId: number;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  rating: number;
+  comment?: string;
+}
+
+export type InvoiceStatus = typeof InvoiceStatus[keyof typeof InvoiceStatus];
+
+
+export const InvoiceStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  cancelled: 'cancelled',
+} as const;
+
+export interface Invoice {
+  id: number;
+  bookingId: number;
+  clientId: number;
+  providerId: number;
+  /** Amount in cents (CAD) */
+  amountCents: number;
+  status: InvoiceStatus;
+  paidAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface InvoiceResponse {
+  invoice: Invoice;
+}
+
+export interface InvoiceListResponse {
+  invoices: Invoice[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface EarningsSummaryResponse {
   /** Lifetime earnings in cents */
   totalCents: number;
@@ -327,6 +436,46 @@ category?: string;
  * Only return verified providers
  */
 verified?: boolean;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
+};
+
+export type ListBookingsParams = {
+/**
+ * Filter by status
+ */
+status?: ListBookingsStatus;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
+};
+
+export type ListBookingsStatus = typeof ListBookingsStatus[keyof typeof ListBookingsStatus];
+
+
+export const ListBookingsStatus = {
+  requested: 'requested',
+  confirmed: 'confirmed',
+  completed: 'completed',
+  cancelled: 'cancelled',
+  rescheduled: 'rescheduled',
+  no_show: 'no_show',
+} as const;
+
+export type ListInvoicesParams = {
 /**
  * @minimum 1
  * @maximum 100

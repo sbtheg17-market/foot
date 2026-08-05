@@ -483,6 +483,256 @@ export const ListProviderServicesResponse = zod.object({
 
 
 /**
+ * @summary List own bookings (scoped by role)
+ */
+export const listBookingsQueryLimitDefault = 20;
+export const listBookingsQueryLimitMax = 100;
+
+export const listBookingsQueryOffsetDefault = 0;
+export const listBookingsQueryOffsetMin = 0;
+
+
+
+export const ListBookingsQueryParams = zod.object({
+  "status": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']).optional().describe('Filter by status'),
+  "limit": zod.coerce.number().int().min(1).max(listBookingsQueryLimitMax).default(listBookingsQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(listBookingsQueryOffsetMin).default(listBookingsQueryOffsetDefault)
+})
+
+export const ListBookingsResponse = zod.object({
+  "bookings": zod.array(zod.object({
+  "id": zod.int(),
+  "clientId": zod.int(),
+  "providerId": zod.int(),
+  "serviceId": zod.int(),
+  "status": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "scheduledAt": zod.coerce.date(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "postalCode": zod.string().nullish(),
+  "careNotes": zod.string().nullish(),
+  "clientNotes": zod.string().nullish(),
+  "cancellationReason": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})),
+  "total": zod.int(),
+  "limit": zod.int(),
+  "offset": zod.int()
+})
+
+
+/**
+ * @summary Create a booking request (client only)
+ */
+
+
+
+
+export const CreateBookingBody = zod.object({
+  "providerId": zod.int().describe('provider_profiles.id'),
+  "serviceId": zod.int(),
+  "scheduledAt": zod.coerce.date(),
+  "address": zod.string().min(1),
+  "city": zod.string().min(1),
+  "postalCode": zod.string().optional(),
+  "careNotes": zod.string().optional(),
+  "clientNotes": zod.string().optional()
+})
+
+export const CreateBookingResponse = zod.object({
+  "booking": zod.object({
+  "id": zod.int(),
+  "clientId": zod.int(),
+  "providerId": zod.int(),
+  "serviceId": zod.int(),
+  "status": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "scheduledAt": zod.coerce.date(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "postalCode": zod.string().nullish(),
+  "careNotes": zod.string().nullish(),
+  "clientNotes": zod.string().nullish(),
+  "cancellationReason": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
+ * @summary Get booking detail (own only)
+ */
+export const GetBookingParams = zod.object({
+  "bookingId": zod.coerce.number().int()
+})
+
+export const GetBookingResponse = zod.object({
+  "booking": zod.object({
+  "id": zod.int(),
+  "clientId": zod.int(),
+  "providerId": zod.int(),
+  "serviceId": zod.int(),
+  "status": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "scheduledAt": zod.coerce.date(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "postalCode": zod.string().nullish(),
+  "careNotes": zod.string().nullish(),
+  "clientNotes": zod.string().nullish(),
+  "cancellationReason": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
+ * @summary Update booking status (role-restricted transitions)
+ */
+export const UpdateBookingStatusParams = zod.object({
+  "bookingId": zod.coerce.number().int()
+})
+
+export const UpdateBookingStatusBody = zod.object({
+  "status": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "cancellationReason": zod.string().optional().describe('Required when transitioning to cancelled'),
+  "scheduledAt": zod.coerce.date().optional().describe('Required when transitioning to rescheduled')
+})
+
+export const UpdateBookingStatusResponse = zod.object({
+  "booking": zod.object({
+  "id": zod.int(),
+  "clientId": zod.int(),
+  "providerId": zod.int(),
+  "serviceId": zod.int(),
+  "status": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "scheduledAt": zod.coerce.date(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "postalCode": zod.string().nullish(),
+  "careNotes": zod.string().nullish(),
+  "clientNotes": zod.string().nullish(),
+  "cancellationReason": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
+ * @summary Submit a review (client only, completed booking)
+ */
+export const createReviewBodyRatingMax = 5;
+
+
+
+export const CreateReviewBody = zod.object({
+  "bookingId": zod.int(),
+  "rating": zod.int().min(1).max(createReviewBodyRatingMax),
+  "comment": zod.string().optional()
+})
+
+export const createReviewResponseReviewRatingMax = 5;
+
+
+
+export const CreateReviewResponse = zod.object({
+  "review": zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "clientId": zod.int(),
+  "providerId": zod.int(),
+  "rating": zod.int().min(1).max(createReviewResponseReviewRatingMax),
+  "comment": zod.string().nullish(),
+  "clientFirstName": zod.string(),
+  "createdAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
+ * @summary Get review detail
+ */
+export const GetReviewParams = zod.object({
+  "reviewId": zod.coerce.number().int()
+})
+
+export const getReviewResponseReviewRatingMax = 5;
+
+
+
+export const GetReviewResponse = zod.object({
+  "review": zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "clientId": zod.int(),
+  "providerId": zod.int(),
+  "rating": zod.int().min(1).max(getReviewResponseReviewRatingMax),
+  "comment": zod.string().nullish(),
+  "clientFirstName": zod.string(),
+  "createdAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
+ * @summary List own invoices (scoped by role)
+ */
+export const listInvoicesQueryLimitDefault = 20;
+export const listInvoicesQueryLimitMax = 100;
+
+export const listInvoicesQueryOffsetDefault = 0;
+export const listInvoicesQueryOffsetMin = 0;
+
+
+
+export const ListInvoicesQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listInvoicesQueryLimitMax).default(listInvoicesQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(listInvoicesQueryOffsetMin).default(listInvoicesQueryOffsetDefault)
+})
+
+export const ListInvoicesResponse = zod.object({
+  "invoices": zod.array(zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "clientId": zod.int(),
+  "providerId": zod.int(),
+  "amountCents": zod.int().describe('Amount in cents (CAD)'),
+  "status": zod.enum(['pending', 'paid', 'cancelled']),
+  "paidAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})),
+  "total": zod.int(),
+  "limit": zod.int(),
+  "offset": zod.int()
+})
+
+
+/**
+ * @summary Get invoice detail (own only)
+ */
+export const GetInvoiceParams = zod.object({
+  "invoiceId": zod.coerce.number().int()
+})
+
+export const GetInvoiceResponse = zod.object({
+  "invoice": zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "clientId": zod.int(),
+  "providerId": zod.int(),
+  "amountCents": zod.int().describe('Amount in cents (CAD)'),
+  "status": zod.enum(['pending', 'paid', 'cancelled']),
+  "paidAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
  * @summary List a provider's visible reviews
  */
 export const ListProviderReviewsParams = zod.object({
