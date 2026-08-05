@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useGetMyAvailability, useSetMyAvailability, AvailabilitySlot } from '@workspace/api-client-react';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Save, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEKDAYS = [1, 2, 3, 4, 5]; // Monday–Friday
+
+/** Weekday 9–5 preset: replaces Mon–Fri with a single 09:00–17:00 slot each; weekend slots are preserved. Idempotent. */
+export function applyWeekdayPreset(
+  slots: { dayOfWeek: number; startTime: string; endTime: string }[]
+): { dayOfWeek: number; startTime: string; endTime: string }[] {
+  const weekendSlots = slots.filter(s => !WEEKDAYS.includes(s.dayOfWeek));
+  const weekdaySlots = WEEKDAYS.map(dayOfWeek => ({ dayOfWeek, startTime: '09:00', endTime: '17:00' }));
+  return [...weekendSlots, ...weekdaySlots];
+}
 
 export default function PortalAvailability() {
   const queryClient = useQueryClient();
@@ -37,9 +47,12 @@ export default function PortalAvailability() {
     setSlots(newSlots);
   };
 
-  const handleSave = () => {
-    // API expects SetAvailabilityRequest: { slots: [{ dayOfWeek, startTime, endTime }] }
-    const payload = slots.map(s => ({
+  // Reuses the single existing save path for both manual saves and the preset.
+  const saveSlots = (
+    slotsToSave: { dayOfWeek: number; startTime: string; endTime: string }[],
+    successMessage: string,
+  ) => {
+    const payload = slotsToSave.map(s => ({
       dayOfWeek: s.dayOfWeek,
       startTime: s.startTime,
       endTime: s.endTime
@@ -47,13 +60,22 @@ export default function PortalAvailability() {
 
     setAvailability.mutate({ data: { slots: payload } }, {
       onSuccess: () => {
-        toast.success('Schedule saved successfully');
+        toast.success(successMessage);
         queryClient.invalidateQueries({ queryKey: ['my-availability'] });
       },
       onError: () => {
         toast.error('Failed to save schedule');
       }
     });
+  };
+
+  const handleSave = () => saveSlots(slots, 'Schedule saved successfully');
+
+  const handlePreset = () => {
+    if (setAvailability.isPending) return;
+    const next = applyWeekdayPreset(slots);
+    setSlots(next);
+    saveSlots(next, 'Weekday 9–5 schedule applied');
   };
 
   if (isLoading) {
@@ -79,6 +101,16 @@ export default function PortalAvailability() {
           )}
         </button>
       </div>
+
+      <button
+        onClick={handlePreset}
+        disabled={setAvailability.isPending}
+        data-testid="availability-preset-9-5-btn"
+        className="mb-6 w-full sm:w-auto self-start bg-secondary text-secondary-foreground border border-border px-5 py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors active:scale-[0.98] disabled:opacity-50"
+      >
+        <Zap className="w-4 h-4" />
+        Apply 9–5 weekdays preset
+      </button>
 
       <div className="space-y-6">
         {DAYS.map((dayName, dayIdx) => {

@@ -572,6 +572,28 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Next best action:** Provider-portal depth — wire the "9–5 weekdays" availability preset UI (`/provider/availability`), or add status-chip filters to the provider bookings inbox (`/provider/bookings`). Both are provider-first and checkpoint-sized. Do NOT add Stripe or new client/admin portals unless requested.
 
 
+### Session 018 — 2026-06 (checkpoint 1/4)
+**Agent:** Emergent Agent  
+**Scope:** `S`  
+**Triggered by:** Continue provider-first task order from NEXT-STEPS.md — Task 1: availability "9–5 weekdays" preset.
+
+**What was done:**
+- Added one-tap "Apply 9–5 weekdays preset" to `/provider/availability`: fills Mon–Fri 09:00–17:00, preserves weekend slots, saves immediately through the existing `PUT /providers/me/availability` path (no new write paths). Idempotent on reapply; manual editing still works after.
+- Extracted `applyWeekdayPreset()` (pure, exported) and a shared `saveSlots()` so preset + manual save use one code path.
+- New integration test suite `test:availability` (3 tests: persistence, idempotence, weekend-preservation + manual edits after preset). Restores seed schedule after run.
+
+**Files changed:**
+- `artifacts/web/src/pages/portal/availability.tsx`
+- `artifacts/api-server/src/__tests__/availability-preset.test.ts` (new), `artifacts/api-server/package.json`
+- `.agents/LOG.md`
+
+**Build state at end:** `pnpm run build` green. Tests: 63 unit + 16 concurrency + 3 availability all passing.
+
+**Next best action:** Task 2 — status-chip filters with counts on `/provider/bookings` (presentational only).
+
+---
+
+
 ## New Session Template
 
 Copy and append below the last entry:

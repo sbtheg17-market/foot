@@ -11,6 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx/esm --test src/__tests__/booking-state-machine.test.ts",
     "test:integration": "node --import tsx/esm --test src/__tests__/booking-concurrency.test.ts",
+    "test:availability": "node --import tsx/esm --test src/__tests__/availability-preset.test.ts",
     "test:pressure": "node --import tsx/esm --test src/__tests__/booking-pressure.test.ts"
   },
   "dependencies": {
