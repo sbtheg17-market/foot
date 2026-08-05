@@ -53,3 +53,6 @@ Thumbs.db
 
 # Emergent platform (local tooling, not app code)
 .emergent/
+
+# Emergent agent working memory (local only)
+memory/

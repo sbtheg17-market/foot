@@ -544,6 +544,34 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 017 — 2026-08-05
+**Agent:** Emergent Agent  
+**Scope:** `L`  
+**Triggered by:** "Take all the conflicts in the repo and merge them into a coherent app usable on Railway/any host; portals must be logically put together; push each change." Confirmed: converge on `main` (Node/Express/Postgres monorepo); treat `conflict_*` FastAPI/Mongo branches as reference only (no merge); provider-first scope; no Stripe; no new client/admin portals.
+
+**What was done:**
+- Made the whole monorepo build/typecheck/run coherently:
+  - Fixed all TS errors in `web` (admin verification setter cast) and `mobile` (SF symbol, `NotificationBehavior.shouldShowList`, `useListProviderReviews` arity, missing `queryKey`, `expo-constants` default import).
+  - Excluded Replit-only `mockup-sandbox` (transitive `@types/react` dedup conflict) and the domain-dependent native `mobile` Expo static build from the default `build`/`typecheck` gate; both still build explicitly.
+  - `web/vite.config.ts` no longer requires `PORT`/`BASE_PATH` at build time (default base `/`).
+- **Single-service deploy**: `api-server` now serves the built React SPA (`artifacts/web/dist/public`) for all non-`/api` routes; JSON 404 for unmatched `/api/*`. One host serves API + web, same-origin, no CORS setup.
+- **Provider-first route reconciliation**: added centralized route constants (`artifacts/web/src/lib/routes.ts`); `/` → `/provider`; canonical provider pages under `/provider/*` via the provider shell; legacy `/portal/*` kept as redirects; client/admin routes preserved as scaffolding.
+- Added Railway/host deploy config: `railway.json`, `nixpacks.toml`, `Procfile`, `.nvmrc`, root scripts (`build:deploy`, `db:push`, `seed`, `start`), `engines` + `packageManager` pin.
+- Verified end-to-end on the live preview URL: login → redirect to `/provider`, dashboard renders seeded data. **92 tests pass** (63 unit + 16 concurrency + 13 pressure).
+- Installed PostgreSQL locally for real build/push/seed/runtime verification.
+
+**Files changed:**
+- `package.json`, `railway.json`, `nixpacks.toml`, `Procfile`, `.nvmrc`, `.gitignore`
+- `artifacts/api-server/src/app.ts`
+- `artifacts/web/vite.config.ts`, `artifacts/web/src/App.tsx`, `artifacts/web/src/lib/routes.ts`, `artifacts/web/src/pages/{login,register,bookings}.tsx`, `artifacts/web/src/pages/portal/dashboard.tsx`, `artifacts/web/src/components/layout/{provider,client}-layout.tsx`, `artifacts/web/src/hooks/use-provider-notifications.ts`, `artifacts/web/src/pages/admin/verification.tsx`
+- `artifacts/mobile/app/(tabs)/_layout.tsx`, `artifacts/mobile/app/_layout.tsx`, `artifacts/mobile/app/provider/[id].tsx`, `artifacts/mobile/hooks/{use-pending-bookings-count,use-push-notifications}.ts`
+- `docs/deployment-notes.md`, `.agents/LOG.md`
+
+**Build state at end:** `pnpm run build` green (typecheck + web + api). API + co-hosted web verified via curl and browser on the preview URL. All 92 tests passing. Pushed to `origin/main` in 2 checkpoints.
+
+**Next best action:** Provider-portal depth — wire the "9–5 weekdays" availability preset UI (`/provider/availability`), or add status-chip filters to the provider bookings inbox (`/provider/bookings`). Both are provider-first and checkpoint-sized. Do NOT add Stripe or new client/admin portals unless requested.
+
+
 ## New Session Template
 
 Copy and append below the last entry:

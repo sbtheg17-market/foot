@@ -16,21 +16,24 @@ OnCall Foot is a **funded-quality, mobile-first marketplace** for in-home foot c
 
 ---
 
-## Current Build State (2026-07-28)
+## Current Build State (2026-08-05)
 
 | Layer | Status |
 |---|---|
-| DB schema | ✅ Pushed to Replit PostgreSQL |
-| API server | ✅ Running — health check only (`GET /api/healthz`) |
-| Auth routes | ❌ Not implemented |
-| Business routes | ❌ Not implemented |
-| Seed data | ❌ Seed script not written |
-| React frontend | ❌ `artifacts/web/` does not exist yet |
+| DB schema | ✅ Live (Drizzle → PostgreSQL) |
+| API server | ✅ Full REST API (auth, providers, bookings, reviews, invoices, notifications, admin) |
+| Auth + RBAC | ✅ JWT + bcrypt; `requireAuth` / `requireRole` / `requireSelf` enforced across routes |
+| Booking state machine | ✅ Centralized + hardened; 92 tests pass (63 unit + 16 concurrency + 13 pressure) |
+| Notifications | ✅ SSE (web) + Expo push (mobile) infrastructure |
+| Seed data | ✅ 5 demo accounts + sample bookings/reviews |
+| React web (provider-first) | ✅ `/` → `/provider`; canonical provider portal under `/provider/*` |
+| Expo mobile app | ✅ Discover / Bookings / Account / Provider / Auth screens |
+| Build / typecheck | ✅ `pnpm run build` green |
+| Deploy | ✅ Single-service: API co-hosts the built web SPA; Railway/Nixpacks/Procfile config in repo |
 
-**Planned next (see project task list):**
-1. Implement auth + core API routes
-2. Write the seed script (demo accounts + sample bookings)
-3. Build the React frontend (`artifacts/web/`)
+**Deployment model:** one Node service serves both the API (`/api/*`) and the React SPA (all other routes). See `docs/deployment-notes.md`.
+
+**Provider-first scope:** client + admin routes exist as scaffolding only. No Stripe yet.
 
 ---
 
