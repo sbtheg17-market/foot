@@ -312,6 +312,29 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 011 — 2026-08-05
+**Agent:** Replit Main Agent  
+**Scope:** `XS`  
+**Triggered by:** Fresh import on new Replit account — handoff prompt uploaded (push notification checkpoint)
+
+**What was done:**
+- Ran `pnpm install` — all 1140 packages resolved (node_modules absent after fresh import)
+- Pushed DB schema via `pnpm --filter @workspace/db run push` — all tables confirmed present
+- Ran seed script — all 5 demo accounts + full sample data seeded successfully
+- JWT_SECRET and DATABASE_URL confirmed set in environment
+- Restarted all 4 workflows — API server, web frontend, mobile Expo all running; mockup-sandbox failed (not critical)
+- Verified web frontend via screenshot: discovery page loads, shows Sarah Chen + Mike Okafor from seed data
+- Verified API server: `GET /api/providers → 200`, `GET /api/auth/me → 401 (correct, unauthenticated)`
+
+**Files changed:**
+- `.agents/LOG.md` — updated Current Build State, added this entry
+
+**Build state at end:** API server, web, and mobile all running. DB schema live. All 5 demo accounts seeded. Push notification infrastructure from Session 010 is live.
+
+**Next best action:** Per Session 010 notes and the uploaded handoff prompt — add remaining booking lifecycle notifications (cancel/reschedule confirmations to providers and clients), inbox badges or unread indicators on mobile, and small UI polish so booking state changes surface clearly. Keep changes checkpoint-sized; commit and push to GitHub after each stable chunk. Do NOT add Stripe, credential verification, or unrelated portals.
+
+---
+
 ### Session 010 — 2026-08-05
 **Agent:** Replit Main Agent  
 **Scope:** `S`  
