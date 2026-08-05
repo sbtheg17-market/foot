@@ -1,6 +1,8 @@
 import React from 'react';
+import { Link } from 'wouter';
 import { useGetMyEarnings, useListInvoices } from '@workspace/api-client-react';
-import { DollarSign, CheckCircle2, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { DollarSign, CheckCircle2, TrendingUp, ArrowUpRight, FileDown } from 'lucide-react';
+import { ROUTES } from '@/lib/routes';
 
 export default function PortalEarnings() {
   const { data: earnings, isLoading: loadingEarnings } = useGetMyEarnings({
@@ -19,6 +21,15 @@ export default function PortalEarnings() {
   return (
     <div className="p-6 pt-10 pb-32 max-w-4xl mx-auto space-y-8">
       <h1 className="text-3xl font-serif font-bold text-foreground">Earnings</h1>
+
+      <Link
+        href={ROUTES.provider.earningsStatement}
+        data-testid="export-statement-btn"
+        className="w-full bg-card border border-border text-foreground px-5 py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2 shadow-sm hover:border-primary/40 hover:text-primary transition-colors active:scale-[0.98]"
+      >
+        <FileDown className="w-4 h-4" />
+        Export earnings statement
+      </Link>
 
       <div className="bg-primary text-primary-foreground rounded-[2rem] p-8 shadow-lg relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20" />

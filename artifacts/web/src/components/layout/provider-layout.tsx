@@ -42,9 +42,9 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   ];
 
   return (
-    <div className="min-h-[100dvh] bg-background pb-20 md:pb-0 md:pl-20 relative mx-auto max-w-[500px] md:max-w-none shadow-2xl md:shadow-none bg-white">
+    <div className="min-h-[100dvh] bg-background pb-20 md:pb-0 md:pl-20 relative mx-auto max-w-[500px] md:max-w-none shadow-2xl md:shadow-none bg-white print:pb-0 print:pl-0 print:shadow-none print:max-w-none">
       {/* Mobile Bottom Nav */}
-      <div className="fixed bottom-0 left-0 right-0 h-20 bg-card border-t border-border flex items-center justify-around px-2 z-50 md:hidden max-w-[500px] mx-auto shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+      <div className="fixed bottom-0 left-0 right-0 h-20 bg-card border-t border-border flex items-center justify-around px-2 z-50 md:hidden max-w-[500px] mx-auto shadow-[0_-4px_20px_rgba(0,0,0,0.05)] print:hidden">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = location === tab.path || (tab.path !== ROUTES.provider.root && location.startsWith(tab.path));
@@ -65,7 +65,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
       </div>
 
       {/* Desktop Sidebar (hidden on mobile, visible on md) */}
-      <div className="hidden md:flex fixed top-0 left-0 bottom-0 w-20 bg-card border-r border-border flex-col items-center py-6 gap-8 z-50">
+      <div className="hidden md:flex fixed top-0 left-0 bottom-0 w-20 bg-card border-r border-border flex-col items-center py-6 gap-8 z-50 print:hidden">
         <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-serif font-bold text-xl shadow-sm">
           O
         </div>

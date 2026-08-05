@@ -430,6 +430,30 @@ export const GetMyEarningsResponse = zod.object({
 
 
 /**
+ * @summary Earnings statement export data (completed bookings only, read-only)
+ */
+export const GetMyEarningsExportResponse = zod.object({
+  "provider": zod.object({
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "title": zod.string().nullish(),
+  "city": zod.string().nullish()
+}),
+  "generatedAt": zod.coerce.date(),
+  "totalCents": zod.int(),
+  "count": zod.int(),
+  "items": zod.array(zod.object({
+  "bookingId": zod.int(),
+  "scheduledAt": zod.coerce.date(),
+  "clientFirstName": zod.string(),
+  "clientLastName": zod.string(),
+  "serviceTitle": zod.string(),
+  "amountCents": zod.int()
+}))
+})
+
+
+/**
  * @summary Get own verification docs and overall status
  */
 export const GetMyVerificationResponse = zod.object({

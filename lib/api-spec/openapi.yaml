@@ -445,6 +445,25 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /providers/me/earnings/export:
+    get:
+      operationId: getMyEarningsExport
+      tags: [providers]
+      summary: Earnings statement export data (completed bookings only, read-only)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Line items and totals for a printable earnings statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarningsExportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /providers/me/verification:
     get:
       operationId: getMyVerification
@@ -1683,6 +1702,67 @@ components:
         - totalCents
         - completedBookings
         - pendingPayoutCents
+
+    EarningsExportItem:
+      type: object
+      properties:
+        bookingId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        clientFirstName:
+          type: string
+        clientLastName:
+          type: string
+        serviceTitle:
+          type: string
+        amountCents:
+          type: integer
+      required:
+        - bookingId
+        - scheduledAt
+        - clientFirstName
+        - clientLastName
+        - serviceTitle
+        - amountCents
+
+    EarningsExportResponse:
+      type: object
+      properties:
+        provider:
+          type: object
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            title:
+              type: string
+              nullable: true
+            city:
+              type: string
+              nullable: true
+          required:
+            - firstName
+            - lastName
+        generatedAt:
+          type: string
+          format: date-time
+        totalCents:
+          type: integer
+        count:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EarningsExportItem"
+      required:
+        - provider
+        - generatedAt
+        - totalCents
+        - count
+        - items
 
     # ── Verification / Credential Schemas ──────────────────────────────────────
 

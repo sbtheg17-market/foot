@@ -21,6 +21,7 @@ export const ROUTES = {
     services: '/provider/services',
     availability: '/provider/availability',
     earnings: '/provider/earnings',
+    earningsStatement: '/provider/earnings/statement',
     profile: '/provider/profile',
     credentials: '/provider/credentials',
   },

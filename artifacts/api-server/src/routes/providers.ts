@@ -10,6 +10,7 @@ import {
   usersTable,
   invoicesTable,
   verificationDocsTable,
+  bookingsTable,
 } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 
@@ -511,6 +512,63 @@ router.get(
       totalCents,
       completedBookings,
       pendingPayoutCents: 0, // Stripe Connect not yet active
+    });
+  }
+);
+
+/** GET /providers/me/earnings/export — Read-only statement data (completed bookings only) */
+router.get(
+  "/me/earnings/export",
+  requireAuth,
+  requireRole("provider"),
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const [providerRows, items] = await Promise.all([
+      db
+        .select({
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+        })
+        .from(usersTable)
+        .where(eq(usersTable.id, profile.userId))
+        .limit(1),
+      db
+        .select({
+          bookingId: bookingsTable.id,
+          scheduledAt: bookingsTable.scheduledAt,
+          clientFirstName: usersTable.firstName,
+          clientLastName: usersTable.lastName,
+          serviceTitle: servicesTable.title,
+          amountCents: servicesTable.priceCents,
+        })
+        .from(bookingsTable)
+        .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
+        .innerJoin(usersTable, eq(usersTable.id, bookingsTable.clientId))
+        .where(
+          and(
+            eq(bookingsTable.providerId, profile.id),
+            eq(bookingsTable.status, "completed")
+          )
+        )
+        .orderBy(sql`${bookingsTable.scheduledAt} desc`),
+    ]);
+
+    res.json({
+      provider: {
+        firstName: providerRows[0]?.firstName ?? "",
+        lastName: providerRows[0]?.lastName ?? "",
+        title: profile.title,
+        city: profile.city,
+      },
+      generatedAt: new Date().toISOString(),
+      totalCents: items.reduce((sum, i) => sum + i.amountCents, 0),
+      count: items.length,
+      items,
     });
   }
 );

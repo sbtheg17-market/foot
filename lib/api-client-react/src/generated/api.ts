@@ -31,6 +31,7 @@ import type {
   CreateReviewRequest,
   CreateServiceRequest,
   CreateTravelZoneRequest,
+  EarningsExportResponse,
   EarningsSummaryResponse,
   ForbiddenResponse,
   GetAdminVerificationQueueParams,
@@ -1416,6 +1417,83 @@ export function useGetMyEarnings<TData = Awaited<ReturnType<typeof getMyEarnings
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMyEarningsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyEarningsExportUrl = () => {
+
+
+
+
+  return `/api/providers/me/earnings/export`
+}
+
+/**
+ * @summary Earnings statement export data (completed bookings only, read-only)
+ */
+export const getMyEarningsExport = async ( options?: Parameters<typeof customFetch>[1]): Promise<EarningsExportResponse> => {
+
+  return customFetch<EarningsExportResponse>(getGetMyEarningsExportUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyEarningsExportQueryKey = () => {
+    return [
+    `/api/providers/me/earnings/export`
+    ] as const;
+    }
+
+
+export const getGetMyEarningsExportQueryOptions = <TData = Awaited<ReturnType<typeof getMyEarningsExport>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyEarningsExport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyEarningsExportQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyEarningsExport>>> = ({ signal }) => getMyEarningsExport({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyEarningsExport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyEarningsExportQueryResult = NonNullable<Awaited<ReturnType<typeof getMyEarningsExport>>>
+export type GetMyEarningsExportQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Earnings statement export data (completed bookings only, read-only)
+ */
+
+export function useGetMyEarningsExport<TData = Awaited<ReturnType<typeof getMyEarningsExport>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyEarningsExport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyEarningsExportQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

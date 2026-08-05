@@ -572,6 +572,30 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Next best action:** Provider-portal depth — wire the "9–5 weekdays" availability preset UI (`/provider/availability`), or add status-chip filters to the provider bookings inbox (`/provider/bookings`). Both are provider-first and checkpoint-sized. Do NOT add Stripe or new client/admin portals unless requested.
 
 
+### Session 018 — 2026-06 (checkpoint 4/4)
+**Agent:** Emergent Agent  
+**Scope:** `M`  
+**Triggered by:** Task 4 — earnings export (printable statement, browser print-to-PDF, no PDF dependency).
+
+**What was done:**
+- New narrow read-only endpoint `GET /providers/me/earnings/export`: line items derived from **completed bookings only** (join services for title/price, users for client name) + provider header info, `totalCents`, `count`, `generatedAt`. No booking-state or invoice changes; no Stripe.
+- New provider-only page `/provider/earnings/statement`: clean printable statement (header, line-item table, total, footer note) with a screen-only "Print / Save PDF" toolbar → `window.print()`. Provider layout navs + toolbar hidden via `print:` variants; layout paddings zeroed for print.
+- "Export earnings statement" button added on `/provider/earnings`. OpenAPI schemas (`EarningsExportItem`/`EarningsExportResponse`) + regenerated client.
+- Verified live: statement renders ($840.00 across 7 completed bookings for Sarah) and print-media emulation shows a clean full-page document.
+
+**Files changed:**
+- `lib/api-spec/openapi.yaml`, regenerated `lib/api-client-react` + `lib/api-zod`
+- `artifacts/api-server/src/routes/providers.ts`
+- `artifacts/web/src/pages/portal/earnings-statement.tsx` (new), `earnings.tsx`, `App.tsx`, `lib/routes.ts`, `components/layout/provider-layout.tsx`
+- `.agents/LOG.md`
+
+**Build state at end:** build + typecheck green; **95 tests passing** (63 unit + 16 concurrency + 3 availability + 13 pressure).
+
+**Next best action:** All 4 provider-first tasks from NEXT-STEPS.md are done. Candidates: provider profile depth (avatar upload), client portal activation, or Stripe (only when explicitly requested).
+
+---
+
+
 ### Session 018 — 2026-06 (checkpoint 3/4)
 **Agent:** Emergent Agent  
 **Scope:** `S`  

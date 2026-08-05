@@ -404,6 +404,30 @@ export interface EarningsSummaryResponse {
   pendingPayoutCents: number;
 }
 
+export interface EarningsExportItem {
+  bookingId: number;
+  scheduledAt: string;
+  clientFirstName: string;
+  clientLastName: string;
+  serviceTitle: string;
+  amountCents: number;
+}
+
+export type EarningsExportResponseProvider = {
+  firstName: string;
+  lastName: string;
+  title?: string | null;
+  city?: string | null;
+};
+
+export interface EarningsExportResponse {
+  provider: EarningsExportResponseProvider;
+  generatedAt: string;
+  totalCents: number;
+  count: number;
+  items: EarningsExportItem[];
+}
+
 export type VerificationDocStatus = typeof VerificationDocStatus[keyof typeof VerificationDocStatus];
 
 
