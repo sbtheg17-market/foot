@@ -51,12 +51,34 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | All screens: Discover, Bookings, Account, Provider Profile, Login, Register — JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
+| GitHub sync | ✅ Current | Local `main` is synchronized with `origin/main`; separate `conflict_*` branches were inspected and are unrelated projects with no shared history. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
 ---
 
 ## Session Entries
+
+---
+
+### Session 019 — 2026-08-05
+**Agent:** Replit Main Agent
+**Scope:** `XS`
+**Triggered by:** Imported-project review, conflict check, and GitHub sync confirmation.
+
+**What was done:**
+- Read the uploaded handoff recommending provider profile depth as the next provider-first checkpoint.
+- Fetched all GitHub branches and checked for unresolved merge entries and conflict markers; the working tree has no merge conflicts.
+- Inspected every `conflict_*` branch. They are separate React + Python projects with no shared history with this Node/Express monorepo, so they remain reference-only and were not merged.
+- Pushed the one local-only `.replit` configuration checkpoint to `origin/main`.
+- Kept the uploaded handoff file untracked so it is not added to the application repository.
+
+**Files changed:**
+- `.agents/LOG.md`
+
+**Build state at end:** Application source unchanged; local `main` and GitHub `origin/main` are synchronized. No conflict branches were modified.
+
+**Next best action:** Implement provider profile depth as a small, provider-first checkpoint: richer profile editing, lightweight trust/credential presentation, and service presentation while preserving auth, bookings, notifications, and deployment.
 
 ---
 
