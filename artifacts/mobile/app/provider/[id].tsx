@@ -3,6 +3,7 @@ import {
   View,
   Text,
   ScrollView,
+  Image,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -78,11 +79,19 @@ export default function ProviderScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}>
         {/* Hero */}
         <View style={[styles.hero, { backgroundColor: colors.primary + '22', height: 160 }]}>
-          <View style={[styles.heroAvatar, { backgroundColor: colors.primary + '33' }]}>
-            <Text style={[styles.heroInitial, { color: colors.primary }]}>
-              {provider.firstName[0]?.toUpperCase()}
-            </Text>
-          </View>
+          {provider.avatarUrl ? (
+            <Image
+              source={{ uri: provider.avatarUrl }}
+              accessibilityLabel={`${provider.firstName} ${provider.lastName}`}
+              style={styles.heroAvatarImage}
+            />
+          ) : (
+            <View style={[styles.heroAvatar, { backgroundColor: colors.primary + '33' }]}>
+              <Text style={[styles.heroInitial, { color: colors.primary }]}>
+                {provider.firstName[0]?.toUpperCase()}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Profile card */}
@@ -92,12 +101,12 @@ export default function ProviderScreen() {
               <Text style={[styles.name, { color: colors.foreground }]}>
                 {provider.firstName} {provider.lastName}
               </Text>
-              <Text style={[styles.title, { color: colors.primary }]}>{provider.title}</Text>
+              <Text style={[styles.title, { color: colors.primary }]}>{provider.title || 'Foot care professional'}</Text>
             </View>
             {provider.verificationStatus === 'approved' && (
               <View style={[styles.verifiedBadge, { backgroundColor: colors.primary + '22' }]}>
                 <Feather name="shield" size={12} color={colors.primary} />
-                <Text style={[styles.verifiedText, { color: colors.primary }]}>Verified</Text>
+                <Text style={[styles.verifiedText, { color: colors.primary }]}>Credentials verified</Text>
               </View>
             )}
           </View>
@@ -129,6 +138,17 @@ export default function ProviderScreen() {
               </>
             )}
           </View>
+
+          <View style={styles.trustRow}>
+            <Feather
+              name={provider.acceptsNewClients ? 'check-circle' : 'clock'}
+              size={14}
+              color={provider.acceptsNewClients ? colors.primary : colors.mutedForeground}
+            />
+            <Text style={[styles.trustText, { color: provider.acceptsNewClients ? colors.primary : colors.mutedForeground }]}>
+              {provider.acceptsNewClients ? 'Accepting new clients' : 'Currently fully booked'}
+            </Text>
+          </View>
         </View>
 
         {/* Bio */}
@@ -136,6 +156,16 @@ export default function ProviderScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>About</Text>
             <Text style={[styles.bio, { color: colors.mutedForeground }]}>{provider.bio}</Text>
+          </View>
+        )}
+
+        {provider.serviceAreaNotes && (
+          <View style={[styles.areaCard, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+            <Feather name="map-pin" size={16} color={colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.areaTitle, { color: colors.foreground }]}>Service area</Text>
+              <Text style={[styles.areaText, { color: colors.mutedForeground }]}>{provider.serviceAreaNotes}</Text>
+            </View>
           </View>
         )}
 
@@ -171,6 +201,12 @@ export default function ProviderScreen() {
               {service.description && (
                 <Text style={[styles.serviceDesc, { color: colors.mutedForeground }]} numberOfLines={2}>
                   {service.description}
+                </Text>
+              )}
+              {service.eligibilityNotes && (
+                <Text style={[styles.serviceEligibility, { color: colors.foreground }]} numberOfLines={2}>
+                  <Text style={{ fontFamily: 'Inter_600SemiBold' }}>Good to know: </Text>
+                  {service.eligibilityNotes}
                 </Text>
               )}
             </TouchableOpacity>
@@ -388,6 +424,7 @@ const styles = StyleSheet.create({
   },
   hero: { width: '100%', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 20 },
   heroAvatar: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  heroAvatarImage: { width: 80, height: 80, borderRadius: 24 },
   heroInitial: { fontSize: 36, fontFamily: 'Inter_700Bold' },
   profileCard: {
     margin: 16,
@@ -411,9 +448,14 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   statSub: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   statSep: { width: StyleSheet.hairlineWidth, height: 14 },
+  trustRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
+  trustText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   section: { paddingHorizontal: 16, marginBottom: 20 },
   sectionTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', marginBottom: 10 },
   bio: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 22 },
+  areaCard: { marginHorizontal: 16, marginBottom: 20, borderRadius: 14, borderWidth: 1, padding: 14, flexDirection: 'row', gap: 10 },
+  areaTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  areaText: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 19 },
   serviceCard: { borderRadius: 14, padding: 14, marginBottom: 8 },
   serviceTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   serviceTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', flex: 1 },
@@ -421,6 +463,7 @@ const styles = StyleSheet.create({
   serviceMeta: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   serviceDuration: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   serviceDesc: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  serviceEligibility: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17, marginTop: 8 },
   reviewCard: { borderRadius: 12, padding: 12, marginBottom: 8 },
   reviewTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   reviewAuthor: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },

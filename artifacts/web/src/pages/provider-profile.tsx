@@ -4,10 +4,8 @@ import {
   useGetProviderById, 
   useListProviderServices, 
   useListProviderReviews,
-  ProviderProfile as ProfileType
 } from '@workspace/api-client-react';
-import { MapPin, Star, ShieldCheck, Clock, CalendarDays, ArrowLeft, ChevronLeft } from 'lucide-react';
-import { toast } from 'sonner';
+import { MapPin, Star, ShieldCheck, Clock, ChevronLeft, CheckCircle2 } from 'lucide-react';
 import BookingModal from '@/components/ui/booking-modal';
 
 export default function ProviderProfile() {
@@ -47,11 +45,11 @@ export default function ProviderProfile() {
       </div>
 
       <div className="h-48 bg-secondary w-full relative">
-        {provider.avatarUrl ? (
-          <img src={provider.avatarUrl} className="w-full h-full object-cover" alt="" />
+         {provider.avatarUrl ? (
+           <img src={provider.avatarUrl} className="w-full h-full object-cover" alt={`${provider.firstName} ${provider.lastName}`} />
         ) : (
           <div className="w-full h-full bg-primary/10 flex items-center justify-center">
-            <span className="text-6xl font-serif font-bold text-primary/30">{provider.firstName[0]}</span>
+                 <span className="text-6xl font-serif font-bold text-primary/30">{provider.firstName[0]}</span>
           </div>
         )}
       </div>
@@ -63,12 +61,12 @@ export default function ProviderProfile() {
               <h1 className="text-2xl font-serif font-bold text-foreground">
                 {provider.firstName} {provider.lastName}
               </h1>
-              <p className="text-primary font-medium">{provider.title}</p>
+               <p className="text-primary font-medium">{provider.title || 'Foot care professional'}</p>
             </div>
-            {provider.verificationStatus === 'approved' && (
+             {provider.verificationStatus === 'approved' && (
               <div className="bg-primary/10 text-primary px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-semibold">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                Verified
+                 Credentials verified
               </div>
             )}
           </div>
@@ -90,6 +88,23 @@ export default function ProviderProfile() {
               </div>
             )}
           </div>
+          <div className="flex flex-wrap gap-2 mt-4">
+            {provider.acceptsNewClients ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 px-3 py-1.5 text-xs font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Accepting new clients
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary text-muted-foreground px-3 py-1.5 text-xs font-semibold">
+                Currently fully booked
+              </span>
+            )}
+            {provider.profileComplete && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary text-muted-foreground px-3 py-1.5 text-xs font-semibold">
+                Complete provider profile
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -97,9 +112,21 @@ export default function ProviderProfile() {
         <section>
           <h2 className="text-xl font-serif font-semibold mb-3">About</h2>
           <p className="text-muted-foreground leading-relaxed">
-            {provider.bio || "No biography provided."}
+            {provider.bio || "This provider is adding more details about their approach."}
           </p>
         </section>
+
+        {provider.serviceAreaNotes && (
+          <section className="rounded-2xl bg-secondary/60 p-4">
+            <div className="flex items-start gap-3">
+              <MapPin className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <h2 className="font-semibold mb-1">Service area</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">{provider.serviceAreaNotes}</p>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section>
           <h2 className="text-xl font-serif font-semibold mb-4">Services</h2>
@@ -122,6 +149,11 @@ export default function ProviderProfile() {
                 </div>
                 {service.description && (
                   <p className="text-sm text-muted-foreground line-clamp-2">{service.description}</p>
+                )}
+                {service.eligibilityNotes && (
+                  <p className="text-xs text-foreground/70 mt-2">
+                    <span className="font-semibold">Good to know:</span> {service.eligibilityNotes}
+                  </p>
                 )}
               </div>
             ))}

@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useGetMyProviderProfile, useUpdateMyProviderProfile } from '@workspace/api-client-react';
-import { Save, User, MapPin } from 'lucide-react';
+import {
+  useGetMyProviderProfile,
+  useUpdateMyProviderProfile,
+  useListMyServices,
+  useGetMyVerification,
+} from '@workspace/api-client-react';
+import { Link } from 'wouter';
+import { Save, User, MapPin, CheckCircle2, Circle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -8,6 +14,12 @@ export default function PortalProfile() {
   const queryClient = useQueryClient();
   const { data, isLoading } = useGetMyProviderProfile({
     query: { queryKey: ['my-profile'] }
+  });
+  const { data: servicesData } = useListMyServices({
+    query: { queryKey: ['my-services'] }
+  });
+  const { data: verificationData } = useGetMyVerification({
+    query: { queryKey: ['my-verification'] }
   });
   const updateProfile = useUpdateMyProviderProfile();
 
@@ -61,16 +73,76 @@ export default function PortalProfile() {
   }
 
   const provider = data?.provider;
+  const activeServices = servicesData?.services.filter((service) => service.isActive).length ?? 0;
+  const profileChecks = [
+    { label: 'Professional title', complete: Boolean(provider?.title), href: '#title' },
+    { label: 'Service location', complete: Boolean(provider?.city), href: '#city' },
+    { label: 'About your approach', complete: Boolean(provider?.bio), href: '#bio' },
+    { label: 'At least one active service', complete: activeServices > 0, href: '/provider/services' },
+    { label: 'Verified credentials', complete: verificationData?.verificationStatus === 'approved', href: '/provider/credentials' },
+  ];
+  const completedChecks = profileChecks.filter((check) => check.complete).length;
+  const completionPercent = Math.round((completedChecks / profileChecks.length) * 100);
 
   return (
     <div className="p-6 pt-10 pb-32 max-w-4xl mx-auto">
       <h1 className="text-3xl font-serif font-bold text-foreground mb-8">Your Profile</h1>
 
+      <section className="bg-primary text-primary-foreground rounded-3xl p-6 shadow-md mb-8 relative overflow-hidden">
+        <div className="absolute -top-16 -right-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative z-10 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-primary-foreground/75">Trust profile</p>
+            <h2 className="text-2xl font-serif font-bold mt-1">
+              {completionPercent}% ready to share
+            </h2>
+            <p className="text-sm text-primary-foreground/80 mt-2 max-w-md">
+              Complete these details so clients can quickly understand your expertise and feel confident booking you.
+            </p>
+          </div>
+          <div className="w-14 h-14 rounded-full border-4 border-white/25 flex items-center justify-center shrink-0">
+            <span className="font-bold">{completedChecks}/{profileChecks.length}</span>
+          </div>
+        </div>
+        <div className="relative z-10 h-2 rounded-full bg-white/20 mt-5 overflow-hidden">
+          <div className="h-full rounded-full bg-white transition-all" style={{ width: `${completionPercent}%` }} />
+        </div>
+        <div className="relative z-10 mt-5 grid gap-2 sm:grid-cols-2">
+          {profileChecks.map((check) => {
+            const content = (
+              <>
+                {check.complete ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-200 shrink-0" />
+                ) : (
+                  <Circle className="w-4 h-4 text-primary-foreground/60 shrink-0" />
+                )}
+                <span className={check.complete ? 'text-primary-foreground/90' : 'text-primary-foreground'}>
+                  {check.label}
+                </span>
+              </>
+            );
+            return check.href.startsWith('/') ? (
+              <Link key={check.label} href={check.href} className="flex items-center gap-2 text-sm hover:underline">
+                {content}
+              </Link>
+            ) : (
+              <a key={check.label} href={check.href} className="flex items-center gap-2 text-sm hover:underline">
+                {content}
+              </a>
+            );
+          })}
+        </div>
+      </section>
+
       <div className="bg-card border border-border rounded-3xl p-6 shadow-sm mb-8">
         <div className="flex items-center gap-6 mb-6">
           <div className="w-20 h-20 rounded-2xl bg-secondary flex items-center justify-center shrink-0">
             {provider?.avatarUrl ? (
-              <img src={provider.avatarUrl} className="w-full h-full object-cover rounded-2xl" alt="" />
+              <img
+                src={provider.avatarUrl}
+                className="w-full h-full object-cover rounded-2xl"
+                alt={`${provider.firstName} ${provider.lastName}`}
+              />
             ) : (
               <User className="w-10 h-10 text-muted-foreground" />
             )}
@@ -86,7 +158,7 @@ export default function PortalProfile() {
         </div>
 
         <form onSubmit={handleSave} className="space-y-5">
-          <div className="space-y-1.5">
+           <div id="title" className="space-y-1.5 scroll-mt-6">
             <label className="text-sm font-medium text-foreground">Professional Title</label>
             <input 
               value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}
@@ -96,7 +168,7 @@ export default function PortalProfile() {
           </div>
 
           <div className="flex gap-4">
-            <div className="space-y-1.5 flex-1">
+             <div id="city" className="space-y-1.5 flex-1 scroll-mt-6">
               <label className="text-sm font-medium text-foreground">City</label>
               <input 
                 value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})}
@@ -113,7 +185,7 @@ export default function PortalProfile() {
             </div>
           </div>
 
-          <div className="space-y-1.5">
+           <div id="bio" className="space-y-1.5 scroll-mt-6">
             <label className="text-sm font-medium text-foreground">Bio</label>
             <textarea 
               value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})}
