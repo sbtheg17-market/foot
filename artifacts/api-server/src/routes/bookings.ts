@@ -13,6 +13,7 @@ import {
   type BookingStatus,
 } from "../lib/booking-state-machine.js";
 import { emitNewBooking } from "../lib/notification-bus.js";
+import { sendPushToUser } from "../lib/push-notifications.js";
 
 const router = Router();
 
@@ -98,7 +99,11 @@ router.post(
 
     // Verify provider exists and accepts new clients
     const provider = await db
-      .select({ id: providerProfilesTable.id, acceptsNewClients: providerProfilesTable.acceptsNewClients })
+      .select({
+        id: providerProfilesTable.id,
+        userId: providerProfilesTable.userId,
+        acceptsNewClients: providerProfilesTable.acceptsNewClients,
+      })
       .from(providerProfilesTable)
       .where(eq(providerProfilesTable.id, Number(providerId)))
       .limit(1);
@@ -142,12 +147,26 @@ router.post(
       })
       .returning();
 
-    // Notify provider's connected SSE clients
+    const providerUserId = provider[0].userId;
+    const bookingCity = String(city);
+    const bookingAt = booking!.scheduledAt.toISOString();
+
+    // Notify provider via SSE (web portal — real-time while open)
     emitNewBooking({
       providerId: Number(providerId),
       bookingId: booking!.id,
-      city: String(city),
-      scheduledAt: booking!.scheduledAt.toISOString(),
+      city: bookingCity,
+      scheduledAt: bookingAt,
+    });
+
+    // Notify provider via push (phone — works when app is closed)
+    const dateStr = new Date(bookingAt).toLocaleDateString("en-US", {
+      weekday: "short", month: "short", day: "numeric",
+    });
+    void sendPushToUser(providerUserId, {
+      title: "New booking request 📅",
+      body: `${bookingCity} · ${dateStr}`,
+      data: { screen: "bookings", bookingId: booking!.id },
     });
 
     res.status(201).json({ booking });
@@ -309,6 +328,46 @@ router.patch(
           });
         }
       }
+    }
+
+    // ── Push notifications for key status transitions ────────────────────────
+    if (newStatus === "confirmed") {
+      // Notify the client their booking is confirmed
+      void sendPushToUser(booking.clientId, {
+        title: "Booking confirmed! 🎉",
+        body: `Your appointment is set for ${new Date(booking.scheduledAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`,
+        data: { screen: "bookings", bookingId },
+      });
+    } else if (newStatus === "cancelled") {
+      if (user.role === "client") {
+        // Client cancelled — notify the provider
+        const provProfile = await db
+          .select({ userId: providerProfilesTable.userId })
+          .from(providerProfilesTable)
+          .where(eq(providerProfilesTable.id, booking.providerId))
+          .limit(1);
+        if (provProfile[0]) {
+          void sendPushToUser(provProfile[0].userId, {
+            title: "Booking cancelled",
+            body: `A client cancelled their ${new Date(booking.scheduledAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} appointment`,
+            data: { screen: "bookings", bookingId },
+          });
+        }
+      } else if (user.role === "provider") {
+        // Provider cancelled — notify the client
+        void sendPushToUser(booking.clientId, {
+          title: "Booking cancelled",
+          body: "Your appointment was cancelled by the provider",
+          data: { screen: "bookings", bookingId },
+        });
+      }
+    } else if (newStatus === "rescheduled" && scheduledAt) {
+      // Notify the client of the rescheduled time
+      void sendPushToUser(booking.clientId, {
+        title: "Booking rescheduled",
+        body: `New time: ${new Date(scheduledAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`,
+        data: { screen: "bookings", bookingId },
+      });
     }
 
     res.json({ booking: updated });

@@ -1,7 +1,8 @@
 import { Router, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
-import { db, providerProfilesTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+import { db, providerProfilesTable, pushTokensTable } from "@workspace/db";
 import { verifyToken } from "../lib/jwt.js";
+import { requireAuth } from "../middlewares/auth.js";
 import {
   notificationBus,
   type NotificationPayload,
@@ -88,6 +89,67 @@ router.get(
       clearInterval(heartbeat);
       notificationBus.off("new-booking", onEvent);
     });
+  }
+);
+
+// ── POST /notifications/register-token — save Expo push token ─────────────────
+
+router.post(
+  "/register-token",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const { token, platform } = req.body as {
+      token?: unknown;
+      platform?: unknown;
+    };
+
+    if (typeof token !== "string" || !token) {
+      res.status(400).json({ error: "token is required" });
+      return;
+    }
+    if (typeof platform !== "string" || !platform) {
+      res.status(400).json({ error: "platform is required" });
+      return;
+    }
+
+    const userId = req.user!.sub;
+
+    // Upsert: update updatedAt if token already exists for this user
+    await db
+      .insert(pushTokensTable)
+      .values({ userId, token, platform })
+      .onConflictDoUpdate({
+        target: pushTokensTable.token,
+        set: { updatedAt: new Date() },
+      });
+
+    res.status(200).json({ ok: true });
+  }
+);
+
+// ── DELETE /notifications/register-token — remove push token on logout ─────────
+
+router.delete(
+  "/register-token",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const { token } = req.body as { token?: unknown };
+
+    if (typeof token !== "string" || !token) {
+      res.status(400).json({ error: "token is required" });
+      return;
+    }
+
+    await db
+      .delete(pushTokensTable)
+      .where(
+        and(
+          eq(pushTokensTable.token, token),
+          eq(pushTokensTable.userId, req.user!.sub)
+        )
+      );
+
+    res.status(200).json({ ok: true });
   }
 );
 

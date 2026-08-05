@@ -275,6 +275,43 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 011 — 2026-08-05
+**Agent:** Replit Main Agent  
+**Scope:** `M`  
+**Triggered by:** "Proceed with push notifications to providers on their phone even when the app is closed" — reusable infrastructure, checkpoint-sized, provider-first
+
+**What was done:**
+- Added `push_tokens` table to DB schema (`lib/db/src/schema/push-tokens.ts`) — userId (FK → users), token (unique), platform (ios/android/web). Pushed to Replit PostgreSQL.
+- Installed `expo-server-sdk@latest` on API server; installed `expo-notifications@~0.32.17` on mobile (Expo SDK 54 compatible version)
+- Created `artifacts/api-server/src/lib/push-notifications.ts` — `sendPushToUser(userId, payload)`: looks up all registered Expo tokens for a user, sends via Expo's push service in chunks, never throws (silent failure to preserve booking flow)
+- Extended `artifacts/api-server/src/routes/notifications.ts` with:
+  - `POST /notifications/register-token` — upserts push token (authenticated, any role)
+  - `DELETE /notifications/register-token` — removes token on logout
+- Wired push into `artifacts/api-server/src/routes/bookings.ts`:
+  - `POST /bookings` → push to provider ("New booking request 📅")
+  - `PATCH /bookings/:id/status` confirmed → push to client ("Booking confirmed! 🎉")
+  - cancelled by client → push to provider; cancelled by provider → push to client
+  - rescheduled → push to client with new time
+- Created `artifacts/mobile/hooks/use-push-notifications.ts` — requests notification permission, gets Expo push token (with projectId fallback for Expo Go), POSTs to `/api/notifications/register-token`, wires notification-tap handler to navigate to `/(tabs)/bookings`
+- Updated `artifacts/mobile/app/_layout.tsx` — sets `Notifications.setNotificationHandler` at module level (foreground display on native), added `PushNotificationManager` inner component (uses `useAuth()` → calls `usePushNotifications` only for providers, only on native)
+- API typecheck: 0 errors
+- End-to-end smoke test verified: `POST /notifications/register-token → {"ok":true}`, idempotent re-register → `{"ok":true}`, new booking 201, confirm 200
+
+**Files changed:**
+- `lib/db/src/schema/push-tokens.ts` — new
+- `lib/db/src/schema/index.ts` — export push-tokens
+- `artifacts/api-server/src/lib/push-notifications.ts` — new
+- `artifacts/api-server/src/routes/notifications.ts` — register-token + delete endpoints
+- `artifacts/api-server/src/routes/bookings.ts` — push sends on create + status transitions
+- `artifacts/mobile/hooks/use-push-notifications.ts` — new
+- `artifacts/mobile/app/_layout.tsx` — notification handler + PushNotificationManager
+
+**Build state at end:** All 4 workflows running. Push token registration endpoint live. Push fires on new booking, confirmed, cancelled, rescheduled. Mobile registers device token and handles notification taps on provider login. TypeScript clean.
+
+**Next best action:** Booking status alerts for providers (cancelled/rescheduled notifications already wired on API; the web SSE hook can be extended to show toasts for those event types too). Or move to Stripe payments per the product roadmap. See `docs/future-monetization.md`.
+
+---
+
 ### Session 010 — 2026-08-05
 **Agent:** Replit Main Agent  
 **Scope:** `S`  
