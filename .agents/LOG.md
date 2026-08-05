@@ -312,6 +312,39 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 016 — 2026-08-05
+**Agent:** Replit Main Agent  
+**Scope:** `S`  
+**Triggered by:** "Make sure booking flows can't silently fail when the database is under pressure"
+
+**What was done:**
+- **Checkpoint 1 — JSON error handler**: Added 4-parameter Express error handler middleware to `artifacts/api-server/src/app.ts` as the last middleware. Before this fix, any unhandled error (DB crash, unexpected throw) caused Express to return an HTML error page — which the UI silently ignores. Now all errors return `{ "error": "..." }` JSON with proper status codes and Content-Type.
+- **Checkpoint 1 — Write result guards**: Added explicit null-checks after both `returning()` calls in `artifacts/api-server/src/routes/bookings.ts`:
+  - POST /bookings: if the insert `returning()` is empty, throws with a clear message instead of crashing on `booking!`
+  - PATCH /bookings/:id/status: same guard on the update `returning()` inside the transaction
+  - Also cleaned up the remaining `updatedBooking!` non-null assertion to `updatedBooking`
+- **Checkpoint 2 — Pressure tests**: Created `artifacts/api-server/src/__tests__/booking-pressure.test.ts` (13 tests, 5 suites):
+  - **20 concurrent full lifecycles**: creates 20 bookings simultaneously, runs confirm+complete or confirm+cancel on all concurrently, verifies every booking in correct terminal state in DB
+  - **JSON surfacing**: error responses have `application/json` Content-Type; malformed body returns 400 JSON not HTML; missing fields return 400 with `error` field; non-existent booking returns 404 JSON
+  - **Write consistency**: POST 201 and PATCH 200 response bodies match what GET returns immediately after — no stale data
+  - **Retry safety**: retrying a confirm or cancel after success returns 409 JSON (not 500, not HTML)
+- Added `test:pressure` script to `artifacts/api-server/package.json`
+- All 92 tests pass: 63 unit + 16 concurrency + 13 pressure. TypeScript: 0 errors.
+- Committed and pushed to origin/main.
+
+**Files changed:**
+- `artifacts/api-server/src/app.ts` — JSON catch-all error handler added
+- `artifacts/api-server/src/routes/bookings.ts` — write result guards on both returning() calls
+- `artifacts/api-server/src/__tests__/booking-pressure.test.ts` — new (13 pressure tests)
+- `artifacts/api-server/package.json` — added `test:pressure` script
+- `.agents/LOG.md` — updated Current Build State, added this entry
+
+**Build state at end:** All 4 workflows running. 92 tests pass (63 unit + 16 concurrency + 13 pressure). Booking writes fail loudly (JSON 500) instead of silently under DB pressure. Error handler covers all routes. TypeScript clean.
+
+**Next best action:** Stripe payment integration — invoices exist, `stripe_payment_intent_id` column exists, system is now stress-tested and stable. Or: credential verification queue for admin portal. See `docs/future-monetization.md`.
+
+---
+
 ### Session 015 — 2026-08-05
 **Agent:** Replit Main Agent  
 **Scope:** `S`  
