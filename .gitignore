@@ -56,3 +56,10 @@ Thumbs.db
 
 # Emergent agent working memory (local only)
 memory/
+.env
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
