@@ -312,6 +312,29 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 014 — 2026-08-05
+**Agent:** Replit Main Agent  
+**Scope:** `XS`  
+**Triggered by:** Fresh import on Replit — "keep pushing to GitHub at each checkpoint; follow instructions in uploaded file" (repeated-tap protection)
+
+**What was done:**
+- Ran `pnpm install` — all packages resolved (node_modules absent after fresh import)
+- Pushed DB schema via `pnpm --filter @workspace/db run push` — all tables confirmed present
+- Ran seed script — all 5 demo accounts + full sample data seeded successfully
+- Set `JWT_SECRET` as a Replit secret (was missing from new environment)
+- Restarted all 4 workflows — API server, web, and mobile all running; mockup-sandbox not needed
+- Verified: `GET /api/healthz → {"status":"ok"}`, `POST /api/auth/login → JWT token`, web discovery page shows providers
+- Confirmed: double-tap protection from Session 013 is already in `origin/main` — no new code needed
+
+**Files changed:**
+- `.agents/LOG.md` — updated Current Build State, added this entry
+
+**Build state at end:** All 3 primary workflows running. API healthy. Web frontend healthy. Mobile Expo running. DB schema live. All 5 demo accounts seeded. Double-tap guard is live on all booking action buttons (mobile + web portal + web client). TypeScript clean. 63/63 unit tests pass.
+
+**Next best action:** Stripe payment integration — `stripe_payment_intent_id` column already exists on invoices table. Add Stripe secret key, implement `POST /invoices/:id/pay` route, wire checkout on the client bookings page and mobile. See `docs/future-monetization.md`. Keep as its own checkpoint.
+
+---
+
 ### Session 013 — 2026-08-05
 **Agent:** Replit Main Agent  
 **Scope:** `S`  
