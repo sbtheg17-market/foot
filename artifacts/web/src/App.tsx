@@ -6,6 +6,7 @@ import Login from '@/pages/login';
 import Register from '@/pages/register';
 import Discover from '@/pages/discover';
 import ProviderProfile from '@/pages/provider-profile';
+import ClientBookings from '@/pages/bookings';
 import PortalDashboard from '@/pages/portal/dashboard';
 import PortalBookings from '@/pages/portal/bookings';
 import PortalServices from '@/pages/portal/services';
@@ -53,6 +54,15 @@ function Router() {
         {() => (
           <ClientLayout>
             <ProviderProfile />
+          </ClientLayout>
+        )}
+      </Route>
+
+      {/* Client bookings */}
+      <Route path="/bookings">
+        {() => (
+          <ClientLayout>
+            <ClientBookings />
           </ClientLayout>
         )}
       </Route>

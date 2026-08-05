@@ -1,0 +1,453 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Modal,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
+import {
+  useGetProviderById,
+  useListProviderServices,
+  useListProviderReviews,
+  useCreateBooking,
+} from '@workspace/api-client-react';
+import { useColors } from '@/hooks/useColors';
+import { useAuth } from '@/context/auth';
+
+export default function ProviderScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const providerId = Number(id);
+  const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const { user } = useAuth();
+
+  const { data: providerRes, isLoading } = useGetProviderById(providerId, {
+    query: { enabled: !!providerId, queryKey: ['provider', providerId] },
+  });
+  const { data: servicesRes } = useListProviderServices(providerId, {
+    query: { enabled: !!providerId, queryKey: ['services', providerId] },
+  });
+  const { data: reviewsRes } = useListProviderReviews(providerId, {
+    query: { enabled: !!providerId, queryKey: ['reviews', providerId] },
+  });
+
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+  const [showBooking, setShowBooking] = useState(false);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!providerRes) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <Text style={{ color: colors.mutedForeground }}>Provider not found</Text>
+      </View>
+    );
+  }
+
+  const provider = providerRes.provider;
+  const services = servicesRes?.services ?? [];
+  const reviews = reviewsRes?.reviews ?? [];
+  const selectedService = services.find(s => s.id === selectedServiceId);
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Back button */}
+      <TouchableOpacity
+        style={[styles.backBtn, { top: insets.top + 12, backgroundColor: colors.card + 'CC' }]}
+        onPress={() => router.back()}
+      >
+        <Feather name="chevron-left" size={22} color={colors.foreground} />
+      </TouchableOpacity>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}>
+        {/* Hero */}
+        <View style={[styles.hero, { backgroundColor: colors.primary + '22', height: 160 }]}>
+          <View style={[styles.heroAvatar, { backgroundColor: colors.primary + '33' }]}>
+            <Text style={[styles.heroInitial, { color: colors.primary }]}>
+              {provider.firstName[0]?.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+
+        {/* Profile card */}
+        <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.profileTop}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.name, { color: colors.foreground }]}>
+                {provider.firstName} {provider.lastName}
+              </Text>
+              <Text style={[styles.title, { color: colors.primary }]}>{provider.title}</Text>
+            </View>
+            {provider.verificationStatus === 'approved' && (
+              <View style={[styles.verifiedBadge, { backgroundColor: colors.primary + '22' }]}>
+                <Feather name="shield" size={12} color={colors.primary} />
+                <Text style={[styles.verifiedText, { color: colors.primary }]}>Verified</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.statsRow}>
+            <View style={styles.stat}>
+              <Feather name="star" size={14} color={colors.accent} />
+              <Text style={[styles.statValue, { color: colors.foreground }]}>
+                {' '}{Number(provider.rating).toFixed(2)}
+              </Text>
+              <Text style={[styles.statSub, { color: colors.mutedForeground }]}>
+                {' '}({provider.reviewCount})
+              </Text>
+            </View>
+            <View style={[styles.statSep, { backgroundColor: colors.border }]} />
+            <View style={styles.stat}>
+              <Feather name="map-pin" size={14} color={colors.mutedForeground} />
+              <Text style={[styles.statValue, { color: colors.foreground }]}> {provider.city}</Text>
+            </View>
+            {provider.yearsExperience != null && (
+              <>
+                <View style={[styles.statSep, { backgroundColor: colors.border }]} />
+                <View style={styles.stat}>
+                  <Feather name="clock" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.statValue, { color: colors.foreground }]}> {provider.yearsExperience} yrs</Text>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+
+        {/* Bio */}
+        {provider.bio && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>About</Text>
+            <Text style={[styles.bio, { color: colors.mutedForeground }]}>{provider.bio}</Text>
+          </View>
+        )}
+
+        {/* Services */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Services</Text>
+          {services.map(service => (
+            <TouchableOpacity
+              key={service.id}
+              onPress={() => setSelectedServiceId(service.id === selectedServiceId ? null : service.id)}
+              style={[
+                styles.serviceCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: selectedServiceId === service.id ? colors.primary : colors.border,
+                  borderWidth: selectedServiceId === service.id ? 2 : 1,
+                },
+              ]}
+              activeOpacity={0.7}
+            >
+              <View style={styles.serviceTop}>
+                <Text style={[styles.serviceTitle, { color: colors.foreground }]}>{service.title}</Text>
+                <Text style={[styles.servicePrice, { color: colors.primary }]}>
+                  ${(service.priceCents / 100).toFixed(2)}
+                </Text>
+              </View>
+              <View style={styles.serviceMeta}>
+                <Feather name="clock" size={12} color={colors.mutedForeground} />
+                <Text style={[styles.serviceDuration, { color: colors.mutedForeground }]}>
+                  {' '}{service.durationMinutes} mins
+                </Text>
+              </View>
+              {service.description && (
+                <Text style={[styles.serviceDesc, { color: colors.mutedForeground }]} numberOfLines={2}>
+                  {service.description}
+                </Text>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Reviews */}
+        {reviews.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Reviews</Text>
+            {reviews.slice(0, 5).map(review => (
+              <View key={review.id} style={[styles.reviewCard, { backgroundColor: colors.secondary }]}>
+                <View style={styles.reviewTop}>
+                  <Text style={[styles.reviewAuthor, { color: colors.foreground }]}>{review.clientFirstName}</Text>
+                  <View style={styles.stars}>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Feather key={i} name="star" size={11} color={i < review.rating ? colors.accent : colors.border} />
+                    ))}
+                  </View>
+                </View>
+                {review.comment && (
+                  <Text style={[styles.reviewComment, { color: colors.mutedForeground }]}>{review.comment}</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Sticky booking bar */}
+      <View style={[styles.bookingBar, { backgroundColor: colors.card + 'F2', borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
+        <TouchableOpacity
+          disabled={!selectedServiceId || !provider.acceptsNewClients}
+          onPress={() => {
+            if (!user) {
+              router.push('/auth/login');
+              return;
+            }
+            setShowBooking(true);
+          }}
+          style={[styles.bookBtn, { backgroundColor: colors.primary, opacity: (!selectedServiceId || !provider.acceptsNewClients) ? 0.4 : 1 }]}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.bookBtnText}>
+            {!provider.acceptsNewClients
+              ? 'Not accepting new clients'
+              : selectedServiceId
+              ? 'Book Appointment'
+              : 'Select a service to book'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Booking Modal */}
+      {showBooking && selectedService && (
+        <BookingModal
+          providerId={provider.id}
+          providerName={`${provider.firstName} ${provider.lastName}`}
+          service={selectedService}
+          colors={colors}
+          insets={insets}
+          onClose={() => setShowBooking(false)}
+          onSuccess={() => {
+            setShowBooking(false);
+            router.push('/bookings');
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
+function BookingModal({
+  providerId, providerName, service, colors, insets, onClose, onSuccess,
+}: {
+  providerId: number;
+  providerName: string;
+  service: { id: number; title: string; priceCents: number; durationMinutes: number };
+  colors: ReturnType<typeof useColors>;
+  insets: ReturnType<typeof useSafeAreaInsets>;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [notes, setNotes] = useState('');
+  const [dateStr, setDateStr] = useState('');
+  const [timeStr, setTimeStr] = useState('');
+
+  const createBooking = useCreateBooking();
+
+  const handleSubmit = () => {
+    if (!address || !city || !dateStr || !timeStr) {
+      Alert.alert('Missing fields', 'Please fill in date, time, address and city.');
+      return;
+    }
+    const scheduledAt = new Date(`${dateStr}T${timeStr}`).toISOString();
+    createBooking.mutate(
+      { data: { providerId, serviceId: service.id, scheduledAt, address, city, postalCode: postalCode || undefined, clientNotes: notes || undefined } },
+      {
+        onSuccess: () => {
+          Alert.alert('Booking requested!', 'The provider will confirm within 24 hours.', [{ text: 'OK', onPress: onSuccess }]);
+        },
+        onError: () => Alert.alert('Error', 'Could not create booking. Please try again.'),
+      }
+    );
+  };
+
+  return (
+    <Modal animationType="slide" presentationStyle="formSheet" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+          <View style={styles.modalHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Book Appointment</Text>
+              <Text style={[styles.modalSub, { color: colors.mutedForeground }]}>
+                {providerName} · {service.title} · ${(service.priceCents / 100).toFixed(2)}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Feather name="x" size={22} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 16 }} showsVerticalScrollIndicator={false}>
+            <Field label="Date (YYYY-MM-DD) *" value={dateStr} onChange={setDateStr} placeholder="2026-09-15" colors={colors} keyboardType="numbers-and-punctuation" />
+            <Field label="Time (HH:MM) *" value={timeStr} onChange={setTimeStr} placeholder="10:00" colors={colors} keyboardType="numbers-and-punctuation" />
+            <Field label="Street address *" value={address} onChange={setAddress} placeholder="123 Main St" colors={colors} />
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Field label="City *" value={city} onChange={setCity} placeholder="Toronto" colors={colors} />
+              </View>
+              <View style={{ width: 100 }}>
+                <Field label="Postal code" value={postalCode} onChange={setPostalCode} placeholder="M5V 2T6" colors={colors} />
+              </View>
+            </View>
+            <Field label="Notes (optional)" value={notes} onChange={setNotes} placeholder="Any care requirements..." colors={colors} multiline />
+
+            <View style={[styles.summaryBox, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}>
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>{service.title}</Text>
+                <Text style={[styles.summaryValue, { color: colors.foreground }]}>${(service.priceCents / 100).toFixed(2)}</Text>
+              </View>
+              <Text style={[styles.summaryDuration, { color: colors.mutedForeground }]}>
+                {service.durationMinutes} minutes · at your home
+              </Text>
+            </View>
+          </ScrollView>
+
+          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 12, borderTopColor: colors.border }]}>
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={createBooking.isPending}
+              style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: createBooking.isPending ? 0.6 : 1 }]}
+              activeOpacity={0.8}
+            >
+              {createBooking.isPending
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.submitBtnText}>Request Appointment</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+function Field({ label, value, onChange, placeholder, colors, multiline, keyboardType }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  colors: ReturnType<typeof useColors>;
+  multiline?: boolean;
+  keyboardType?: any;
+}) {
+  return (
+    <View>
+      <Text style={[styles.fieldLabel, { color: colors.foreground }]}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={colors.mutedForeground}
+        multiline={multiline}
+        keyboardType={keyboardType}
+        style={[
+          styles.fieldInput,
+          { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card },
+          multiline && { height: 80, textAlignVertical: 'top' },
+        ]}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  backBtn: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  hero: { width: '100%', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 20 },
+  heroAvatar: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  heroInitial: { fontSize: 36, fontFamily: 'Inter_700Bold' },
+  profileCard: {
+    margin: 16,
+    marginTop: -20,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  profileTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  name: { fontSize: 20, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  title: { fontSize: 13, fontFamily: 'Inter_500Medium' },
+  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20 },
+  verifiedText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  divider: { height: StyleSheet.hairlineWidth, marginVertical: 12 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stat: { flexDirection: 'row', alignItems: 'center' },
+  statValue: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  statSub: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  statSep: { width: StyleSheet.hairlineWidth, height: 14 },
+  section: { paddingHorizontal: 16, marginBottom: 20 },
+  sectionTitle: { fontSize: 17, fontFamily: 'Inter_700Bold', marginBottom: 10 },
+  bio: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 22 },
+  serviceCard: { borderRadius: 14, padding: 14, marginBottom: 8 },
+  serviceTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  serviceTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold', flex: 1 },
+  servicePrice: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  serviceMeta: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  serviceDuration: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  serviceDesc: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  reviewCard: { borderRadius: 12, padding: 12, marginBottom: 8 },
+  reviewTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  reviewAuthor: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  stars: { flexDirection: 'row', gap: 2 },
+  reviewComment: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  bookingBar: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  bookBtn: { borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  bookBtnText: { color: '#fff', fontFamily: 'Inter_600SemiBold', fontSize: 16 },
+  // Modal
+  modalContainer: { flex: 1 },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
+  modalHeader: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 12 },
+  modalTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  modalSub: { fontSize: 13, fontFamily: 'Inter_400Regular' },
+  fieldLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 6 },
+  fieldInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: 'Inter_400Regular' },
+  row: { flexDirection: 'row', gap: 10 },
+  summaryBox: { borderWidth: 1, borderRadius: 14, padding: 14 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  summaryLabel: { fontSize: 13, fontFamily: 'Inter_400Regular' },
+  summaryValue: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  summaryDuration: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  modalFooter: { padding: 16, borderTopWidth: StyleSheet.hairlineWidth },
+  submitBtn: { borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  submitBtnText: { color: '#fff', fontFamily: 'Inter_600SemiBold', fontSize: 16 },
+});

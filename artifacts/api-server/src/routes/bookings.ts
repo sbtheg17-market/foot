@@ -8,51 +8,12 @@ import {
   invoicesTable,
 } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
+import {
+  isTransitionAllowed,
+  type BookingStatus,
+} from "../lib/booking-state-machine.js";
 
 const router = Router();
-
-// ── Status machine ────────────────────────────────────────────────────────────
-
-type BookingStatus =
-  | "requested"
-  | "confirmed"
-  | "completed"
-  | "cancelled"
-  | "rescheduled"
-  | "no_show";
-
-/** Allowed transitions per role. Admin can do anything (checked separately). */
-const ALLOWED_TRANSITIONS: Record<
-  BookingStatus,
-  Partial<Record<"client" | "provider", BookingStatus[]>>
-> = {
-  requested: {
-    provider: ["confirmed", "cancelled"],
-    client: ["cancelled"],
-  },
-  confirmed: {
-    provider: ["completed", "cancelled", "rescheduled", "no_show"],
-    client: ["cancelled", "rescheduled"],
-  },
-  rescheduled: {
-    provider: ["confirmed", "cancelled"],
-    client: ["cancelled"],
-  },
-  completed: {}, // terminal
-  cancelled: {}, // terminal
-  no_show: {}, // terminal
-};
-
-function isTransitionAllowed(
-  from: BookingStatus,
-  to: BookingStatus,
-  role: "client" | "provider" | "admin"
-): boolean {
-  if (role === "admin") return true;
-  const allowed =
-    ALLOWED_TRANSITIONS[from]?.[role as "client" | "provider"] ?? [];
-  return (allowed as BookingStatus[]).includes(to);
-}
 
 // ── GET /bookings — list own bookings ─────────────────────────────────────────
 

@@ -4,11 +4,11 @@ import {
   useGetProviderById, 
   useListProviderServices, 
   useListProviderReviews,
-  useCreateBooking,
   ProviderProfile as ProfileType
 } from '@workspace/api-client-react';
 import { MapPin, Star, ShieldCheck, Clock, CalendarDays, ArrowLeft, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import BookingModal from '@/components/ui/booking-modal';
 
 export default function ProviderProfile() {
   const [, params] = useRoute('/providers/:id');
@@ -22,11 +22,14 @@ export default function ProviderProfile() {
     query: { enabled: !!providerId, queryKey: ['services', providerId] }
   });
 
-  const { data: reviewsRes } = useListProviderReviews(providerId, {
+  const { data: reviewsRes } = useListProviderReviews(providerId, undefined, {
     query: { enabled: !!providerId, queryKey: ['reviews', providerId] }
   });
 
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+
+  const selectedService = servicesRes?.services.find(s => s.id === selectedServiceId) ?? null;
 
   if (loadingProvider) {
     return <div className="p-6 pt-10 flex justify-center"><div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin" /></div>;
@@ -153,7 +156,7 @@ export default function ProviderProfile() {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-border max-w-[500px] mx-auto z-40">
         <button 
           disabled={!selectedServiceId || !provider.acceptsNewClients}
-          onClick={() => toast.info('Booking flow would start here.')}
+          onClick={() => setShowBookingModal(true)}
           className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-lg shadow-lg disabled:opacity-50 disabled:shadow-none transition-all active:scale-[0.98] flex items-center justify-center gap-2"
         >
           {provider.acceptsNewClients ? (
@@ -161,6 +164,17 @@ export default function ProviderProfile() {
           ) : 'Not accepting new clients'}
         </button>
       </div>
+
+      {/* Booking Modal */}
+      {showBookingModal && selectedService && (
+        <BookingModal
+          providerId={provider.id}
+          providerName={`${provider.firstName} ${provider.lastName}`}
+          service={selectedService}
+          onClose={() => setShowBookingModal(false)}
+          onSuccess={() => setShowBookingModal(false)}
+        />
+      )}
     </div>
   );
 }

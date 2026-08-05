@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "seed": "node --enable-source-maps --import tsx/esm ./src/seed.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx/esm --test src/__tests__/booking-state-machine.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",

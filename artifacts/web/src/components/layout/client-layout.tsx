@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
 import { useGetMe, useLogout } from '@workspace/api-client-react';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, CalendarDays } from 'lucide-react';
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
-  const { data: me } = useGetMe({ query: { retry: false } });
+  const { data: me } = useGetMe({ query: { retry: false, queryKey: ['me'] } });
   const logout = useLogout();
   const [, setLocation] = useLocation();
 
@@ -32,6 +32,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               {me.user.role === 'provider' && (
                 <Link href="/portal" className="text-sm font-medium text-primary hover:underline">
                   Portal
+                </Link>
+              )}
+              {me.user.role === 'client' && (
+                <Link href="/bookings" className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground hover:bg-secondary/80 transition-colors" title="My Bookings">
+                  <CalendarDays className="w-4 h-4" />
                 </Link>
               )}
               <button onClick={handleLogout} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground hover:bg-secondary/80 transition-colors">
