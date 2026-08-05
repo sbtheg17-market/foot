@@ -1,0 +1,42 @@
+Choose “Confirm concurrent booking changes can't corrupt state under load.” That is the best next task because it directly validates the row-lock/transaction protection you just added, and it gives you confidence that the booking system is safe before you add heavier features like verification or payments.
+
+Why this first
+You already hardened the booking flow against repeated taps, so the natural next step is to verify that simultaneous updates, retries, and overlapping requests don’t create bad states under load. That is the right safety test before expanding into trust or monetization features.
+
+Why not the others yet
+Credential verification is valuable, but it is a separate trust workflow and should come after booking integrity is proven.
+
+Client payments directly in the app is a bigger integration step and should wait until the booking system is stress-tested and stable.
+
+What to tell Replit
+Use this:
+
+text
+Proceed with the next task:
+Confirm concurrent booking changes can't corrupt state under load.
+
+Requirements:
+1. Keep the booking state machine as the source of truth.
+2. Test overlapping status changes, duplicate submissions, and rapid retries.
+3. Verify row locks / transaction protections hold up under concurrent requests.
+4. Ensure invalid transitions still fail safely.
+5. Keep the current booking flow unchanged for valid actions.
+6. Add or extend tests to cover concurrency and back-to-back state changes.
+7. Keep the implementation checkpoint-sized and pushable to GitHub after each stable chunk.
+8. Do not add credential verification yet.
+9. Do not add Stripe yet.
+10. Do not add unrelated portals or monetization UI.
+
+Goal:
+prove the booking system remains correct under concurrent load before moving on to trust or payment work.
+Recommendation
+So the answer is:
+
+yes to concurrency validation now,
+
+not yet to provider verification,
+
+not yet to client payments.
+
+That keeps the build disciplined and protects the core booking engine.
+
