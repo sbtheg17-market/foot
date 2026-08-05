@@ -34,27 +34,35 @@ PORT=8001 NODE_ENV=production pnpm run start   # serves API + web on :8001
 # Integration/pressure tests hit a live server on $PORT:
 PORT=8001 pnpm --filter @workspace/api-server run test           # 63 unit
 PORT=8001 pnpm --filter @workspace/api-server run test:integration  # 16
+PORT=8001 pnpm --filter @workspace/api-server run test:availability # 3
 PORT=8001 pnpm --filter @workspace/api-server run test:pressure     # 13
 ```
 Demo logins (all password `demo1234`): `sarah@oncallfoot.com` (provider), `mike@oncallfoot.com` (provider), `jane@oncallfoot.com` (client), `tom@oncallfoot.com` (client), `admin@oncallfoot.com` (admin).
 
 ## Task order (checkpoint = one commit + push each)
 
-### 1) Availability preset — "9–5 weekdays"  ← DO FIRST
-One-tap weekday 09:00–17:00 preset on the provider availability screen. Reuse the existing availability save path; idempotent + reapplyable; manual edits still work; mobile-first. No new scheduling engine.
-Files: `artifacts/web/src/pages/portal/availability.tsx` (+ availability API in `lib/api-spec` / `artifacts/api-server/src/routes/providers.ts` only if a bulk-set path is missing).
+> **STATUS: all 4 tasks below are DONE and pushed (Session 018, commits `49d049c`, `9730a7f`, `183c255`, `94d629b`). 95 tests green.**
 
-### 2) Booking filters
-Status-chip filters (requested / confirmed / completed) on the provider bookings inbox. Local, presentational state derived from existing booking data — no writes, no state-machine changes.
+### 1) Availability preset — "9–5 weekdays"  ✅ DONE
+One-tap weekday 09:00–17:00 preset on the provider availability screen. Reuses the existing availability save path; idempotent + reapplyable; manual edits still work; mobile-first. Tests: `pnpm --filter @workspace/api-server run test:availability`.
+Files: `artifacts/web/src/pages/portal/availability.tsx` (`applyWeekdayPreset`), `artifacts/api-server/src/__tests__/availability-preset.test.ts`.
+
+### 2) Booking filters  ✅ DONE
+Status-chip filters (requested / confirmed / completed) with live count badges on the provider bookings inbox. Local, presentational — single fetch, `useMemo`-derived counts/filtering; no writes, no state-machine changes.
 Files: `artifacts/web/src/pages/portal/bookings.tsx`.
 
-### 3) Tap-to-reach
-Make client phone `tel:` and address `https://maps` links on the booking detail/card (mobile). Presentational unless a field is missing (then add the smallest model/API mapping).
-Files: booking card/detail in `artifacts/web/src/pages/portal/bookings.tsx` (and mobile `artifacts/mobile` if extending there).
+### 3) Tap-to-reach  ✅ DONE
+Client phone is a `tel:` link and address a `https://maps.google.com/?q=` link on booking cards. `GET /bookings` now left-joins `users` to return `clientFirstName/LastName/Phone` (additive OpenAPI fields; client regenerated).
+Files: `artifacts/api-server/src/routes/bookings.ts`, `lib/api-spec/openapi.yaml`, `artifacts/web/src/pages/portal/bookings.tsx`.
 
-### 4) Earnings export
-Printable HTML invoice (+ PDF if a light path already exists) derived from **completed** bookings only. Provider-facing, read-only export endpoint if needed. No Stripe.
-Files: `artifacts/web/src/pages/portal/earnings.tsx`; invoices already exist in `artifacts/api-server/src/routes/invoices.ts`.
+### 4) Earnings export  ✅ DONE
+Printable HTML earnings statement (browser print-to-PDF; no PDF dependency) derived from **completed bookings only** via read-only `GET /providers/me/earnings/export`. Page: `/provider/earnings/statement` with print-CSS (`print:` variants hide navs/toolbar). No Stripe.
+Files: `artifacts/api-server/src/routes/providers.ts`, `artifacts/web/src/pages/portal/earnings-statement.tsx`, `earnings.tsx`, `lib/routes.ts`, `App.tsx`, `components/layout/provider-layout.tsx`.
+
+## What's next (not started — pick with the user)
+- Provider profile depth (avatar upload / richer profile editing).
+- Client portal activation (currently scaffolding only — needs explicit request).
+- Stripe payments (explicitly out of scope until requested).
 
 ## Operational rules
 - After each chunk: `pnpm run build` + relevant tests green → commit → **push to origin/main**.
