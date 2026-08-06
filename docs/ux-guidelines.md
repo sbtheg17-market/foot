@@ -123,6 +123,16 @@ This screen is a trust moment — make it feel like a real confirmation:
   surfaces. A conflict means the review already exists, not that the client
   should retry blindly.
 
+### Client care history
+
+- Keep upcoming visits and past care history visually distinct.
+- History cards show the visit date, status, provider identity, service, and
+  client-visible location/notes only; never show provider-private care notes.
+- Use a bounded, refreshable list with loading skeletons, a calm empty state,
+  and a retry action for failures.
+- Preserve the same history eligibility, ownership, and privacy behavior on web
+  and mobile at the 390px baseline.
+
 ### Provider Dashboard
 
 - Today's appointments prominently — "You have 2 visits today"

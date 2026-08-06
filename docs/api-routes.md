@@ -53,9 +53,14 @@ All routes are prefixed with `/api`. Auth middleware details: see `docs/roles-an
 | Method | Path | Access | Description |
 |--------|------|--------|-------------|
 | GET | /bookings | auth | Own bookings (scoped by role) |
+| GET | /bookings/history | client | Bounded client-safe history with provider/service summaries |
 | POST | /bookings | client | Create a booking request |
 | GET | /bookings/:id | auth | Booking detail (own only) |
 | PATCH | /bookings/:id/status | auth | Update status (role-restricted transitions) |
+
+Client booking list, create, detail, and status responses omit provider-private
+`careNotes`. Provider and admin booking responses retain the fields needed for
+their workflows.
 
 ---
 

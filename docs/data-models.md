@@ -22,6 +22,15 @@ Core user account. All roles share this table.
 | created_at | timestamp | |
 | updated_at | timestamp | |
 
+### Client-safe care history
+
+`GET /bookings/history` is a bounded, client-only projection of terminal
+bookings (`completed`, `no_show`, and `cancelled`). It derives ownership from
+the authenticated user and includes only client-visible booking fields plus
+provider identity and service summaries. It never serializes `care_notes`.
+History is ordered by most recently updated booking so a newly completed visit
+appears promptly; `limit` is capped at 50 and `offset` supports continuation.
+
 ---
 
 ## provider_profiles

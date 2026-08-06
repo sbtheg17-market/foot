@@ -81,10 +81,7 @@ router.get(
         .from(bookingsTable)
         .leftJoin(usersTable, eq(usersTable.id, bookingsTable.clientId))
         .where(whereClause)
-        // Most recently updated bookings are the most useful first page:
-        // completed visits should appear as soon as they enter history, even
-        // when older test/demo data has a later scheduled date.
-        .orderBy(sql`${bookingsTable.updatedAt} desc`)
+        .orderBy(sql`${bookingsTable.scheduledAt} desc`)
         .limit(limit)
         .offset(offset),
       db
