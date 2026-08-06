@@ -5,12 +5,19 @@
  * OnCall Foot API — foot rejuvenation marketplace
  * OpenAPI spec version: 0.3.0
  */
+import type { OnboardingState } from './onboardingState';
+import type { ProviderApplicationState } from './providerApplicationState';
 import type { UserRole } from './userRole';
 
 export interface UserSummary {
   id: number;
   email: string;
   role: UserRole;
+  /** @minItems 1 */
+  roles: UserRole[];
+  activeRole: UserRole;
+  onboarding: OnboardingState;
+  providerApplication: ProviderApplicationState | null;
   firstName: string;
   lastName: string;
   phone?: string | null;

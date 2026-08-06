@@ -8,12 +8,17 @@ All routes are prefixed with `/api`. Auth middleware details: see `docs/roles-an
 
 | Method | Path | Access | Description |
 |--------|------|--------|-------------|
-| POST | /auth/register | public | Register new user (client or provider) |
-| POST | /auth/login | public | Login, returns JWT |
+| POST | /auth/register | public | Register new user (client or provider); response includes additive server-confirmed role/application state |
+| POST | /auth/login | public | Login, returns JWT plus additive server-confirmed role/application state |
 | POST | /auth/logout | auth | Invalidate session (client-side token drop) |
 | GET | /auth/me | auth | Current user profile |
 | POST | /auth/password-reset/request | public | Request password reset email (placeholder) |
 | POST | /auth/password-reset/confirm | public | Confirm password reset (placeholder) |
+
+Auth responses retain the legacy scalar `user.role` field and JWT role claim.
+They additionally expose `user.roles`, `user.activeRole`, `user.onboarding`, and
+`user.providerApplication`. These fields are read-only compatibility state in
+Phase 2; they do not change route authorization or grant provider access.
 
 ---
 

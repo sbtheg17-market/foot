@@ -1013,6 +1013,52 @@ components:
       type: string
       enum: [client, provider, admin]
 
+    ProviderApplicationStatus:
+      type: string
+      enum: [draft, under_review, approved, rejected, suspended]
+
+    ProviderApplicationStep:
+      type: string
+      enum: [profile, services, availability, verification, submitted]
+
+    ProviderApplicationState:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+        currentStep:
+          $ref: "#/components/schemas/ProviderApplicationStep"
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - status
+        - currentStep
+        - submittedAt
+        - reviewedAt
+
+    OnboardingState:
+      type: object
+      properties:
+        client:
+          type: string
+          enum: [complete]
+          nullable: true
+        provider:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+          nullable: true
+      required:
+        - client
+        - provider
+
     UserSummary:
       type: object
       properties:
@@ -1023,6 +1069,19 @@ components:
           format: email
         role:
           $ref: "#/components/schemas/UserRole"
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserRole"
+          minItems: 1
+        activeRole:
+          $ref: "#/components/schemas/UserRole"
+        onboarding:
+          $ref: "#/components/schemas/OnboardingState"
+        providerApplication:
+          allOf:
+            - $ref: "#/components/schemas/ProviderApplicationState"
+          nullable: true
         firstName:
           type: string
         lastName:
@@ -1037,6 +1096,10 @@ components:
         - id
         - email
         - role
+        - roles
+        - activeRole
+        - onboarding
+        - providerApplication
         - firstName
         - lastName
 

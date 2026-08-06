@@ -36,7 +36,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 | Layer | Status | Notes |
 |---|---|---|
-| DB schema | ✅ Additive role migration verified in development | Existing schema remains intact; `account_roles` and `provider_applications` were added after a passing preflight, with foreign keys, unique constraints, and lookup indexes verified. No backfill or runtime consumer is active yet. |
+| DB schema | ✅ Phase 2 compatibility backfill verified in development | Existing schema remains intact; role memberships and provider applications are backfilled idempotently. `users.role` remains unchanged and no authorization behavior is changed. |
 | API server workflow | ✅ Running with managed auth verified | `artifacts/api-server: API Server` builds and serves on port 8080; health, public discovery, managed login, `/auth/me`, and role guards return expected results. |
 | Auth routes | ✅ Managed workflow verified | Seeded client/provider/admin login and `/auth/me` return 200; unauthenticated booking access returns 401; provider/admin booking creation returns 403; client booking creation returns 201. |
 | JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
@@ -50,14 +50,45 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; client list/detail refresh on mount/focus/reconnect and server-status feedback are live. |
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, bounded client care history, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, in-flight protection, and completed-booking review form; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
-| OpenAPI spec | ✅ Reviews + care history complete | Review contracts and `GET /bookings/history` are defined; generated Zod validators and React Query hooks are current. |
-| GitHub sync | ✅ Synchronized | Phase 0/1 additive role migration is pushed; local and `origin/main` match at `ed53fac`, with ahead/behind `0/0`. No signup, authorization, API, or UI behavior changed. |
+| OpenAPI spec | ✅ Additive role-state fields generated | Review/care-history contracts remain current; auth responses now expose additive `roles`, `activeRole`, `onboarding`, and `providerApplication` state. |
+| GitHub sync | ⚠️ Phase 2 changes in progress | Compatibility backfill, additive auth state, and focused integration coverage are being verified; signup UI and authorization policy remain unchanged. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
 ---
 
 ## Session Entries
+
+---
+
+### Session 034 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `M`
+**Triggered by:** Begin the approved Phase 2 compatibility backfill and server-side role-state exposure, without signup UI changes.
+
+**What was done:**
+- Added the OpenAPI contract for additive `roles`, `activeRole`, `onboarding`, and safe `providerApplication` state on authenticated user responses.
+- Added a server-side role-state reader that reports persisted memberships and provider application status while retaining `users.role` as the active-role compatibility fallback.
+- Added an idempotent, transactional role/application backfill command with fail-safe preflight checks for invalid roles, duplicate emails/profiles/applications, orphaned ownership, provider users without profiles, and unresolved pending provider statuses.
+- Added the backfill package command; no startup-time DDL or production migration script was added.
+- Kept signup UI, auth token claims, authorization middleware, route guards, booking/review/care-history/notification behavior, and Stripe scope unchanged.
+
+**Files changed:**
+- `lib/api-spec/openapi.yaml`
+- `lib/api-client-react/src/generated/`
+- `lib/api-zod/src/generated/`
+- `artifacts/api-server/src/lib/role-state.ts`
+- `artifacts/api-server/src/routes/auth.ts`
+- `artifacts/api-server/src/scripts/backfill-role-state.ts`
+- `artifacts/api-server/src/__tests__/role-state.integration.test.ts`
+- `artifacts/api-server/package.json`
+- `docs/api-routes.md`
+- `docs/role-aware-migration-plan.md`
+- `.agents/LOG.md`
+
+**Build state at end:** Backfill and API contract verification are pending. No new UI or authorization behavior is intended.
+
+**Next best action:** Run codegen, typecheck, development backfill twice, auth response integration checks, full build, and existing booking/review/care-history/concurrency regressions. Commit only the verified Phase 2 checkpoint; do not begin signup UI or provider authorization hardening in the same checkpoint.
 
 ---
 

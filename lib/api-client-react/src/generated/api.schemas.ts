@@ -18,10 +18,57 @@ export const UserRole = {
   admin: 'admin',
 } as const;
 
+export type ProviderApplicationStatus = typeof ProviderApplicationStatus[keyof typeof ProviderApplicationStatus];
+
+
+export const ProviderApplicationStatus = {
+  draft: 'draft',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+  suspended: 'suspended',
+} as const;
+
+export type ProviderApplicationStep = typeof ProviderApplicationStep[keyof typeof ProviderApplicationStep];
+
+
+export const ProviderApplicationStep = {
+  profile: 'profile',
+  services: 'services',
+  availability: 'availability',
+  verification: 'verification',
+  submitted: 'submitted',
+} as const;
+
+export interface ProviderApplicationState {
+  id: number;
+  status: ProviderApplicationStatus;
+  currentStep: ProviderApplicationStep;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+}
+
+export type OnboardingStateClient = typeof OnboardingStateClient[keyof typeof OnboardingStateClient] | null;
+
+
+export const OnboardingStateClient = {
+  complete: 'complete',
+} as const;
+
+export interface OnboardingState {
+  client: OnboardingStateClient;
+  provider: ProviderApplicationStatus | null;
+}
+
 export interface UserSummary {
   id: number;
   email: string;
   role: UserRole;
+  /** @minItems 1 */
+  roles: UserRole[];
+  activeRole: UserRole;
+  onboarding: OnboardingState;
+  providerApplication: ProviderApplicationState | null;
   firstName: string;
   lastName: string;
   phone?: string | null;

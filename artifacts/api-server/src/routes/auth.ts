@@ -3,9 +3,19 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db, usersTable, registerSchema, loginSchema } from "@workspace/db";
 import { signToken } from "../lib/jwt.js";
+import { loadRoleState } from "../lib/role-state.js";
 import { requireAuth } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
+
+async function withRoleState<T extends { id: number; role: "client" | "provider" | "admin" }>(
+  user: T,
+) {
+  return {
+    ...user,
+    ...(await loadRoleState(user.id, user.role)),
+  };
+}
 
 // ── POST /auth/register ───────────────────────────────────────────────────────
 
@@ -51,7 +61,7 @@ router.post("/register", async (req, res) => {
 
   const token = signToken({ sub: user.id, email: user.email, role: user.role });
 
-  res.status(201).json({ token, user });
+  res.status(201).json({ token, user: await withRoleState(user) });
 });
 
 // ── POST /auth/login ──────────────────────────────────────────────────────────
@@ -87,7 +97,7 @@ router.post("/login", async (req, res) => {
 
   res.json({
     token,
-    user: {
+    user: await withRoleState({
       id: user.id,
       email: user.email,
       role: user.role,
@@ -95,7 +105,7 @@ router.post("/login", async (req, res) => {
       lastName: user.lastName,
       phone: user.phone,
       avatarUrl: user.avatarUrl,
-    },
+    }),
   });
 });
 
@@ -123,7 +133,7 @@ router.get("/me", requireAuth, async (req, res) => {
     return;
   }
 
-  res.json({ user });
+  res.json({ user: await withRoleState(user) });
 });
 
 // ── POST /auth/logout ─────────────────────────────────────────────────────────

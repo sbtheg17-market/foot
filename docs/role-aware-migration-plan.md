@@ -2,8 +2,10 @@
 
 ## Status
 
-Approved for staged implementation. This document covers Phase 0 planning
-artifacts and the additive Phase 1 database shape only.
+Approved for staged implementation. Phase 0 planning artifacts, Phase 1
+additive schema, and Phase 2 compatibility backfill/server-state exposure are
+implemented and verified. Authorization hardening and signup/onboarding UI
+remain future phases.
 
 The following remain intentionally unchanged:
 
@@ -136,8 +138,11 @@ stop before backfill. Never map invalid data to provider or admin access.
 
 ## Backfill procedure for the next checkpoint
 
-Backfill is intentionally not part of this schema-only change. When approved,
-run it after the additive tables exist and after a fresh preflight:
+The repository command `pnpm --filter @workspace/api-server run
+backfill:role-state` runs the backfill transactionally after a fresh preflight.
+It is idempotent and safe to rerun. The current development run inserted five
+role memberships and two provider applications on the first run, then zero
+rows on the second run.
 
 ```text
 users.role = client   → one account_roles(client) row
@@ -161,6 +166,21 @@ pending      → draft or under_review only after a document/submission rule
 Existing approved providers must remain approved and must not be forced through
 new onboarding. A provider user without a profile should be quarantined as a
 draft/incomplete case rather than receiving operational access.
+
+## Phase 2 compatibility response state
+
+`POST /auth/register`, `POST /auth/login`, and `GET /auth/me` retain the legacy
+scalar `user.role` and token claim while adding:
+
+- `roles`: persisted role memberships, with the legacy role as a compatibility
+  fallback if a membership row is temporarily missing;
+- `activeRole`: the current legacy role context, not a new authorization grant;
+- `onboarding`: client completion and provider application status;
+- `providerApplication`: safe status/step/timestamp projection without reviewer
+  notes or document contents.
+
+This state is read-only in Phase 2. No active-role switch, provider approval
+mutation, route-guard change, signup UI, or token-claim change is included.
 
 ## Rollback and deployment sequencing
 

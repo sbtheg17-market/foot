@@ -35,12 +35,28 @@ export const RegisterBody = zod.object({
   "phone": zod.string().optional()
 })
 
+
+
+
 export const RegisterResponse = zod.object({
   "token": zod.string(),
   "user": zod.object({
   "id": zod.int(),
   "email": zod.email(),
   "role": zod.enum(['client', 'provider', 'admin']),
+  "roles": zod.array(zod.enum(['client', 'provider', 'admin'])).min(1),
+  "activeRole": zod.enum(['client', 'provider', 'admin']),
+  "onboarding": zod.object({
+  "client": zod.enum(['complete']).nullable(),
+  "provider": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']).nullable()
+}),
+  "providerApplication": zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable()
+}).nullable(),
   "firstName": zod.string(),
   "lastName": zod.string(),
   "phone": zod.string().nullish(),
@@ -57,12 +73,28 @@ export const LoginBody = zod.object({
   "password": zod.string()
 })
 
+
+
+
 export const LoginResponse = zod.object({
   "token": zod.string(),
   "user": zod.object({
   "id": zod.int(),
   "email": zod.email(),
   "role": zod.enum(['client', 'provider', 'admin']),
+  "roles": zod.array(zod.enum(['client', 'provider', 'admin'])).min(1),
+  "activeRole": zod.enum(['client', 'provider', 'admin']),
+  "onboarding": zod.object({
+  "client": zod.enum(['complete']).nullable(),
+  "provider": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']).nullable()
+}),
+  "providerApplication": zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable()
+}).nullable(),
   "firstName": zod.string(),
   "lastName": zod.string(),
   "phone": zod.string().nullish(),
@@ -74,11 +106,27 @@ export const LoginResponse = zod.object({
 /**
  * @summary Get current authenticated user
  */
+
+
+
 export const GetMeResponse = zod.object({
   "user": zod.object({
   "id": zod.int(),
   "email": zod.email(),
   "role": zod.enum(['client', 'provider', 'admin']),
+  "roles": zod.array(zod.enum(['client', 'provider', 'admin'])).min(1),
+  "activeRole": zod.enum(['client', 'provider', 'admin']),
+  "onboarding": zod.object({
+  "client": zod.enum(['complete']).nullable(),
+  "provider": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']).nullable()
+}),
+  "providerApplication": zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable()
+}).nullable(),
   "firstName": zod.string(),
   "lastName": zod.string(),
   "phone": zod.string().nullish(),
