@@ -37,7 +37,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Layer | Status | Notes |
 |---|---|---|
 | DB schema | ✅ Live | Pushed to Replit PostgreSQL. Tables: users, provider_profiles, travel_zones, availability, verification_docs, services, bookings, reviews, invoices, support_tickets, support_messages |
-| API server workflow | ⚠️ Environment blocked | Application source is unchanged and previously healthy, but the managed workflow currently fails before startup while bootstrapping pnpm (`pthread_create: Resource temporarily unavailable`). |
+| API server workflow | ✅ Running | `artifacts/api-server: API Server` builds and serves on port 8080; `GET /api/healthz` returns `{"status":"ok"}`. |
 | Auth routes | ✅ Live | POST /auth/register, /auth/login, /auth/logout, GET /auth/me — all verified (JWT token + user object confirmed) |
 | JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
 | JWT_SECRET | ✅ Set | Stored as Replit Secret. API server confirmed signing tokens correctly. |
@@ -45,7 +45,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/:id, PATCH /bookings/:id/status — strict state machine, auto-invoice on confirm |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, GET /invoices, GET /invoices/:id — all role-scoped |
-| React frontend | ✅ Built | Web app: discovery, provider profile, booking modal, bookings page, provider portal, and provider trust-profile surfaces |
+| React frontend | ✅ Running | Web app serves the provider-first login and portal; 390px preview verified with HTTP 200. |
 | Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
 | Web booking flow | ✅ Live | BookingModal on provider profile → `/bookings` page with Upcoming/Past/Cancelled tabs + cancel |
 | Expo mobile app | ✅ Running | All screens: Discover, Bookings, Account, Provider Profile, Login, Register — provider profile trust surfaces added; JWT auth via AsyncStorage |
@@ -105,6 +105,32 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** Provider profile trust surfaces are implemented and pushed. `main` matches `origin/main`; the uploaded task brief remains untracked. Web/API preview verification is pending resolution of the Replit workflow resource issue, not an application error.
 
 **Next best action:** Resolve the managed pnpm/thread-resource issue, restart the API and web workflows, then verify the provider profile surfaces at mobile width. After that, choose whether to activate the client portal; keep Stripe deferred.
+
+---
+
+### Session 021 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `S`
+**Triggered by:** Restore the Replit preview workflows before activating the client portal.
+
+**What was done:**
+- Read the uploaded workflow-recovery note and treated the latest session log, `docs/NEXT-STEPS.md`, and current repository state as authoritative over stale handoff text.
+- Confirmed artifact workflows are separate and non-recursive; `.replit` does not wrap or duplicate them.
+- Added `manage-package-manager-versions=false` to `.npmrc`, preventing the Replit pnpm 10 launcher from recursively trying to install the repository-pinned pnpm 9.15.0.
+- Reinstalled dependencies once with package-manager switching disabled. Preserved the repository lockfile after discarding unrelated pnpm 10 platform-entry pruning.
+- Restarted the API, web, and mobile workflows sequentially. All are running; API health, web root, and Expo `/status` each return HTTP 200.
+- Ran `pnpm run typecheck` and `pnpm run build` successfully.
+- Captured the provider-first web login at the required 390px viewport.
+- Ran the existing API tests: the booking state-machine suite passes (63 tests). Availability, integration, and pressure suites are blocked by the current database state because the `users` relation is absent; no application or workflow change was made for that unrelated issue.
+
+**Files changed:**
+- `.npmrc`
+- `docs/NEXT-STEPS.md`
+- `.agents/LOG.md`
+
+**Build state at end:** API, web, mobile, and mockup workflows are running. The workflow bootstrap resource failure is resolved by disabling automatic package-manager version switching. The uploaded recovery note remains untracked.
+
+**Next best action:** Start the client portal in a separate checkpoint. Keep provider flows, booking state transitions, notifications, and Stripe unchanged.
 
 ---
 

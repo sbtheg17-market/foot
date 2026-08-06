@@ -65,7 +65,7 @@ Files: `artifacts/api-server/src/routes/providers.ts`, `artifacts/web/src/pages/
 - No schema, upload dependency, booking, notification, or payment changes were needed.
 
 ## What's next (pick with the user)
-- Client portal activation (currently scaffolding only — needs explicit request).
+- Client portal activation: start with auth/role guard, provider discovery/profile, service selection, and booking creation; then booking views, status visibility, notifications, reviews, and care history.
 - Stripe payments (explicitly out of scope until requested).
 
 ## Operational rules
