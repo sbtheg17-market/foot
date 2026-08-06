@@ -45,13 +45,13 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/:id, PATCH /bookings/:id/status — strict state machine, auto-invoice on confirm |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, GET /invoices, GET /invoices/:id — all role-scoped |
-| React frontend | ✅ Running | Provider portal plus client discovery, public profiles, client-only booking access, booking list tabs, and web booking detail; 390px preview verified with HTTP 200. |
+| React frontend | ✅ Running | Provider portal plus client discovery, public profiles, client-only booking access, booking list/detail, cancellation confirmation, and stale-submit handling; 390px preview verified. |
 | Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
-| Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; UI preview remains healthy. |
-| Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, and mobile booking detail; provider profile trust surfaces and JWT auth via AsyncStorage |
+| Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; list/detail cancellation confirmation and refresh/error handling are live. |
+| Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, cancellation confirmation, and in-flight protection; provider profile trust surfaces and JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
-| GitHub sync | ✅ Synchronized | Client booking list/detail commits are present on `origin/main` at `5f609d0`; separate `conflict_*` branches remain reference-only. The current uploaded handoff remains intentionally untracked. |
+| GitHub sync | ⚠️ Pending authenticated push | Local `main` contains the verified cancellation commit and is two commits ahead of `origin/main`; shell push was rejected by GitHub authentication. Uploaded handoffs remain intentionally untracked. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -197,6 +197,33 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** Synchronization verification passed. No application files, schema, API contracts, provider flows, booking transitions, or product behavior changed.
 
 **Next best action:** Begin the next client slice: cancellation confirmation using only valid client transitions, duplicate-submit protection, and fresh booking-status/notification presentation. Preserve provider-private `careNotes`, reuse the existing booking API/state machine, and keep Stripe, schema changes, admin UI, and unrelated work out of scope.
+
+---
+
+### Session 027 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `S`
+**Triggered by:** Client Portal Checkpoint 2 — client cancellation confirmation and duplicate-submit protection only.
+
+**What was done:**
+- Added a reusable client-side eligibility guard for `requested`, `confirmed`, and `rescheduled` bookings on web and mobile list/detail surfaces. Terminal and otherwise ineligible statuses expose no cancellation action.
+- Added explicit cancellation confirmation on the web list, web detail, mobile list, and mobile detail.
+- Kept cancellation actions disabled/guarded while a request is in flight, preventing rapid repeated taps from creating duplicate mutations.
+- Added clear success feedback and refresh behavior after cancellation. Handled stale/concurrent `409` responses, validation/permission `400`/`403` responses, and generic failures without exposing another booking.
+- Reused the existing `PATCH /bookings/:id/status` route, state machine, cancellation reason, and notification behavior. No provider flow, schema, OpenAPI, generated client, Stripe, reviews, care-history, or admin changes.
+- Verified web/mobile typechecks, full workspace build, 63 booking state-machine tests, 16 booking concurrency/integration tests, workflow startup, fresh logs, and 390px web/mobile previews. The preview correctly redirects unauthenticated booking access to sign-in.
+- Committed the feature locally as `a37b83e`. A direct push was rejected by GitHub with `Invalid username or token`; no force-push or history rewrite was attempted.
+
+**Files changed:**
+- `artifacts/web/src/pages/bookings.tsx`
+- `artifacts/web/src/pages/booking-detail.tsx`
+- `artifacts/mobile/app/(tabs)/bookings.tsx`
+- `artifacts/mobile/app/booking/[id].tsx`
+- `.agents/LOG.md`
+
+**Build state at end:** Web and mobile typechecks pass; full build passes; all 79 booking unit/concurrency tests pass; web, API, mobile, and mockup workflows are running. Local `main` is at `a37b83e69f3aef5565b0dc4ef0fbb9f7d6cf806b`, while `origin/main` remains at `bfde90d1c30ab0a0978efc19138d48c6c92e1018` pending authenticated push access. Uploaded handoffs remain untracked.
+
+**Next best action:** Push the reviewed local commits to `origin/main` once authenticated GitHub access is restored, then continue client booking status freshness/notification presentation. Keep Stripe, schema changes, reviews, care history, admin UI, and provider-flow changes out of scope.
 
 ---
 
