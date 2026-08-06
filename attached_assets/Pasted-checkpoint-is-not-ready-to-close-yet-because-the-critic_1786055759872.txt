@@ -1,0 +1,109 @@
+checkpoint is not ready to close yet because the critical integration coverage is still missing and Git synchronization was not reported.
+
+Remaining blocker
+Add automated tests covering:
+
+Provider application ownership.
+
+Idempotent start/resume onboarding.
+
+Duplicate membership/profile/application prevention.
+
+Incomplete submission validation.
+
+Draft, under-review, rejected, and suspended authorization denial.
+
+Approved-provider access only after both application and profile approval.
+
+Client-controlled signup intent never escalating privileges.
+
+Existing client “Become a provider” behavior.
+
+Provider-private data remaining protected.
+
+The follow-up proposal tool being unavailable is not itself a blocker. The missing tests are the blocker.
+
+Send this to Replit
+text
+Do not begin another product feature yet.
+
+The Phase 4 implementation is present, but the checkpoint is not complete until the missing provider-application integration coverage is added.
+
+Add focused API integration tests for:
+
+1. Provider application ownership
+   - User A cannot read User B’s application.
+   - User A cannot update User B’s application.
+   - User A cannot submit User B’s application.
+   - Admin behavior remains governed by existing admin permissions.
+
+2. Idempotent onboarding
+   - Starting provider onboarding twice creates one provider membership.
+   - Starting provider onboarding twice creates one provider profile.
+   - Starting provider onboarding twice creates one draft application.
+   - Repeating the request returns or resumes the existing application.
+   - Concurrent onboarding requests do not create duplicates.
+
+3. Draft updates
+   - Authenticated owner can save valid draft profile data.
+   - Invalid fields are rejected with stable validation errors.
+   - Draft updates do not grant provider operations.
+   - Draft updates preserve unrelated client access.
+
+4. Submission validation
+   - Incomplete provider applications cannot be submitted.
+   - Complete applications transition to under_review.
+   - Submitting twice is idempotent or returns the documented conflict.
+   - Rejected applications can resubmit only through the approved path.
+   - Suspended applications cannot bypass the suspension state.
+
+5. Authorization escalation prevention
+   - roleIntent=provider never grants provider operations.
+   - A provider membership without an approved application remains blocked.
+   - An approved application with an unapproved provider profile remains blocked.
+   - Draft, under_review, rejected, and suspended states remain blocked.
+   - Only approved application plus approved provider profile grants provider operations.
+   - Provider credential submission does not grant provider portal access.
+   - Client-controlled active-role or query parameters cannot bypass server authorization.
+
+6. Existing-user flow
+   - A client can start “Become a provider” using the same account.
+   - Existing client membership remains intact.
+   - Existing bookings and care history remain accessible.
+   - Repeated requests do not create duplicate records.
+   - Provider operations remain blocked until approval.
+
+7. Privacy regression
+   - Provider-private careNotes remain absent from client responses.
+   - Provider application reviewer notes and private verification details are not exposed to ordinary clients.
+   - Unrelated users cannot inspect another user’s onboarding data.
+
+Run:
+- API typecheck.
+- Web typecheck.
+- Mobile typecheck.
+- Full workspace build.
+- New provider-application integration tests.
+- Booking state-machine tests.
+- Booking concurrency tests.
+- Booking pressure tests.
+- Review tests.
+- Care-history/privacy tests.
+- Availability tests.
+- Role-state regression tests.
+- Web and mobile signup workflows.
+- Web and mobile 390px previews.
+
+After verification:
+1. Inspect git status and the complete diff.
+2. Report the local commit hash and origin/main hash.
+3. Confirm no secrets, uploaded handoff files, prompt files, or unrelated changes.
+4. Push stable commits normally to origin/main.
+5. Confirm local and origin/main match.
+6. Confirm ahead/behind is 0/0.
+7. Confirm the working tree is clean.
+8. Update .agents/LOG.md, .agents/SETUP.md, and .agents/NEXT_TASK.md as needed.
+9. Do not begin Stripe, payouts, active-role switching, or another feature.
+
+If GitHub authentication or the managed worker fails, preserve the verified local commits and report the exact synchronization state without rewriting history.
+The UI and API flows should not be treated as fully production-ready until these tests prove that onboarding state can never become an authorization escalation path.
