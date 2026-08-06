@@ -37,10 +37,10 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Layer | Status | Notes |
 |---|---|---|
 | DB schema | ✅ Restored | Existing Drizzle schema pushed to the active development database (`helium` / `heliumdb`); users, provider profiles, services, bookings, and reviews are present. |
-| API server workflow | ⚠️ Running with auth configuration gap | `artifacts/api-server: API Server` builds and serves on port 8080; health and public discovery return 200, but the managed workflow does not receive `JWT_SECRET`, so its login endpoint returns 500. |
-| Auth routes | ✅ Code verified; managed preview blocked | Seeded client/provider/admin login, `/auth/me`, RBAC guards, and booking lifecycle passed in an isolated API process with the existing secret supplied only at runtime. |
+| API server workflow | ✅ Running with managed auth verified | `artifacts/api-server: API Server` builds and serves on port 8080; health, public discovery, managed login, `/auth/me`, and role guards return expected results. |
+| Auth routes | ✅ Managed workflow verified | Seeded client/provider/admin login and `/auth/me` return 200; unauthenticated booking access returns 401; provider/admin booking creation returns 403; client booking creation returns 201. |
 | JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
-| JWT_SECRET | ⚠️ Missing from managed workflow | The secret must be restored through the secure environment settings; no secret value was logged or committed. |
+| JWT_SECRET | ✅ Available to managed workflow | Added by the user through the development/shared Secrets panel; value was never inspected, printed, logged, committed, or exposed. |
 | Seed script | ✅ Idempotent and restored | `pnpm run seed` created 5 demo accounts and full sample data; a second run skipped existing records without duplicates. |
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/:id, PATCH /bookings/:id/status — strict state machine, auto-invoice on confirm |
@@ -51,7 +51,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | All screens: Discover, Bookings, Account, Provider Profile, Login, Register — provider profile trust surfaces added; JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
-| GitHub sync | ⚠️ Push requires authenticated path | `origin/main` includes the prior client-portal checkpoint; this documentation checkpoint will be pushed only if the authenticated GitHub/Replit path is available. Separate `conflict_*` branches remain reference-only. |
+| GitHub sync | ⚠️ Push pending authenticated path | Local `main` contains the reviewed configuration checkpoint; GitHub push still requires a usable authenticated GitHub/Replit path. Separate `conflict_*` branches remain reference-only. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -119,6 +119,31 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** Development schema and seed data are restored and verified. The database contains 5 users, 2 provider profiles, 5 services, 4 bookings, and 1 review. Typecheck, build, public API checks, idempotent seed rerun, isolated authenticated booking flow, and the 63-test state-machine suite pass. All four workflows are running; the managed API workflow’s login remains blocked by missing `JWT_SECRET`.
 
 **Next best action:** Restore `JWT_SECRET` through the secure environment settings, restart `artifacts/api-server: API Server`, and re-run the authenticated checks against the managed preview. Then begin Client Portal Checkpoint 2: client booking status/detail visibility and notification presentation. Keep Stripe and `conflict_*` branches out of scope.
+
+---
+
+### Session 024 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `S`
+**Triggered by:** Apply the user-provided managed `JWT_SECRET` configuration and verify authentication before any product work.
+
+**What was done:**
+- Restarted only `artifacts/api-server: API Server` after the user added `JWT_SECRET` to the development/shared environment.
+- Verified managed login returns HTTP 200 for client, provider, and admin accounts. Confirmed each returned token has JWT structure without printing token values.
+- Verified `/auth/me` returns HTTP 200 with the matching authenticated role for all three accounts.
+- Verified unauthenticated `GET /bookings` returns 401, provider/admin `POST /bookings` returns 403, and an authenticated client can create a booking with 201. Provider visibility and temporary-booking cleanup also passed.
+- Verified API health and public provider discovery return 200. `/discover` and `/provider` render at the 390px viewport.
+- Ran `pnpm run typecheck`, `pnpm run build`, and `pnpm --filter @workspace/api-server run test`; all passed, including all 63 booking state-machine tests.
+- Inspected commit `a8221f5`: it contains only the intended uploaded checkpoint note and no secret value. No application-code changes were made.
+- Removed the temporary verification booking and preview screenshots. No secret value was inspected, printed, logged, committed, or exposed.
+- GitHub helper and direct `git push origin main` both failed because this workspace still lacks usable GitHub credentials; local `main` remains one commit ahead of `origin/main`.
+
+**Files changed:**
+- `.agents/LOG.md`
+
+**Build state at end:** Managed JWT authentication is verified end to end. All requested role, booking guard, health, preview, typecheck, build, and 63-test checks pass. Application source, schema, booking state machine, notifications, provider flows, client features, and Stripe were not changed. GitHub synchronization remains pending authenticated push access.
+
+**Next best action:** Push the reviewed local commits to `origin/main` when authenticated GitHub access is available. Do not begin client bookings or care-history work in this configuration checkpoint.
 
 ---
 
