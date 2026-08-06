@@ -51,7 +51,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, cancellation confirmation, and in-flight protection; provider profile trust surfaces and JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
-| GitHub sync | ⚠️ Pending authenticated push | Local `main` contains the verified cancellation commit and is two commits ahead of `origin/main`; shell push was rejected by GitHub authentication. Uploaded handoffs remain intentionally untracked. |
+| GitHub sync | ⚠️ Pending authenticated push | Local `main` contains the verified cancellation commit and is three commits ahead of `origin/main`; shell push was rejected by GitHub authentication and the managed push worker could not spawn. Uploaded handoffs remain intentionally untracked. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -221,7 +221,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 - `artifacts/mobile/app/booking/[id].tsx`
 - `.agents/LOG.md`
 
-**Build state at end:** Web and mobile typechecks pass; full build passes; all 79 booking unit/concurrency tests pass; web, API, mobile, and mockup workflows are running. Local `main` is at `a37b83e69f3aef5565b0dc4ef0fbb9f7d6cf806b`, while `origin/main` remains at `bfde90d1c30ab0a0978efc19138d48c6c92e1018` pending authenticated push access. Uploaded handoffs remain untracked.
+**Build state at end:** Web and mobile typechecks pass; full build passes; all 79 booking unit/concurrency tests pass; web, API, mobile, and mockup workflows are running. The feature commit is `a37b83e69f3aef5565b0dc4ef0fbb9f7d6cf806b`; the documentation commit is `36c770e16be7a64ad7cf2f69f301004c4ccf26ad`; `origin/main` remains at `bfde90d1c30ab0a0978efc19138d48c6c92e1018` pending authenticated push access. Uploaded handoffs remain untracked.
 
 **Next best action:** Push the reviewed local commits to `origin/main` once authenticated GitHub access is restored, then continue client booking status freshness/notification presentation. Keep Stripe, schema changes, reviews, care history, admin UI, and provider-flow changes out of scope.
 

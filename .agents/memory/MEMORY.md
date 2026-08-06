@@ -2,3 +2,4 @@
 - [Agent Rules](../AGENT-RULES.md) — 11 rules every agent follows on this repo (read before writing any code)
 - [Workflow bootstrap resource limits](workflow-bootstrap-resource-limits.md) — managed pnpm bootstrap can recurse and exhaust thread resources before app startup
 - [Managed API secret injection](managed-api-secret-injection.md) — preview API can serve public routes while auth fails if JWT_SECRET is absent from the workflow environment
+- [GitHub push authentication](github-push-auth.md) — shell pushes can reject stale credentials and the managed push worker may fail before execution
