@@ -1,9 +1,10 @@
 # Roles & Permissions
 
 OnCall Foot currently has three user roles. During the staged migration, role
-membership is being introduced in `account_roles`, while `users.role` remains
-the compatibility field. No authorization behavior changes in the additive
-schema phase.
+membership in `account_roles` is now the authorization source, while
+`users.role` remains the compatibility active-context field. JWT role claims
+remain a compatibility session signal; route authorization confirms them
+against the current database state.
 
 ---
 
@@ -48,18 +49,28 @@ Platform operator with full oversight.
 
 ## Route Protection Rules
 
-- `requireAuth` — any authenticated user
-- `requireRole('client')` — clients only
-- `requireRole('provider')` — providers only
-- `requireRole('admin')` — admin only
+- `requireAuth` — a valid JWT whose user still exists, is active, and whose
+  compatibility role matches the database user context
+- `requireRole('client')` — requires the active client context and a matching
+  `account_roles` membership
+- `requireRole('provider')` — requires the active provider context and a
+  matching `account_roles` membership
+- `requireRole('admin')` — requires the active admin context and a matching
+  `account_roles` membership
 - `requireSelf` — user can only access/modify their own resources
 - Provider endpoints on `/api/providers/me/*` always scope to `req.user.id`
-- Admin endpoints on `/api/admin/*` always require `requireRole('admin')`
+- Admin endpoints on `/api/admin/*` always require database-backed admin
+  membership
 
-Future provider authorization must require both provider membership and an
-approved provider application. Provider signup intent and draft onboarding must
-never grant provider operational access. This rule is documented for the
-authorization-hardening phase and is not yet a runtime change.
+Provider operational authorization requires provider membership, an application
+owned by the same user and profile, an `approved` application status, and an
+`approved` provider-profile verification status. Provider signup intent and
+draft, under-review, rejected, or suspended onboarding must never grant
+provider operational access.
+
+Credential submission remains available to a provider member whose application
+is not yet approved so onboarding can reach review. It does not grant access to
+provider operations.
 
 ---
 

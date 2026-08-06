@@ -3,15 +3,15 @@
 ## Status
 
 Approved for staged implementation. Phase 0 planning artifacts, Phase 1
-additive schema, and Phase 2 compatibility backfill/server-state exposure are
-implemented and verified. Authorization hardening and signup/onboarding UI
-remain future phases.
+additive schema, Phase 2 compatibility backfill/server-state exposure, and
+Phase 3 authorization hardening are implemented and verified. Signup/onboarding
+UI and active-role switching remain future phases.
 
 The following remain intentionally unchanged:
 
 - `users.role`
-- authentication and JWT claims
-- authorization middleware and route guards
+- JWT claims (claims remain unchanged, but authorization now confirms them
+  against database state)
 - signup and login flows
 - OpenAPI contracts and generated clients
 - client, provider, and admin behavior
@@ -40,7 +40,8 @@ compatibility field until a separate cleanup checkpoint is explicitly approved.
 No secondary roles are added automatically during backfill.
 
 Role membership alone is not sufficient for provider operations. Provider
-operations will later require an approved provider application and active user.
+operations require an approved, same-user/same-profile application, an
+approved provider profile, and an active user.
 
 ### `provider_applications`
 
@@ -60,9 +61,9 @@ provider profile. The table stores the current onboarding step, submission/revie
 timestamps, reviewer identity, and reviewer notes. It does not store passwords,
 tokens, care notes, or document contents.
 
-The existing `provider_profiles.verification_status` remains unchanged during
-the compatibility period. A later authorization phase must define the
-canonical status and consistency rules before changing route guards.
+The existing `provider_profiles.verification_status` remains unchanged by the
+compatibility migration and is now required to be `approved` for provider
+operations alongside the approved application state.
 
 Provider application events are deferred. The current project has no established
 audit-event table or event-retention convention, and the approval says events
@@ -75,7 +76,8 @@ are optional when existing audit requirements do not justify them.
 - Reviewer ownership uses `ON DELETE SET NULL`.
 - Unique constraints prevent duplicate role memberships and applications.
 - Timestamps support later audit and reconciliation work.
-- No runtime code reads or writes the new tables yet.
+- Phase 1 intentionally had no runtime consumers; Phase 2/3 now read the new
+  tables for response state and authorization.
 - No API contract changes are included in this checkpoint.
 
 ## Development preflight
@@ -179,8 +181,32 @@ scalar `user.role` and token claim while adding:
 - `providerApplication`: safe status/step/timestamp projection without reviewer
   notes or document contents.
 
-This state is read-only in Phase 2. No active-role switch, provider approval
-mutation, route-guard change, signup UI, or token-claim change is included.
+This state is read-only in Phases 2/3. No active-role switch, provider approval
+mutation, signup UI, or token-claim change is included.
+
+## Phase 3 authorization hardening
+
+`requireAuth` verifies the JWT and loads the current user, active status, role
+memberships, and owned provider application/profile state from PostgreSQL.
+`requireRole` requires a matching `account_roles` row; it does not authorize
+from the JWT role alone.
+
+Operational provider routes additionally require:
+
+1. provider membership;
+2. an application owned by the authenticated user;
+3. that application's profile to be owned by the same user;
+4. application status `approved`; and
+5. provider-profile verification status `approved`.
+
+Provider portal profile/services/availability/travel-zone/earnings routes,
+provider booking access/status transitions, provider invoice access, and the
+provider notification stream use this gate. Credential document submission
+remains available to provider members as the onboarding path to review.
+
+Admin routes retain the same database-backed membership requirement. Removing a
+membership immediately denies the corresponding role while leaving the
+compatibility JWT unchanged.
 
 ## Rollback and deployment sequencing
 

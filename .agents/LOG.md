@@ -36,10 +36,10 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 | Layer | Status | Notes |
 |---|---|---|
-| DB schema | ✅ Phase 2 compatibility backfill verified in development | Existing schema remains intact; role memberships and provider applications are backfilled idempotently. `users.role` remains unchanged and no authorization behavior is changed. |
-| API server workflow | ✅ Running with managed auth verified | `artifacts/api-server: API Server` builds and serves on port 8080; health, public discovery, managed login, `/auth/me`, and role guards return expected results. |
-| Auth routes | ✅ Managed workflow verified | Seeded client/provider/admin login and `/auth/me` return 200; unauthenticated booking access returns 401; provider/admin booking creation returns 403; client booking creation returns 201. |
-| JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
+| DB schema | ✅ Phase 3 authorization state verified in development | Existing schema remains intact; `account_roles` and `provider_applications` are now read by authorization middleware. `users.role` and provider verification state remain compatibility fields. |
+| API server workflow | ✅ Running with Phase 3 authorization | `artifacts/api-server: API Server` builds and serves on port 8080; auth, database-backed role guards, approved-provider gates, public discovery, and admin routes are verified. |
+| Auth routes | ✅ Managed workflow verified | Seeded client/provider/admin login and `/auth/me` return 200; role membership removal denies the role; non-approved provider applications cannot access provider operations; admin membership remains enforced. |
+| JWT middleware | ✅ Database-backed | `requireAuth` confirms active user/context from PostgreSQL; `requireRole` checks `account_roles`; approved-provider middleware checks application/profile ownership and approval. JWT claims remain unchanged. |
 | JWT_SECRET | ✅ Available to managed workflow | Added by the user through the development/shared Secrets panel; value was never inspected, printed, logged, committed, or exposed. |
 | Seed script | ✅ Idempotent and restored | `pnpm run seed` created 5 demo accounts and full sample data; a second run skipped existing records without duplicates. |
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
@@ -51,13 +51,50 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, bounded client care history, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, in-flight protection, and completed-booking review form; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Additive role-state fields generated | Review/care-history contracts remain current; auth responses now expose additive `roles`, `activeRole`, `onboarding`, and `providerApplication` state. |
-| GitHub sync | ✅ Synchronized | Phase 2 compatibility backfill and additive auth state are pushed; local and `origin/main` match at `4d764ea`, with ahead/behind `0/0`. Signup UI and authorization policy remain unchanged. |
+| GitHub sync | ⚠️ Phase 3 changes ready to push | Authorization hardening and full regression verification are complete; signup/onboarding UI, active-role switching, Stripe, and payouts remain out of scope. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
 ---
 
 ## Session Entries
+
+---
+
+### Session 035 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `L`
+**Triggered by:** Proceed with the explicitly approved Phase 3 authorization hardening checkpoint.
+
+**What was done:**
+- Changed authenticated authorization to load active-user state, role memberships, and provider application/profile ownership from PostgreSQL while retaining JWT claims unchanged for compatibility.
+- Made `requireRole` depend on a matching `account_roles` row rather than trusting the JWT role alone.
+- Added approved-provider enforcement requiring provider membership, same-user/same-profile application ownership, application status `approved`, and provider-profile verification status `approved`.
+- Applied the approved-provider gate to provider portal operations, provider booking access/status changes, provider invoice access, and the provider SSE stream.
+- Preserved credential submission for provider members as the onboarding path to review; it does not grant provider operational access.
+- Made registration create the initial matching `account_roles` row transactionally so new accounts remain compatible with database-backed authorization.
+- Added focused denial tests for missing role membership, missing admin membership, mismatched application/profile ownership, under-review/rejected/suspended applications, and non-approved provider profiles.
+- Updated role, permission, migration, and API route documentation.
+- Kept signup UI, onboarding UI, active-role switching, JWT shape/expiration, Stripe, payouts, bookings/reviews/care-history data projections, and notification behavior outside the scope of this checkpoint.
+
+**Files changed:**
+- `artifacts/api-server/src/middlewares/auth.ts`
+- `artifacts/api-server/src/routes/auth.ts`
+- `artifacts/api-server/src/routes/providers.ts`
+- `artifacts/api-server/src/routes/bookings.ts`
+- `artifacts/api-server/src/routes/invoices.ts`
+- `artifacts/api-server/src/routes/notifications.ts`
+- `artifacts/api-server/src/routes/reviews.ts`
+- `artifacts/api-server/src/__tests__/authorization-hardening.integration.test.ts`
+- `artifacts/api-server/package.json`
+- `docs/roles-and-permissions.md`
+- `docs/role-aware-migration-plan.md`
+- `docs/api-routes.md`
+- `.agents/LOG.md`
+
+**Build state at end:** Full Phase 3 verification passes after restarting the rebuilt API: workspace typecheck, focused authorization hardening (7/7), booking state machine, concurrency, reviews, care-history/privacy, role-state, availability, pressure, and full build. The API workflow is running cleanly. No UI, JWT shape, Stripe, payout, or signup/onboarding changes were made.
+
+**Next best action:** Commit and push this verified Phase 3 checkpoint, confirm local and remote return to 0/0, then stop. The next separately approved phase is role-aware signup/onboarding; do not begin it in this checkpoint.
 
 ---
 

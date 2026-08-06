@@ -8,7 +8,11 @@ import {
   invoicesTable,
   usersTable,
 } from "@workspace/db";
-import { requireAuth, requireRole } from "../middlewares/auth.js";
+import {
+  requireAuth,
+  requireApprovedProviderIfProvider,
+  requireRole,
+} from "../middlewares/auth.js";
 import {
   isTransitionAllowed,
   type BookingStatus,
@@ -35,6 +39,7 @@ function toClientSafeBooking(booking: BookingRow) {
 router.get(
   "/",
   requireAuth,
+  requireApprovedProviderIfProvider,
   async (req: Request, res: Response): Promise<void> => {
     const user = req.user!;
     const limit = Math.min(Number(req.query["limit"] ?? 20), 100);
@@ -43,9 +48,10 @@ router.get(
 
     // Scope by role
     let ownershipClause;
-    if (user.role === "client") {
+    const role = req.authz!.activeRole;
+    if (role === "client") {
       ownershipClause = eq(bookingsTable.clientId, user.sub);
-    } else if (user.role === "provider") {
+    } else if (role === "provider") {
       // Find own provider profile id
       const profile = await db
         .select({ id: providerProfilesTable.id })
@@ -91,7 +97,7 @@ router.get(
     ]);
 
     res.json({
-      bookings: user.role === "client" ? bookings.map(toClientSafeBooking) : bookings,
+      bookings: role === "client" ? bookings.map(toClientSafeBooking) : bookings,
       total: countRows[0]?.count ?? 0,
       limit,
       offset,
@@ -270,6 +276,7 @@ router.post(
 router.get(
   "/:bookingId",
   requireAuth,
+  requireApprovedProviderIfProvider,
   async (req: Request, res: Response): Promise<void> => {
     const user = req.user!;
     const bookingId = Number(req.params["bookingId"]);
@@ -287,12 +294,13 @@ router.get(
     }
 
     // Access control: client owns it, or provider owns it, or admin
-    if (user.role !== "admin") {
-      if (user.role === "client" && booking.clientId !== user.sub) {
+    const role = req.authz!.activeRole;
+    if (role !== "admin") {
+      if (role === "client" && booking.clientId !== user.sub) {
         res.status(403).json({ error: "You do not have access to this booking." });
         return;
       }
-      if (user.role === "provider") {
+      if (role === "provider") {
         const profile = await db
           .select({ id: providerProfilesTable.id })
           .from(providerProfilesTable)
@@ -305,7 +313,7 @@ router.get(
       }
     }
 
-    res.json({ booking: user.role === "client" ? toClientSafeBooking(booking) : booking });
+    res.json({ booking: role === "client" ? toClientSafeBooking(booking) : booking });
   }
 );
 
@@ -326,6 +334,7 @@ router.get(
 router.patch(
   "/:bookingId/status",
   requireAuth,
+  requireApprovedProviderIfProvider,
   async (req: Request, res: Response): Promise<void> => {
     const user = req.user!;
     const bookingId = Number(req.params["bookingId"]);
@@ -344,7 +353,8 @@ router.patch(
     // ── 1. Resolve provider profile BEFORE the transaction ───────────────────
     // Profiles are stable — no need to hold a lock while querying them.
     let callerProviderProfileId: number | null = null;
-    if (user.role === "provider") {
+    const role = req.authz!.activeRole;
+    if (role === "provider") {
       const profileRows = await db
         .select({ id: providerProfilesTable.id })
         .from(providerProfilesTable)
@@ -384,13 +394,13 @@ router.patch(
         }
 
         // Ownership
-        if (user.role === "client" && booking.clientId !== user.sub) {
+        if (role === "client" && booking.clientId !== user.sub) {
           throw Object.assign(new Error("FORBIDDEN"), {
             statusCode: 403,
             userMessage: "You do not have access to this booking.",
           });
         }
-        if (user.role === "provider" && booking.providerId !== callerProviderProfileId) {
+        if (role === "provider" && booking.providerId !== callerProviderProfileId) {
           throw Object.assign(new Error("FORBIDDEN"), {
             statusCode: 403,
             userMessage: "You do not have access to this booking.",
@@ -399,7 +409,7 @@ router.patch(
 
         // State-machine transition check — runs against the LOCKED current status,
         // so a concurrent confirm cannot race past a concurrent cancel.
-        if (!isTransitionAllowed(booking.status as BookingStatus, newStatus, user.role)) {
+        if (!isTransitionAllowed(booking.status as BookingStatus, newStatus, role)) {
           throw Object.assign(new Error("INVALID_TRANSITION"), {
             statusCode: 409,
             userMessage: `Cannot move booking from '${booking.status}' to '${newStatus}' — the status may have changed. Please refresh and try again.`,
@@ -407,7 +417,7 @@ router.patch(
         }
 
         // Extra validation
-        if (newStatus === "cancelled" && !cancellationReason && user.role !== "admin") {
+        if (newStatus === "cancelled" && !cancellationReason && role !== "admin") {
           throw Object.assign(new Error("VALIDATION"), {
             statusCode: 400,
             userMessage: "cancellationReason is required when cancelling.",
@@ -500,7 +510,7 @@ router.patch(
         data: { screen: "bookings", bookingId },
       });
     } else if (newStatus === "cancelled") {
-      if (user.role === "client") {
+      if (role === "client") {
         // Client cancelled — notify the provider
         const provProfile = await db
           .select({ userId: providerProfilesTable.userId })
@@ -514,7 +524,7 @@ router.patch(
             data: { screen: "bookings", bookingId },
           });
         }
-      } else if (user.role === "provider") {
+      } else if (role === "provider") {
         // Provider cancelled — notify the client
         void sendPushToUser(originalBooking.clientId, {
           title: "Booking cancelled",
@@ -527,7 +537,7 @@ router.patch(
         weekday: "short", month: "short", day: "numeric",
         hour: "numeric", minute: "2-digit",
       });
-      if (user.role === "client") {
+      if (role === "client") {
         // Client rescheduled — notify the provider
         const provProfile = await db
           .select({ userId: providerProfilesTable.userId })
@@ -552,7 +562,7 @@ router.patch(
     }
 
     res.json({
-      booking: user.role === "client" ? toClientSafeBooking(updatedBooking) : updatedBooking,
+      booking: role === "client" ? toClientSafeBooking(updatedBooking) : updatedBooking,
     });
   }
 );

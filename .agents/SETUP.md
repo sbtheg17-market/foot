@@ -107,7 +107,7 @@ For any new or changed endpoint:
 4. Use generated React Query hooks in web/mobile; never edit generated files manually.
 5. Push development schema only when the data model actually changes.
 
-Existing reviews table, review route contract, and public provider-review display are already present. The next task is to harden and complete the client-facing eligible completed-booking review experience; see `.agents/NEXT_TASK.md`.
+Existing reviews table, review route contract, and public provider-review display are already present. Phase 3 authorization hardening is complete; the next task is the separately approved role-aware signup/onboarding checkpoint, see `.agents/NEXT_TASK.md`.
 
 ## 5. Verification and handoff
 
@@ -125,7 +125,7 @@ Check the web and mobile surfaces at 390px before handoff. Append the completed 
 ## Known limitations and excluded features
 
 - No Stripe/payment checkout or payment capture is part of the active checkpoint.
-- Care history is not implemented; provider-private `careNotes` must remain private and must not be exposed through client review responses or UI.
+- Care history is implemented with bounded client-safe projections; provider-private `careNotes` must remain private and must not be exposed through client review responses or UI.
 - Admin review moderation is represented in the broader API plan but is not part of the next client review slice.
 - Expo push delivery depends on device permissions and external delivery; it is not a source of booking truth.
 - The app currently uses JWT authentication and host-managed secrets; credentials are intentionally absent from this package.

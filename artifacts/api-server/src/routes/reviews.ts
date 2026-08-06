@@ -222,7 +222,7 @@ router.get(
     }
 
     // Only visible reviews are public; admins can see hidden ones
-    if (!review.isVisible && user.role !== "admin") {
+    if (!review.isVisible && req.authz!.activeRole !== "admin") {
       // Check if requester is the client or the provider
       const isOwner = review.clientId === user.sub;
       if (!isOwner) {

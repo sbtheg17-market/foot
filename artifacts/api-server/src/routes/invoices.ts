@@ -1,7 +1,10 @@
 import { Router, type Request, type Response } from "express";
 import { eq, and, or, sql } from "drizzle-orm";
 import { db, invoicesTable, providerProfilesTable } from "@workspace/db";
-import { requireAuth } from "../middlewares/auth.js";
+import {
+  requireAuth,
+  requireApprovedProviderIfProvider,
+} from "../middlewares/auth.js";
 
 const router = Router();
 
@@ -10,15 +13,17 @@ const router = Router();
 router.get(
   "/",
   requireAuth,
+  requireApprovedProviderIfProvider,
   async (req: Request, res: Response): Promise<void> => {
     const user = req.user!;
     const limit = Math.min(Number(req.query["limit"] ?? 20), 100);
     const offset = Number(req.query["offset"] ?? 0);
 
     let ownershipClause;
-    if (user.role === "client") {
+    const role = req.authz!.activeRole;
+    if (role === "client") {
       ownershipClause = eq(invoicesTable.clientId, user.sub);
-    } else if (user.role === "provider") {
+    } else if (role === "provider") {
       const profile = await db
         .select({ id: providerProfilesTable.id })
         .from(providerProfilesTable)
@@ -62,6 +67,7 @@ router.get(
 router.get(
   "/:invoiceId",
   requireAuth,
+  requireApprovedProviderIfProvider,
   async (req: Request, res: Response): Promise<void> => {
     const user = req.user!;
     const invoiceId = Number(req.params["invoiceId"]);
@@ -79,11 +85,12 @@ router.get(
     }
 
     // Access control
-    if (user.role === "client" && invoice.clientId !== user.sub) {
+    const role = req.authz!.activeRole;
+    if (role === "client" && invoice.clientId !== user.sub) {
       res.status(403).json({ error: "You do not have access to this invoice." });
       return;
     }
-    if (user.role === "provider") {
+    if (role === "provider") {
       const profile = await db
         .select({ id: providerProfilesTable.id })
         .from(providerProfilesTable)

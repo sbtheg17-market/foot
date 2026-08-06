@@ -1,8 +1,11 @@
 import { Router, type Request, type Response } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, providerProfilesTable, pushTokensTable } from "@workspace/db";
+import { db, pushTokensTable } from "@workspace/db";
 import { verifyToken } from "../lib/jwt.js";
-import { requireAuth } from "../middlewares/auth.js";
+import {
+  loadAuthorizationContext,
+  requireAuth,
+} from "../middlewares/auth.js";
 import {
   notificationBus,
   type NotificationPayload,
@@ -41,24 +44,25 @@ router.get(
       return;
     }
 
-    if (payload.role !== "provider") {
-      res.status(403).json({ error: "Only providers can subscribe to this stream" });
+    const authz = await loadAuthorizationContext(payload.sub);
+    const application = authz?.providerApplication;
+    if (
+      !authz ||
+      authz.activeRole !== payload.role ||
+      authz.activeRole !== "provider" ||
+      !authz.roles.includes("provider") ||
+      !application ||
+      application.providerProfileUserId !== payload.sub ||
+      application.status !== "approved" ||
+      application.verificationStatus !== "approved"
+    ) {
+      res.status(403).json({
+        error: "Approved provider access is required for this stream",
+      });
       return;
     }
 
-    // Resolve the provider profile id for this user
-    const rows = await db
-      .select({ id: providerProfilesTable.id })
-      .from(providerProfilesTable)
-      .where(eq(providerProfilesTable.userId, payload.sub))
-      .limit(1);
-
-    if (!rows[0]) {
-      res.status(404).json({ error: "Provider profile not found" });
-      return;
-    }
-
-    const providerId = rows[0].id;
+    const providerId = application.providerProfileId;
 
     // ── Open SSE connection ────────────────────────────────────────────────────
     res.setHeader("Content-Type", "text/event-stream");

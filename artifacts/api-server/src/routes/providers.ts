@@ -12,9 +12,19 @@ import {
   verificationDocsTable,
   bookingsTable,
 } from "@workspace/db";
-import { requireAuth, requireRole } from "../middlewares/auth.js";
+import {
+  requireApprovedProvider,
+  requireAuth,
+  requireRole,
+} from "../middlewares/auth.js";
 
 const router = Router();
+
+const requireProviderOperation = [
+  requireAuth,
+  requireRole("provider"),
+  requireApprovedProvider,
+];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -144,8 +154,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 /** GET /providers/me — Own profile */
 router.get(
   "/me",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -160,8 +169,7 @@ router.get(
 /** PUT /providers/me — Update own profile */
 router.put(
   "/me",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -200,8 +208,7 @@ router.put(
 /** GET /providers/me/services — List own services */
 router.get(
   "/me/services",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -221,8 +228,7 @@ router.get(
 /** POST /providers/me/services — Add a service */
 router.post(
   "/me/services",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -259,8 +265,7 @@ router.post(
 /** PUT /providers/me/services/:serviceId — Update a service */
 router.put(
   "/me/services/:serviceId",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -305,8 +310,7 @@ router.put(
 /** DELETE /providers/me/services/:serviceId — Deactivate a service */
 router.delete(
   "/me/services/:serviceId",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -338,8 +342,7 @@ router.delete(
 /** GET /providers/me/availability — Get own availability */
 router.get(
   "/me/availability",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -360,8 +363,7 @@ router.get(
 /** PUT /providers/me/availability — Replace own availability schedule */
 router.put(
   "/me/availability",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -405,8 +407,7 @@ router.put(
 /** GET /providers/me/travel-zones — List own travel zones */
 router.get(
   "/me/travel-zones",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -426,8 +427,7 @@ router.get(
 /** POST /providers/me/travel-zones — Add a travel zone */
 router.post(
   "/me/travel-zones",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -459,8 +459,7 @@ router.post(
 /** DELETE /providers/me/travel-zones/:zoneId — Remove a travel zone */
 router.delete(
   "/me/travel-zones/:zoneId",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -490,8 +489,7 @@ router.delete(
 /** GET /providers/me/earnings — Earnings summary (placeholder until Stripe Connect) */
 router.get(
   "/me/earnings",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {
@@ -519,8 +517,7 @@ router.get(
 /** GET /providers/me/earnings/export — Read-only statement data (completed bookings only) */
 router.get(
   "/me/earnings/export",
-  requireAuth,
-  requireRole("provider"),
+  ...requireProviderOperation,
   async (req: Request, res: Response): Promise<void> => {
     const profile = await getOwnProfile(req.user!.sub);
     if (!profile) {

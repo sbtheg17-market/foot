@@ -18,7 +18,10 @@ All routes are prefixed with `/api`. Auth middleware details: see `docs/roles-an
 Auth responses retain the legacy scalar `user.role` field and JWT role claim.
 They additionally expose `user.roles`, `user.activeRole`, `user.onboarding`, and
 `user.providerApplication`. These fields are read-only compatibility state in
-Phase 2; they do not change route authorization or grant provider access.
+Phases 2/3. Route authorization now confirms role membership from the database,
+and provider operations additionally require an approved owned application and
+approved provider profile. Credential submission remains available for
+onboarding review but does not grant provider operations.
 
 ---
 

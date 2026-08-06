@@ -1,11 +1,18 @@
 # Next product task — role-aware marketplace signup and onboarding
 
+## Current gate
+
+Phase 3 authorization hardening is complete and verified. Database-backed role
+membership checks, approved-provider enforcement, provider-application
+ownership checks, and admin membership checks are live. Do not begin this task
+until the user explicitly approves the signup/onboarding checkpoint.
+
 ## Audit status
 
-Phase 0 is complete. Implementation is paused because the requested one-account,
-multi-role onboarding model is not safely representable by the current schema.
-Do not begin implementation until the data-model change is explicitly approved
-as a planned migration checkpoint.
+Phase 0, the additive schema migration, compatibility backfill/server-state
+exposure, and Phase 3 authorization hardening are complete. Implementation of
+role-aware signup/onboarding remains paused until the product/API checkpoint is
+explicitly approved.
 
 ## Current findings
 
@@ -20,9 +27,9 @@ as a planned migration checkpoint.
 - Provider profile status exists (`pending`, `under_review`, `approved`,
   `rejected`) and profile completion exists, but provider registration does not
   create or manage a safe pending application flow.
-- Provider-only API routes authorize from the JWT role and provider profile;
-  changing role handling without a server-confirmed state would risk privilege
-  escalation.
+- Provider-only API routes now require database-backed provider membership,
+  same-user/same-profile application ownership, approved application status,
+  and approved provider-profile verification status.
 - There is no email/phone verification implementation beyond placeholder
   password-reset routes.
 - No analytics/event-tracking convention was found.
@@ -33,7 +40,8 @@ as a planned migration checkpoint.
 
 ## Decision gate
 
-Before implementation, explicitly approve a planned schema/API checkpoint for:
+Before implementation, explicitly approve a planned product/schema/API
+checkpoint for:
 
 - representing multiple roles per authenticated user without duplicating
   accounts;
@@ -43,6 +51,10 @@ Before implementation, explicitly approve a planned schema/API checkpoint for:
   claims after approved role changes;
 - preserving all existing client/provider/admin permissions and privacy
   behavior.
+
+Phase 3 is not a reason to add active-role switching automatically. Keep
+`users.role` and the current JWT shape compatible until the signup/onboarding
+checkpoint defines the safe context-selection behavior.
 
 Do not add Stripe, payout onboarding, admin expansion, care-history expansion,
 or unrelated review work in this task.

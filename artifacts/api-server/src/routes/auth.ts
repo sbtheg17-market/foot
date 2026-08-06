@@ -1,7 +1,13 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { db, usersTable, registerSchema, loginSchema } from "@workspace/db";
+import {
+  accountRolesTable,
+  db,
+  usersTable,
+  registerSchema,
+  loginSchema,
+} from "@workspace/db";
 import { signToken } from "../lib/jwt.js";
 import { loadRoleState } from "../lib/role-state.js";
 import { requireAuth } from "../middlewares/auth.js";
@@ -41,23 +47,36 @@ router.post("/register", async (req, res) => {
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const [user] = await db
-    .insert(usersTable)
-    .values({
-      email: email.toLowerCase(),
-      passwordHash,
-      firstName,
-      lastName,
-      role,
-      phone: phone ?? null,
-    })
-    .returning({
-      id: usersTable.id,
-      email: usersTable.email,
-      role: usersTable.role,
-      firstName: usersTable.firstName,
-      lastName: usersTable.lastName,
+  const user = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(usersTable)
+      .values({
+        email: email.toLowerCase(),
+        passwordHash,
+        firstName,
+        lastName,
+        role,
+        phone: phone ?? null,
+      })
+      .returning({
+        id: usersTable.id,
+        email: usersTable.email,
+        role: usersTable.role,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+      });
+
+    if (!created) {
+      throw new Error("User insert did not return a row.");
+    }
+
+    await tx.insert(accountRolesTable).values({
+      userId: created.id,
+      role: created.role,
     });
+
+    return created;
+  });
 
   const token = signToken({ sub: user.id, email: user.email, role: user.role });
 
