@@ -36,7 +36,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 | Layer | Status | Notes |
 |---|---|---|
-| DB schema | ✅ Additive role migration applied in development | Existing schema remains intact; `account_roles` and `provider_applications` were added after a passing preflight. No backfill or runtime consumer is active yet. |
+| DB schema | ✅ Additive role migration verified in development | Existing schema remains intact; `account_roles` and `provider_applications` were added after a passing preflight, with foreign keys, unique constraints, and lookup indexes verified. No backfill or runtime consumer is active yet. |
 | API server workflow | ✅ Running with managed auth verified | `artifacts/api-server: API Server` builds and serves on port 8080; health, public discovery, managed login, `/auth/me`, and role guards return expected results. |
 | Auth routes | ✅ Managed workflow verified | Seeded client/provider/admin login and `/auth/me` return 200; unauthenticated booking access returns 401; provider/admin booking creation returns 403; client booking creation returns 201. |
 | JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
@@ -51,7 +51,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, bounded client care history, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, in-flight protection, and completed-booking review form; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Reviews + care history complete | Review contracts and `GET /bookings/history` are defined; generated Zod validators and React Query hooks are current. |
-| GitHub sync | ⚠️ Phase 1 changes uncommitted | Additive role migration and Phase 0 documentation are complete locally; no signup, authorization, API, or UI behavior changed. |
+| GitHub sync | ⚠️ Phase 1 changes ready to commit | Additive role migration and Phase 0 documentation are verified locally; no signup, authorization, API, or UI behavior changed. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -84,9 +84,9 @@ Since agent credit balances cannot be read programmatically, each session entry 
 - `docs/roles-and-permissions.md`
 - `.agents/LOG.md`
 
-**Build state at end:** Development schema push and verification are pending in this session. No runtime workflow restart is required until the schema/package checks finish. The uploaded approval note remains untracked.
+**Build state at end:** Development schema push is idempotent and verified. The new tables, enums, foreign keys, unique constraints, and lookup indexes are present. Full typecheck, build, booking state-machine, concurrency, review, care-history, availability, and pressure suites pass. API workflow restarted successfully. The uploaded approval note remains untracked.
 
-**Next best action:** Run database schema push/metadata verification, typecheck, build, and the existing auth/booking/review/care-history/concurrency suites. Then commit and push this additive checkpoint only if all checks pass.
+**Next best action:** Commit and push this additive Phase 0/1 checkpoint only. Do not backfill roles, change authorization, update API contracts, or implement signup/onboarding until a separate Phase 2/3 checkpoint is approved.
 
 ---
 
