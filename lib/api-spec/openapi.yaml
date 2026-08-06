@@ -263,6 +263,196 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
 
+  /providers/application/completion:
+    get:
+      operationId: getProviderApplicationCompletion
+      tags: [providers]
+      summary: Get server-derived completion summary for the provider application
+      description: Returns a completion status for each required onboarding section. The server calculates all flags — do not trust client-side values for authorization.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Application completion summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationCompletionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/application/services:
+    get:
+      operationId: listApplicationServices
+      tags: [providers]
+      summary: List draft services for the provider application
+      description: Returns services associated with the provider's profile during onboarding. Does not require an approved application.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Draft services
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createApplicationService
+      tags: [providers]
+      summary: Add a service to the provider application
+      description: Adds a service during onboarding. Does not require an approved application; application must be in draft or rejected status.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateServiceRequest"
+      responses:
+        "201":
+          description: Service created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/application/services/{serviceId}:
+    patch:
+      operationId: updateApplicationService
+      tags: [providers]
+      summary: Update a draft service in the provider application
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateServiceRequest"
+      responses:
+        "200":
+          description: Updated draft service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      operationId: deleteApplicationService
+      tags: [providers]
+      summary: Remove a draft service from the provider application
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Service removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/application/availability:
+    get:
+      operationId: getApplicationAvailability
+      tags: [providers]
+      summary: Get availability schedule for the provider application
+      description: Returns the provider's availability slots during onboarding. Does not require an approved application.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Availability slots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: setApplicationAvailability
+      tags: [providers]
+      summary: Set availability schedule for the provider application
+      description: Replaces all availability slots during onboarding. Does not require an approved application; application must be in draft or rejected status.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAvailabilityRequest"
+      responses:
+        "200":
+          description: Updated availability slots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
   /providers/me:
     get:
       operationId: getMyProviderProfile
