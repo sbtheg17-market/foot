@@ -51,7 +51,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, bounded client care history, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, in-flight protection, and completed-booking review form; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Reviews + care history complete | Review contracts and `GET /bookings/history` are defined; generated Zod validators and React Query hooks are current. |
-| GitHub sync | ✅ Synchronized | Phase 0/1 additive role migration is pushed; local and `origin/main` match at `531227a`, with ahead/behind `0/0`. No signup, authorization, API, or UI behavior changed. |
+| GitHub sync | ✅ Synchronized | Phase 0/1 additive role migration is pushed; local and `origin/main` match at `ed53fac`, with ahead/behind `0/0`. No signup, authorization, API, or UI behavior changed. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
