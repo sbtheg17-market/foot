@@ -151,7 +151,7 @@ router.get(
         .innerJoin(usersTable, eq(usersTable.id, providerProfilesTable.userId))
         .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
         .where(historyClause)
-        .orderBy(sql`${bookingsTable.scheduledAt} desc`)
+        .orderBy(sql`${bookingsTable.updatedAt} desc`)
         .limit(limit)
         .offset(offset),
       db
