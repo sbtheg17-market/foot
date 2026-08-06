@@ -770,12 +770,14 @@ export const UpdateBookingStatusResponse = zod.object({
  */
 export const createReviewBodyRatingMax = 5;
 
+export const createReviewBodyCommentMax = 1000;
+
 
 
 export const CreateReviewBody = zod.object({
   "bookingId": zod.int(),
   "rating": zod.int().min(1).max(createReviewBodyRatingMax),
-  "comment": zod.string().optional()
+  "comment": zod.string().max(createReviewBodyCommentMax).optional()
 })
 
 export const createReviewResponseReviewRatingMax = 5;
@@ -814,6 +816,31 @@ export const GetReviewResponse = zod.object({
   "clientId": zod.int(),
   "providerId": zod.int(),
   "rating": zod.int().min(1).max(getReviewResponseReviewRatingMax),
+  "comment": zod.string().nullish(),
+  "clientFirstName": zod.string(),
+  "createdAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
+ * @summary Get the client's review for a booking
+ */
+export const GetBookingReviewParams = zod.object({
+  "bookingId": zod.coerce.number().int()
+})
+
+export const getBookingReviewResponseReviewRatingMax = 5;
+
+
+
+export const GetBookingReviewResponse = zod.object({
+  "review": zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "clientId": zod.int(),
+  "providerId": zod.int(),
+  "rating": zod.int().min(1).max(getBookingReviewResponseReviewRatingMax),
   "comment": zod.string().nullish(),
   "clientFirstName": zod.string(),
   "createdAt": zod.coerce.date().optional()

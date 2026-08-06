@@ -92,7 +92,10 @@ A scheduled visit.
 
 ## reviews
 
-One review per completed booking, by the client.
+One review per completed booking, by the client. The unique `booking_id` constraint
+is the database-level duplicate guard. Review reads are scoped to the authenticated
+client when accessed by booking, and never include the booking's private
+`care_notes`.
 
 | Column | Type | Notes |
 |--------|------|-------|

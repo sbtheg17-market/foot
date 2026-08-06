@@ -20,8 +20,6 @@ tags:
     description: Client reviews
   - name: invoices
     description: Payment invoices
-  - name: reviews
-    description: Client reviews for completed bookings
 
 paths:
   /healthz:
@@ -805,6 +803,33 @@ paths:
                 $ref: "#/components/schemas/ReviewResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /reviews/booking/{bookingId}:
+    get:
+      operationId: getBookingReview
+      tags: [reviews]
+      summary: Get the client's review for a booking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Review for the booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -1614,6 +1639,7 @@ components:
           maximum: 5
         comment:
           type: string
+          maxLength: 1000
       required:
         - bookingId
         - rating

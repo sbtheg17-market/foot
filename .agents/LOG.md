@@ -44,14 +44,14 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Seed script | ✅ Idempotent and restored | `pnpm run seed` created 5 demo accounts and full sample data; a second run skipped existing records without duplicates. |
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/:id, PATCH /bookings/:id/status — strict state machine, auto-invoice on confirm |
-| Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, GET /invoices, GET /invoices/:id — all role-scoped |
-| React frontend | ✅ Running | Provider portal plus client discovery, public profiles, client-only booking access, booking list/detail, cancellation confirmation, status freshness on mount/focus/reconnect, and in-app status feedback; 390px preview verified. |
+| Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, booking-scoped client review lookup, GET /invoices, GET /invoices/:id — role-scoped; completed-booking review validation and duplicate races return safe conflicts |
+| React frontend | ✅ Running | Provider portal plus client discovery, public profiles, client-only booking access, booking list/detail, cancellation confirmation, status freshness on mount/focus/reconnect, in-app status feedback, and completed-booking review form; 390px preview verified. |
 | Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
 | Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; client list/detail refresh on mount/focus/reconnect and server-status feedback are live. |
-| Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, and in-flight protection; provider profile trust surfaces and JWT auth via AsyncStorage |
+| Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, in-flight protection, and completed-booking review form; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
-| OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
-| GitHub sync | ✅ Synchronized | Local `main` and `origin/main` are synchronized at `66fb7ad`; the continuation package is being prepared from this clean baseline. Uploaded handoffs remain intentionally untracked. |
+| OpenAPI spec | ✅ Reviews complete | Review create, detail, provider listing, and client-owned booking lookup are defined; generated Zod validators and React Query hooks are current. |
+| GitHub sync | ✅ Pending final push | Reviews checkpoint is verified locally and ready to commit/push. Uploaded handoffs remain intentionally untracked. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -282,6 +282,41 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** Continuation package is ready for documentation checks and commit from baseline `9abdd31`; application code is unchanged. PostgreSQL and JWT secrets remain host-managed requirements; Expo push is optional for native-device notification testing; GitHub access must use the host's secure integration/credential manager.
 
 **Next best action:** Commit and push this continuation package, verify local/remote synchronization, then begin only the eligible completed-booking reviews feature described in `.agents/NEXT_TASK.md`. Keep care history, Stripe, admin work, and unrelated schema/API changes excluded.
+
+---
+
+### Session 030 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `L`
+**Triggered by:** Implement eligible completed-booking reviews across the client API, web portal, and Expo app.
+
+**What was done:**
+- Added the contract-first `GET /reviews/booking/:bookingId` lookup and regenerated Zod validators plus React Query hooks.
+- Hardened `POST /reviews`: positive safe booking IDs, generated request validation, trimmed/bounded comments, completed-booking and ownership checks, server-derived client/provider IDs, atomic provider rating/count updates, and safe `409` handling for duplicate races.
+- Added API integration coverage for successful completed-booking reviews, non-completed and wrong-owner rejection, role enforcement, invalid input, duplicate submission, concurrent submission, and `careNotes` privacy.
+- Added booking-scoped review actions and forms to web and mobile booking details with 1–5 star controls, inline validation, 1,000-character comments, loading/duplicate-submit protection, conflict messaging, and cache refreshes.
+- Updated API, data-model, and UX documentation. No database schema change, payment work, admin work, provider replies, messaging, or care-history exposure was added.
+
+**Files changed:**
+- `lib/api-spec/openapi.yaml`
+- `lib/api-client-react/src/generated/`
+- `lib/api-zod/src/generated/`
+- `artifacts/api-server/src/routes/reviews.ts`
+- `artifacts/api-server/src/__tests__/review.integration.test.ts`
+- `artifacts/api-server/package.json`
+- `artifacts/web/src/components/client-review-form.tsx`
+- `artifacts/web/src/pages/bookings.tsx`
+- `artifacts/web/src/pages/booking-detail.tsx`
+- `artifacts/mobile/app/(tabs)/bookings.tsx`
+- `artifacts/mobile/app/booking/[id].tsx`
+- `docs/api-routes.md`
+- `docs/data-models.md`
+- `docs/ux-guidelines.md`
+- `.agents/LOG.md`
+
+**Build state at end:** `pnpm run build` passes. The 63 booking state-machine tests, 16 booking concurrency tests, and 7 review integration tests pass. API, web, mobile, and mockup workflows are running; web and mobile 390px previews render. The review checkpoint is ready to commit and push.
+
+**Next best action:** Continue with a separately scoped product request; keep care history, Stripe/payments, admin review moderation, provider replies, and messaging excluded unless explicitly requested.
 
 ---
 

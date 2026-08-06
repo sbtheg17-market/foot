@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   Alert,
@@ -12,7 +13,17 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useGetBooking, useGetProviderById, useListProviderServices, useUpdateBookingStatus } from '@workspace/api-client-react';
+import {
+  getGetBookingReviewQueryKey,
+  getListProviderReviewsQueryKey,
+  useCreateReview,
+  useGetBooking,
+  useGetBookingReview,
+  useGetProviderById,
+  useListProviderServices,
+  useUpdateBookingStatus,
+} from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
@@ -56,11 +67,23 @@ export default function BookingDetailScreen() {
   const [isCancelling, setIsCancelling] = useState(false);
   const updateStatus = useUpdateBookingStatus();
   const statusFeedback = useClientBookingStatusFeedback(booking ? [booking] : undefined);
+  const queryClient = useQueryClient();
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const createReview = useCreateReview();
   const { data: providerData, isLoading: providerLoading } = useGetProviderById(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider', booking?.providerId] },
   });
   const { data: servicesData } = useListProviderServices(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider-services', booking?.providerId] },
+  });
+  const { data: reviewData } = useGetBookingReview(bookingId, {
+    query: {
+      enabled: booking?.status === 'completed',
+      queryKey: ['client-booking-review', bookingId],
+      retry: false,
+    },
   });
 
   useFocusEffect(
@@ -106,6 +129,49 @@ export default function BookingDetailScreen() {
   const provider = providerData?.provider;
   const service = servicesData?.services.find((item) => item.id === booking.serviceId);
   const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
+  const isReviewEligible = booking.status === 'completed';
+
+  const handleReviewSubmit = () => {
+    const trimmedComment = reviewComment.trim();
+    if (!reviewRating) {
+      setReviewError('Choose a rating from 1 to 5 stars.');
+      return;
+    }
+    if (trimmedComment.length > 1000) {
+      setReviewError('Keep your comment to 1,000 characters or fewer.');
+      return;
+    }
+
+    setReviewError('');
+    createReview.mutate(
+      {
+        data: {
+          bookingId: booking.id,
+          rating: reviewRating,
+          ...(trimmedComment ? { comment: trimmedComment } : {}),
+        },
+      },
+      {
+        onSuccess: () => {
+          Alert.alert('Review saved', 'Thanks for helping other clients choose with confidence.');
+          void queryClient.invalidateQueries({ queryKey: getGetBookingReviewQueryKey(booking.id) });
+          void queryClient.invalidateQueries({ queryKey: getListProviderReviewsQueryKey(booking.providerId) });
+          void queryClient.invalidateQueries({ queryKey: ['provider', booking.providerId] });
+        },
+        onError: (error) => {
+          const status = (error as { status?: number }).status;
+          setReviewError(
+            status === 409
+              ? 'A review for this visit already exists. Refreshing.'
+              : status === 400
+                ? 'Check your rating and comment, then try again.'
+                : 'We could not save your review. Please try again.',
+          );
+          void queryClient.invalidateQueries({ queryKey: getGetBookingReviewQueryKey(booking.id) });
+        },
+      },
+    );
+  };
 
   const handleCancel = () => {
     if (isCancelling) return;
@@ -243,6 +309,93 @@ export default function BookingDetailScreen() {
             </View>
           )}
 
+          {isReviewEligible && (
+            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              {reviewData?.review ? (
+                <>
+                  <View style={styles.providerHeader}>
+                    <Feather name="star" size={20} color={colors.primary} />
+                    <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your review</Text>
+                  </View>
+                  <View style={styles.starRow}>
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Feather
+                        key={index}
+                        name="star"
+                        size={19}
+                        color={index < reviewData.review.rating ? '#C47A57' : colors.mutedForeground}
+                      />
+                    ))}
+                  </View>
+                  {reviewData.review.comment && (
+                    <Text style={[styles.mutedText, { color: colors.mutedForeground }]}>
+                      {reviewData.review.comment}
+                    </Text>
+                  )}
+                  <Text style={[styles.reviewThanks, { color: colors.primary }]}>
+                    Thanks for sharing your experience.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground }]}>How was your visit?</Text>
+                  <Text style={[styles.mutedText, { color: colors.mutedForeground, marginTop: 5 }]}>
+                    Your experience helps other clients find the right care.
+                  </Text>
+                  <View style={styles.starRow} accessibilityRole="radiogroup">
+                    {Array.from({ length: 5 }).map((_, index) => {
+                      const value = index + 1;
+                      return (
+                        <TouchableOpacity
+                          key={value}
+                          onPress={() => setReviewRating(value)}
+                          style={styles.starButton}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: reviewRating === value }}
+                          accessibilityLabel={`${value} star${value === 1 ? '' : 's'}`}
+                        >
+                          <Feather
+                            name="star"
+                            size={25}
+                            color={value <= reviewRating ? '#C47A57' : colors.mutedForeground}
+                          />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <TextInput
+                    value={reviewComment}
+                    onChangeText={setReviewComment}
+                    placeholder="Share a helpful note about your visit (optional)"
+                    placeholderTextColor={colors.mutedForeground}
+                    multiline
+                    maxLength={1000}
+                    style={[styles.reviewInput, { borderColor: colors.border, color: colors.foreground }]}
+                  />
+                  <View style={styles.reviewMeta}>
+                    <Text style={[styles.reviewError, { color: reviewError ? colors.destructive ?? '#B42318' : colors.mutedForeground }]}>
+                      {reviewError || 'Keep it kind and specific.'}
+                    </Text>
+                    <Text style={[styles.reviewCount, { color: colors.mutedForeground }]}>
+                      {reviewComment.length}/1000
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={handleReviewSubmit}
+                    disabled={createReview.isPending}
+                    style={[styles.reviewSubmit, { backgroundColor: colors.primary, opacity: createReview.isPending ? 0.55 : 1 }]}
+                  >
+                    {createReview.isPending ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.reviewSubmitText}>Submit review</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
+
           <TouchableOpacity
             onPress={() => router.push(`/provider/${booking.providerId}`)}
             style={[styles.profileButton, { borderColor: colors.border, backgroundColor: colors.card }]}
@@ -325,4 +478,13 @@ const styles = StyleSheet.create({
   profileButtonText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   cancelButton: { borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, alignItems: 'center' },
   cancelButtonText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  starRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
+  starButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
+  reviewInput: { minHeight: 92, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, marginTop: 14, fontSize: 14, fontFamily: 'Inter_400Regular', textAlignVertical: 'top' },
+  reviewMeta: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 5 },
+  reviewError: { flex: 1, fontSize: 11, fontFamily: 'Inter_400Regular' },
+  reviewCount: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  reviewSubmit: { minHeight: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginTop: 13 },
+  reviewSubmitText: { color: '#fff', fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  reviewThanks: { fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 10 },
 });

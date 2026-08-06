@@ -220,10 +220,10 @@ export default function ClientBookings() {
                   </Link>
                   {booking.status === 'completed' && (
                     <Link
-                      href={`/providers/${booking.providerId}`}
+                      href={`/bookings/${booking.id}`}
                       className="text-sm text-muted-foreground font-medium hover:text-primary hover:underline"
                     >
-                      Review provider
+                      Leave a review
                     </Link>
                   )}
                 </div>

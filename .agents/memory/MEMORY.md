@@ -3,3 +3,4 @@
 - [Workflow bootstrap resource limits](workflow-bootstrap-resource-limits.md) — managed pnpm bootstrap can recurse and exhaust thread resources before app startup
 - [Managed API secret injection](managed-api-secret-injection.md) — preview API can serve public routes while auth fails if JWT_SECRET is absent from the workflow environment
 - [GitHub push authentication](github-push-auth.md) — shell pushes can reject stale credentials and the managed push worker may fail before execution
+- [Drizzle unique-error wrapping](drizzle-unique-error-wrapping.md) — duplicate PostgreSQL violations can be nested inside Drizzle errors and must be unwrapped before mapping to 409

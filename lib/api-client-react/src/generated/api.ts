@@ -2416,6 +2416,83 @@ export function useGetReview<TData = Awaited<ReturnType<typeof getReview>>, TErr
 
 
 
+export const getGetBookingReviewUrl = (bookingId: number,) => {
+
+
+
+
+  return `/api/reviews/booking/${bookingId}`
+}
+
+/**
+ * @summary Get the client's review for a booking
+ */
+export const getBookingReview = async (bookingId: number, options?: Parameters<typeof customFetch>[1]): Promise<ReviewResponse> => {
+
+  return customFetch<ReviewResponse>(getGetBookingReviewUrl(bookingId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBookingReviewQueryKey = (bookingId: number,) => {
+    return [
+    `/api/reviews/booking/${bookingId}`
+    ] as const;
+    }
+
+
+export const getGetBookingReviewQueryOptions = <TData = Awaited<ReturnType<typeof getBookingReview>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(bookingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookingReview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBookingReviewQueryKey(bookingId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookingReview>>> = ({ signal }) => getBookingReview(bookingId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookingId !== null && bookingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBookingReview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBookingReviewQueryResult = NonNullable<Awaited<ReturnType<typeof getBookingReview>>>
+export type GetBookingReviewQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get the client's review for a booking
+ */
+
+export function useGetBookingReview<TData = Awaited<ReturnType<typeof getBookingReview>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ bookingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBookingReview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBookingReviewQueryOptions(bookingId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListInvoicesUrl = (params?: ListInvoicesParams,) => {
   const normalizedParams = new URLSearchParams();
 

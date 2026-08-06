@@ -112,6 +112,17 @@ This screen is a trust moment — make it feel like a real confirmation:
 - Estimated invoice amount
 - "Message provider" option (future feature — show as coming soon, not missing)
 
+### Post-visit review
+
+- Show a review action only for the owning client's `completed` bookings.
+- Use a 1–5 star control with 44px minimum tap targets and an optional comment
+  capped at 1,000 characters.
+- Keep validation inline; replace the submit label while saving and disable the
+  action to prevent duplicate submissions.
+- After saving, show the submitted review in place and refresh provider review
+  surfaces. A conflict means the review already exists, not that the client
+  should retry blindly.
+
 ### Provider Dashboard
 
 - Today's appointments prominently — "You have 2 visits today"

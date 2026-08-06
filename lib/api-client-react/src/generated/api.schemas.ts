@@ -360,6 +360,7 @@ export interface CreateReviewRequest {
      * @maximum 5
      */
   rating: number;
+  /** @maxLength 1000 */
   comment?: string;
 }
 

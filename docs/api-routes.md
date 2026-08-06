@@ -64,6 +64,7 @@ All routes are prefixed with `/api`. Auth middleware details: see `docs/roles-an
 | Method | Path | Access | Description |
 |--------|------|--------|-------------|
 | POST | /reviews | client | Submit review (completed booking only) |
+| GET | /reviews/booking/:bookingId | client | Get the client's review for an owned booking |
 | GET | /reviews/:id | auth | Get review |
 
 ---

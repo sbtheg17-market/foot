@@ -1,10 +1,20 @@
 import React, { useState } from 'react';
-import { useGetBooking, useGetProviderById, useListProviderServices, useUpdateBookingStatus } from '@workspace/api-client-react';
+import {
+  getGetBookingReviewQueryKey,
+  getListProviderReviewsQueryKey,
+  useGetBooking,
+  useGetBookingReview,
+  useGetProviderById,
+  useListProviderServices,
+  useUpdateBookingStatus,
+} from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useRoute } from 'wouter';
 import { ArrowLeft, Calendar, Clock, FileText, MapPin, ShieldCheck, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/routes';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
+import ClientReviewForm from '@/components/client-review-form';
 
 const STATUS_META: Record<string, { label: string; className: string; description: string }> = {
   requested: {
@@ -70,11 +80,19 @@ export default function ClientBookingDetail() {
   const [isCancelling, setIsCancelling] = useState(false);
   const updateStatus = useUpdateBookingStatus();
   const statusFeedback = useClientBookingStatusFeedback(booking ? [booking] : undefined);
+  const queryClient = useQueryClient();
   const { data: providerData, isLoading: providerLoading } = useGetProviderById(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider', booking?.providerId] },
   });
   const { data: servicesData } = useListProviderServices(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider-services', booking?.providerId] },
+  });
+  const { data: reviewData } = useGetBookingReview(bookingId, {
+    query: {
+      enabled: booking?.status === 'completed',
+      queryKey: ['client-booking-review', bookingId],
+      retry: false,
+    },
   });
 
   if (isLoading) {
@@ -104,6 +122,7 @@ export default function ClientBookingDetail() {
   const provider = providerData?.provider;
   const service = servicesData?.services.find((item) => item.id === booking.serviceId);
   const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
+  const isReviewEligible = booking.status === 'completed';
 
   const handleCancel = () => {
     if (isCancelling || !canCancel) {
@@ -238,6 +257,19 @@ export default function ClientBookingDetail() {
               </div>
             </div>
           </section>
+        )}
+
+        {isReviewEligible && (
+          <ClientReviewForm
+            bookingId={booking.id}
+            existingReview={reviewData?.review}
+            onSubmitted={() => {
+              toast.success('Thanks — your review was saved.');
+              void queryClient.invalidateQueries({ queryKey: getGetBookingReviewQueryKey(booking.id) });
+              void queryClient.invalidateQueries({ queryKey: getListProviderReviewsQueryKey(booking.providerId) });
+              void queryClient.invalidateQueries({ queryKey: ['provider', booking.providerId] });
+            }}
+          />
         )}
 
         <button

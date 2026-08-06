@@ -253,7 +253,7 @@ export default function BookingsScreen() {
                   </Text>
                 </View>
                 {item.status === 'completed' && (
-                  <TouchableOpacity onPress={() => router.push(`/provider/${item.providerId}`)} style={styles.reviewLink}>
+                  <TouchableOpacity onPress={() => router.push(`/booking/${item.id}`)} style={styles.reviewLink}>
                     <Text style={[styles.reviewLinkText, { color: colors.primary }]}>Leave a review →</Text>
                   </TouchableOpacity>
                 )}
