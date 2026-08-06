@@ -1,6 +1,9 @@
 # Roles & Permissions
 
-OnCall Foot has three user roles. Role is stored on the `users` table and enforced in API middleware.
+OnCall Foot currently has three user roles. During the staged migration, role
+membership is being introduced in `account_roles`, while `users.role` remains
+the compatibility field. No authorization behavior changes in the additive
+schema phase.
 
 ---
 
@@ -52,6 +55,11 @@ Platform operator with full oversight.
 - `requireSelf` — user can only access/modify their own resources
 - Provider endpoints on `/api/providers/me/*` always scope to `req.user.id`
 - Admin endpoints on `/api/admin/*` always require `requireRole('admin')`
+
+Future provider authorization must require both provider membership and an
+approved provider application. Provider signup intent and draft onboarding must
+never grant provider operational access. This rule is documented for the
+authorization-hardening phase and is not yet a runtime change.
 
 ---
 

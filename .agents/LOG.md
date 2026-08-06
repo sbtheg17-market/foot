@@ -36,7 +36,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 | Layer | Status | Notes |
 |---|---|---|
-| DB schema | ✅ Restored | Existing Drizzle schema pushed to the active development database (`helium` / `heliumdb`); users, provider profiles, services, bookings, and reviews are present. |
+| DB schema | ✅ Additive role migration applied in development | Existing schema remains intact; `account_roles` and `provider_applications` were added after a passing preflight. No backfill or runtime consumer is active yet. |
 | API server workflow | ✅ Running with managed auth verified | `artifacts/api-server: API Server` builds and serves on port 8080; health, public discovery, managed login, `/auth/me`, and role guards return expected results. |
 | Auth routes | ✅ Managed workflow verified | Seeded client/provider/admin login and `/auth/me` return 200; unauthenticated booking access returns 401; provider/admin booking creation returns 403; client booking creation returns 201. |
 | JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
@@ -51,13 +51,42 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, bounded client care history, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, in-flight protection, and completed-booking review form; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Reviews + care history complete | Review contracts and `GET /bookings/history` are defined; generated Zod validators and React Query hooks are current. |
-| GitHub sync | ⚠️ Audit changes uncommitted | Role-aware signup audit is documented locally; implementation is paused at the explicit schema-migration decision gate. The uploaded brief remains intentionally untracked. |
+| GitHub sync | ⚠️ Phase 1 changes uncommitted | Additive role migration and Phase 0 documentation are complete locally; no signup, authorization, API, or UI behavior changed. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
 ---
 
 ## Session Entries
+
+---
+
+### Session 033 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `M`
+**Triggered by:** Implement the approved staged role-aware migration, starting with Phase 0 and Phase 1 only.
+
+**What was done:**
+- Read the uploaded approval note and constrained the work to planning artifacts plus the additive database phase.
+- Ran a read-only development preflight before schema changes: 2 client users, 2 provider users, 1 admin, 2 approved provider profiles, zero null roles, orphan profiles, provider users without profiles, duplicate provider profiles, or duplicate emails.
+- Added the additive `account_roles` table with a unique `(user_id, role)` constraint and user foreign key.
+- Added the additive `provider_applications` table with draft/under-review/approved/rejected/suspended states, onboarding step tracking, ownership constraints, reviewer reference, and timestamps.
+- Deferred provider application event history because the current repository has no audit-event convention and the approval makes it optional.
+- Kept `users.role`, provider status, auth/session claims, middleware, route guards, API contracts, generated clients, signup, frontend, mobile, bookings, reviews, care history, notifications, and Stripe scope unchanged.
+- Documented the target schema, preflight report, future backfill mapping, rollback/deployment sequencing, and open product decisions.
+
+**Files changed:**
+- `lib/db/src/schema/account-roles.ts`
+- `lib/db/src/schema/provider-applications.ts`
+- `lib/db/src/schema/index.ts`
+- `docs/role-aware-migration-plan.md`
+- `docs/data-models.md`
+- `docs/roles-and-permissions.md`
+- `.agents/LOG.md`
+
+**Build state at end:** Development schema push and verification are pending in this session. No runtime workflow restart is required until the schema/package checks finish. The uploaded approval note remains untracked.
+
+**Next best action:** Run database schema push/metadata verification, typecheck, build, and the existing auth/booking/review/care-history/concurrency suites. Then commit and push this additive checkpoint only if all checks pass.
 
 ---
 

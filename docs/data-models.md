@@ -22,6 +22,48 @@ Core user account. All roles share this table.
 | created_at | timestamp | |
 | updated_at | timestamp | |
 
+## account_roles
+
+Transitional multi-role membership table. This is the planned long-term source
+for role membership; `users.role` remains during the compatibility period.
+Membership does not grant provider operations by itself.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | serial PK | |
+| user_id | FK → users | cascade delete |
+| role | enum | client \| provider \| admin |
+| created_at | timestamp | |
+| updated_at | timestamp | |
+
+The `(user_id, role)` pair is unique. Existing users are not automatically
+given secondary roles.
+
+---
+
+## provider_applications
+
+Provider onboarding and review state, separate from provider business data and
+authorization. Provider operations will later require an approved application.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | serial PK | |
+| user_id | FK → users | unique, cascade delete |
+| provider_profile_id | FK → provider_profiles | unique, cascade delete |
+| status | enum | draft \| under_review \| approved \| rejected \| suspended |
+| current_step | enum | profile \| services \| availability \| verification \| submitted |
+| submitted_at | timestamp nullable | |
+| reviewed_at | timestamp nullable | |
+| reviewed_by | FK → users nullable | set null on reviewer deletion |
+| reviewer_notes | text nullable | admin review notes |
+| created_at | timestamp | |
+| updated_at | timestamp | |
+
+The current migration phase adds these tables only. Existing
+`provider_profiles.verification_status` and all authorization behavior remain
+unchanged until a separately tested compatibility phase.
+
 ### Client-safe care history
 
 `GET /bookings/history` is a bounded, client-only projection of terminal
