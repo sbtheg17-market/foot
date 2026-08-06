@@ -51,7 +51,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, and in-flight protection; provider profile trust surfaces and JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
-| GitHub sync | ✅ Synchronized | Local `main` and `origin/main` are synchronized at `66fb7ad`; the status-freshness checkpoint is published. Uploaded handoffs remain intentionally untracked. |
+| GitHub sync | ✅ Synchronized | Local `main` and `origin/main` are synchronized at `66fb7ad`; the continuation package is being prepared from this clean baseline. Uploaded handoffs remain intentionally untracked. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -256,6 +256,32 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** Web and mobile typechecks pass; full build passes; 63 state-machine and 16 concurrency tests pass; web, API, mobile, and mockup workflows are running. Application commit `d4315b2` and documentation commits `fbd3a42`/`7c61640`/`5ad45e8`/`fadf20a`/`66fb7ad` are published; local and remote refs are synchronized at `66fb7ad`. Uploaded continuity handoffs remain excluded locally and outside repository history.
 
 **Next best action:** Continue only with the separately scoped client booking-status freshness follow-up if requested. Do not begin reviews, care history, Stripe, or admin work in the same checkpoint.
+
+---
+
+### Session 029 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `S`
+**Triggered by:** Create a portable continuation package at synchronized commit `9abdd31` before beginning eligible completed-booking reviews.
+
+**What was done:**
+- Rewrote the root README setup/run guidance around the current pnpm monorepo, API/web/mobile workflows, verification commands, contract-first codegen, and active product scope.
+- Added `.env.example` containing variable names only. No secret values, credentials, uploaded handoffs, or conversation transcripts were included.
+- Added `.agents/SETUP.md` with new-account continuation steps, secure PostgreSQL/JWT/GitHub/Expo setup guidance, Replit workflow notes, verification commands, portability guidance, known limitations, and excluded features.
+- Added `.agents/NEXT_TASK.md` with the scoped eligible completed-booking reviews feature, API/web/mobile requirements, careNotes privacy rules, tests, documentation work, acceptance criteria, and explicit exclusions.
+- Confirmed the existing reviews table, API contract, generated client types, and public provider-review foundation are present. The next implementation must harden and complete the client-facing eligible-review experience rather than introduce a duplicate review system.
+- Preserved the synchronized baseline and did not include uploaded handoff files or credentials.
+
+**Files changed:**
+- `README.md`
+- `.env.example`
+- `.agents/SETUP.md`
+- `.agents/NEXT_TASK.md`
+- `.agents/LOG.md`
+
+**Build state at end:** Continuation package is ready for documentation checks and commit from baseline `9abdd31`; application code is unchanged. PostgreSQL and JWT secrets remain host-managed requirements; Expo push is optional for native-device notification testing; GitHub access must use the host's secure integration/credential manager.
+
+**Next best action:** Commit and push this continuation package, verify local/remote synchronization, then begin only the eligible completed-booking reviews feature described in `.agents/NEXT_TASK.md`. Keep care history, Stripe, admin work, and unrelated schema/API changes excluded.
 
 ---
 

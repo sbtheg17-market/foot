@@ -1,6 +1,6 @@
 # OnCall Foot
 
-**OnCall Foot** is a premium mobile-first marketplace and operating system for in-home foot care professionals and their clients. It connects mobile pedicure specialists, foot spa providers, and foot wellness professionals with clients who want visits at home.
+OnCall Foot is a mobile-first marketplace and operating system for in-home foot care professionals and their clients. It connects mobile specialists with clients who want trusted visits at home.
 
 ---
 
@@ -40,32 +40,42 @@ A vertical marketplace with three roles:
 
 ```bash
 cp .env.example .env
-# fill in DATABASE_URL and JWT_SECRET
+# Set the required values in the host's secret/environment manager.
 
 pnpm install
 
-# push DB schema
+# Push the development schema when the database is provisioned or changed.
 pnpm --filter @workspace/db run push
 
-# seed demo data
-pnpm --filter @workspace/api-server run seed
+# Optional: create the local/demo dataset.
+pnpm run seed
 
-# start API server
+# Start the API server.
 pnpm --filter @workspace/api-server run dev
 
-# start frontend (when built)
+# In a second terminal, start the web app.
 pnpm --filter @workspace/web run dev
+
+# In another terminal, start Expo when mobile development is needed.
+pnpm --filter @workspace/mobile run dev
 ```
 
-### Demo Logins
+Do not commit `.env` files, secret values, account passwords, tokens, or connection strings. Create test accounts locally or through the host's secret/seed workflow.
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@oncallfoot.com | demo1234 |
-| Provider | sarah@oncallfoot.com | demo1234 |
-| Provider | mike@oncallfoot.com | demo1234 |
-| Client | jane@oncallfoot.com | demo1234 |
-| Client | tom@oncallfoot.com | demo1234 |
+### Verification commands
+
+```bash
+pnpm run typecheck
+pnpm run build
+pnpm --filter @workspace/api-server run test
+pnpm --filter @workspace/api-server run test:integration
+```
+
+After changing `lib/api-spec/openapi.yaml`, regenerate the typed API packages before building:
+
+```bash
+pnpm --filter @workspace/api-spec run codegen
+```
 
 ---
 
@@ -74,7 +84,7 @@ pnpm --filter @workspace/web run dev
 ```
 artifacts/
   api-server/          — Express 5 API (routes, middleware, auth)
-  web/                 — React + Vite frontend (to be built)
+  web/                 — React + Vite provider/client web app
 lib/
   db/                  — Drizzle schema + migrations
   api-spec/            — OpenAPI spec (source of truth for contracts)
@@ -102,9 +112,15 @@ See [`docs/`](./docs/) for:
 - [API Routes](./docs/api-routes.md)
 - [Future Monetization](./docs/future-monetization.md)
 - [Deployment Notes](./docs/deployment-notes.md)
+- [New-account continuation setup](./.agents/SETUP.md)
+- [Next product task](./.agents/NEXT_TASK.md)
 
 ---
 
 ## Portability
 
 This project is designed to run on any Node.js host (Railway, Render, Fly.io, etc.). No Replit-specific dependencies exist in application code. See [`docs/deployment-notes.md`](./docs/deployment-notes.md).
+
+## Current product scope
+
+The active product surface includes provider discovery, client booking, booking lifecycle visibility, client cancellation, status freshness, provider notifications, and existing review API/public review display foundations. Stripe/payments, care history, and a full admin product remain outside the active client checkpoint.
