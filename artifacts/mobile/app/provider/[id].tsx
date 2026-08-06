@@ -65,6 +65,7 @@ export default function ProviderScreen() {
   const services = servicesRes?.services ?? [];
   const reviews = reviewsRes?.reviews ?? [];
   const selectedService = services.find(s => s.id === selectedServiceId);
+  const canBook = user?.role === 'client';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -245,6 +246,13 @@ export default function ProviderScreen() {
               router.push('/auth/login');
               return;
             }
+            if (!canBook) {
+              Alert.alert(
+                'Client account required',
+                'Provider and admin accounts can browse profiles, but only clients can request appointments.',
+              );
+              return;
+            }
             setShowBooking(true);
           }}
           style={[styles.bookBtn, { backgroundColor: colors.primary, opacity: (!selectedServiceId || !provider.acceptsNewClients) ? 0.4 : 1 }]}
@@ -254,7 +262,9 @@ export default function ProviderScreen() {
             {!provider.acceptsNewClients
               ? 'Not accepting new clients'
               : selectedServiceId
-              ? 'Book Appointment'
+                ? user && !canBook
+                  ? 'Client account required to book'
+                  : 'Book Appointment'
               : 'Select a service to book'}
           </Text>
         </TouchableOpacity>

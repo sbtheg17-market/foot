@@ -40,7 +40,11 @@ export default function LoginScreen() {
       const result = await apiLogin({ email: email.trim().toLowerCase(), password });
       await login(result.token, result.user as any);
       qc.invalidateQueries();
-      router.back();
+      if (result.user.role === 'client') {
+        router.back();
+      } else {
+        router.replace('/(tabs)/account');
+      }
     } catch {
       Alert.alert('Sign in failed', 'Invalid email or password. Please try again.');
     } finally {

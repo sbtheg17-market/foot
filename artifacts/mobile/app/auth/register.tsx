@@ -46,7 +46,11 @@ export default function RegisterScreen() {
       const result = await apiRegister({ firstName, lastName, email: email.trim().toLowerCase(), password, role });
       await login(result.token, result.user as any);
       qc.invalidateQueries();
-      router.back();
+      if (result.user.role === 'client') {
+        router.back();
+      } else {
+        router.replace('/(tabs)/account');
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Could not create account. Please try again.';
       Alert.alert('Registration failed', msg);

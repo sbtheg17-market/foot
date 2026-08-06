@@ -1,12 +1,34 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useGetMe, useLogout } from '@workspace/api-client-react';
 import { LogOut, CalendarDays } from 'lucide-react';
+import { ROUTES } from '@/lib/routes';
 
-export default function ClientLayout({ children }: { children: React.ReactNode }) {
-  const { data: me } = useGetMe({ query: { retry: false, queryKey: ['me'] } });
+export default function ClientLayout({
+  children,
+  requireClient = false,
+}: {
+  children: React.ReactNode;
+  requireClient?: boolean;
+}) {
+  const { data: me, isLoading, error } = useGetMe({
+    query: { retry: false, queryKey: ['me'] },
+  });
   const logout = useLogout();
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!requireClient || isLoading) return;
+
+    if (error || !me?.user) {
+      setLocation(ROUTES.login);
+      return;
+    }
+
+    if (me.user.role !== 'client') {
+      setLocation(me.user.role === 'provider' ? ROUTES.provider.root : ROUTES.admin.verification);
+    }
+  }, [error, isLoading, me, requireClient, setLocation]);
 
   const handleLogout = () => {
     logout.mutate(undefined, {
@@ -16,6 +38,14 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       }
     });
   };
+
+  if (requireClient && (isLoading || error || !me?.user || me.user.role !== 'client')) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
+        <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col mx-auto max-w-[500px] shadow-2xl bg-white relative">

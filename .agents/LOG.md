@@ -36,7 +36,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 | Layer | Status | Notes |
 |---|---|---|
-| DB schema | ✅ Live | Pushed to Replit PostgreSQL. Tables: users, provider_profiles, travel_zones, availability, verification_docs, services, bookings, reviews, invoices, support_tickets, support_messages |
+| DB schema | ⚠️ Code + seed ready; preview DB unavailable | Current preview database is missing `users` and `provider_profiles`; auth/discovery integration checks return 500 until schema push + seed are restored. |
 | API server workflow | ✅ Running | `artifacts/api-server: API Server` builds and serves on port 8080; `GET /api/healthz` returns `{"status":"ok"}`. |
 | Auth routes | ✅ Live | POST /auth/register, /auth/login, /auth/logout, GET /auth/me — all verified (JWT token + user object confirmed) |
 | JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
@@ -45,19 +45,53 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/:id, PATCH /bookings/:id/status — strict state machine, auto-invoice on confirm |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, GET /invoices, GET /invoices/:id — all role-scoped |
-| React frontend | ✅ Running | Web app serves the provider-first login and portal; 390px preview verified with HTTP 200. |
+| React frontend | ✅ Running | Provider portal plus client discovery, public profiles, client-only booking access, and booking history; 390px preview verified with HTTP 200. |
 | Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
-| Web booking flow | ✅ Live | BookingModal on provider profile → `/bookings` page with Upcoming/Past/Cancelled tabs + cancel |
+| Web booking flow | ✅ Live in code | BookingModal on provider profile → client-guarded `/bookings` page with Upcoming/Past/Cancelled tabs + cancel; end-to-end preview verification awaits DB restoration. |
 | Expo mobile app | ✅ Running | All screens: Discover, Bookings, Account, Provider Profile, Login, Register — provider profile trust surfaces added; JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
-| GitHub sync | ✅ Current | Local `main` is synchronized with `origin/main`; separate `conflict_*` branches were inspected and are unrelated projects with no shared history. |
+| GitHub sync | ⚠️ Local checkpoint ahead | Client activation is committed locally; push still requires the authenticated GitHub/Replit path. Separate `conflict_*` branches remain reference-only. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
 ---
 
 ## Session Entries
+
+---
+
+### Session 022 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `M`
+**Triggered by:** Activate the client portal after workflow recovery, starting with authentication and client-role guards.
+
+**What was done:**
+- Added a strict client guard to the web client shell for `/bookings`; unauthenticated users go to sign-in, providers go to `/provider`, and admins go to verification.
+- Kept discovery and provider profiles public while requiring a client account before opening the booking form. Provider/admin accounts now receive a clear client-account handoff instead of entering the client booking flow.
+- Applied the same boundary on mobile: bookings only fetch for clients, non-clients see a role-specific explanation, non-client accounts no longer show a client bookings shortcut, and auth redirects providers/admins to Account.
+- Routed web admin sign-in to the existing verification queue.
+- Reused the existing discovery, profile, service selection, `POST /bookings`, and booking-history APIs. No schema, OpenAPI, booking-state-machine, notification, Stripe, provider-layout, or conflict-branch changes.
+- Updated the resumable handoff and handbook to mark client activation checkpoint 1 complete.
+
+**Files changed:**
+- `artifacts/web/src/components/layout/client-layout.tsx`
+- `artifacts/web/src/App.tsx`
+- `artifacts/web/src/pages/provider-profile.tsx`
+- `artifacts/web/src/pages/login.tsx`
+- `artifacts/web/src/lib/routes.ts`
+- `artifacts/mobile/app/(tabs)/bookings.tsx`
+- `artifacts/mobile/app/(tabs)/account.tsx`
+- `artifacts/mobile/app/auth/login.tsx`
+- `artifacts/mobile/app/auth/register.tsx`
+- `artifacts/mobile/app/provider/[id].tsx`
+- `docs/NEXT-STEPS.md`
+- `replit.md`
+- `.agents/LOG.md`
+
+**Build state at end:** `pnpm run typecheck` and `pnpm run build` pass. Web, API, mobile, and mockup workflows are running; API health returns 200. 390px web and mobile previews render. The active preview database is missing `users` and `provider_profiles`, so authenticated integration and seeded provider visual checks remain blocked until schema push + seed restoration.
+
+**Next best action:** Restore the preview database schema and seed data, then verify client login → provider profile → service selection → booking request → upcoming/past/cancelled booking views end to end. After that, add client booking status visibility and notification surfaces. Keep Stripe out of scope.
 
 ---
 

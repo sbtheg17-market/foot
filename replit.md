@@ -26,14 +26,14 @@ OnCall Foot is a **funded-quality, mobile-first marketplace** for in-home foot c
 | Booking state machine | ✅ Centralized + hardened; 92 tests pass (63 unit + 16 concurrency + 13 pressure) |
 | Notifications | ✅ SSE (web) + Expo push (mobile) infrastructure |
 | Seed data | ✅ 5 demo accounts + sample bookings/reviews |
-| React web (provider-first) | ✅ `/` → `/provider`; canonical provider portal under `/provider/*` |
+| React web | ✅ Provider portal under `/provider/*`; client discovery, profiles, booking, and booking history active |
 | Expo mobile app | ✅ Discover / Bookings / Account / Provider / Auth screens |
 | Build / typecheck | ✅ `pnpm run build` green |
 | Deploy | ✅ Single-service: API co-hosts the built web SPA; Railway/Nixpacks/Procfile config in repo |
 
 **Deployment model:** one Node service serves both the API (`/api/*`) and the React SPA (all other routes). See `docs/deployment-notes.md`.
 
-**Provider-first scope:** client + admin routes exist as scaffolding only. No Stripe yet.
+**Scope:** provider portal and client booking journey are active; admin is limited to verification. No Stripe yet.
 
 ---
 

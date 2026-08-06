@@ -42,10 +42,10 @@ function providerRoute(Page: React.ComponentType) {
   );
 }
 
-/** Wraps a client-facing page in the client shell. */
-function clientRoute(Page: React.ComponentType) {
+/** Wraps a public client-facing page in the client shell. */
+function clientRoute(Page: React.ComponentType, requireClient = false) {
   return () => (
-    <ClientLayout>
+    <ClientLayout requireClient={requireClient}>
       <Page />
     </ClientLayout>
   );
@@ -80,12 +80,12 @@ function Router() {
         </Route>
       ))}
 
-      {/* ── Client (roadmap — reachable, not active build scope) ────────── */}
+      {/* ── Client marketplace ──────────────────────────────────────────── */}
       <Route path={ROUTES.client.discover}>{clientRoute(Discover)}</Route>
       <Route path="/providers/:id">{clientRoute(ProviderProfile)}</Route>
-      <Route path={ROUTES.client.bookings}>{clientRoute(ClientBookings)}</Route>
+      <Route path={ROUTES.client.bookings}>{clientRoute(ClientBookings, true)}</Route>
 
-      {/* ── Admin (roadmap — reachable, not active build scope) ─────────── */}
+      {/* ── Admin ────────────────────────────────────────────────────────── */}
       <Route path={ROUTES.admin.verification} component={AdminVerification} />
 
       <Route component={NotFound} />

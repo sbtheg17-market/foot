@@ -4,9 +4,9 @@
  * Provider-first: the provider portal is the primary experience and lives
  * under the canonical `/provider/*` prefix. `/` redirects to the provider home.
  *
- * Client and admin routes exist as scaffolding for the eventual multi-portal
- * marketplace but are not the active build focus. The legacy `/portal/*`
- * prefix is preserved via redirects (see App.tsx) so old links keep working.
+ * Client marketplace and admin verification routes are active alongside the
+ * provider portal. The legacy `/portal/*` prefix is preserved via redirects
+ * (see App.tsx) so old links keep working.
  */
 export const ROUTES = {
   home: '/',
@@ -26,14 +26,14 @@ export const ROUTES = {
     credentials: '/provider/credentials',
   },
 
-  // ── Client (roadmap — reachable, not active build scope) ───────────────────
+  // ── Client marketplace ─────────────────────────────────────────────────────
   client: {
     discover: '/discover',
     provider: (id: number | string) => `/providers/${id}`,
     bookings: '/bookings',
   },
 
-  // ── Admin (roadmap — reachable, not active build scope) ────────────────────
+  // ── Admin ───────────────────────────────────────────────────────────────────
   admin: {
     verification: '/admin/verification',
   },

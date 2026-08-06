@@ -90,7 +90,9 @@ export default function AccountScreen() {
 
       {/* Menu */}
       <View style={[styles.menuSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <MenuItem icon="calendar" label="My Bookings" onPress={() => router.push('/bookings')} colors={colors} />
+        {user.role === 'client' && (
+          <MenuItem icon="calendar" label="My Bookings" onPress={() => router.push('/bookings')} colors={colors} />
+        )}
         {user.role === 'provider' && (
           <MenuItem icon="briefcase" label="Provider Portal" onPress={() => {}} colors={colors} />
         )}

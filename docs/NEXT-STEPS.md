@@ -9,7 +9,7 @@
 - Repo **builds, typechecks, runs, and deploys as a single service** (Express serves `/api/*` + the built React SPA). See `docs/deployment-notes.md`.
 - **Provider-first:** `/` → `/provider`; canonical routes under `/provider/*`; legacy `/portal/*` redirects. Route constants in `artifacts/web/src/lib/routes.ts`.
 - Booking state machine, notifications (SSE + Expo push), auth, and RBAC are **stable and passing (92 tests)**. Do not regress them.
-- **No Stripe. No new client/admin portals** (they exist only as scaffolding).
+- **No Stripe. Client portal activation is underway; admin remains limited to verification.**
 - **GitHub is the source of truth** — push every stable checkpoint to `origin/main`.
 
 ## Guiding principles
@@ -64,8 +64,14 @@ Files: `artifacts/api-server/src/routes/providers.ts`, `artifacts/web/src/pages/
 - Public web and mobile profiles now show real avatars when available, clearer credential verification, new-client availability, service-area notes, and service eligibility notes.
 - No schema, upload dependency, booking, notification, or payment changes were needed.
 
+## Client portal activation ✅ CHECKPOINT 1
+- Client-only booking access is enforced in the web shell and mobile bookings screen.
+- Public discovery and provider profiles remain browsable without an account.
+- Booking creation now routes unauthenticated visitors to sign-in and directs provider/admin accounts away from the client flow.
+- Existing provider discovery, profile, service selection, `POST /bookings`, and booking views were reused; no API/schema/state-machine changes were needed.
+
 ## What's next (pick with the user)
-- Client portal activation: start with auth/role guard, provider discovery/profile, service selection, and booking creation; then booking views, status visibility, notifications, reviews, and care history.
+- Client booking completion: verify auth against a restored seeded database, then improve status visibility/notifications; reviews and care history follow the core flow.
 - Stripe payments (explicitly out of scope until requested).
 
 ## Operational rules

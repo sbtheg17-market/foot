@@ -19,6 +19,8 @@ export default function Login() {
           localStorage.setItem('oncallfoot_token', res.token);
           if (res.user.role === 'provider') {
             setLocation(ROUTES.provider.root);
+          } else if (res.user.role === 'admin') {
+            setLocation(ROUTES.admin.verification);
           } else {
             setLocation(ROUTES.client.discover);
           }

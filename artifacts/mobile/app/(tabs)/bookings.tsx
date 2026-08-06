@@ -39,13 +39,10 @@ export default function BookingsScreen() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('upcoming');
 
-  // Providers need to know about incoming requests quickly — poll every 15 s
-  // while the screen is mounted and the app is in the foreground.
-  const isProvider = user?.role === 'provider';
   const { data, isLoading, refetch } = useListBookings(undefined, {
     query: {
       queryKey: ['bookings'],
-      ...(isProvider ? { refetchInterval: 15_000 } : {}),
+      enabled: user?.role === 'client',
     },
   });
 
@@ -66,6 +63,26 @@ export default function BookingsScreen() {
           style={[styles.signInBtn, { backgroundColor: colors.primary }]}
         >
           <Text style={styles.signInBtnText}>Sign in</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (user.role !== 'client') {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background, paddingHorizontal: 24 }]}>
+        <Feather name="briefcase" size={40} color={colors.mutedForeground} />
+        <Text style={[styles.guestTitle, { color: colors.foreground }]}>
+          This is a client space
+        </Text>
+        <Text style={[styles.guestSub, { color: colors.mutedForeground }]}>
+          You’re signed in as a {user.role}. Switch to a client account to request and manage visits.
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)/account')}
+          style={[styles.signInBtn, { backgroundColor: colors.primary }]}
+        >
+          <Text style={styles.signInBtnText}>Go to account</Text>
         </TouchableOpacity>
       </View>
     );

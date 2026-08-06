@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { useRoute } from 'wouter';
+import { useLocation, useRoute } from 'wouter';
 import { 
   useGetProviderById, 
   useListProviderServices, 
   useListProviderReviews,
+  useGetMe,
 } from '@workspace/api-client-react';
 import { MapPin, Star, ShieldCheck, Clock, ChevronLeft, CheckCircle2 } from 'lucide-react';
 import BookingModal from '@/components/ui/booking-modal';
+import { ROUTES } from '@/lib/routes';
 
 export default function ProviderProfile() {
   const [, params] = useRoute('/providers/:id');
+  const [, setLocation] = useLocation();
   const providerId = Number(params?.id);
   
   const { data: providerRes, isLoading: loadingProvider } = useGetProviderById(providerId, {
@@ -23,6 +26,9 @@ export default function ProviderProfile() {
   const { data: reviewsRes } = useListProviderReviews(providerId, undefined, {
     query: { enabled: !!providerId, queryKey: ['reviews', providerId] }
   });
+  const { data: me, isLoading: authLoading } = useGetMe({
+    query: { retry: false, queryKey: ['me'] },
+  });
 
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -35,6 +41,19 @@ export default function ProviderProfile() {
 
   if (!providerRes) return <div className="p-6">Provider not found</div>;
   const provider = providerRes.provider;
+  const canBook = me?.user?.role === 'client';
+  const handleBook = () => {
+    if (authLoading) return;
+    if (!me?.user) {
+      setLocation(ROUTES.login);
+      return;
+    }
+    if (me.user.role !== 'client') {
+      setLocation(me.user.role === 'provider' ? ROUTES.provider.root : ROUTES.admin.verification);
+      return;
+    }
+    setShowBookingModal(true);
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-card pb-24 relative">
@@ -188,11 +207,15 @@ export default function ProviderProfile() {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-border max-w-[500px] mx-auto z-40">
         <button 
           disabled={!selectedServiceId || !provider.acceptsNewClients}
-          onClick={() => setShowBookingModal(true)}
+          onClick={handleBook}
           className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-lg shadow-lg disabled:opacity-50 disabled:shadow-none transition-all active:scale-[0.98] flex items-center justify-center gap-2"
         >
           {provider.acceptsNewClients ? (
-            selectedServiceId ? 'Book Appointment' : 'Select a service to book'
+            selectedServiceId
+              ? me?.user && !canBook
+                ? 'Client account required to book'
+                : 'Book Appointment'
+              : 'Select a service to book'
           ) : 'Not accepting new clients'}
         </button>
       </div>
