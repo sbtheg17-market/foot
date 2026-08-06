@@ -1,0 +1,63 @@
+Phase 3 authorization hardening is complete and locally verified, but the checkpoint is not yet synchronized.
+
+Current state
+Phase 3 implementation commit: 2048cc3.
+
+Latest local HEAD: bf142e2.
+
+origin/main: b667bbb.
+
+Ahead/behind: 2 / 0.
+
+Working tree: clean.
+
+No force-push, reset, rebase, amend, or history rewrite occurred.
+
+Role-aware signup/onboarding has not started.
+
+The two local commits should be preserved and pushed normally after GitHub authentication is restored.
+
+Send this to Replit
+text
+Phase 3 authorization hardening is complete and verified locally.
+
+Current state:
+- Phase 3 implementation commit: 2048cc3
+- local HEAD: bf142e2
+- origin/main: b667bbb
+- ahead/behind: 2/0
+- working tree: clean
+- no history rewrite or destructive Git operation occurred
+
+Verification passed:
+- workspace typecheck
+- full build
+- authorization matrix: 7/7
+- booking state-machine tests
+- booking concurrency tests
+- booking pressure tests
+- reviews
+- care-history/privacy
+- availability
+- role-state regression tests
+
+Do not modify application code.
+Do not start Phase 4 signup/onboarding.
+Do not retry the invalid credential repeatedly.
+Do not amend, rebase, reset, force-push, or rewrite history.
+
+Restore GitHub authentication using the supported integration or secure credential flow.
+
+After authentication is restored:
+1. Fetch origin/main.
+2. Inspect the two unpublished local commits.
+3. Confirm they contain only the verified Phase 3 implementation, documentation, and required session-log updates.
+4. Confirm no secrets, uploaded handoff files, prompt files, or unrelated changes are present.
+5. Push local main normally.
+6. Confirm local HEAD equals origin/main.
+7. Confirm ahead/behind is 0/0.
+8. Confirm the working tree is clean.
+9. Report the final synchronized commit hash.
+
+Only after synchronization succeeds may Phase 4 begin. Phase 4 is shared signup and role-aware onboarding, using the approved handoff. Do not combine Phase 4 with Stripe, payouts, active-role switching, or unrelated product work.
+Once local and remote are synchronized at 0 / 0, begin Phase 4 from the prepared handoff. The Phase 3 implementation correctly protects provider operations while allowing credential submission for onboarding without granting provider privileges.
