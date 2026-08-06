@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useListBookings, useUpdateBookingStatus } from '@workspace/api-client-react';
-import { Calendar, MapPin, Clock, ChevronRight, X, Check, AlertTriangle } from 'lucide-react';
+import { Calendar, MapPin, ChevronRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'wouter';
 
@@ -150,7 +150,7 @@ export default function ClientBookings() {
                       <span className="text-xs text-muted-foreground">#{booking.id}</span>
                     </div>
                     <p className="font-semibold text-foreground text-base truncate">
-                      Appointment
+                      Foot care appointment
                     </p>
                   </div>
                   {canCancel && (
@@ -189,16 +189,23 @@ export default function ClientBookings() {
                   </div>
                 </div>
 
-                {booking.status === 'completed' && (
-                  <div className="mt-3 pt-3 border-t border-border">
+                <div className="mt-4 pt-4 border-t border-border flex items-center justify-between gap-3">
+                  <Link
+                    href={`/bookings/${booking.id}`}
+                    className="inline-flex items-center gap-1.5 text-sm text-primary font-semibold hover:underline"
+                  >
+                    View details
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                  {booking.status === 'completed' && (
                     <Link
                       href={`/providers/${booking.providerId}`}
-                      className="text-sm text-primary font-medium hover:underline"
+                      className="text-sm text-muted-foreground font-medium hover:text-primary hover:underline"
                     >
-                      Leave a review →
+                      Review provider
                     </Link>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             );
           })

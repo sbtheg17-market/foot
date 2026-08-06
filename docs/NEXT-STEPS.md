@@ -73,10 +73,17 @@ Files: `artifacts/api-server/src/routes/providers.ts`, `artifacts/web/src/pages/
 ## Preview schema and seed restoration ✅ DONE
 - The existing Drizzle schema was pushed to the active development database with `pnpm run db:push`.
 - The existing seed was run twice and is idempotent: 5 users, 2 provider profiles, 5 services, 4 sample bookings, and 1 review are present with valid provider-to-user links.
-- The authenticated client/provider/admin booking flow passed in an isolated API process. The managed API workflow still needs `JWT_SECRET` restored through secure environment settings before its preview login can be verified directly.
+- The authenticated client/provider/admin booking flow passed in an isolated API process. Managed workflow authentication is now verified with `JWT_SECRET` supplied through secure environment settings.
+
+## Client Portal Checkpoint 2 — booking list and detail ✅ FIRST SLICE
+- Web and mobile clients now separate upcoming, past, and cancelled bookings with clear server-owned status labels.
+- Each booking opens a role-safe detail view with provider, service, date/time, address, status explanation, client notes, and cancellation reason where applicable.
+- Existing booking, provider, and service APIs were reused; no schema, OpenAPI, state-machine, provider-flow, or payment changes were needed.
+- Provider-private `careNotes` remain private and are not rendered in the client detail view.
 
 ## What's next (pick with the user)
-- Client Portal Checkpoint 2: restore `JWT_SECRET` in the managed API workflow, then add client booking detail/status visibility and notification presentation; reviews and care history follow the core flow.
+- Client Portal Checkpoint 2 continuation: add client cancellation confirmation and duplicate-submit protection, then present fresh provider status updates through the existing notification/status paths.
+- After the lifecycle core: allow one review after an eligible completed booking and add only the minimum client-visible care history; keep provider-private notes private.
 - Stripe payments (explicitly out of scope until requested).
 
 ## Operational rules

@@ -45,13 +45,13 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/:id, PATCH /bookings/:id/status — strict state machine, auto-invoice on confirm |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, GET /invoices, GET /invoices/:id — all role-scoped |
-| React frontend | ✅ Running | Provider portal plus client discovery, public profiles, client-only booking access, and booking history; 390px preview verified with HTTP 200. |
+| React frontend | ✅ Running | Provider portal plus client discovery, public profiles, client-only booking access, booking list tabs, and web booking detail; 390px preview verified with HTTP 200. |
 | Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
 | Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; UI preview remains healthy. |
-| Expo mobile app | ✅ Running | All screens: Discover, Bookings, Account, Provider Profile, Login, Register — provider profile trust surfaces added; JWT auth via AsyncStorage |
+| Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, and mobile booking detail; provider profile trust surfaces and JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
-| GitHub sync | ⚠️ Push pending authenticated path | Local `main` contains the reviewed configuration checkpoint; GitHub push still requires a usable authenticated GitHub/Replit path. Separate `conflict_*` branches remain reference-only. |
+| GitHub sync | ✅ Synchronized | Client booking list/detail slice committed and pushed to `origin/main`; separate `conflict_*` branches remain reference-only. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -144,6 +144,37 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** Managed JWT authentication is verified end to end. All requested role, booking guard, health, preview, typecheck, build, and 63-test checks pass. Application source, schema, booking state machine, notifications, provider flows, client features, and Stripe were not changed. GitHub synchronization remains pending authenticated push access.
 
 **Next best action:** Push the reviewed local commits to `origin/main` when authenticated GitHub access is available. Do not begin client bookings or care-history work in this configuration checkpoint.
+
+---
+
+### Session 025 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `S`
+**Triggered by:** Client Portal Checkpoint 2 — implement the smallest first slice: upcoming/past/cancelled booking list plus booking detail.
+
+**What was done:**
+- Audited the existing client routes, mobile bookings screen, booking APIs, role guards, state machine, reviews, notifications, and schema before editing.
+- Added client booking detail routes on web (`/bookings/:id`) and mobile (`/booking/[id]`) using the existing `GET /bookings/:id` contract plus public provider and service reads.
+- Improved both client booking lists with clear status grouping, status labels, mobile-friendly detail links, provider/service/date/time/address summaries, and safe loading/error/empty states.
+- Kept cancellation behavior server-backed and unchanged; no Stripe, payment, schema, OpenAPI, provider-flow, or state-machine changes were made.
+- Kept provider-private `careNotes` out of the client detail UI; only client notes and cancellation reasons are shown.
+- Verified web and mobile typechecks, full workspace build, diff whitespace, web/mobile workflow startup, and 390px web preview behavior. The protected bookings route correctly redirects unauthenticated visitors to sign-in.
+- Committed and pushed this coherent slice to `origin/main`; the uploaded checkpoint brief remains untracked and was not included.
+
+**Files changed:**
+- `artifacts/web/src/App.tsx`
+- `artifacts/web/src/lib/routes.ts`
+- `artifacts/web/src/pages/bookings.tsx`
+- `artifacts/web/src/pages/booking-detail.tsx`
+- `artifacts/mobile/app/_layout.tsx`
+- `artifacts/mobile/app/(tabs)/bookings.tsx`
+- `artifacts/mobile/app/booking/[id].tsx`
+- `.agents/LOG.md`
+- `docs/NEXT-STEPS.md`
+
+**Build state at end:** Web and mobile typecheck pass; full `pnpm run build` passes; web and mobile workflows are running cleanly. No database, API contract, role guard, booking transition, notification, review, invoice, or payment changes were required.
+
+**Next best action:** Continue Checkpoint 2 with client cancellation confirmation and duplicate-submit protection on the booking detail/list surfaces, then add status freshness/notification presentation. Reviews and minimum completed-booking care history remain after the lifecycle core.
 
 ---
 

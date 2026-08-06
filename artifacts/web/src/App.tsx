@@ -7,6 +7,7 @@ import Register from '@/pages/register';
 import Discover from '@/pages/discover';
 import ProviderProfile from '@/pages/provider-profile';
 import ClientBookings from '@/pages/bookings';
+import ClientBookingDetail from '@/pages/booking-detail';
 import PortalDashboard from '@/pages/portal/dashboard';
 import PortalBookings from '@/pages/portal/bookings';
 import PortalServices from '@/pages/portal/services';
@@ -84,6 +85,7 @@ function Router() {
       <Route path={ROUTES.client.discover}>{clientRoute(Discover)}</Route>
       <Route path="/providers/:id">{clientRoute(ProviderProfile)}</Route>
       <Route path={ROUTES.client.bookings}>{clientRoute(ClientBookings, true)}</Route>
+      <Route path="/bookings/:id">{clientRoute(ClientBookingDetail, true)}</Route>
 
       {/* ── Admin ────────────────────────────────────────────────────────── */}
       <Route path={ROUTES.admin.verification} component={AdminVerification} />

@@ -224,6 +224,14 @@ export default function BookingsScreen() {
                     <Text style={[styles.reviewLinkText, { color: colors.primary }]}>Leave a review →</Text>
                   </TouchableOpacity>
                 )}
+                <TouchableOpacity
+                  onPress={() => router.push(`/booking/${item.id}`)}
+                  style={[styles.detailsLink, { borderTopColor: colors.border }]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.detailsLinkText, { color: colors.primary }]}>View booking details</Text>
+                  <Feather name="chevron-right" size={16} color={colors.primary} />
+                </TouchableOpacity>
               </View>
             );
           }}
@@ -282,4 +290,13 @@ const styles = StyleSheet.create({
   bookingDetail: { fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 },
   reviewLink: { paddingTop: 4 },
   reviewLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  detailsLink: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 4,
+    paddingTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  detailsLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
 });

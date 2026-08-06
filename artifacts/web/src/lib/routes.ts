@@ -31,6 +31,7 @@ export const ROUTES = {
     discover: '/discover',
     provider: (id: number | string) => `/providers/${id}`,
     bookings: '/bookings',
+    booking: (id: number | string) => `/bookings/${id}`,
   },
 
   // ── Admin ───────────────────────────────────────────────────────────────────

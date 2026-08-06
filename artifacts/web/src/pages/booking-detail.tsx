@@ -1,0 +1,202 @@
+import React from 'react';
+import { useGetBooking, useGetProviderById, useListProviderServices } from '@workspace/api-client-react';
+import { useLocation, useRoute } from 'wouter';
+import { ArrowLeft, Calendar, Clock, FileText, MapPin, ShieldCheck, UserRound } from 'lucide-react';
+import { ROUTES } from '@/lib/routes';
+
+const STATUS_META: Record<string, { label: string; className: string; description: string }> = {
+  requested: {
+    label: 'Pending',
+    className: 'bg-amber-100 text-amber-800',
+    description: 'Your request is with the provider for review.',
+  },
+  confirmed: {
+    label: 'Confirmed',
+    className: 'bg-emerald-100 text-emerald-800',
+    description: 'Your visit is scheduled.',
+  },
+  rescheduled: {
+    label: 'Rescheduled',
+    className: 'bg-blue-100 text-blue-800',
+    description: 'The appointment time was changed and needs your attention.',
+  },
+  completed: {
+    label: 'Completed',
+    className: 'bg-primary/10 text-primary',
+    description: 'This visit has been completed.',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    className: 'bg-secondary text-muted-foreground',
+    description: 'This booking is no longer active.',
+  },
+  no_show: {
+    label: 'No show',
+    className: 'bg-red-100 text-red-800',
+    description: 'The visit was marked as a no-show.',
+  },
+};
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  return {
+    date: date.toLocaleDateString('en-CA', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    }),
+    time: date.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' }),
+  };
+}
+
+export default function ClientBookingDetail() {
+  const [, params] = useRoute('/bookings/:id');
+  const [, setLocation] = useLocation();
+  const bookingId = Number(params?.id);
+
+  const { data, isLoading, error } = useGetBooking(bookingId, {
+    query: { enabled: Number.isFinite(bookingId) && bookingId > 0, queryKey: ['client-booking', bookingId] },
+  });
+  const booking = data?.booking;
+  const { data: providerData, isLoading: providerLoading } = useGetProviderById(booking?.providerId ?? 0, {
+    query: { enabled: !!booking?.providerId, queryKey: ['booking-provider', booking?.providerId] },
+  });
+  const { data: servicesData } = useListProviderServices(booking?.providerId ?? 0, {
+    query: { enabled: !!booking?.providerId, queryKey: ['booking-provider-services', booking?.providerId] },
+  });
+
+  if (isLoading) {
+    return <div className="p-6 pt-12 flex justify-center"><div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin" /></div>;
+  }
+
+  if (error || !booking) {
+    return (
+      <div className="p-6 pt-10">
+        <button onClick={() => setLocation(ROUTES.client.bookings)} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="w-4 h-4" /> Back to bookings
+        </button>
+        <div className="mt-16 text-center">
+          <h1 className="font-serif text-2xl font-semibold">Booking unavailable</h1>
+          <p className="mt-2 text-sm text-muted-foreground">We couldn’t load this booking. It may no longer be available.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const status = STATUS_META[booking.status] ?? {
+    label: booking.status,
+    className: 'bg-secondary text-foreground',
+    description: 'The booking status was updated.',
+  };
+  const scheduled = formatDate(booking.scheduledAt);
+  const provider = providerData?.provider;
+  const service = servicesData?.services.find((item) => item.id === booking.serviceId);
+
+  return (
+    <div className="flex-1 bg-background pb-10">
+      <div className="bg-primary px-6 pt-5 pb-8 rounded-b-[2rem]">
+        <button
+          onClick={() => setLocation(ROUTES.client.bookings)}
+          className="inline-flex items-center gap-2 text-sm text-primary-foreground/80 hover:text-primary-foreground"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to bookings
+        </button>
+        <div className="mt-6 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-primary-foreground/70">Booking #{booking.id}</p>
+            <h1 className="mt-1 text-3xl font-serif font-semibold text-primary-foreground">Appointment details</h1>
+          </div>
+          <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${status.className}`}>
+            {status.label}
+          </span>
+        </div>
+        <p className="mt-3 text-sm text-primary-foreground/80">{status.description}</p>
+      </div>
+
+      <div className="px-6 -mt-4 space-y-4 relative">
+        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="font-serif text-xl font-semibold">Your visit</h2>
+          <div className="mt-4 space-y-4">
+            <div className="flex items-start gap-3">
+              <Calendar className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">{scheduled.date}</p>
+                <p className="text-sm text-muted-foreground">{scheduled.time}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">{booking.address}</p>
+                <p className="text-sm text-muted-foreground">
+                  {booking.city}{booking.postalCode ? ` · ${booking.postalCode}` : ''}
+                </p>
+              </div>
+            </div>
+            {service && (
+              <div className="flex items-start gap-3">
+                <Clock className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{service.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {service.durationMinutes} minutes · ${(service.priceCents / 100).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <h2 className="font-serif text-xl font-semibold">Your provider</h2>
+              {providerLoading ? (
+                <div className="mt-3 h-5 w-40 animate-pulse rounded bg-secondary" />
+              ) : provider ? (
+                <>
+                  <p className="mt-2 font-semibold">{provider.firstName} {provider.lastName}</p>
+                  <p className="text-sm text-primary">{provider.title || 'Foot care professional'}</p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    {provider.verificationStatus === 'approved' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Credentials verified
+                      </span>
+                    )}
+                    <span className="rounded-full bg-secondary px-2.5 py-1">{provider.city}</span>
+                  </div>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">Provider information is temporarily unavailable.</p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {(booking.clientNotes || booking.cancellationReason) && (
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-start gap-3">
+              <FileText className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <h2 className="font-serif text-xl font-semibold">
+                  {booking.cancellationReason ? 'Cancellation note' : 'Visit notes'}
+                </h2>
+                {booking.cancellationReason && <p className="mt-2 text-sm text-muted-foreground">{booking.cancellationReason}</p>}
+                {!booking.cancellationReason && booking.clientNotes && <p className="mt-2 text-sm text-muted-foreground">{booking.clientNotes}</p>}
+              </div>
+            </div>
+          </section>
+        )}
+
+        <button
+          onClick={() => setLocation(ROUTES.client.provider(booking.providerId))}
+          className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold text-primary shadow-sm hover:bg-secondary"
+        >
+          View provider profile
+        </button>
+      </div>
+    </div>
+  );
+}
