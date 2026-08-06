@@ -12,6 +12,7 @@
     "test": "node --import tsx/esm --test src/__tests__/booking-state-machine.test.ts",
     "test:integration": "node --import tsx/esm --test src/__tests__/booking-concurrency.test.ts",
     "test:reviews": "node --import tsx/esm --test src/__tests__/review.integration.test.ts",
+    "test:care-history": "node --import tsx/esm --test src/__tests__/care-history.integration.test.ts",
     "test:availability": "node --import tsx/esm --test src/__tests__/availability-preset.test.ts",
     "test:pressure": "node --import tsx/esm --test src/__tests__/booking-pressure.test.ts"
   },

@@ -26,6 +26,7 @@ import type {
   BadRequestResponse,
   BookingListResponse,
   BookingResponse,
+  ClientCareHistoryResponse,
   ConflictResponse,
   CreateBookingRequest,
   CreateReviewRequest,
@@ -35,6 +36,7 @@ import type {
   EarningsSummaryResponse,
   ForbiddenResponse,
   GetAdminVerificationQueueParams,
+  GetClientCareHistoryParams,
   HealthStatus,
   InvoiceListResponse,
   InvoiceResponse,
@@ -2118,6 +2120,91 @@ export const useCreateBooking = <TError = ErrorType<BadRequestResponse | Unautho
       > => {
       return useMutation(getCreateBookingMutationOptions(options));
     }
+
+export const getGetClientCareHistoryUrl = (params?: GetClientCareHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/bookings/history?${stringifiedParams}` : `/api/bookings/history`
+}
+
+/**
+ * Returns bounded, client-safe booking history. Provider-private care notes are never included.
+ * @summary List the authenticated client's care history
+ */
+export const getClientCareHistory = async (params?: GetClientCareHistoryParams, options?: Parameters<typeof customFetch>[1]): Promise<ClientCareHistoryResponse> => {
+
+  return customFetch<ClientCareHistoryResponse>(getGetClientCareHistoryUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientCareHistoryQueryKey = (params?: GetClientCareHistoryParams,) => {
+    return [
+    `/api/bookings/history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetClientCareHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getClientCareHistory>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(params?: GetClientCareHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientCareHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientCareHistoryQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientCareHistory>>> = ({ signal }) => getClientCareHistory(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientCareHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClientCareHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getClientCareHistory>>>
+export type GetClientCareHistoryQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List the authenticated client's care history
+ */
+
+export function useGetClientCareHistory<TData = Awaited<ReturnType<typeof getClientCareHistory>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+ params?: GetClientCareHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientCareHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClientCareHistoryQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetBookingUrl = (bookingId: number,) => {
 

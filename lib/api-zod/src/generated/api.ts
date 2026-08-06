@@ -643,7 +643,7 @@ export const ListBookingsResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "postalCode": zod.string().nullish(),
-  "careNotes": zod.string().nullish(),
+  "careNotes": zod.string().nullish().describe('Provider-private care note; included only in provider\/admin responses'),
   "clientNotes": zod.string().nullish(),
   "cancellationReason": zod.string().nullish(),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
@@ -687,7 +687,7 @@ export const CreateBookingResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "postalCode": zod.string().nullish(),
-  "careNotes": zod.string().nullish(),
+  "careNotes": zod.string().nullish().describe('Provider-private care note; included only in provider\/admin responses'),
   "clientNotes": zod.string().nullish(),
   "cancellationReason": zod.string().nullish(),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
@@ -696,6 +696,59 @@ export const CreateBookingResponse = zod.object({
   "createdAt": zod.coerce.date().optional(),
   "updatedAt": zod.coerce.date().optional()
 })
+})
+
+
+/**
+ * Returns bounded, client-safe booking history. Provider-private care notes are never included.
+ * @summary List the authenticated client's care history
+ */
+export const getClientCareHistoryQueryLimitDefault = 20;
+export const getClientCareHistoryQueryLimitMax = 50;
+
+export const getClientCareHistoryQueryOffsetDefault = 0;
+export const getClientCareHistoryQueryOffsetMin = 0;
+
+
+
+export const GetClientCareHistoryQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(getClientCareHistoryQueryLimitMax).default(getClientCareHistoryQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(getClientCareHistoryQueryOffsetMin).default(getClientCareHistoryQueryOffsetDefault)
+})
+
+export const GetClientCareHistoryResponse = zod.object({
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "serviceId": zod.int(),
+  "status": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "scheduledAt": zod.coerce.date(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "postalCode": zod.string().nullish(),
+  "clientNotes": zod.string().nullish(),
+  "cancellationReason": zod.string().nullish(),
+  "provider": zod.object({
+  "id": zod.int(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "title": zod.string(),
+  "city": zod.string()
+}).describe('Client-visible provider identity for a care-history entry'),
+  "service": zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "durationMinutes": zod.int(),
+  "category": zod.string(),
+  "priceCents": zod.int().describe('Price in cents (CAD)')
+}).describe('Client-visible service summary for a care-history entry'),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).describe('Client-safe booking history entry; never includes careNotes')),
+  "total": zod.int(),
+  "limit": zod.int(),
+  "offset": zod.int()
 })
 
 
@@ -717,7 +770,7 @@ export const GetBookingResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "postalCode": zod.string().nullish(),
-  "careNotes": zod.string().nullish(),
+  "careNotes": zod.string().nullish().describe('Provider-private care note; included only in provider\/admin responses'),
   "clientNotes": zod.string().nullish(),
   "cancellationReason": zod.string().nullish(),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
@@ -753,7 +806,7 @@ export const UpdateBookingStatusResponse = zod.object({
   "address": zod.string(),
   "city": zod.string(),
   "postalCode": zod.string().nullish(),
-  "careNotes": zod.string().nullish(),
+  "careNotes": zod.string().nullish().describe('Provider-private care note; included only in provider\/admin responses'),
   "clientNotes": zod.string().nullish(),
   "cancellationReason": zod.string().nullish(),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),

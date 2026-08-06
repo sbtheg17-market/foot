@@ -281,6 +281,30 @@ export interface ReviewListResponse {
   offset: number;
 }
 
+/**
+ * Client-visible provider identity for a care-history entry
+ */
+export interface ClientCareHistoryProvider {
+  id: number;
+  firstName: string;
+  lastName: string;
+  avatarUrl?: string | null;
+  title: string;
+  city: string;
+}
+
+/**
+ * Client-visible service summary for a care-history entry
+ */
+export interface ClientCareHistoryService {
+  id: number;
+  title: string;
+  durationMinutes: number;
+  category: string;
+  /** Price in cents (CAD) */
+  priceCents: number;
+}
+
 export type BookingStatus = typeof BookingStatus[keyof typeof BookingStatus];
 
 
@@ -293,6 +317,33 @@ export const BookingStatus = {
   no_show: 'no_show',
 } as const;
 
+/**
+ * Client-safe booking history entry; never includes careNotes
+ */
+export interface ClientCareHistoryEntry {
+  id: number;
+  providerId: number;
+  serviceId: number;
+  status: BookingStatus;
+  scheduledAt: string;
+  address: string;
+  city: string;
+  postalCode?: string | null;
+  clientNotes?: string | null;
+  cancellationReason?: string | null;
+  provider: ClientCareHistoryProvider;
+  service: ClientCareHistoryService;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ClientCareHistoryResponse {
+  history: ClientCareHistoryEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface Booking {
   id: number;
   clientId: number;
@@ -303,6 +354,7 @@ export interface Booking {
   address: string;
   city: string;
   postalCode?: string | null;
+  /** Provider-private care note; included only in provider/admin responses */
   careNotes?: string | null;
   clientNotes?: string | null;
   cancellationReason?: string | null;
@@ -621,6 +673,18 @@ export const ListBookingsStatus = {
   rescheduled: 'rescheduled',
   no_show: 'no_show',
 } as const;
+
+export type GetClientCareHistoryParams = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
+};
 
 export type ListInvoicesParams = {
 /**

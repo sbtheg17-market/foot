@@ -6,10 +6,14 @@
  * OpenAPI spec version: 0.3.0
  */
 import type { BookingStatus } from './bookingStatus';
+import type { ClientCareHistoryProvider } from './clientCareHistoryProvider';
+import type { ClientCareHistoryService } from './clientCareHistoryService';
 
-export interface Booking {
+/**
+ * Client-safe booking history entry; never includes careNotes
+ */
+export interface ClientCareHistoryEntry {
   id: number;
-  clientId: number;
   providerId: number;
   serviceId: number;
   status: BookingStatus;
@@ -17,16 +21,10 @@ export interface Booking {
   address: string;
   city: string;
   postalCode?: string | null;
-  /** Provider-private care note; included only in provider/admin responses */
-  careNotes?: string | null;
   clientNotes?: string | null;
   cancellationReason?: string | null;
-  /** Client first name (joined; present on list responses) */
-  clientFirstName?: string | null;
-  /** Client last name (joined; present on list responses) */
-  clientLastName?: string | null;
-  /** Client phone (joined; present on list responses) */
-  clientPhone?: string | null;
+  provider: ClientCareHistoryProvider;
+  service: ClientCareHistoryService;
   createdAt?: Date;
   updatedAt?: Date;
 }

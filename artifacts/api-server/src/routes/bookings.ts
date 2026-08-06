@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { eq, and, or, sql, getTableColumns } from "drizzle-orm";
+import { eq, and, or, sql, getTableColumns, inArray } from "drizzle-orm";
 import {
   db,
   bookingsTable,
@@ -17,6 +17,18 @@ import { emitNewBooking } from "../lib/notification-bus.js";
 import { sendPushToUser } from "../lib/push-notifications.js";
 
 const router = Router();
+
+type BookingRow = typeof bookingsTable.$inferSelect;
+
+/**
+ * Client booking responses must never expose provider-private clinical notes.
+ * Keep this projection at the API boundary so future client consumers cannot
+ * accidentally serialize the full database row.
+ */
+function toClientSafeBooking(booking: BookingRow) {
+  const { careNotes: _careNotes, ...safeBooking } = booking;
+  return safeBooking;
+}
 
 // ── GET /bookings — list own bookings ─────────────────────────────────────────
 
@@ -69,7 +81,10 @@ router.get(
         .from(bookingsTable)
         .leftJoin(usersTable, eq(usersTable.id, bookingsTable.clientId))
         .where(whereClause)
-        .orderBy(sql`${bookingsTable.scheduledAt} desc`)
+        // Most recently updated bookings are the most useful first page:
+        // completed visits should appear as soon as they enter history, even
+        // when older test/demo data has a later scheduled date.
+        .orderBy(sql`${bookingsTable.updatedAt} desc`)
         .limit(limit)
         .offset(offset),
       db
@@ -79,12 +94,79 @@ router.get(
     ]);
 
     res.json({
-      bookings,
+      bookings: user.role === "client" ? bookings.map(toClientSafeBooking) : bookings,
       total: countRows[0]?.count ?? 0,
       limit,
       offset,
     });
   }
+);
+
+// ── GET /bookings/history — bounded client-safe care history ──────────────────
+
+router.get(
+  "/history",
+  requireAuth,
+  requireRole("client"),
+  async (req: Request, res: Response): Promise<void> => {
+    const limit = Math.min(Math.max(Number(req.query["limit"] ?? 20), 1), 50);
+    const offset = Math.max(Number(req.query["offset"] ?? 0), 0);
+    const historyStatuses: BookingStatus[] = ["completed", "no_show", "cancelled"];
+    const ownershipClause = eq(bookingsTable.clientId, req.user!.sub);
+    const historyClause = and(ownershipClause, inArray(bookingsTable.status, historyStatuses));
+
+    const [rows, countRows] = await Promise.all([
+      db
+        .select({
+          id: bookingsTable.id,
+          providerId: bookingsTable.providerId,
+          serviceId: bookingsTable.serviceId,
+          status: bookingsTable.status,
+          scheduledAt: bookingsTable.scheduledAt,
+          address: bookingsTable.address,
+          city: bookingsTable.city,
+          postalCode: bookingsTable.postalCode,
+          clientNotes: bookingsTable.clientNotes,
+          cancellationReason: bookingsTable.cancellationReason,
+          createdAt: bookingsTable.createdAt,
+          updatedAt: bookingsTable.updatedAt,
+          provider: {
+            id: providerProfilesTable.id,
+            firstName: usersTable.firstName,
+            lastName: usersTable.lastName,
+            avatarUrl: usersTable.avatarUrl,
+            title: providerProfilesTable.title,
+            city: providerProfilesTable.city,
+          },
+          service: {
+            id: servicesTable.id,
+            title: servicesTable.title,
+            durationMinutes: servicesTable.durationMinutes,
+            category: servicesTable.category,
+            priceCents: servicesTable.priceCents,
+          },
+        })
+        .from(bookingsTable)
+        .innerJoin(providerProfilesTable, eq(providerProfilesTable.id, bookingsTable.providerId))
+        .innerJoin(usersTable, eq(usersTable.id, providerProfilesTable.userId))
+        .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
+        .where(historyClause)
+        .orderBy(sql`${bookingsTable.scheduledAt} desc`)
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(bookingsTable)
+        .where(historyClause),
+    ]);
+
+    res.json({
+      history: rows,
+      total: countRows[0]?.count ?? 0,
+      limit,
+      offset,
+    });
+  },
 );
 
 // ── POST /bookings — create booking (client only) ─────────────────────────────
@@ -182,7 +264,7 @@ router.post(
       data: { screen: "bookings", bookingId: booking!.id },
     });
 
-    res.status(201).json({ booking });
+    res.status(201).json({ booking: toClientSafeBooking(booking) });
   }
 );
 
@@ -226,7 +308,7 @@ router.get(
       }
     }
 
-    res.json({ booking });
+    res.json({ booking: user.role === "client" ? toClientSafeBooking(booking) : booking });
   }
 );
 
@@ -472,7 +554,9 @@ router.patch(
       }
     }
 
-    res.json({ booking: updatedBooking });
+    res.json({
+      booking: user.role === "client" ? toClientSafeBooking(updatedBooking) : updatedBooking,
+    });
   }
 );
 

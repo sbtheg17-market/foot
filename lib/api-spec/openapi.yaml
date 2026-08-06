@@ -686,6 +686,40 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /bookings/history:
+    get:
+      operationId: getClientCareHistory
+      tags: [bookings]
+      summary: List the authenticated client's care history
+      description: Returns bounded, client-safe booking history. Provider-private care notes are never included.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Client care history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientCareHistoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /bookings/{bookingId}:
     get:
       operationId: getBooking
@@ -1482,6 +1516,120 @@ components:
 
     # ── Booking Schemas ────────────────────────────────────────────────────────
 
+    ClientCareHistoryProvider:
+      type: object
+      description: Client-visible provider identity for a care-history entry
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        title:
+          type: string
+        city:
+          type: string
+      required:
+        - id
+        - firstName
+        - lastName
+        - title
+        - city
+
+    ClientCareHistoryService:
+      type: object
+      description: Client-visible service summary for a care-history entry
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        durationMinutes:
+          type: integer
+        category:
+          type: string
+        priceCents:
+          type: integer
+          description: Price in cents (CAD)
+      required:
+        - id
+        - title
+        - durationMinutes
+        - category
+        - priceCents
+
+    ClientCareHistoryEntry:
+      type: object
+      description: Client-safe booking history entry; never includes careNotes
+      properties:
+        id:
+          type: integer
+        providerId:
+          type: integer
+        serviceId:
+          type: integer
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        scheduledAt:
+          type: string
+          format: date-time
+        address:
+          type: string
+        city:
+          type: string
+        postalCode:
+          type: string
+          nullable: true
+        clientNotes:
+          type: string
+          nullable: true
+        cancellationReason:
+          type: string
+          nullable: true
+        provider:
+          $ref: "#/components/schemas/ClientCareHistoryProvider"
+        service:
+          $ref: "#/components/schemas/ClientCareHistoryService"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - providerId
+        - serviceId
+        - status
+        - scheduledAt
+        - address
+        - city
+        - provider
+        - service
+
+    ClientCareHistoryResponse:
+      type: object
+      properties:
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClientCareHistoryEntry"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - history
+        - total
+        - limit
+        - offset
+
     BookingStatus:
       type: string
       enum: [requested, confirmed, completed, cancelled, rescheduled, no_show]
@@ -1512,6 +1660,7 @@ components:
         careNotes:
           type: string
           nullable: true
+          description: Provider-private care note; included only in provider/admin responses
         clientNotes:
           type: string
           nullable: true

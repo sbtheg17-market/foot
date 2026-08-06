@@ -13,7 +13,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useListBookings, useUpdateBookingStatus } from '@workspace/api-client-react';
+import {
+  useGetClientCareHistory,
+  useListBookings,
+  useUpdateBookingStatus,
+} from '@workspace/api-client-react';
+import type { Booking, ClientCareHistoryEntry } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/auth';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
@@ -49,6 +54,22 @@ export default function BookingsScreen() {
       refetchOnReconnect: true,
     },
   });
+  const {
+    data: historyData,
+    isLoading: isHistoryLoading,
+    isError: isHistoryError,
+    refetch: refetchHistory,
+  } = useGetClientCareHistory(
+    { limit: 50, offset: 0 },
+    {
+      query: {
+        queryKey: ['client-care-history'],
+        enabled: user?.role === 'client' && activeTab === 'past',
+        refetchOnMount: 'always',
+        refetchOnReconnect: true,
+      },
+    },
+  );
 
   const updateStatus = useUpdateBookingStatus();
   const statusFeedback = useClientBookingStatusFeedback(user?.role === 'client' ? data?.bookings : undefined);
@@ -59,18 +80,20 @@ export default function BookingsScreen() {
     useCallback(() => {
       if (user?.role !== 'client') return;
       void refetch();
-    }, [refetch, user?.role]),
+      if (activeTab === 'past') void refetchHistory();
+    }, [activeTab, refetch, refetchHistory, user?.role]),
   );
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active' && user?.role === 'client') {
         void refetch();
+        if (activeTab === 'past') void refetchHistory();
       }
     });
 
     return () => subscription.remove();
-  }, [refetch, user?.role]);
+  }, [activeTab, refetch, refetchHistory, user?.role]);
 
   if (!user) {
     return (
@@ -112,6 +135,10 @@ export default function BookingsScreen() {
 
   const allBookings = data?.bookings ?? [];
   const filtered = allBookings.filter(b => TAB_STATUSES[activeTab].includes(b.status));
+  const history = historyData?.history ?? [];
+  const visibleItems: Array<Booking | ClientCareHistoryEntry> =
+    activeTab === 'past' ? history : filtered;
+  const isActiveTabLoading = activeTab === 'past' ? isHistoryLoading : isLoading;
 
   const handleCancel = (id: number) => {
     if (pendingId !== null) return; // guard against tap while another request is in flight
@@ -191,17 +218,34 @@ export default function BookingsScreen() {
         ))}
       </View>
 
-      {isLoading ? (
+      {isActiveTabLoading ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
+      ) : activeTab === 'past' && isHistoryError ? (
+        <View style={[styles.center, { paddingHorizontal: 24 }]}>
+          <Feather name="alert-circle" size={36} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>History unavailable</Text>
+          <Text style={[styles.guestSub, { color: colors.mutedForeground }]}>
+            We couldn’t load your care history.
+          </Text>
+          <TouchableOpacity
+            onPress={() => void refetchHistory()}
+            style={[styles.findBtn, { backgroundColor: colors.primary }]}
+          >
+            <Text style={styles.findBtnText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        <FlatList
-          data={filtered}
+        <FlatList<Booking | ClientCareHistoryEntry>
+          data={visibleItems}
           keyExtractor={item => String(item.id)}
           contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 100 }}
           showsVerticalScrollIndicator={false}
-          onRefresh={refetch}
+          onRefresh={() => {
+            void refetch();
+            if (activeTab === 'past') void refetchHistory();
+          }}
           refreshing={false}
           ListEmptyComponent={
             <View style={styles.emptyState}>
@@ -218,6 +262,7 @@ export default function BookingsScreen() {
             const meta = STATUS_META[item.status] ?? STATUS_META.cancelled;
             const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(item.status);
             const date = new Date(item.scheduledAt);
+            const historyEntry = 'provider' in item ? item : null;
             return (
               <View style={[styles.bookingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.bookingTop}>
@@ -246,6 +291,22 @@ export default function BookingsScreen() {
                     {date.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
+                {historyEntry && (
+                  <>
+                    <View style={styles.bookingRow}>
+                      <Feather name="user" size={14} color={colors.primary} />
+                      <Text style={[styles.bookingDetail, { color: colors.foreground }]} numberOfLines={1}>
+                        {historyEntry.provider.firstName} {historyEntry.provider.lastName}
+                      </Text>
+                    </View>
+                    <View style={styles.bookingRow}>
+                      <Feather name="heart" size={14} color={colors.primary} />
+                      <Text style={[styles.bookingDetail, { color: colors.mutedForeground }]} numberOfLines={1}>
+                        {historyEntry.service.title}
+                      </Text>
+                    </View>
+                  </>
+                )}
                 <View style={styles.bookingRow}>
                   <Feather name="map-pin" size={14} color={colors.primary} />
                   <Text style={[styles.bookingDetail, { color: colors.mutedForeground }]} numberOfLines={1}>

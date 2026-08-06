@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useListBookings, useUpdateBookingStatus } from '@workspace/api-client-react';
+import { useGetClientCareHistory, useListBookings, useUpdateBookingStatus } from '@workspace/api-client-react';
 import { Calendar, MapPin, ChevronRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'wouter';
@@ -34,6 +34,23 @@ export default function ClientBookings() {
       refetchOnReconnect: true,
     },
   });
+  const {
+    data: historyData,
+    isLoading: isHistoryLoading,
+    isError: isHistoryError,
+    refetch: refetchHistory,
+  } = useGetClientCareHistory(
+    { limit: 50, offset: 0 },
+    {
+      query: {
+        enabled: activeTab === 'past',
+        queryKey: ['client-care-history'],
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true,
+        refetchOnReconnect: true,
+      },
+    },
+  );
 
   const updateStatus = useUpdateBookingStatus();
   const statusFeedback = useClientBookingStatusFeedback(data?.bookings);
@@ -41,6 +58,8 @@ export default function ClientBookings() {
   const bookings = (data?.bookings ?? []).filter((b) =>
     TAB_STATUSES[activeTab].includes(b.status)
   );
+  const history = historyData?.history ?? [];
+  const isActiveTabLoading = activeTab === 'past' ? isHistoryLoading : isLoading;
 
   const handleCancel = (id: number) => {
     if (cancellingId !== null) return; // guard against double-tap
@@ -126,16 +145,34 @@ export default function ClientBookings() {
 
       {/* List */}
       <div className="px-6 mt-5 flex flex-col gap-4">
-        {isLoading ? (
+        {isActiveTabLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="bg-card border border-border rounded-2xl h-28 animate-pulse" />
           ))
-        ) : bookings.length === 0 ? (
+        ) : activeTab === 'past' && isHistoryError ? (
           <div className="text-center py-14 px-4">
             <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4 text-muted-foreground">
               <Calendar className="w-8 h-8" />
             </div>
-            <h3 className="font-serif font-medium text-lg mb-1">No {activeTab} bookings</h3>
+            <h3 className="font-serif font-medium text-lg mb-1">History unavailable</h3>
+            <p className="text-muted-foreground text-sm mb-5">
+              We couldn’t load your care history. Please try again.
+            </p>
+            <button
+              onClick={() => void refetchHistory()}
+              className="inline-block bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-xl shadow-sm hover:bg-primary/90 transition-colors"
+            >
+              Try again
+            </button>
+          </div>
+        ) : (activeTab === 'past' ? history.length === 0 : bookings.length === 0) ? (
+          <div className="text-center py-14 px-4">
+            <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4 text-muted-foreground">
+              <Calendar className="w-8 h-8" />
+            </div>
+            <h3 className="font-serif font-medium text-lg mb-1">
+              {activeTab === 'past' ? 'Your care history starts here' : `No ${activeTab} bookings`}
+            </h3>
             {activeTab === 'upcoming' && (
               <>
                 <p className="text-muted-foreground text-sm mb-5">
@@ -151,10 +188,14 @@ export default function ClientBookings() {
             )}
           </div>
         ) : (
-          bookings.map((booking) => {
+          (activeTab === 'past' ? history : bookings).map((booking) => {
             const statusInfo = STATUS_LABELS[booking.status] ?? { label: booking.status, color: 'bg-secondary text-foreground' };
             const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
             const scheduledDate = new Date(booking.scheduledAt);
+            const historyEntry = 'provider' in booking ? booking : null;
+            const providerName = historyEntry
+              ? `${historyEntry.provider.firstName} ${historyEntry.provider.lastName}`
+              : null;
 
             return (
               <div
@@ -169,9 +210,12 @@ export default function ClientBookings() {
                       </span>
                       <span className="text-xs text-muted-foreground">#{booking.id}</span>
                     </div>
-                    <p className="font-semibold text-foreground text-base truncate">
-                      Foot care appointment
+                     <p className="font-semibold text-foreground text-base truncate">
+                       {historyEntry?.service.title ?? 'Foot care appointment'}
                     </p>
+                     {providerName && (
+                       <p className="text-sm text-muted-foreground truncate">{providerName}</p>
+                     )}
                   </div>
                   {canCancel && (
                     <button
@@ -218,7 +262,7 @@ export default function ClientBookings() {
                     View details
                     <ChevronRight className="w-4 h-4" />
                   </Link>
-                  {booking.status === 'completed' && (
+                   {booking.status === 'completed' && (
                     <Link
                       href={`/bookings/${booking.id}`}
                       className="text-sm text-muted-foreground font-medium hover:text-primary hover:underline"
