@@ -1,0 +1,106 @@
+Do this next
+Choose schema push and seed restoration, not another feature. The correct sequence is:
+
+Inspect the existing Drizzle schema and seed scripts.
+
+Apply the schema to the active preview database.
+
+Restore the demo users and provider profiles.
+
+Verify client/provider/admin role behavior.
+
+Test the full authenticated client booking flow.
+
+Commit and push the verification/documentation checkpoint.
+
+Drizzle supports applying the declared PostgreSQL schema directly with drizzle-kit push, and seed scripts should be safe to rerun without duplicate records or failures.
+
+Send this to Replit
+text
+Client Portal Checkpoint 1 is complete at commit fb828d8.
+
+Do not add another feature yet. Resolve the remaining verification blocker first: the active preview database is missing users and provider_profiles, so authenticated end-to-end booking verification cannot complete.
+
+Current state to preserve:
+- Client-role guard for web /bookings is implemented.
+- Public provider discovery and profiles remain accessible without login.
+- Booking creation requires authentication and a client account.
+- Provider/admin users redirect to their correct experience.
+- Mobile bookings and account navigation are client-only.
+- Web/mobile login and registration redirects are role-aware.
+- Existing booking APIs and booking state machine are unchanged.
+- No schema/OpenAPI/notification/provider-flow/Stripe changes were made in Checkpoint 1.
+- Typecheck passes.
+- Build passes.
+- Web, API, mobile, and mockup workflows are running.
+- Web /discover returns 200.
+- API health returns 200.
+- 390px web and mobile previews render correctly.
+- GitHub commit fb828d8 is the current checkpoint.
+
+Next checkpoint: restore preview database schema and demo data.
+
+Requirements:
+1. Inspect the current Drizzle schema, database scripts, package scripts, and seed implementation before changing anything.
+2. Do not invent a second schema.
+3. Do not overwrite or reset a database without confirming which database URL is active.
+4. Apply the existing schema using the repository’s documented command, such as the existing db:push / drizzle-kit push script.
+5. Restore the required users and provider_profiles seed data.
+6. Make the seed process idempotent so rerunning it does not create duplicate demo accounts or provider profiles.
+7. Keep development/demo seed data separate from production data.
+8. Do not add new product features in this checkpoint.
+9. Do not modify Stripe, notifications, provider booking logic, or the booking state machine.
+10. Do not add the client/admin portal beyond the already-completed guard work.
+
+Verification checklist:
+- confirm the active DATABASE_URL target before schema changes
+- confirm users table exists
+- confirm provider_profiles table exists
+- run the existing seed command
+- confirm demo accounts exist
+- confirm provider records link to valid user records
+- verify client login
+- verify provider login
+- verify public /discover access without login
+- verify client can create a booking
+- verify provider sees the booking
+- verify role guards still redirect correctly
+- run typecheck
+- run build
+- run existing booking/state-machine tests
+- verify API health and web preview
+
+GitHub rules:
+- GitHub origin/main is the source of truth.
+- Do not start unrelated work.
+- Commit schema restoration separately from seed restoration if both are meaningful changes.
+- After each stable chunk, push immediately to origin/main.
+- Record the exact commands, database verification, test results, and commit hashes in the session log.
+- If the database is already correct after inspection, do not modify schema; only restore missing seed data if needed.
+- Do not commit secrets, DATABASE_URL values, or the uploaded recovery note.
+
+Before coding, report:
+1. Which database URL/environment the preview uses.
+2. Which schema and seed scripts already exist.
+3. The exact commands you plan to run.
+4. Whether the seed is already idempotent.
+5. The smallest safe fix.
+Important safety point
+Tell the agent to confirm the active DATABASE_URL before running any push or seed command. The goal is to repair the preview database, not accidentally reset Railway, production, or another shared environment. If the schema is already present and only records are missing, it should skip db:push and run only the appropriate seed restoration.
+
+After verification
+Once the full client booking flow passes, then proceed to Client Portal Checkpoint 2:
+
+client upcoming/past/cancelled bookings,
+
+booking detail and status visibility,
+
+client cancellation where allowed,
+
+client notification handling,
+
+review creation after completion,
+
+care-history presentation only after the core booking flow is stable.
+
+Do not start Stripe until the client booking lifecycle is verified end to end. The immediate decision is therefore: restore schema/seed data and verify the current checkpoint first.
