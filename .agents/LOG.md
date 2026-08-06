@@ -58,8 +58,8 @@ Since agent credit balances cannot be read programmatically, each session entry 
 ---
 
 ### Session 036 — 2026-08-06
-**Agent:** Replit Main Agent  
-**Scope:** `L`  
+**Agent:** Replit Main Agent
+**Scope:** `L`
 **Triggered by:** Check synchronization and begin Phase 4 shared signup and role-aware provider onboarding.
 
 **What was done:**
