@@ -63,3 +63,6 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Uploaded prompts and temporary handoff files stay in the workspace only
+/attached_assets/Pasted-*.txt

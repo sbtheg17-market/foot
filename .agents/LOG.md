@@ -52,6 +52,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Phase 4 application contract generated | Auth role intent plus owner-scoped provider application get/create/update/submit contracts are generated into the React and Zod clients; generated files were not edited manually. |
 | Provider application coverage | ✅ Phase 4 checkpoint verified | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. |
+| GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
 | GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
@@ -80,6 +81,34 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** Phase 4 shared signup and role-aware provider onboarding is verified with focused integration coverage and the full regression matrix. API, web, and Expo workflows are running; web and mobile 390px signup previews render correctly. No secrets or uploaded handoff files are included in the Git checkpoint.
 
 **Next best action:** Expand progressive provider onboarding with services, availability, and verification-document steps. Keep Stripe, payouts, active-role switching, and unrelated admin expansion out of scope.
+
+---
+
+### Session 038 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `S`
+**Triggered by:** Make GitHub continuation manipulatable from any account, workspace, or AI model.
+
+**What was done:**
+- Added `docs/github-continuation.md` with account-independent clone, authentication, direct-push, fork/PR, read/write diagnostics, and safe failure-recovery instructions.
+- Added `pnpm run git:check`, which reports branch, origin, local/remote hashes, ahead/behind, working-tree state, and verifies the remote branch is readable.
+- Added an ignore rule for future `attached_assets/Pasted-*.txt` uploads so prompts, critiques, and temporary handoffs are not accidentally committed.
+- Updated the setup guide, commit strategy, master prompt, and GitHub-auth memory to make account permissions explicit and prohibit credential guessing or history rewrites.
+
+**Files changed:**
+- `docs/github-continuation.md`
+- `scripts/check-github-sync.sh`
+- `package.json`
+- `.gitignore`
+- `.agents/SETUP.md`
+- `docs/commit-strategy.md`
+- `docs/master-prompt.md`
+- `.agents/memory/github-push-auth.md`
+- `.agents/LOG.md`
+
+**Build state at end:** GitHub read access verified; local `HEAD` matches `origin/main`; the new sync preflight and shell syntax checks pass. No application code, database schema, API contract, generated client, or workflow was changed.
+
+**Next best action:** Continue with the approved progressive provider-onboarding task only after confirming the active GitHub account has write permission or selecting the documented fork/PR workflow.
 
 ---
 

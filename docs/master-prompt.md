@@ -18,6 +18,8 @@ Important context:
 - Do not add monetization UI yet.
 - Do not add new seed data unless a checkpoint explicitly requires it.
 - Keep GitHub sync frequent and safe.
+- Treat `docs/github-continuation.md` as the source of truth for clone,
+  authentication, fork, and push recovery; never guess credentials.
 
 Your job:
 1. Inspect the full repository, not just the newest folder or the latest portal segment.

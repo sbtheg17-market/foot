@@ -51,6 +51,8 @@ Set `JWT_SECRET` in the host's secret manager. It must be a long random value an
 
 The repository uses `origin/main` as the synchronization target.
 
+- Read [`docs/github-continuation.md`](../docs/github-continuation.md) for
+  account-independent clone, authentication, fork, and sync procedures.
 - Connect GitHub through the host's managed GitHub integration or credential manager.
 - Use normal `git pull --ff-only` and `git push origin main`.
 - Do not paste tokens into commands, files, logs, or documentation.
@@ -118,6 +120,7 @@ pnpm run build
 pnpm --filter @workspace/api-server run test
 pnpm --filter @workspace/api-server run test:integration
 pnpm --filter @workspace/api-server run test:provider-application
+pnpm run git:check
 git diff --check
 ```
 

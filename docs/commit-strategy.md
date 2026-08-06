@@ -32,6 +32,8 @@ Never let Replit build several checkpoints locally without pushing. GitHub is th
 6. If a checkpoint touches shared structure, split that cleanup into its own commit first, then the feature commit.
 7. Preserve a smooth merge path with GitHub by keeping commits small and reviewable.
 8. If anything is risky to merge, explain it before committing.
+9. GitHub write access comes from the authenticated account, not the repository or
+   AI model; use `docs/github-continuation.md` when changing environments.
 
 ---
 
