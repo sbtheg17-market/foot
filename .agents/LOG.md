@@ -51,7 +51,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, bounded client care history, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, in-flight protection, and completed-booking review form; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Additive role-state fields generated | Review/care-history contracts remain current; auth responses now expose additive `roles`, `activeRole`, `onboarding`, and `providerApplication` state. |
-| GitHub sync | ⚠️ Phase 3 changes ready to push | Authorization hardening and full regression verification are complete; signup/onboarding UI, active-role switching, Stripe, and payouts remain out of scope. |
+| GitHub sync | ⚠️ Blocked by GitHub authentication | Phase 3 implementation commit `2048cc3` is verified locally; direct push was rejected with invalid credentials and the managed push worker failed before execution. `origin/main` remains `b667bbb`; local tree is clean and ahead by 1. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -94,7 +94,29 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 **Build state at end:** Full Phase 3 verification passes after restarting the rebuilt API: workspace typecheck, focused authorization hardening (7/7), booking state machine, concurrency, reviews, care-history/privacy, role-state, availability, pressure, and full build. The API workflow is running cleanly. No UI, JWT shape, Stripe, payout, or signup/onboarding changes were made.
 
-**Next best action:** Commit and push this verified Phase 3 checkpoint, confirm local and remote return to 0/0, then stop. The next separately approved phase is role-aware signup/onboarding; do not begin it in this checkpoint.
+**Next best action:** Restore GitHub authentication and push the existing verified Phase 3 commit normally. Confirm local and remote return to 0/0, then stop. Do not amend, rebase, reset, force-push, or begin role-aware signup/onboarding.
+
+---
+
+### Session 036 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `XS`
+**Triggered by:** Complete the Phase 3 synchronization gate after implementation and verification.
+
+**What was done:**
+- Committed the verified Phase 3 authorization hardening as `2048cc3` (`Harden authorization with database-backed roles`).
+- Attempted a normal `git push origin main`; GitHub rejected the existing HTTPS credentials with `Invalid username or token`.
+- Attempted the managed GitHub push path twice; both attempts failed before execution because the durable push worker could not spawn.
+- Re-fetched `origin/main` and confirmed the remote did not advance.
+- Preserved the local commit and clean working tree; no force-push, amend, reset, rebase, or history rewrite was attempted.
+
+**Final synchronization state:**
+- Local `HEAD`: `2048cc3223f4a6fcc12d6479387306e0bba4b6e4`
+- `origin/main`: `b667bbbd363953dd6ff91951f3267aa2c5483527`
+- Ahead/behind: `1/0`
+- Working tree: clean
+
+**Next best action:** Restore GitHub authentication, push the existing local Phase 3 commit normally, and verify `0/0`. Stop before role-aware signup/onboarding implementation.
 
 ---
 
