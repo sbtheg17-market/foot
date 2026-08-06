@@ -36,22 +36,22 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 | Layer | Status | Notes |
 |---|---|---|
-| DB schema | ⚠️ Code + seed ready; preview DB unavailable | Current preview database is missing `users` and `provider_profiles`; auth/discovery integration checks return 500 until schema push + seed are restored. |
-| API server workflow | ✅ Running | `artifacts/api-server: API Server` builds and serves on port 8080; `GET /api/healthz` returns `{"status":"ok"}`. |
-| Auth routes | ✅ Live | POST /auth/register, /auth/login, /auth/logout, GET /auth/me — all verified (JWT token + user object confirmed) |
+| DB schema | ✅ Restored | Existing Drizzle schema pushed to the active development database (`helium` / `heliumdb`); users, provider profiles, services, bookings, and reviews are present. |
+| API server workflow | ⚠️ Running with auth configuration gap | `artifacts/api-server: API Server` builds and serves on port 8080; health and public discovery return 200, but the managed workflow does not receive `JWT_SECRET`, so its login endpoint returns 500. |
+| Auth routes | ✅ Code verified; managed preview blocked | Seeded client/provider/admin login, `/auth/me`, RBAC guards, and booking lifecycle passed in an isolated API process with the existing secret supplied only at runtime. |
 | JWT middleware | ✅ Live | requireAuth, requireRole, requireSelf — in `artifacts/api-server/src/middlewares/auth.ts` |
-| JWT_SECRET | ✅ Set | Stored as Replit Secret. API server confirmed signing tokens correctly. |
-| Seed script | ✅ Live | 5 demo accounts + full sample data seeded. Run: `pnpm --filter @workspace/api-server run seed` |
+| JWT_SECRET | ⚠️ Missing from managed workflow | The secret must be restored through the secure environment settings; no secret value was logged or committed. |
+| Seed script | ✅ Idempotent and restored | `pnpm run seed` created 5 demo accounts and full sample data; a second run skipped existing records without duplicates. |
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/:id, PATCH /bookings/:id/status — strict state machine, auto-invoice on confirm |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, GET /invoices, GET /invoices/:id — all role-scoped |
 | React frontend | ✅ Running | Provider portal plus client discovery, public profiles, client-only booking access, and booking history; 390px preview verified with HTTP 200. |
 | Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
-| Web booking flow | ✅ Live in code | BookingModal on provider profile → client-guarded `/bookings` page with Upcoming/Past/Cancelled tabs + cancel; end-to-end preview verification awaits DB restoration. |
+| Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; UI preview remains healthy. |
 | Expo mobile app | ✅ Running | All screens: Discover, Bookings, Account, Provider Profile, Login, Register — provider profile trust surfaces added; JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
-| GitHub sync | ⚠️ Local checkpoint ahead | Client activation is committed locally; push still requires the authenticated GitHub/Replit path. Separate `conflict_*` branches remain reference-only. |
+| GitHub sync | ⚠️ Push requires authenticated path | `origin/main` includes the prior client-portal checkpoint; this documentation checkpoint will be pushed only if the authenticated GitHub/Replit path is available. Separate `conflict_*` branches remain reference-only. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -92,6 +92,33 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** `pnpm run typecheck` and `pnpm run build` pass. Web, API, mobile, and mockup workflows are running; API health returns 200. 390px web and mobile previews render. The active preview database is missing `users` and `provider_profiles`, so authenticated integration and seeded provider visual checks remain blocked until schema push + seed restoration.
 
 **Next best action:** Restore the preview database schema and seed data, then verify client login → provider profile → service selection → booking request → upcoming/past/cancelled booking views end to end. After that, add client booking status visibility and notification surfaces. Keep Stripe out of scope.
+
+---
+
+### Session 023 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `M`
+**Triggered by:** Restore the active preview database schema and demo data before adding another client-portal feature.
+
+**What was done:**
+- Read the uploaded restoration instructions and inspected the existing Drizzle schema, package scripts, and seed implementation before making changes.
+- Confirmed the active `DATABASE_URL` target without exposing its value: development PostgreSQL database `helium` / `heliumdb`; no public tables existed before restoration.
+- Applied the existing schema with `pnpm run db:push`. No reset, drop, production migration, or second schema was used.
+- Ran `pnpm run seed`, restoring 5 demo users, 2 linked provider profiles, 5 services, 4 sample bookings, and 1 review.
+- Ran `pnpm run seed` a second time. Existing demo users, provider profiles, services, and bookings were skipped, confirming the seed is idempotent.
+- Verified public discovery and API health return 200. Verified the full authenticated flow in an isolated API process: client/provider/admin login and `/auth/me`, unauthenticated booking access (401), provider/admin create guards (403), client booking creation (201), provider visibility, and client cancellation (200).
+- Removed the temporary verification booking so the restored demo dataset remains at 4 bookings.
+- Ran `pnpm run typecheck`, `pnpm run build`, and `pnpm --filter @workspace/api-server run test`; all passed, including all 63 booking state-machine tests.
+- The managed API workflow still reports `JWT_SECRET environment variable is not set` on login. A secure secret request could not be completed because the platform worker failed to spawn; no secret value was printed, changed, or committed. The isolated verification used the existing secret only as a process environment value.
+- Kept both uploaded recovery notes untracked.
+
+**Files changed:**
+- `.agents/LOG.md`
+- `docs/NEXT-STEPS.md`
+
+**Build state at end:** Development schema and seed data are restored and verified. The database contains 5 users, 2 provider profiles, 5 services, 4 bookings, and 1 review. Typecheck, build, public API checks, idempotent seed rerun, isolated authenticated booking flow, and the 63-test state-machine suite pass. All four workflows are running; the managed API workflow’s login remains blocked by missing `JWT_SECRET`.
+
+**Next best action:** Restore `JWT_SECRET` through the secure environment settings, restart `artifacts/api-server: API Server`, and re-run the authenticated checks against the managed preview. Then begin Client Portal Checkpoint 2: client booking status/detail visibility and notification presentation. Keep Stripe and `conflict_*` branches out of scope.
 
 ---
 

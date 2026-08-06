@@ -70,8 +70,13 @@ Files: `artifacts/api-server/src/routes/providers.ts`, `artifacts/web/src/pages/
 - Booking creation now routes unauthenticated visitors to sign-in and directs provider/admin accounts away from the client flow.
 - Existing provider discovery, profile, service selection, `POST /bookings`, and booking views were reused; no API/schema/state-machine changes were needed.
 
+## Preview schema and seed restoration ✅ DONE
+- The existing Drizzle schema was pushed to the active development database with `pnpm run db:push`.
+- The existing seed was run twice and is idempotent: 5 users, 2 provider profiles, 5 services, 4 sample bookings, and 1 review are present with valid provider-to-user links.
+- The authenticated client/provider/admin booking flow passed in an isolated API process. The managed API workflow still needs `JWT_SECRET` restored through secure environment settings before its preview login can be verified directly.
+
 ## What's next (pick with the user)
-- Client booking completion: verify auth against a restored seeded database, then improve status visibility/notifications; reviews and care history follow the core flow.
+- Client Portal Checkpoint 2: restore `JWT_SECRET` in the managed API workflow, then add client booking detail/status visibility and notification presentation; reviews and care history follow the core flow.
 - Stripe payments (explicitly out of scope until requested).
 
 ## Operational rules
