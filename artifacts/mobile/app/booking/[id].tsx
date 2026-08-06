@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  AppState,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useGetBooking, useGetProviderById, useListProviderServices, useUpdateBookingStatus } from '@workspace/api-client-react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
+import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
 
 const STATUS_META: Record<string, { label: string; bg: string; text: string; description: string }> = {
   requested: { label: 'Pending', bg: '#FEF3C7', text: '#92400E', description: 'Your request is with the provider for review.' },
@@ -43,17 +45,39 @@ export default function BookingDetailScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { data, isLoading, error, refetch } = useGetBooking(bookingId, {
-    query: { enabled: Number.isFinite(bookingId) && bookingId > 0, queryKey: ['booking-detail', bookingId] },
+    query: {
+      enabled: Number.isFinite(bookingId) && bookingId > 0,
+      queryKey: ['booking-detail', bookingId],
+      refetchOnMount: 'always',
+      refetchOnReconnect: true,
+    },
   });
   const booking = data?.booking;
   const [isCancelling, setIsCancelling] = useState(false);
   const updateStatus = useUpdateBookingStatus();
+  const statusFeedback = useClientBookingStatusFeedback(booking ? [booking] : undefined);
   const { data: providerData, isLoading: providerLoading } = useGetProviderById(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider', booking?.providerId] },
   });
   const { data: servicesData } = useListProviderServices(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider-services', booking?.providerId] },
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch]),
+  );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        void refetch();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [refetch]);
 
   if (isLoading) {
     return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primary} /></View>;
@@ -106,6 +130,7 @@ export default function BookingDetailScreen() {
             {
               onSuccess: () => {
                 Alert.alert('Booking cancelled', 'The provider has been notified.');
+                statusFeedback.suppressNextStatusChange(booking.id, 'cancelled');
                 void refetch();
                 setIsCancelling(false);
               },

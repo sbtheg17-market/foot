@@ -4,6 +4,7 @@ import { useLocation, useRoute } from 'wouter';
 import { ArrowLeft, Calendar, Clock, FileText, MapPin, ShieldCheck, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/routes';
+import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
 
 const STATUS_META: Record<string, { label: string; className: string; description: string }> = {
   requested: {
@@ -57,11 +58,18 @@ export default function ClientBookingDetail() {
   const bookingId = Number(params?.id);
 
   const { data, isLoading, error, refetch } = useGetBooking(bookingId, {
-    query: { enabled: Number.isFinite(bookingId) && bookingId > 0, queryKey: ['client-booking', bookingId] },
+    query: {
+      enabled: Number.isFinite(bookingId) && bookingId > 0,
+      queryKey: ['client-booking', bookingId],
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    },
   });
   const booking = data?.booking;
   const [isCancelling, setIsCancelling] = useState(false);
   const updateStatus = useUpdateBookingStatus();
+  const statusFeedback = useClientBookingStatusFeedback(booking ? [booking] : undefined);
   const { data: providerData, isLoading: providerLoading } = useGetProviderById(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider', booking?.providerId] },
   });
@@ -115,6 +123,7 @@ export default function ClientBookingDetail() {
       {
         onSuccess: () => {
           toast.success('Booking cancelled.');
+          statusFeedback.suppressNextStatusChange(booking.id, 'cancelled');
           void refetch();
           setIsCancelling(false);
         },

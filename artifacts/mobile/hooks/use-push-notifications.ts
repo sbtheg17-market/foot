@@ -10,8 +10,8 @@ const BASE = process.env.EXPO_PUBLIC_DOMAIN
 
 /**
  * Requests push-notification permission and registers the device's Expo
- * push token with the API server.  Only runs when the user is a provider
- * and only on native (iOS / Android) — expo-notifications is not available
+ * push token with the API server. Runs for authenticated clients and
+ * providers on native (iOS / Android) — expo-notifications is not available
  * on web.
  *
  * Also wires up a notification-tap handler that navigates to the Bookings
@@ -19,11 +19,11 @@ const BASE = process.env.EXPO_PUBLIC_DOMAIN
  */
 export function usePushNotifications(
   token: string | null,
-  isProvider: boolean
+  canReceivePush: boolean
 ) {
   // ── Register push token on login ───────────────────────────────────────────
   useEffect(() => {
-    if (!token || !isProvider || Platform.OS === 'web') return;
+    if (!token || !canReceivePush || Platform.OS === 'web') return;
 
     let cancelled = false;
 
@@ -64,7 +64,7 @@ export function usePushNotifications(
 
     register();
     return () => { cancelled = true; };
-  }, [token, isProvider]);
+  }, [token, canReceivePush]);
 
   // ── Handle notification tap → navigate to Bookings ─────────────────────────
   useEffect(() => {

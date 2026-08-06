@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,15 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useListBookings, useUpdateBookingStatus } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/auth';
+import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
 
 type Tab = 'upcoming' | 'past' | 'cancelled';
 
@@ -43,12 +45,32 @@ export default function BookingsScreen() {
     query: {
       queryKey: ['bookings'],
       enabled: user?.role === 'client',
+      refetchOnMount: 'always',
+      refetchOnReconnect: true,
     },
   });
 
   const updateStatus = useUpdateBookingStatus();
+  const statusFeedback = useClientBookingStatusFeedback(user?.role === 'client' ? data?.bookings : undefined);
   // Track which booking has a request in flight so we can disable its button.
   const [pendingId, setPendingId] = useState<number | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.role !== 'client') return;
+      void refetch();
+    }, [refetch, user?.role]),
+  );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && user?.role === 'client') {
+        void refetch();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [refetch, user?.role]);
 
   if (!user) {
     return (
@@ -114,6 +136,7 @@ export default function BookingsScreen() {
             {
               onSuccess: () => {
                 Alert.alert('Booking cancelled', 'The provider has been notified.');
+                statusFeedback.suppressNextStatusChange(id, 'cancelled');
                 void refetch();
                 setPendingId(null);
               },

@@ -46,12 +46,12 @@ const queryClient = new QueryClient({
 });
 
 /**
- * Registers the provider's push token and handles notification taps.
+ * Registers the provider/client push token and handles notification taps.
  * Must sit inside AuthProvider so it can read the auth context.
  */
 function PushNotificationManager() {
   const { token, user } = useAuth();
-  usePushNotifications(token, user?.role === 'provider');
+  usePushNotifications(token, user?.role === 'provider' || user?.role === 'client');
   return null;
 }
 

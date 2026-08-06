@@ -3,6 +3,7 @@ import { useListBookings, useUpdateBookingStatus } from '@workspace/api-client-r
 import { Calendar, MapPin, ChevronRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'wouter';
+import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
 
 type Tab = 'upcoming' | 'past' | 'cancelled';
 
@@ -26,10 +27,16 @@ export default function ClientBookings() {
   const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   const { data, isLoading, refetch } = useListBookings(undefined, {
-    query: { queryKey: ['client-bookings'] },
+    query: {
+      queryKey: ['client-bookings'],
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    },
   });
 
   const updateStatus = useUpdateBookingStatus();
+  const statusFeedback = useClientBookingStatusFeedback(data?.bookings);
 
   const bookings = (data?.bookings ?? []).filter((b) =>
     TAB_STATUSES[activeTab].includes(b.status)
@@ -55,6 +62,7 @@ export default function ClientBookings() {
       {
         onSuccess: () => {
           toast.success('Booking cancelled.');
+          statusFeedback.suppressNextStatusChange(id, 'cancelled');
           void refetch();
           setCancellingId(null);
         },
