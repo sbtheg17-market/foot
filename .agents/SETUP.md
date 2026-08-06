@@ -1,6 +1,6 @@
 # OnCall Foot — New-account continuation setup
 
-This document is the shortest safe path for a new account, host, or agent to resume OnCall Foot without relying on chat history. The synchronized baseline for this package is commit `9abdd31`.
+This document is the shortest safe path for a new account, host, or agent to resume OnCall Foot without relying on chat history. The synchronized baseline is the current `origin/main` commit.
 
 ## 1. Clone and inspect
 
@@ -107,7 +107,7 @@ For any new or changed endpoint:
 4. Use generated React Query hooks in web/mobile; never edit generated files manually.
 5. Push development schema only when the data model actually changes.
 
-Existing reviews table, review route contract, and public provider-review display are already present. Phase 3 authorization hardening is complete; the next task is the separately approved role-aware signup/onboarding checkpoint, see `.agents/NEXT_TASK.md`.
+Existing reviews table, review route contract, and public provider-review display are already present. Phase 3 authorization hardening and Phase 4 shared signup/provider onboarding are complete and covered by focused integration tests; see `.agents/NEXT_TASK.md` for the next progressive onboarding scope.
 
 ## 5. Verification and handoff
 
@@ -117,10 +117,11 @@ pnpm run typecheck
 pnpm run build
 pnpm --filter @workspace/api-server run test
 pnpm --filter @workspace/api-server run test:integration
+pnpm --filter @workspace/api-server run test:provider-application
 git diff --check
 ```
 
-Check the web and mobile surfaces at 390px before handoff. Append the completed work and verification to `.agents/LOG.md`, commit the scoped change, and push normally to `origin/main`.
+Check the web and mobile surfaces at 390px before handoff. Run the provider-application and existing regression suites, append the completed work and verification to `.agents/LOG.md`, commit the scoped change, and push normally to `origin/main`.
 
 ## Known limitations and excluded features
 

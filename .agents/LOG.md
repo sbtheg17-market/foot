@@ -51,9 +51,35 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Phase 4 onboarding surfaces running | Discover, Bookings, Account, Provider Profile, Login, shared role-intent Register, mobile booking detail, bounded client care history, provider onboarding/application-status routes, client "Become a provider" entry point, and existing booking/review flows; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Phase 4 application contract generated | Auth role intent plus owner-scoped provider application get/create/update/submit contracts are generated into the React and Zod clients; generated files were not edited manually. |
-| GitHub sync | ℹ️ Synchronized at Phase 4 start; Phase 4 changes uncommitted | Local `HEAD` and `origin/main` matched at the Phase 3 synchronization gate. Current Phase 4 implementation is intentionally left as working-tree changes for the next checkpoint. |
+| Provider application coverage | ✅ Phase 4 checkpoint verified | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. |
+| GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
+
+---
+
+### Session 037 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `M`
+**Triggered by:** Close the Phase 4 checkpoint only after addressing the uploaded critique's missing integration-coverage requirement.
+
+**What was done:**
+- Added `provider-application.integration.test.ts` with focused API coverage for provider-application ownership, concurrent idempotent onboarding, duplicate prevention, draft validation, incomplete and repeated submission, rejected/resubmission and suspended states, approval prerequisites, role-intent escalation prevention, existing-client enrollment, credential submission, and private application data.
+- Added the `test:provider-application` package script.
+- Ran the full requested verification matrix: all 8 provider-application tests, 63 booking state-machine tests, 16 booking concurrency tests, 13 booking pressure tests, 7 review tests, 4 care-history/privacy tests, 3 availability tests, 2 role-state tests, 7 authorization tests, full typecheck, and full workspace build passed.
+- Restarted API, web, and Expo workflows successfully. Verified web and mobile signup screens at 390px; only existing non-blocking browser/development warnings appeared.
+- Removed the uploaded critique from Git scope and updated the continuation records to reflect the verified checkpoint.
+
+**Files changed:**
+- `artifacts/api-server/src/__tests__/provider-application.integration.test.ts`
+- `artifacts/api-server/package.json`
+- `.agents/LOG.md`
+- `.agents/NEXT_TASK.md`
+- `.agents/SETUP.md`
+
+**Build state at end:** Phase 4 shared signup and role-aware provider onboarding is verified with focused integration coverage and the full regression matrix. API, web, and Expo workflows are running; web and mobile 390px signup previews render correctly. No secrets or uploaded handoff files are included in the Git checkpoint.
+
+**Next best action:** Expand progressive provider onboarding with services, availability, and verification-document steps. Keep Stripe, payouts, active-role switching, and unrelated admin expansion out of scope.
 
 ---
 
