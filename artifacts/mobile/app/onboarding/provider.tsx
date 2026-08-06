@@ -761,8 +761,8 @@ export default function ProviderOnboardingScreen() {
   // Restore step from server
   useEffect(() => {
     if (!application) return;
-    const serverStep = application.currentStep as Step;
-    if (STEPS.includes(serverStep) && serverStep !== 'submitted') setStep(serverStep);
+    const serverStep = application.currentStep as string;
+    if ((STEPS as string[]).includes(serverStep)) setStep(serverStep as Step);
   }, [application?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const completion = useMemo(() => {

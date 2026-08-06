@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import {
+  type SubmitVerificationDocRequestDocType,
   useCreateApplicationService,
   useCreateProviderApplication,
   useDeleteApplicationService,
@@ -533,7 +534,7 @@ function VerificationStep({ onNext, onBack }: VerificationStepProps) {
   const submitDoc = useSubmitVerificationDoc();
   const qc = useQueryClient();
 
-  const [docType, setDocType] = useState('license');
+  const [docType, setDocType] = useState<SubmitVerificationDocRequestDocType>('license');
   const [fileName, setFileName] = useState('');
   const [notes, setNotes] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -610,7 +611,7 @@ function VerificationStep({ onNext, onBack }: VerificationStepProps) {
               {formError && <p className="text-sm text-destructive">{formError}</p>}
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium text-foreground">Document type</span>
-                <select value={docType} onChange={(e) => setDocType(e.target.value)} className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none ring-primary focus:ring-2">
+                <select value={docType} onChange={(e) => setDocType(e.target.value as SubmitVerificationDocRequestDocType)} className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none ring-primary focus:ring-2">
                   {DOC_TYPES.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
                 </select>
               </label>
@@ -777,8 +778,8 @@ export default function ProviderOnboarding() {
   // Restore step from server currentStep when application first loads
   useEffect(() => {
     if (!application) return;
-    const serverStep = application.currentStep as Step;
-    if (STEPS.includes(serverStep) && serverStep !== 'submitted') setStep(serverStep);
+    const serverStep = application.currentStep as string;
+    if ((STEPS as string[]).includes(serverStep)) setStep(serverStep as Step);
   }, [application?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const completion = useMemo(() => {
