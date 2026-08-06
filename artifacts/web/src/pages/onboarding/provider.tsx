@@ -19,7 +19,7 @@ export default function ProviderOnboarding() {
   const { data: me, isLoading: meLoading, error: meError } = useGetMe();
   const canUseProviderOnboarding = Boolean(me?.user.roles?.includes('provider'));
   const applicationQuery = useGetProviderApplication({
-    query: { enabled: canUseProviderOnboarding, retry: false, queryKey: ['provider-application'] },
+    query: { enabled: Boolean(me?.user), retry: false, queryKey: ['provider-application'] },
   });
   const createApplication = useCreateProviderApplication();
   const updateApplication = useUpdateProviderApplication();

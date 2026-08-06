@@ -37,23 +37,51 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Layer | Status | Notes |
 |---|---|---|
 | DB schema | ✅ Phase 3 authorization state verified in development | Existing schema remains intact; `account_roles` and `provider_applications` are now read by authorization middleware. `users.role` and provider verification state remain compatibility fields. |
-| API server workflow | ✅ Running with Phase 3 authorization | `artifacts/api-server: API Server` builds and serves on port 8080; auth, database-backed role guards, approved-provider gates, public discovery, and admin routes are verified. |
-| Auth routes | ✅ Managed workflow verified | Seeded client/provider/admin login and `/auth/me` return 200; role membership removal denies the role; non-approved provider applications cannot access provider operations; admin membership remains enforced. |
+| API server workflow | ✅ Running with Phase 4 onboarding API | `artifacts/api-server: API Server` builds and serves on port 8080; database-backed role guards, approved-provider gates, owner-scoped provider applications, public discovery, and admin routes are verified. |
+| Auth routes | ✅ Shared role-intent flow added | Registration accepts additive `roleIntent`, creates provider membership/profile/application transactionally for provider intent, and preserves database-backed authorization. Login/signup routing uses server-confirmed application state. |
 | JWT middleware | ✅ Database-backed | `requireAuth` confirms active user/context from PostgreSQL; `requireRole` checks `account_roles`; approved-provider middleware checks application/profile ownership and approval. JWT claims remain unchanged. |
 | JWT_SECRET | ✅ Available to managed workflow | Added by the user through the development/shared Secrets panel; value was never inspected, printed, logged, committed, or exposed. |
 | Seed script | ✅ Idempotent and restored | `pnpm run seed` created 5 demo accounts and full sample data; a second run skipped existing records without duplicates. |
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/history, GET /bookings/:id, PATCH /bookings/:id/status — client-safe bounded history, strict state machine, auto-invoice on confirm |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, booking-scoped client review lookup, GET /invoices, GET /invoices/:id — role-scoped; completed-booking review validation and duplicate races return safe conflicts |
-| React frontend | ✅ Running | Provider portal plus client discovery, public profiles, client-only booking access, booking list/detail, bounded client care history, cancellation confirmation, status freshness on mount/focus/reconnect, in-app status feedback, and completed-booking review form; 390px preview verified. |
+| React frontend | ✅ Phase 4 onboarding surfaces running | Provider portal plus client discovery, public profiles, booking lifecycle, shared `/signup`, `/register` compatibility redirect, server-confirmed role-aware redirects, provider onboarding/application-status routes, and owner-scoped application form; 390px preview verified. |
 | Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
 | Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; client list/detail refresh on mount/focus/reconnect and server-status feedback are live. |
-| Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, bounded client care history, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, in-flight protection, and completed-booking review form; 390px preview verified |
+| Expo mobile app | ✅ Phase 4 onboarding surfaces running | Discover, Bookings, Account, Provider Profile, Login, shared role-intent Register, mobile booking detail, bounded client care history, provider onboarding/application-status routes, client "Become a provider" entry point, and existing booking/review flows; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
-| OpenAPI spec | ✅ Additive role-state fields generated | Review/care-history contracts remain current; auth responses now expose additive `roles`, `activeRole`, `onboarding`, and `providerApplication` state. |
-| GitHub sync | ⚠️ Blocked by GitHub authentication | Phase 3 implementation commit `2048cc3` is verified locally; direct push was rejected with invalid credentials and the managed push worker failed before execution. `origin/main` remains `b667bbb`; local tree is clean and ahead by 1. |
+| OpenAPI spec | ✅ Phase 4 application contract generated | Auth role intent plus owner-scoped provider application get/create/update/submit contracts are generated into the React and Zod clients; generated files were not edited manually. |
+| GitHub sync | ℹ️ Synchronized at Phase 4 start; Phase 4 changes uncommitted | Local `HEAD` and `origin/main` matched at the Phase 3 synchronization gate. Current Phase 4 implementation is intentionally left as working-tree changes for the next checkpoint. |
 
-**MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
+**MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
+
+---
+
+### Session 036 — 2026-08-06
+**Agent:** Replit Main Agent  
+**Scope:** `L`  
+**Triggered by:** Check synchronization and begin Phase 4 shared signup and role-aware provider onboarding.
+
+**What was done:**
+- Added OpenAPI-first owner-scoped provider application endpoints to start/resume, read, save, and submit provider onboarding.
+- Regenerated the React Query and Zod clients from the OpenAPI contract.
+- Implemented transactional provider membership, profile, and draft application creation for provider signup intent while retaining database-backed authorization gates.
+- Added shared web `/signup`, `/register` compatibility handling, server-confirmed redirects, provider onboarding, application status, and client onboarding routes.
+- Added mobile role-intent signup, server-confirmed redirects, provider onboarding/status screens, and a client account action to become a provider.
+- Kept provider operations behind the existing approved-provider checks; onboarding and credential submission do not grant operational access.
+- Verified web, mobile, and API typechecks; full workspace build passed; web and mobile signup surfaces were visually checked at 390px; API, web, and Expo workflows restarted successfully.
+- Removed duplicate Expo auth screen declarations and fixed web onboarding application-query initialization after client enrollment.
+
+**Files changed:**
+- `lib/api-spec/openapi.yaml`, regenerated `lib/api-client-react/src/generated/`, and regenerated `lib/api-zod/src/generated/`
+- `artifacts/api-server/src/routes/auth.ts`
+- `artifacts/api-server/src/routes/providers.ts`
+- `artifacts/web/src/App.tsx`, `src/lib/routes.ts`, `src/pages/login.tsx`, `src/pages/register.tsx`, `src/pages/onboarding/*`, `src/pages/provider-application-status.tsx`
+- `artifacts/mobile/app/_layout.tsx`, `app/auth/*`, `app/onboarding/*`, `app/provider/application-status.tsx`, `(tabs)/account.tsx`, `context/auth.tsx`
+
+**Build state at end:** web, mobile, and API typechecks green; full workspace build green; API, web, and Expo workflows running; 390px signup previews verified; no startup errors in fresh workflow logs.
+
+**Next best action:** Add focused integration coverage for provider application ownership/idempotency/submit validation, then expand the progressive provider onboarding steps without adding payments or weakening approved-provider authorization.
 
 ---
 
