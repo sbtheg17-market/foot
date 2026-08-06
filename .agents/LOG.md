@@ -45,13 +45,13 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/:id, PATCH /bookings/:id/status — strict state machine, auto-invoice on confirm |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, GET /invoices, GET /invoices/:id — all role-scoped |
-| React frontend | ✅ Running | Provider portal plus client discovery, public profiles, client-only booking access, booking list/detail, cancellation confirmation, and stale-submit handling; 390px preview verified. |
+| React frontend | ✅ Running | Provider portal plus client discovery, public profiles, client-only booking access, booking list/detail, cancellation confirmation, status freshness on mount/focus/reconnect, and in-app status feedback; 390px preview verified. |
 | Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
-| Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; list/detail cancellation confirmation and refresh/error handling are live. |
-| Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, cancellation confirmation, and in-flight protection; provider profile trust surfaces and JWT auth via AsyncStorage |
+| Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; client list/detail refresh on mount/focus/reconnect and server-status feedback are live. |
+| Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, and in-flight protection; provider profile trust surfaces and JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
-| GitHub sync | ⚠️ Pending authenticated push | Local `main` contains the verified cancellation commit and is three commits ahead of `origin/main`; shell push was rejected by GitHub authentication and the managed push worker could not spawn. Uploaded handoffs remain intentionally untracked. |
+| GitHub sync | ✅ Synchronized | Local `main` and `origin/main` were synchronized at `788e93c` before this checkpoint; the current status-freshness commits are pending a normal push. Uploaded handoffs remain intentionally untracked. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -224,6 +224,38 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** Web and mobile typechecks pass; full build passes; all 79 booking unit/concurrency tests pass; web, API, mobile, and mockup workflows are running. The feature commit is `a37b83e69f3aef5565b0dc4ef0fbb9f7d6cf806b`; the documentation commit is `36c770e16be7a64ad7cf2f69f301004c4ccf26ad`; `origin/main` remains at `bfde90d1c30ab0a0978efc19138d48c6c92e1018` pending authenticated push access. Uploaded handoffs remain untracked.
 
 **Next best action:** Push the reviewed local commits to `origin/main` once authenticated GitHub access is restored, then continue client booking status freshness/notification presentation. Keep Stripe, schema changes, reviews, care history, admin UI, and provider-flow changes out of scope.
+
+---
+
+### Session 028 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `S`
+**Triggered by:** Client-facing booking-status freshness and notification presentation.
+
+**What was done:**
+- Added server-status feedback for client booking changes on web and mobile. Initial loads are quiet; later confirmed, rescheduled, completed, and cancelled changes produce clear in-app feedback.
+- Added client booking freshness paths: web refetches on mount, window focus, and reconnect; mobile refetches on screen focus, app resume, mount, and reconnect.
+- Reused the existing booking list/detail APIs and server-owned status values. No client-side transition rules or duplicate local booking state were introduced.
+- Enabled the existing Expo push-token registration path for authenticated clients as well as providers, preserving provider notification behavior and existing notification-tap routing.
+- Preserved cancellation confirmation, duplicate-submit protection, provider-private `careNotes` hiding, and all existing provider booking flows.
+- No schema, OpenAPI, generated client, Stripe, reviews, care history, or admin changes.
+- Verified web/mobile typechecks, full workspace build, 63 booking state-machine tests, 16 booking concurrency/integration tests, clean workflow restarts, fresh workflow logs, and 390px web/mobile previews. Unauthenticated booking access remains protected.
+- Committed the application changes separately as `d4315b2`. The two newly uploaded continuity handoffs remain untracked and are excluded locally.
+
+**Files changed:**
+- `artifacts/web/src/App.tsx`
+- `artifacts/web/src/pages/bookings.tsx`
+- `artifacts/web/src/pages/booking-detail.tsx`
+- `artifacts/web/src/hooks/use-client-booking-status-feedback.ts`
+- `artifacts/mobile/app/_layout.tsx`
+- `artifacts/mobile/app/(tabs)/bookings.tsx`
+- `artifacts/mobile/app/booking/[id].tsx`
+- `artifacts/mobile/hooks/use-push-notifications.ts`
+- `artifacts/mobile/hooks/use-client-booking-status-feedback.ts`
+
+**Build state at end:** Web and mobile typechecks pass; full build passes; 63 state-machine and 16 concurrency tests pass; web, API, mobile, and mockup workflows are running. Application commit `d4315b2` is one commit ahead of synchronized `origin/main` at `788e93c`; documentation commit and normal push remain to be completed.
+
+**Next best action:** Push this focused checkpoint normally, verify local and remote hashes match with ahead/behind 0/0, then stop. Do not begin reviews, care history, Stripe, or admin work in the same checkpoint.
 
 ---
 
