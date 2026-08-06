@@ -101,6 +101,21 @@ export interface UpdateProviderApplicationRequest {
   yearsExperience?: number;
 }
 
+export interface ApplicationCompletion {
+  profileComplete: boolean;
+  servicesComplete: boolean;
+  availabilityComplete: boolean;
+  verificationComplete: boolean;
+  readyForSubmission: boolean;
+  applicationStatus: ProviderApplicationStatus;
+  /** Human-readable list of missing required sections */
+  missingRequirements: string[];
+}
+
+export interface ApplicationCompletionResponse {
+  completion: ApplicationCompletion;
+}
+
 export type OnboardingStateClient = typeof OnboardingStateClient[keyof typeof OnboardingStateClient] | null;
 
 

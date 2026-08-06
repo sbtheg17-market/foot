@@ -295,8 +295,13 @@ router.post(
       res.status(409).json({ error: "Suspended applications cannot be submitted." });
       return;
     }
-    if (!application.profile.title || !application.profile.bio || !application.profile.city) {
-      res.status(400).json({ error: "Complete your title, bio, and city before submitting." });
+    // Validate all required sections are complete (server-derived, not client-trusted)
+    const completion = await computeCompletion(application);
+    if (!completion.readyForSubmission) {
+      res.status(400).json({
+        error: "Your application is not ready for submission.",
+        missingRequirements: completion.missingRequirements,
+      });
       return;
     }
 
@@ -332,6 +337,346 @@ router.post(
       return;
     }
     res.json(applicationResponse(submitted));
+  },
+);
+
+// ── Application-scoped completion summary ──────────────────────────────────────
+
+/**
+ * Computes the server-side completion summary for a provider application.
+ * All booleans are derived from the database; client values are never trusted.
+ */
+async function computeCompletion(application: ApplicationRow) {
+  const profileId = application.providerProfileId;
+
+  const [serviceRows, slotRows, docRows] = await Promise.all([
+    db
+      .select({ id: servicesTable.id })
+      .from(servicesTable)
+      .where(and(eq(servicesTable.providerId, profileId), eq(servicesTable.isActive, true)))
+      .limit(1),
+    db
+      .select({ id: availabilityTable.id })
+      .from(availabilityTable)
+      .where(eq(availabilityTable.providerId, profileId))
+      .limit(1),
+    db
+      .select({ id: verificationDocsTable.id })
+      .from(verificationDocsTable)
+      .where(eq(verificationDocsTable.providerId, profileId))
+      .limit(1),
+  ]);
+
+  const profileComplete = application.profile.profileComplete;
+  const servicesComplete = serviceRows.length > 0;
+  const availabilityComplete = slotRows.length > 0;
+  const verificationComplete = docRows.length > 0;
+  const readyForSubmission =
+    profileComplete && servicesComplete && availabilityComplete && verificationComplete;
+
+  const missingRequirements: string[] = [];
+  if (!profileComplete) missingRequirements.push("Complete your professional title, bio, and city");
+  if (!servicesComplete) missingRequirements.push("Add at least one service");
+  if (!availabilityComplete) missingRequirements.push("Add at least one availability slot");
+  if (!verificationComplete) missingRequirements.push("Submit at least one verification document");
+
+  return {
+    profileComplete,
+    servicesComplete,
+    availabilityComplete,
+    verificationComplete,
+    readyForSubmission,
+    applicationStatus: application.status,
+    missingRequirements,
+  };
+}
+
+router.get(
+  "/application/completion",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+    const completion = await computeCompletion(application);
+    res.json({ completion });
+  },
+);
+
+// ── Application-scoped services (pre-approval) ────────────────────────────────
+
+router.get(
+  "/application/services",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+    const services = await db
+      .select()
+      .from(servicesTable)
+      .where(eq(servicesTable.providerId, application.providerProfileId));
+    res.json({ services });
+  },
+);
+
+router.post(
+  "/application/services",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+    if (application.status !== "draft" && application.status !== "rejected") {
+      res.status(409).json({ error: "Services can only be edited on draft or rejected applications." });
+      return;
+    }
+
+    const { title, description, durationMinutes, priceCents, category, eligibilityNotes } =
+      req.body as Record<string, unknown>;
+
+    if (!title || !durationMinutes || priceCents === undefined) {
+      res.status(400).json({ error: "title, durationMinutes, and priceCents are required." });
+      return;
+    }
+    const titleStr = String(title).trim();
+    if (titleStr.length < 1 || titleStr.length > 200) {
+      res.status(400).json({ error: "title must be between 1 and 200 characters." });
+      return;
+    }
+    const dur = Number(durationMinutes);
+    if (!Number.isInteger(dur) || dur < 15 || dur > 480) {
+      res.status(400).json({ error: "durationMinutes must be an integer between 15 and 480." });
+      return;
+    }
+    const price = Number(priceCents);
+    if (!Number.isInteger(price) || price < 0) {
+      res.status(400).json({ error: "priceCents must be a non-negative integer." });
+      return;
+    }
+
+    const [service] = await db
+      .insert(servicesTable)
+      .values({
+        providerId: application.providerProfileId,
+        title: titleStr,
+        description: description !== undefined ? String(description).trim() : null,
+        durationMinutes: dur,
+        priceCents: price,
+        category: category !== undefined ? String(category) : "foot_care",
+        eligibilityNotes: eligibilityNotes !== undefined ? String(eligibilityNotes).trim() : null,
+        isActive: true,
+      })
+      .returning();
+
+    res.status(201).json({ service });
+  },
+);
+
+router.patch(
+  "/application/services/:serviceId",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+    if (application.status !== "draft" && application.status !== "rejected") {
+      res.status(409).json({ error: "Services can only be edited on draft or rejected applications." });
+      return;
+    }
+
+    const serviceId = Number(req.params["serviceId"]);
+    const [existing] = await db
+      .select()
+      .from(servicesTable)
+      .where(
+        and(
+          eq(servicesTable.id, serviceId),
+          eq(servicesTable.providerId, application.providerProfileId),
+        ),
+      )
+      .limit(1);
+
+    if (!existing) {
+      res.status(404).json({ error: "Service not found." });
+      return;
+    }
+
+    const body = req.body as Record<string, unknown>;
+    const updates: Partial<typeof servicesTable.$inferInsert> = {};
+    if (body.title !== undefined) {
+      const t = String(body.title).trim();
+      if (t.length < 1 || t.length > 200) {
+        res.status(400).json({ error: "title must be between 1 and 200 characters." });
+        return;
+      }
+      updates.title = t;
+    }
+    if (body.description !== undefined) updates.description = String(body.description).trim();
+    if (body.durationMinutes !== undefined) {
+      const dur = Number(body.durationMinutes);
+      if (!Number.isInteger(dur) || dur < 15 || dur > 480) {
+        res.status(400).json({ error: "durationMinutes must be between 15 and 480." });
+        return;
+      }
+      updates.durationMinutes = dur;
+    }
+    if (body.priceCents !== undefined) {
+      const price = Number(body.priceCents);
+      if (!Number.isInteger(price) || price < 0) {
+        res.status(400).json({ error: "priceCents must be a non-negative integer." });
+        return;
+      }
+      updates.priceCents = price;
+    }
+    if (body.category !== undefined) updates.category = String(body.category);
+    if (body.eligibilityNotes !== undefined) updates.eligibilityNotes = String(body.eligibilityNotes).trim();
+
+    const [service] = await db
+      .update(servicesTable)
+      .set(updates)
+      .where(eq(servicesTable.id, serviceId))
+      .returning();
+
+    res.json({ service });
+  },
+);
+
+router.delete(
+  "/application/services/:serviceId",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+    if (application.status !== "draft" && application.status !== "rejected") {
+      res.status(409).json({ error: "Services can only be removed from draft or rejected applications." });
+      return;
+    }
+
+    const serviceId = Number(req.params["serviceId"]);
+    const [existing] = await db
+      .select({ id: servicesTable.id })
+      .from(servicesTable)
+      .where(
+        and(
+          eq(servicesTable.id, serviceId),
+          eq(servicesTable.providerId, application.providerProfileId),
+        ),
+      )
+      .limit(1);
+
+    if (!existing) {
+      res.status(404).json({ error: "Service not found." });
+      return;
+    }
+
+    await db.delete(servicesTable).where(eq(servicesTable.id, serviceId));
+    res.json({ message: "Service removed." });
+  },
+);
+
+// ── Application-scoped availability (pre-approval) ────────────────────────────
+
+router.get(
+  "/application/availability",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+    const slots = await db
+      .select()
+      .from(availabilityTable)
+      .where(eq(availabilityTable.providerId, application.providerProfileId))
+      .orderBy(availabilityTable.dayOfWeek, availabilityTable.startTime);
+    res.json({ slots });
+  },
+);
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+router.put(
+  "/application/availability",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+    if (application.status !== "draft" && application.status !== "rejected") {
+      res.status(409).json({ error: "Availability can only be set on draft or rejected applications." });
+      return;
+    }
+
+    const { slots } = req.body as {
+      slots?: Array<{ dayOfWeek: number; startTime: string; endTime: string }>;
+    };
+
+    if (!Array.isArray(slots)) {
+      res.status(400).json({ error: "slots must be an array." });
+      return;
+    }
+
+    for (const [i, slot] of slots.entries()) {
+      const day = Number(slot.dayOfWeek);
+      if (!Number.isInteger(day) || day < 0 || day > 6) {
+        res.status(400).json({ error: `slots[${i}].dayOfWeek must be 0–6.` });
+        return;
+      }
+      if (!TIME_RE.test(slot.startTime)) {
+        res.status(400).json({ error: `slots[${i}].startTime must be HH:MM (24h).` });
+        return;
+      }
+      if (!TIME_RE.test(slot.endTime)) {
+        res.status(400).json({ error: `slots[${i}].endTime must be HH:MM (24h).` });
+        return;
+      }
+      if (slot.startTime >= slot.endTime) {
+        res.status(400).json({ error: `slots[${i}]: startTime must be before endTime.` });
+        return;
+      }
+    }
+
+    const profileId = application.providerProfileId;
+    await db.delete(availabilityTable).where(eq(availabilityTable.providerId, profileId));
+
+    let inserted: typeof availabilityTable.$inferSelect[] = [];
+    if (slots.length > 0) {
+      inserted = await db
+        .insert(availabilityTable)
+        .values(
+          slots.map((s) => ({
+            providerId: profileId,
+            dayOfWeek: Number(s.dayOfWeek),
+            startTime: s.startTime,
+            endTime: s.endTime,
+          })),
+        )
+        .returning();
+    }
+
+    res.json({ slots: inserted });
   },
 );
 

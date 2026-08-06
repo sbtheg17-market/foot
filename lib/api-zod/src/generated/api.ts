@@ -319,6 +319,190 @@ export const SubmitProviderApplicationResponse = zod.object({
 
 
 /**
+ * Returns a completion status for each required onboarding section. The server calculates all flags — do not trust client-side values for authorization.
+ * @summary Get server-derived completion summary for the provider application
+ */
+export const GetProviderApplicationCompletionResponse = zod.object({
+  "completion": zod.object({
+  "profileComplete": zod.boolean(),
+  "servicesComplete": zod.boolean(),
+  "availabilityComplete": zod.boolean(),
+  "verificationComplete": zod.boolean(),
+  "readyForSubmission": zod.boolean(),
+  "applicationStatus": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "missingRequirements": zod.array(zod.string()).describe('Human-readable list of missing required sections')
+})
+})
+
+
+/**
+ * Returns services associated with the provider's profile during onboarding. Does not require an approved application.
+ * @summary List draft services for the provider application
+ */
+export const ListApplicationServicesResponse = zod.object({
+  "services": zod.array(zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "durationMinutes": zod.int(),
+  "priceCents": zod.int().describe('Price in cents (CAD)'),
+  "category": zod.string(),
+  "eligibilityNotes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date().optional()
+}))
+})
+
+
+/**
+ * Adds a service during onboarding. Does not require an approved application; application must be in draft or rejected status.
+ * @summary Add a service to the provider application
+ */
+
+export const createApplicationServiceBodyDurationMinutesMin = 15;
+
+export const createApplicationServiceBodyPriceCentsMin = 0;
+
+export const createApplicationServiceBodyCategoryDefault = `foot_care`;
+export const createApplicationServiceBodyIsActiveDefault = true;
+
+export const CreateApplicationServiceBody = zod.object({
+  "title": zod.string().min(1),
+  "description": zod.string().optional(),
+  "durationMinutes": zod.int().min(createApplicationServiceBodyDurationMinutesMin),
+  "priceCents": zod.int().min(createApplicationServiceBodyPriceCentsMin).describe('Price in cents'),
+  "category": zod.string().default(createApplicationServiceBodyCategoryDefault),
+  "eligibilityNotes": zod.string().optional(),
+  "isActive": zod.boolean().default(createApplicationServiceBodyIsActiveDefault)
+})
+
+export const CreateApplicationServiceResponse = zod.object({
+  "service": zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "durationMinutes": zod.int(),
+  "priceCents": zod.int().describe('Price in cents (CAD)'),
+  "category": zod.string(),
+  "eligibilityNotes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
+ * @summary Update a draft service in the provider application
+ */
+export const UpdateApplicationServiceParams = zod.object({
+  "serviceId": zod.coerce.number().int()
+})
+
+
+export const updateApplicationServiceBodyDurationMinutesMin = 15;
+
+export const updateApplicationServiceBodyPriceCentsMin = 0;
+
+
+
+export const UpdateApplicationServiceBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "description": zod.string().optional(),
+  "durationMinutes": zod.int().min(updateApplicationServiceBodyDurationMinutesMin).optional(),
+  "priceCents": zod.int().min(updateApplicationServiceBodyPriceCentsMin).optional(),
+  "category": zod.string().optional(),
+  "eligibilityNotes": zod.string().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateApplicationServiceResponse = zod.object({
+  "service": zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "durationMinutes": zod.int(),
+  "priceCents": zod.int().describe('Price in cents (CAD)'),
+  "category": zod.string(),
+  "eligibilityNotes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
+ * @summary Remove a draft service from the provider application
+ */
+export const DeleteApplicationServiceParams = zod.object({
+  "serviceId": zod.coerce.number().int()
+})
+
+export const DeleteApplicationServiceResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * Returns the provider's availability slots during onboarding. Does not require an approved application.
+ * @summary Get availability schedule for the provider application
+ */
+export const getApplicationAvailabilityResponseSlotsItemDayOfWeekMin = 0;
+export const getApplicationAvailabilityResponseSlotsItemDayOfWeekMax = 6;
+
+export const getApplicationAvailabilityResponseSlotsItemStartTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+export const getApplicationAvailabilityResponseSlotsItemEndTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+
+
+export const GetApplicationAvailabilityResponse = zod.object({
+  "slots": zod.array(zod.object({
+  "id": zod.int(),
+  "dayOfWeek": zod.int().min(getApplicationAvailabilityResponseSlotsItemDayOfWeekMin).max(getApplicationAvailabilityResponseSlotsItemDayOfWeekMax).describe('0 = Sunday, 6 = Saturday'),
+  "startTime": zod.string().regex(getApplicationAvailabilityResponseSlotsItemStartTimeRegExp).describe('HH:MM 24-hour'),
+  "endTime": zod.string().regex(getApplicationAvailabilityResponseSlotsItemEndTimeRegExp).describe('HH:MM 24-hour')
+}))
+})
+
+
+/**
+ * Replaces all availability slots during onboarding. Does not require an approved application; application must be in draft or rejected status.
+ * @summary Set availability schedule for the provider application
+ */
+export const setApplicationAvailabilityBodySlotsItemDayOfWeekMin = 0;
+export const setApplicationAvailabilityBodySlotsItemDayOfWeekMax = 6;
+
+export const setApplicationAvailabilityBodySlotsItemStartTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+export const setApplicationAvailabilityBodySlotsItemEndTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+
+
+export const SetApplicationAvailabilityBody = zod.object({
+  "slots": zod.array(zod.object({
+  "dayOfWeek": zod.int().min(setApplicationAvailabilityBodySlotsItemDayOfWeekMin).max(setApplicationAvailabilityBodySlotsItemDayOfWeekMax),
+  "startTime": zod.string().regex(setApplicationAvailabilityBodySlotsItemStartTimeRegExp),
+  "endTime": zod.string().regex(setApplicationAvailabilityBodySlotsItemEndTimeRegExp)
+}))
+}).describe('Replaces all availability slots for the provider')
+
+export const setApplicationAvailabilityResponseSlotsItemDayOfWeekMin = 0;
+export const setApplicationAvailabilityResponseSlotsItemDayOfWeekMax = 6;
+
+export const setApplicationAvailabilityResponseSlotsItemStartTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+export const setApplicationAvailabilityResponseSlotsItemEndTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+
+
+export const SetApplicationAvailabilityResponse = zod.object({
+  "slots": zod.array(zod.object({
+  "id": zod.int(),
+  "dayOfWeek": zod.int().min(setApplicationAvailabilityResponseSlotsItemDayOfWeekMin).max(setApplicationAvailabilityResponseSlotsItemDayOfWeekMax).describe('0 = Sunday, 6 = Saturday'),
+  "startTime": zod.string().regex(setApplicationAvailabilityResponseSlotsItemStartTimeRegExp).describe('HH:MM 24-hour'),
+  "endTime": zod.string().regex(setApplicationAvailabilityResponseSlotsItemEndTimeRegExp).describe('HH:MM 24-hour')
+}))
+})
+
+
+/**
  * @summary Get own provider profile
  */
 export const GetMyProviderProfileResponse = zod.object({

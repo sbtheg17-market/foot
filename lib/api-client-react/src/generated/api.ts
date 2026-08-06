@@ -21,6 +21,7 @@ import type {
 
 import type {
   AdminVerificationQueueResponse,
+  ApplicationCompletionResponse,
   AuthResponse,
   AvailabilityListResponse,
   BadRequestResponse,
@@ -842,6 +843,527 @@ export const useSubmitProviderApplication = <TError = ErrorType<BadRequestRespon
         TContext
       > => {
       return useMutation(getSubmitProviderApplicationMutationOptions(options));
+    }
+
+export const getGetProviderApplicationCompletionUrl = () => {
+
+
+
+
+  return `/api/providers/application/completion`
+}
+
+/**
+ * Returns a completion status for each required onboarding section. The server calculates all flags — do not trust client-side values for authorization.
+ * @summary Get server-derived completion summary for the provider application
+ */
+export const getProviderApplicationCompletion = async ( options?: Parameters<typeof customFetch>[1]): Promise<ApplicationCompletionResponse> => {
+
+  return customFetch<ApplicationCompletionResponse>(getGetProviderApplicationCompletionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProviderApplicationCompletionQueryKey = () => {
+    return [
+    `/api/providers/application/completion`
+    ] as const;
+    }
+
+
+export const getGetProviderApplicationCompletionQueryOptions = <TData = Awaited<ReturnType<typeof getProviderApplicationCompletion>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationCompletion>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProviderApplicationCompletionQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderApplicationCompletion>>> = ({ signal }) => getProviderApplicationCompletion({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationCompletion>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProviderApplicationCompletionQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderApplicationCompletion>>>
+export type GetProviderApplicationCompletionQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get server-derived completion summary for the provider application
+ */
+
+export function useGetProviderApplicationCompletion<TData = Awaited<ReturnType<typeof getProviderApplicationCompletion>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationCompletion>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProviderApplicationCompletionQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListApplicationServicesUrl = () => {
+
+
+
+
+  return `/api/providers/application/services`
+}
+
+/**
+ * Returns services associated with the provider's profile during onboarding. Does not require an approved application.
+ * @summary List draft services for the provider application
+ */
+export const listApplicationServices = async ( options?: Parameters<typeof customFetch>[1]): Promise<ServiceListResponse> => {
+
+  return customFetch<ServiceListResponse>(getListApplicationServicesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApplicationServicesQueryKey = () => {
+    return [
+    `/api/providers/application/services`
+    ] as const;
+    }
+
+
+export const getListApplicationServicesQueryOptions = <TData = Awaited<ReturnType<typeof listApplicationServices>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicationServices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApplicationServicesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApplicationServices>>> = ({ signal }) => listApplicationServices({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApplicationServices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApplicationServicesQueryResult = NonNullable<Awaited<ReturnType<typeof listApplicationServices>>>
+export type ListApplicationServicesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary List draft services for the provider application
+ */
+
+export function useListApplicationServices<TData = Awaited<ReturnType<typeof listApplicationServices>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApplicationServices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApplicationServicesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateApplicationServiceUrl = () => {
+
+
+
+
+  return `/api/providers/application/services`
+}
+
+/**
+ * Adds a service during onboarding. Does not require an approved application; application must be in draft or rejected status.
+ * @summary Add a service to the provider application
+ */
+export const createApplicationService = async (createServiceRequest: CreateServiceRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceResponse> => {
+
+  return customFetch<ServiceResponse>(getCreateApplicationServiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createServiceRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateApplicationServiceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicationService>>, TError,{data: BodyType<CreateServiceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createApplicationService>>, TError,{data: BodyType<CreateServiceRequest>}, TContext> => {
+
+const mutationKey = ['createApplicationService'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createApplicationService>>, {data: BodyType<CreateServiceRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createApplicationService(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateApplicationServiceMutationResult = NonNullable<Awaited<ReturnType<typeof createApplicationService>>>
+    export type CreateApplicationServiceMutationBody = BodyType<CreateServiceRequest>
+    export type CreateApplicationServiceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Add a service to the provider application
+ */
+export const useCreateApplicationService = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApplicationService>>, TError,{data: BodyType<CreateServiceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createApplicationService>>,
+        TError,
+        {data: BodyType<CreateServiceRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateApplicationServiceMutationOptions(options));
+    }
+
+export const getUpdateApplicationServiceUrl = (serviceId: number,) => {
+
+
+
+
+  return `/api/providers/application/services/${serviceId}`
+}
+
+/**
+ * @summary Update a draft service in the provider application
+ */
+export const updateApplicationService = async (serviceId: number,
+    updateServiceRequest: UpdateServiceRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceResponse> => {
+
+  return customFetch<ServiceResponse>(getUpdateApplicationServiceUrl(serviceId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateServiceRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateApplicationServiceMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateApplicationService>>, TError,{serviceId: number;data: BodyType<UpdateServiceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateApplicationService>>, TError,{serviceId: number;data: BodyType<UpdateServiceRequest>}, TContext> => {
+
+const mutationKey = ['updateApplicationService'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateApplicationService>>, {serviceId: number;data: BodyType<UpdateServiceRequest>}> = (props) => {
+          const {serviceId,data} = props ?? {};
+
+          return  updateApplicationService(serviceId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateApplicationServiceMutationResult = NonNullable<Awaited<ReturnType<typeof updateApplicationService>>>
+    export type UpdateApplicationServiceMutationBody = BodyType<UpdateServiceRequest>
+    export type UpdateApplicationServiceMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Update a draft service in the provider application
+ */
+export const useUpdateApplicationService = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateApplicationService>>, TError,{serviceId: number;data: BodyType<UpdateServiceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateApplicationService>>,
+        TError,
+        {serviceId: number;data: BodyType<UpdateServiceRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateApplicationServiceMutationOptions(options));
+    }
+
+export const getDeleteApplicationServiceUrl = (serviceId: number,) => {
+
+
+
+
+  return `/api/providers/application/services/${serviceId}`
+}
+
+/**
+ * @summary Remove a draft service from the provider application
+ */
+export const deleteApplicationService = async (serviceId: number, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeleteApplicationServiceUrl(serviceId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteApplicationServiceMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApplicationService>>, TError,{serviceId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteApplicationService>>, TError,{serviceId: number}, TContext> => {
+
+const mutationKey = ['deleteApplicationService'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteApplicationService>>, {serviceId: number}> = (props) => {
+          const {serviceId} = props ?? {};
+
+          return  deleteApplicationService(serviceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteApplicationServiceMutationResult = NonNullable<Awaited<ReturnType<typeof deleteApplicationService>>>
+
+    export type DeleteApplicationServiceMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Remove a draft service from the provider application
+ */
+export const useDeleteApplicationService = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteApplicationService>>, TError,{serviceId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteApplicationService>>,
+        TError,
+        {serviceId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteApplicationServiceMutationOptions(options));
+    }
+
+export const getGetApplicationAvailabilityUrl = () => {
+
+
+
+
+  return `/api/providers/application/availability`
+}
+
+/**
+ * Returns the provider's availability slots during onboarding. Does not require an approved application.
+ * @summary Get availability schedule for the provider application
+ */
+export const getApplicationAvailability = async ( options?: Parameters<typeof customFetch>[1]): Promise<AvailabilityListResponse> => {
+
+  return customFetch<AvailabilityListResponse>(getGetApplicationAvailabilityUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetApplicationAvailabilityQueryKey = () => {
+    return [
+    `/api/providers/application/availability`
+    ] as const;
+    }
+
+
+export const getGetApplicationAvailabilityQueryOptions = <TData = Awaited<ReturnType<typeof getApplicationAvailability>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicationAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetApplicationAvailabilityQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getApplicationAvailability>>> = ({ signal }) => getApplicationAvailability({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getApplicationAvailability>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetApplicationAvailabilityQueryResult = NonNullable<Awaited<ReturnType<typeof getApplicationAvailability>>>
+export type GetApplicationAvailabilityQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get availability schedule for the provider application
+ */
+
+export function useGetApplicationAvailability<TData = Awaited<ReturnType<typeof getApplicationAvailability>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getApplicationAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetApplicationAvailabilityQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetApplicationAvailabilityUrl = () => {
+
+
+
+
+  return `/api/providers/application/availability`
+}
+
+/**
+ * Replaces all availability slots during onboarding. Does not require an approved application; application must be in draft or rejected status.
+ * @summary Set availability schedule for the provider application
+ */
+export const setApplicationAvailability = async (setAvailabilityRequest: SetAvailabilityRequest, options?: Parameters<typeof customFetch>[1]): Promise<AvailabilityListResponse> => {
+
+  return customFetch<AvailabilityListResponse>(getSetApplicationAvailabilityUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(setAvailabilityRequest)
+  }
+);}
+
+
+
+
+
+export const getSetApplicationAvailabilityMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setApplicationAvailability>>, TError,{data: BodyType<SetAvailabilityRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setApplicationAvailability>>, TError,{data: BodyType<SetAvailabilityRequest>}, TContext> => {
+
+const mutationKey = ['setApplicationAvailability'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setApplicationAvailability>>, {data: BodyType<SetAvailabilityRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setApplicationAvailability(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetApplicationAvailabilityMutationResult = NonNullable<Awaited<ReturnType<typeof setApplicationAvailability>>>
+    export type SetApplicationAvailabilityMutationBody = BodyType<SetAvailabilityRequest>
+    export type SetApplicationAvailabilityMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Set availability schedule for the provider application
+ */
+export const useSetApplicationAvailability = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setApplicationAvailability>>, TError,{data: BodyType<SetAvailabilityRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setApplicationAvailability>>,
+        TError,
+        {data: BodyType<SetAvailabilityRequest>},
+        TContext
+      > => {
+      return useMutation(getSetApplicationAvailabilityMutationOptions(options));
     }
 
 export const getGetMyProviderProfileUrl = () => {

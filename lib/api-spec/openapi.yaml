@@ -1416,6 +1416,43 @@ components:
           minimum: 0
           maximum: 80
 
+    ApplicationCompletion:
+      type: object
+      properties:
+        profileComplete:
+          type: boolean
+        servicesComplete:
+          type: boolean
+        availabilityComplete:
+          type: boolean
+        verificationComplete:
+          type: boolean
+        readyForSubmission:
+          type: boolean
+        applicationStatus:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+        missingRequirements:
+          type: array
+          items:
+            type: string
+          description: Human-readable list of missing required sections
+      required:
+        - profileComplete
+        - servicesComplete
+        - availabilityComplete
+        - verificationComplete
+        - readyForSubmission
+        - applicationStatus
+        - missingRequirements
+
+    ApplicationCompletionResponse:
+      type: object
+      properties:
+        completion:
+          $ref: "#/components/schemas/ApplicationCompletion"
+      required:
+        - completion
+
     OnboardingState:
       type: object
       properties:
