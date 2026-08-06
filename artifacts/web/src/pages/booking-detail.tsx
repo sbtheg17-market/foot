@@ -1,7 +1,8 @@
-import React from 'react';
-import { useGetBooking, useGetProviderById, useListProviderServices } from '@workspace/api-client-react';
+import React, { useState } from 'react';
+import { useGetBooking, useGetProviderById, useListProviderServices, useUpdateBookingStatus } from '@workspace/api-client-react';
 import { useLocation, useRoute } from 'wouter';
 import { ArrowLeft, Calendar, Clock, FileText, MapPin, ShieldCheck, UserRound } from 'lucide-react';
+import { toast } from 'sonner';
 import { ROUTES } from '@/lib/routes';
 
 const STATUS_META: Record<string, { label: string; className: string; description: string }> = {
@@ -55,10 +56,12 @@ export default function ClientBookingDetail() {
   const [, setLocation] = useLocation();
   const bookingId = Number(params?.id);
 
-  const { data, isLoading, error } = useGetBooking(bookingId, {
+  const { data, isLoading, error, refetch } = useGetBooking(bookingId, {
     query: { enabled: Number.isFinite(bookingId) && bookingId > 0, queryKey: ['client-booking', bookingId] },
   });
   const booking = data?.booking;
+  const [isCancelling, setIsCancelling] = useState(false);
+  const updateStatus = useUpdateBookingStatus();
   const { data: providerData, isLoading: providerLoading } = useGetProviderById(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider', booking?.providerId] },
   });
@@ -92,6 +95,44 @@ export default function ClientBookingDetail() {
   const scheduled = formatDate(booking.scheduledAt);
   const provider = providerData?.provider;
   const service = servicesData?.services.find((item) => item.id === booking.serviceId);
+  const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
+
+  const handleCancel = () => {
+    if (isCancelling || !canCancel) {
+      if (!canCancel) {
+        toast.info('This booking can no longer be cancelled. Refreshing.');
+      }
+      return;
+    }
+    if (!window.confirm('Cancel this booking?\n\nThis cannot be undone.')) return;
+
+    setIsCancelling(true);
+    updateStatus.mutate(
+      {
+        bookingId: booking.id,
+        data: { status: 'cancelled', cancellationReason: 'Cancelled by client' },
+      },
+      {
+        onSuccess: () => {
+          toast.success('Booking cancelled.');
+          void refetch();
+          setIsCancelling(false);
+        },
+        onError: (err) => {
+          const statusCode = (err as { status?: number }).status;
+          if (statusCode === 409) {
+            toast.info('This booking was already updated — refreshing.');
+          } else if (statusCode === 400 || statusCode === 403) {
+            toast.error('This booking can no longer be cancelled.');
+          } else {
+            toast.error('Could not cancel booking. Please try again.');
+          }
+          void refetch();
+          setIsCancelling(false);
+        },
+      },
+    );
+  };
 
   return (
     <div className="flex-1 bg-background pb-10">
@@ -196,6 +237,15 @@ export default function ClientBookingDetail() {
         >
           View provider profile
         </button>
+        {canCancel && (
+          <button
+            onClick={handleCancel}
+            disabled={isCancelling}
+            className="w-full rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-semibold text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isCancelling ? 'Cancelling…' : 'Cancel booking'}
+          </button>
+        )}
       </div>
     </div>
   );

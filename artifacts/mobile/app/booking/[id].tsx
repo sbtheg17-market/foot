@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -7,10 +7,11 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useGetBooking, useGetProviderById, useListProviderServices } from '@workspace/api-client-react';
+import { useGetBooking, useGetProviderById, useListProviderServices, useUpdateBookingStatus } from '@workspace/api-client-react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 
@@ -41,10 +42,12 @@ export default function BookingDetailScreen() {
   const bookingId = Number(id);
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { data, isLoading, error } = useGetBooking(bookingId, {
+  const { data, isLoading, error, refetch } = useGetBooking(bookingId, {
     query: { enabled: Number.isFinite(bookingId) && bookingId > 0, queryKey: ['booking-detail', bookingId] },
   });
   const booking = data?.booking;
+  const [isCancelling, setIsCancelling] = useState(false);
+  const updateStatus = useUpdateBookingStatus();
   const { data: providerData, isLoading: providerLoading } = useGetProviderById(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider', booking?.providerId] },
   });
@@ -78,6 +81,52 @@ export default function BookingDetailScreen() {
   const scheduled = formatDate(booking.scheduledAt);
   const provider = providerData?.provider;
   const service = servicesData?.services.find((item) => item.id === booking.serviceId);
+  const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
+
+  const handleCancel = () => {
+    if (isCancelling) return;
+    if (!canCancel) {
+      Alert.alert('Booking updated', 'This booking can no longer be cancelled. Refreshing.');
+      void refetch();
+      return;
+    }
+
+    Alert.alert('Cancel booking?', 'This cannot be undone.', [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Cancel booking',
+        style: 'destructive',
+        onPress: () => {
+          setIsCancelling(true);
+          updateStatus.mutate(
+            {
+              bookingId: booking.id,
+              data: { status: 'cancelled', cancellationReason: 'Cancelled by client' },
+            },
+            {
+              onSuccess: () => {
+                Alert.alert('Booking cancelled', 'The provider has been notified.');
+                void refetch();
+                setIsCancelling(false);
+              },
+              onError: (err) => {
+                const status = (err as { status?: number }).status;
+                if (status === 409) {
+                  Alert.alert('Booking already updated', 'This booking changed before cancellation completed. Refreshing.');
+                } else if (status === 400 || status === 403) {
+                  Alert.alert('Cannot cancel booking', 'This booking can no longer be cancelled.');
+                } else {
+                  Alert.alert('Could not cancel', 'Something went wrong. Please try again.');
+                }
+                void refetch();
+                setIsCancelling(false);
+              },
+            },
+          );
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -176,6 +225,17 @@ export default function BookingDetailScreen() {
             <Text style={[styles.profileButtonText, { color: colors.primary }]}>View provider profile</Text>
             <Feather name="chevron-right" size={18} color={colors.primary} />
           </TouchableOpacity>
+          {canCancel && (
+            <TouchableOpacity
+              onPress={handleCancel}
+              disabled={isCancelling}
+              style={[styles.cancelButton, { borderColor: colors.destructive ?? '#B42318', backgroundColor: colors.destructive ? colors.destructive + '12' : '#B4231812', opacity: isCancelling ? 0.5 : 1 }]}
+            >
+              <Text style={[styles.cancelButtonText, { color: colors.destructive ?? '#B42318' }]}>
+                {isCancelling ? 'Cancelling…' : 'Cancel booking'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -238,4 +298,6 @@ const styles = StyleSheet.create({
   skeleton: { height: 22, width: 190, borderRadius: 8 },
   profileButton: { borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   profileButtonText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  cancelButton: { borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, alignItems: 'center' },
+  cancelButtonText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
 });

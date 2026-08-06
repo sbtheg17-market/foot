@@ -37,6 +37,15 @@ export default function ClientBookings() {
 
   const handleCancel = (id: number) => {
     if (cancellingId !== null) return; // guard against double-tap
+    const booking = data?.bookings.find((item) => item.id === id);
+    if (!booking || !['requested', 'confirmed', 'rescheduled'].includes(booking.status)) {
+      toast.info('This booking can no longer be cancelled. Refreshing.');
+      void refetch();
+      return;
+    }
+
+    if (!window.confirm('Cancel this booking?\n\nThis cannot be undone.')) return;
+
     setCancellingId(id);
     updateStatus.mutate(
       {
@@ -46,16 +55,19 @@ export default function ClientBookings() {
       {
         onSuccess: () => {
           toast.success('Booking cancelled.');
-          refetch();
+          void refetch();
           setCancellingId(null);
         },
         onError: (err) => {
-          if ((err as { status?: number }).status === 409) {
+          const status = (err as { status?: number }).status;
+          if (status === 409) {
             toast.info('This booking was already updated — refreshing.');
-            refetch();
+          } else if (status === 400 || status === 403) {
+            toast.error('This booking can no longer be cancelled.');
           } else {
             toast.error('Could not cancel booking. Please try again.');
           }
+          void refetch();
           setCancellingId(null);
         },
       }
@@ -159,6 +171,7 @@ export default function ClientBookings() {
                       disabled={cancellingId === booking.id}
                       className="ml-3 w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50"
                       title="Cancel booking"
+                      aria-label="Cancel booking"
                     >
                       {cancellingId === booking.id ? (
                         <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />

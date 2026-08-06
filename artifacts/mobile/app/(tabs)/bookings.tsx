@@ -93,6 +93,12 @@ export default function BookingsScreen() {
 
   const handleCancel = (id: number) => {
     if (pendingId !== null) return; // guard against tap while another request is in flight
+    const booking = allBookings.find(item => item.id === id);
+    if (!booking || !['requested', 'confirmed', 'rescheduled'].includes(booking.status)) {
+      Alert.alert('Booking updated', 'This booking can no longer be cancelled. Refreshing the list.');
+      void refetch();
+      return;
+    }
     Alert.alert('Cancel booking?', 'This cannot be undone.', [
       { text: 'Keep', style: 'cancel' },
       {
@@ -107,16 +113,20 @@ export default function BookingsScreen() {
             },
             {
               onSuccess: () => {
-                refetch();
+                Alert.alert('Booking cancelled', 'The provider has been notified.');
+                void refetch();
                 setPendingId(null);
               },
               onError: (err) => {
-                // 409 = booking status changed before this request landed — just refresh
-                if ((err as { status?: number }).status === 409) {
-                  refetch();
+                const status = (err as { status?: number }).status;
+                if (status === 409) {
+                  Alert.alert('Booking already updated', 'This booking changed before cancellation completed. Refreshing.');
+                } else if (status === 400 || status === 403) {
+                  Alert.alert('Cannot cancel booking', 'This booking can no longer be cancelled.');
                 } else {
                   Alert.alert('Could not cancel', 'Something went wrong. Please try again.');
                 }
+                void refetch();
                 setPendingId(null);
               },
             }
