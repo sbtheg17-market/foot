@@ -32,6 +32,7 @@ export const RegisterBody = zod.object({
   "firstName": zod.string().min(1),
   "lastName": zod.string().min(1),
   "role": zod.enum(['client', 'provider']).default(registerBodyRoleDefault),
+  "roleIntent": zod.enum(['client', 'provider']).optional().describe('Signup intent. The server derives initial membership and never treats this field as ongoing authorization.'),
   "phone": zod.string().optional()
 })
 
@@ -184,6 +185,136 @@ export const ListProvidersResponse = zod.object({
   "total": zod.int(),
   "limit": zod.int(),
   "offset": zod.int()
+})
+
+
+/**
+ * Returns the owner's provider application and onboarding profile data. This does not grant provider operations.
+ * @summary Get the authenticated user's provider application
+ */
+export const GetProviderApplicationResponse = zod.object({
+  "application": zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "providerProfileId": zod.int(),
+  "profile": zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "bio": zod.string().nullable(),
+  "city": zod.string(),
+  "serviceAreaNotes": zod.string().nullable(),
+  "yearsExperience": zod.int().nullable(),
+  "profileComplete": zod.boolean(),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+})
+}))
+})
+
+
+/**
+ * Idempotently creates provider membership, a provider profile, and a draft application for the authenticated client. It never changes the active role or grants provider operations.
+ * @summary Start or resume provider onboarding
+ */
+export const CreateProviderApplicationResponse = zod.object({
+  "application": zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "providerProfileId": zod.int(),
+  "profile": zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "bio": zod.string().nullable(),
+  "city": zod.string(),
+  "serviceAreaNotes": zod.string().nullable(),
+  "yearsExperience": zod.int().nullable(),
+  "profileComplete": zod.boolean(),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+})
+}))
+})
+
+
+/**
+ * Updates the authenticated owner's draft provider application and profile data. Submitted applications cannot be edited through this endpoint.
+ * @summary Save provider onboarding progress
+ */
+export const updateProviderApplicationBodyTitleMax = 120;
+
+export const updateProviderApplicationBodyBioMax = 2000;
+
+export const updateProviderApplicationBodyCityMax = 120;
+
+export const updateProviderApplicationBodyServiceAreaNotesMax = 2000;
+
+export const updateProviderApplicationBodyYearsExperienceMin = 0;
+export const updateProviderApplicationBodyYearsExperienceMax = 80;
+
+
+
+export const UpdateProviderApplicationBody = zod.object({
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']).optional(),
+  "title": zod.string().min(1).max(updateProviderApplicationBodyTitleMax).optional(),
+  "bio": zod.string().max(updateProviderApplicationBodyBioMax).optional(),
+  "city": zod.string().min(1).max(updateProviderApplicationBodyCityMax).optional(),
+  "serviceAreaNotes": zod.string().max(updateProviderApplicationBodyServiceAreaNotesMax).optional(),
+  "yearsExperience": zod.int().min(updateProviderApplicationBodyYearsExperienceMin).max(updateProviderApplicationBodyYearsExperienceMax).optional()
+})
+
+export const UpdateProviderApplicationResponse = zod.object({
+  "application": zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "providerProfileId": zod.int(),
+  "profile": zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "bio": zod.string().nullable(),
+  "city": zod.string(),
+  "serviceAreaNotes": zod.string().nullable(),
+  "yearsExperience": zod.int().nullable(),
+  "profileComplete": zod.boolean(),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+})
+}))
+})
+
+
+/**
+ * Moves the authenticated owner's draft application to under_review after required profile fields are present.
+ * @summary Submit a provider application for review
+ */
+export const SubmitProviderApplicationResponse = zod.object({
+  "application": zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "providerProfileId": zod.int(),
+  "profile": zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "bio": zod.string().nullable(),
+  "city": zod.string(),
+  "serviceAreaNotes": zod.string().nullable(),
+  "yearsExperience": zod.int().nullable(),
+  "profileComplete": zod.boolean(),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+})
+}))
 })
 
 

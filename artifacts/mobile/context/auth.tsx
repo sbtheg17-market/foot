@@ -8,6 +8,14 @@ interface AuthUser {
   id: number;
   email: string;
   role: 'client' | 'provider' | 'admin';
+  roles?: Array<'client' | 'provider' | 'admin'>;
+  onboarding?: {
+    client: 'complete' | null;
+    provider: 'draft' | 'under_review' | 'approved' | 'rejected' | 'suspended' | null;
+  };
+  providerApplication?: {
+    status: 'draft' | 'under_review' | 'approved' | 'rejected' | 'suspended';
+  } | null;
   firstName: string;
   lastName: string;
 }

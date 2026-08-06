@@ -4,6 +4,8 @@ import { eq } from "drizzle-orm";
 import {
   accountRolesTable,
   db,
+  providerApplicationsTable,
+  providerProfilesTable,
   usersTable,
   registerSchema,
   loginSchema,
@@ -32,7 +34,8 @@ router.post("/register", async (req, res) => {
     return;
   }
 
-  const { email, password, firstName, lastName, role, phone } = parsed.data;
+  const { email, password, firstName, lastName, phone } = parsed.data;
+  const role = parsed.data.roleIntent ?? parsed.data.role;
 
   const existing = await db
     .select({ id: usersTable.id })
@@ -74,6 +77,22 @@ router.post("/register", async (req, res) => {
       userId: created.id,
       role: created.role,
     });
+
+    if (created.role === "provider") {
+      const [profile] = await tx
+        .insert(providerProfilesTable)
+        .values({ userId: created.id })
+        .returning({ id: providerProfilesTable.id });
+
+      if (!profile) {
+        throw new Error("Provider profile insert did not return a row.");
+      }
+
+      await tx.insert(providerApplicationsTable).values({
+        userId: created.id,
+        providerProfileId: profile.id,
+      });
+    }
 
     return created;
   });

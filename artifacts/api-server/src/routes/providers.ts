@@ -3,6 +3,8 @@ import { eq, ilike, and, sql } from "drizzle-orm";
 import {
   db,
   providerProfilesTable,
+  providerApplicationsTable,
+  accountRolesTable,
   travelZonesTable,
   availabilityTable,
   servicesTable,
@@ -37,6 +39,301 @@ async function getOwnProfile(userId: number) {
     .limit(1);
   return rows[0] ?? null;
 }
+
+type ApplicationRow = {
+  id: number;
+  userId: number;
+  providerProfileId: number;
+  status: "draft" | "under_review" | "approved" | "rejected" | "suspended";
+  currentStep: "profile" | "services" | "availability" | "verification" | "submitted";
+  submittedAt: Date | null;
+  reviewedAt: Date | null;
+  profile: {
+    id: number;
+    title: string;
+    bio: string | null;
+    city: string;
+    serviceAreaNotes: string | null;
+    yearsExperience: number | null;
+    profileComplete: boolean;
+    verificationStatus: "pending" | "under_review" | "approved" | "rejected";
+  };
+};
+
+async function getOwnApplication(userId: number): Promise<ApplicationRow | null> {
+  const rows = await db
+    .select({
+      id: providerApplicationsTable.id,
+      userId: providerApplicationsTable.userId,
+      providerProfileId: providerApplicationsTable.providerProfileId,
+      status: providerApplicationsTable.status,
+      currentStep: providerApplicationsTable.currentStep,
+      submittedAt: providerApplicationsTable.submittedAt,
+      reviewedAt: providerApplicationsTable.reviewedAt,
+      profile: {
+        id: providerProfilesTable.id,
+        title: providerProfilesTable.title,
+        bio: providerProfilesTable.bio,
+        city: providerProfilesTable.city,
+        serviceAreaNotes: providerProfilesTable.serviceAreaNotes,
+        yearsExperience: providerProfilesTable.yearsExperience,
+        profileComplete: providerProfilesTable.profileComplete,
+        verificationStatus: providerProfilesTable.verificationStatus,
+      },
+    })
+    .from(providerApplicationsTable)
+    .innerJoin(
+      providerProfilesTable,
+      eq(providerProfilesTable.id, providerApplicationsTable.providerProfileId),
+    )
+    .where(eq(providerApplicationsTable.userId, userId))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+function applicationResponse(application: ApplicationRow) {
+  return {
+    application: {
+      id: application.id,
+      status: application.status,
+      currentStep: application.currentStep,
+      submittedAt: application.submittedAt,
+      reviewedAt: application.reviewedAt,
+      providerProfileId: application.providerProfileId,
+      profile: application.profile,
+    },
+  };
+}
+
+function assertProviderMember(req: Request, res: Response): boolean {
+  if (!req.authz?.roles.includes("provider")) {
+    res.status(403).json({ error: "Provider onboarding access is required." });
+    return false;
+  }
+  return true;
+}
+
+// ── Provider onboarding/application ──────────────────────────────────────────
+
+router.get(
+  "/application",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+    res.json(applicationResponse(application));
+  },
+);
+
+router.post(
+  "/application",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const authz = req.authz!;
+    if (!authz.roles.includes("client") && !authz.roles.includes("provider")) {
+      res.status(403).json({ error: "Only client accounts can start provider onboarding." });
+      return;
+    }
+
+    const existing = await getOwnApplication(req.user!.sub);
+    if (existing) {
+      res.status(200).json(applicationResponse(existing));
+      return;
+    }
+
+    const created = await db.transaction(async (tx) => {
+      await tx
+        .insert(accountRolesTable)
+        .values({ userId: req.user!.sub, role: "provider" })
+        .onConflictDoNothing({
+          target: [accountRolesTable.userId, accountRolesTable.role],
+        });
+
+      const [profile] = await tx
+        .insert(providerProfilesTable)
+        .values({ userId: req.user!.sub })
+        .onConflictDoNothing({ target: providerProfilesTable.userId })
+        .returning({ id: providerProfilesTable.id });
+
+      let providerProfileId = profile?.id;
+      if (!providerProfileId) {
+        const [existingProfile] = await tx
+          .select({ id: providerProfilesTable.id })
+          .from(providerProfilesTable)
+          .where(eq(providerProfilesTable.userId, req.user!.sub))
+          .limit(1);
+        providerProfileId = existingProfile?.id;
+      }
+
+      if (!providerProfileId) throw new Error("Provider profile could not be created.");
+
+      const [application] = await tx
+        .insert(providerApplicationsTable)
+        .values({ userId: req.user!.sub, providerProfileId })
+        .onConflictDoNothing({ target: providerApplicationsTable.userId })
+        .returning({ id: providerApplicationsTable.id });
+
+      return Boolean(application);
+    });
+
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(500).json({ error: "Provider application could not be created." });
+      return;
+    }
+    res.status(created ? 201 : 200).json(applicationResponse(application));
+  },
+);
+
+router.patch(
+  "/application",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+    if (application.status !== "draft" && application.status !== "rejected") {
+      res.status(409).json({ error: "This application is no longer editable." });
+      return;
+    }
+
+    const body = req.body as Record<string, unknown>;
+    const updates: Partial<typeof providerProfilesTable.$inferInsert> = {
+      updatedAt: new Date(),
+    };
+    const stringFields = ["title", "bio", "city", "serviceAreaNotes"] as const;
+    for (const field of stringFields) {
+      if (body[field] !== undefined) {
+        const value = String(body[field]).trim();
+        if (field === "title" && (value.length < 1 || value.length > 120)) {
+          res.status(400).json({ error: "title must be between 1 and 120 characters." });
+          return;
+        }
+        if (field === "bio" && value.length > 2000) {
+          res.status(400).json({ error: "bio must be 2,000 characters or fewer." });
+          return;
+        }
+        if (field === "city" && (value.length < 1 || value.length > 120)) {
+          res.status(400).json({ error: "city must be between 1 and 120 characters." });
+          return;
+        }
+        if (field === "serviceAreaNotes" && value.length > 2000) {
+          res.status(400).json({ error: "serviceAreaNotes must be 2,000 characters or fewer." });
+          return;
+        }
+        updates[field] = value;
+      }
+    }
+    if (body.yearsExperience !== undefined) {
+      const years = Number(body.yearsExperience);
+      if (!Number.isInteger(years) || years < 0 || years > 80) {
+        res.status(400).json({ error: "yearsExperience must be an integer from 0 to 80." });
+        return;
+      }
+      updates.yearsExperience = years;
+    }
+
+    const merged = { ...application.profile, ...updates };
+    updates.profileComplete = Boolean(merged.title && merged.bio && merged.city);
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(providerProfilesTable)
+        .set(updates)
+        .where(
+          and(
+            eq(providerProfilesTable.id, application.providerProfileId),
+            eq(providerProfilesTable.userId, req.user!.sub),
+          ),
+        );
+      await tx
+        .update(providerApplicationsTable)
+        .set({
+          currentStep:
+            body.currentStep === "services" ||
+            body.currentStep === "availability" ||
+            body.currentStep === "verification"
+              ? body.currentStep
+              : "profile",
+          updatedAt: new Date(),
+        })
+        .where(eq(providerApplicationsTable.id, application.id));
+    });
+
+    const updated = await getOwnApplication(req.user!.sub);
+    if (!updated) {
+      res.status(500).json({ error: "Provider application could not be loaded." });
+      return;
+    }
+    res.json(applicationResponse(updated));
+  },
+);
+
+router.post(
+  "/application/submit",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+    if (application.status === "under_review" || application.status === "approved") {
+      res.status(200).json(applicationResponse(application));
+      return;
+    }
+    if (application.status === "suspended") {
+      res.status(409).json({ error: "Suspended applications cannot be submitted." });
+      return;
+    }
+    if (!application.profile.title || !application.profile.bio || !application.profile.city) {
+      res.status(400).json({ error: "Complete your title, bio, and city before submitting." });
+      return;
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(providerApplicationsTable)
+        .set({
+          status: "under_review",
+          currentStep: "submitted",
+          submittedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(providerApplicationsTable.id, application.id),
+            eq(providerApplicationsTable.userId, req.user!.sub),
+          ),
+        );
+      await tx
+        .update(providerProfilesTable)
+        .set({ verificationStatus: "under_review", updatedAt: new Date() })
+        .where(
+          and(
+            eq(providerProfilesTable.id, application.providerProfileId),
+            eq(providerProfilesTable.userId, req.user!.sub),
+          ),
+        );
+    });
+
+    const submitted = await getOwnApplication(req.user!.sub);
+    if (!submitted) {
+      res.status(500).json({ error: "Provider application could not be loaded." });
+      return;
+    }
+    res.json(applicationResponse(submitted));
+  },
+);
 
 /** Build the public-facing provider object (joins user name + avatar). */
 async function buildProviderPublic(profileId: number) {

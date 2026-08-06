@@ -46,6 +46,7 @@ export const registerSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   role: z.enum(["client", "provider"]).default("client"),
+  roleIntent: z.enum(["client", "provider"]).optional(),
   phone: z.string().optional(),
 });
 

@@ -2,7 +2,7 @@
  * Centralized route constants for the web app.
  *
  * Provider-first: the provider portal is the primary experience and lives
- * under the canonical `/provider/*` prefix. `/` redirects to the provider home.
+ * under the canonical `/provider/*` prefix.
  *
  * Client marketplace and admin verification routes are active alongside the
  * provider portal. The legacy `/portal/*` prefix is preserved via redirects
@@ -11,7 +11,12 @@
 export const ROUTES = {
   home: '/',
   login: '/login',
+  signup: '/signup',
   register: '/register',
+  onboarding: {
+    client: '/onboarding/client',
+    provider: '/onboarding/provider',
+  },
 
   // ── Provider portal (canonical) ──────────────────────────────────────────
   provider: {
@@ -24,6 +29,7 @@ export const ROUTES = {
     earningsStatement: '/provider/earnings/statement',
     profile: '/provider/profile',
     credentials: '/provider/credentials',
+    applicationStatus: '/provider/application-status',
   },
 
   // ── Client marketplace ─────────────────────────────────────────────────────

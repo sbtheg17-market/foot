@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/auth';
+import { useCreateProviderApplication } from '@workspace/api-client-react';
 
 function MenuItem({ icon, label, onPress, colors, danger }: {
   icon: string;
@@ -34,11 +35,19 @@ export default function AccountScreen() {
   const colors = useColors();
   const { user, logout } = useAuth();
   const queryClient = useQueryClient();
+  const createApplication = useCreateProviderApplication();
   const topPad = insets.top + (Platform.OS === 'web' ? 67 : 0);
 
   const handleLogout = async () => {
     await logout();
     queryClient.clear();
+  };
+
+  const handleBecomeProvider = () => {
+    createApplication.mutate(undefined, {
+      onSuccess: () => router.push('/onboarding/provider'),
+      onError: () => {},
+    });
   };
 
   if (!user) {
@@ -92,6 +101,14 @@ export default function AccountScreen() {
       <View style={[styles.menuSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {user.role === 'client' && (
           <MenuItem icon="calendar" label="My Bookings" onPress={() => router.push('/bookings')} colors={colors} />
+        )}
+        {user.role === 'client' && (
+          <MenuItem
+            icon="briefcase"
+            label={createApplication.isPending ? 'Starting provider onboarding…' : 'Become a provider'}
+            onPress={handleBecomeProvider}
+            colors={colors}
+          />
         )}
         {user.role === 'provider' && (
           <MenuItem icon="briefcase" label="Provider Portal" onPress={() => {}} colors={colors} />

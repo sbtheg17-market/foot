@@ -43,14 +43,30 @@ export default function RegisterScreen() {
     }
     setLoading(true);
     try {
-      const result = await apiRegister({ firstName, lastName, email: email.trim().toLowerCase(), password, role });
+       const result = await apiRegister({
+         firstName,
+         lastName,
+         email: email.trim().toLowerCase(),
+         password,
+         role,
+         roleIntent: role,
+       });
       await login(result.token, result.user as any);
       qc.invalidateQueries();
-      if (result.user.role === 'client') {
-        router.back();
-      } else {
-        router.replace('/(tabs)/account');
-      }
+       if (result.user.role === 'admin') {
+         router.replace('/(tabs)/account');
+       } else if (result.user.role === 'provider') {
+         const status = result.user.providerApplication?.status;
+         router.replace(
+           status === 'approved'
+             ? '/(tabs)/account'
+             : status === 'under_review' || status === 'rejected' || status === 'suspended'
+               ? '/provider/application-status'
+               : '/onboarding/provider',
+         );
+       } else {
+         router.replace('/(tabs)');
+       }
     } catch (err: any) {
       const msg = err?.response?.data?.error ?? 'Could not create account. Please try again.';
       Alert.alert('Registration failed', msg);
@@ -73,21 +89,29 @@ export default function RegisterScreen() {
         <View style={[styles.logo, { backgroundColor: colors.primary }]}>
           <Text style={styles.logoText}>O</Text>
         </View>
-        <Text style={[styles.title, { color: colors.foreground }]}>Create account</Text>
-        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Join OnCall Foot today</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Create your care account</Text>
+        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Find trusted care or build your mobile practice.</Text>
 
         {/* Role toggle */}
-        <View style={[styles.roleToggle, { backgroundColor: colors.secondary }]}>
+        <View style={styles.choiceGroup} accessibilityRole="radiogroup" accessibilityLabel="Account intent">
           {(['client', 'provider'] as const).map(r => (
             <TouchableOpacity
               key={r}
               onPress={() => setRole(r)}
-              style={[styles.roleOption, role === r && { backgroundColor: colors.card }]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: role === r }}
+              style={[styles.roleOption, { backgroundColor: colors.card, borderColor: role === r ? colors.primary : colors.border }]}
               activeOpacity={0.7}
             >
-              <Text style={[styles.roleLabel, { color: role === r ? colors.foreground : colors.mutedForeground, fontFamily: role === r ? 'Inter_600SemiBold' : 'Inter_400Regular' }]}>
-                {r === 'client' ? 'Client' : 'Provider'}
-              </Text>
+              <View style={[styles.radio, { borderColor: role === r ? colors.primary : colors.border }]}>
+                {role === r && <View style={[styles.radioDot, { backgroundColor: colors.primary }]} />}
+              </View>
+              <View style={styles.choiceCopy}>
+                <Text style={[styles.roleLabel, { color: colors.foreground }]}>{r === 'client' ? 'I’m looking for care' : 'I’m providing care'}</Text>
+                <Text style={[styles.choiceDescription, { color: colors.mutedForeground }]}>
+                  {r === 'client' ? 'Find a provider and manage visits.' : 'Create a profile and grow your practice.'}
+                </Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -165,9 +189,13 @@ const styles = StyleSheet.create({
   logoText: { fontSize: 28, fontFamily: 'Inter_700Bold', color: '#fff' },
   title: { fontSize: 24, fontFamily: 'Inter_700Bold', marginBottom: 6 },
   subtitle: { fontSize: 14, fontFamily: 'Inter_400Regular', marginBottom: 24, textAlign: 'center' },
-  roleToggle: { flexDirection: 'row', borderRadius: 12, padding: 3, marginBottom: 20, width: '100%' },
-  roleOption: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center' },
-  roleLabel: { fontSize: 14 },
+  choiceGroup: { width: '100%', gap: 10, marginBottom: 20 },
+  roleOption: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', borderRadius: 14, borderWidth: 1.5, padding: 14, gap: 12 },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  radioDot: { width: 10, height: 10, borderRadius: 5 },
+  choiceCopy: { flex: 1, gap: 3 },
+  roleLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  choiceDescription: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17 },
   card: { width: '100%', borderRadius: 16, borderWidth: 1, overflow: 'hidden', marginBottom: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   inputWrap: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14, gap: 10 },
   inputLabel: { width: 90, fontSize: 13, fontFamily: 'Inter_500Medium' },

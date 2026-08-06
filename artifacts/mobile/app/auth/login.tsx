@@ -40,10 +40,17 @@ export default function LoginScreen() {
       const result = await apiLogin({ email: email.trim().toLowerCase(), password });
       await login(result.token, result.user as any);
       qc.invalidateQueries();
-      if (result.user.role === 'client') {
-        router.back();
+      if (result.user.role === 'provider') {
+        const status = result.user.providerApplication?.status;
+        router.replace(
+          status === 'approved'
+            ? '/(tabs)/account'
+            : status === 'under_review' || status === 'rejected' || status === 'suspended'
+              ? '/provider/application-status'
+              : '/onboarding/provider',
+        );
       } else {
-        router.replace('/(tabs)/account');
+        router.replace('/(tabs)');
       }
     } catch {
       Alert.alert('Sign in failed', 'Invalid email or password. Please try again.');

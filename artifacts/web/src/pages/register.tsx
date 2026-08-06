@@ -1,39 +1,61 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, Link } from 'wouter';
-import { useRegister, RegisterRequestRole } from '@workspace/api-client-react';
-import { toast } from 'sonner';
+import { useRegister, RegisterRequestRoleIntent } from '@workspace/api-client-react';
 import { ROUTES } from '@/lib/routes';
 
+function nextRoute(user: {
+  role: 'client' | 'provider' | 'admin';
+  providerApplication?: { status: string } | null;
+}) {
+  if (user.role === 'admin') return ROUTES.admin.verification;
+  if (user.role === 'client') return ROUTES.client.discover;
+  const status = user.providerApplication?.status;
+  if (status === 'approved') return ROUTES.provider.root;
+  if (status === 'under_review' || status === 'rejected' || status === 'suspended') {
+    return ROUTES.provider.applicationStatus;
+  }
+  return ROUTES.onboarding.provider;
+}
+
 export default function Register() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const register = useRegister();
-  
+  const initialRole = useMemo<RegisterRequestRoleIntent>(() => {
+    const requested = new URLSearchParams(window.location.search).get('role');
+    return requested === 'provider' ? 'provider' : 'client';
+  }, []);
+
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<RegisterRequestRole>('client');
+  const [role, setRole] = useState<RegisterRequestRoleIntent>(initialRole);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (location === ROUTES.register) {
+      setLocation(`${ROUTES.signup}${window.location.search}`, { replace: true });
+    }
+  }, [location, setLocation]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters');
+      setError('Password must be at least 8 characters.');
       return;
     }
     
     register.mutate(
-      { data: { firstName, lastName, email, password, role } },
+       { data: { firstName, lastName, email: email.trim().toLowerCase(), password, roleIntent: role, role } },
       {
         onSuccess: (res) => {
           localStorage.setItem('oncallfoot_token', res.token);
-          if (res.user.role === 'provider') {
-            setLocation(ROUTES.provider.root);
-          } else {
-            setLocation(ROUTES.client.discover);
-          }
+          setLocation(nextRoute(res.user));
         },
-        onError: () => {
-          toast.error('Could not create account. Please check your details.');
+        onError: (err) => {
+          const response = err as { response?: { data?: { error?: string } } };
+          setError(response.response?.data?.error ?? 'Could not create account. Please check your details.');
         }
       }
     );
@@ -45,10 +67,15 @@ export default function Register() {
         <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-serif font-bold text-3xl shadow-lg mb-6">
           O
         </div>
-        <h1 className="text-3xl font-serif font-bold text-foreground mb-2">Create Account</h1>
-        <p className="text-muted-foreground text-center mb-8">Join OnCall Foot to book or provide care.</p>
+        <h1 className="text-3xl font-serif font-bold text-foreground mb-2">Create your care account</h1>
+        <p className="text-muted-foreground text-center mb-8">One account to find trusted care or build your mobile practice.</p>
         
         <form onSubmit={handleSubmit} className="w-full space-y-4">
+          {error && (
+            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
           <div className="flex gap-4">
             <div className="space-y-1.5 flex-1">
               <label className="text-sm font-medium text-foreground">First Name</label>
@@ -98,31 +125,37 @@ export default function Register() {
           </div>
 
           <div className="space-y-2 pt-2">
-            <label className="text-sm font-medium text-foreground">I am a...</label>
-            <div className="grid grid-cols-2 gap-3">
+            <fieldset>
+            <legend className="text-sm font-medium text-foreground mb-2">What brings you to OnCall Foot?</legend>
+            <div className="grid grid-cols-1 gap-3">
               <button
                 type="button"
                 onClick={() => setRole('client')}
-                className={`py-3 rounded-xl border-2 font-medium transition-all ${
+                aria-pressed={role === 'client'}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
                   role === 'client' 
                     ? 'border-primary bg-primary/5 text-primary' 
                     : 'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80'
                 }`}
               >
-                Client
+                <span className="block font-semibold">I’m looking for care</span>
+                <span className="block text-sm opacity-75 mt-1">Find a provider, request a visit, and manage appointments.</span>
               </button>
               <button
                 type="button"
                 onClick={() => setRole('provider')}
-                className={`py-3 rounded-xl border-2 font-medium transition-all ${
+                aria-pressed={role === 'provider'}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
                   role === 'provider' 
                     ? 'border-primary bg-primary/5 text-primary' 
                     : 'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80'
                 }`}
               >
-                Care Provider
+                <span className="block font-semibold">I’m providing care</span>
+                <span className="block text-sm opacity-75 mt-1">Offer services, manage availability, and receive bookings.</span>
               </button>
             </div>
+            </fieldset>
           </div>
 
           <button

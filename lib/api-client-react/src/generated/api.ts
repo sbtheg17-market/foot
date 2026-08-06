@@ -48,6 +48,7 @@ import type {
   MeResponse,
   MessageResponse,
   NotFoundResponse,
+  ProviderApplicationDetailResponse,
   ProviderListResponse,
   ProviderProfileResponse,
   RegisterRequest,
@@ -62,6 +63,7 @@ import type {
   TravelZoneResponse,
   UnauthorizedResponse,
   UpdateBookingStatusRequest,
+  UpdateProviderApplicationRequest,
   UpdateProviderProfileRequest,
   UpdateServiceRequest,
   VerificationDocResponse,
@@ -547,6 +549,300 @@ export function useListProviders<TData = Awaited<ReturnType<typeof listProviders
 
 
 
+
+export const getGetProviderApplicationUrl = () => {
+
+
+
+
+  return `/api/providers/application`
+}
+
+/**
+ * Returns the owner's provider application and onboarding profile data. This does not grant provider operations.
+ * @summary Get the authenticated user's provider application
+ */
+export const getProviderApplication = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderApplicationDetailResponse> => {
+
+  return customFetch<ProviderApplicationDetailResponse>(getGetProviderApplicationUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProviderApplicationQueryKey = () => {
+    return [
+    `/api/providers/application`
+    ] as const;
+    }
+
+
+export const getGetProviderApplicationQueryOptions = <TData = Awaited<ReturnType<typeof getProviderApplication>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderApplication>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProviderApplicationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderApplication>>> = ({ signal }) => getProviderApplication({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderApplication>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProviderApplicationQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderApplication>>>
+export type GetProviderApplicationQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get the authenticated user's provider application
+ */
+
+export function useGetProviderApplication<TData = Awaited<ReturnType<typeof getProviderApplication>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderApplication>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProviderApplicationQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateProviderApplicationUrl = () => {
+
+
+
+
+  return `/api/providers/application`
+}
+
+/**
+ * Idempotently creates provider membership, a provider profile, and a draft application for the authenticated client. It never changes the active role or grants provider operations.
+ * @summary Start or resume provider onboarding
+ */
+export const createProviderApplication = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderApplicationDetailResponse> => {
+
+  return customFetch<ProviderApplicationDetailResponse>(getCreateProviderApplicationUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateProviderApplicationMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProviderApplication>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProviderApplication>>, TError,void, TContext> => {
+
+const mutationKey = ['createProviderApplication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProviderApplication>>, void> = () => {
+
+
+          return  createProviderApplication(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProviderApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof createProviderApplication>>>
+
+    export type CreateProviderApplicationMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+    /**
+ * @summary Start or resume provider onboarding
+ */
+export const useCreateProviderApplication = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProviderApplication>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProviderApplication>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCreateProviderApplicationMutationOptions(options));
+    }
+
+export const getUpdateProviderApplicationUrl = () => {
+
+
+
+
+  return `/api/providers/application`
+}
+
+/**
+ * Updates the authenticated owner's draft provider application and profile data. Submitted applications cannot be edited through this endpoint.
+ * @summary Save provider onboarding progress
+ */
+export const updateProviderApplication = async (updateProviderApplicationRequest: UpdateProviderApplicationRequest, options?: Parameters<typeof customFetch>[1]): Promise<ProviderApplicationDetailResponse> => {
+
+  return customFetch<ProviderApplicationDetailResponse>(getUpdateProviderApplicationUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateProviderApplicationRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateProviderApplicationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProviderApplication>>, TError,{data: BodyType<UpdateProviderApplicationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProviderApplication>>, TError,{data: BodyType<UpdateProviderApplicationRequest>}, TContext> => {
+
+const mutationKey = ['updateProviderApplication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProviderApplication>>, {data: BodyType<UpdateProviderApplicationRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateProviderApplication(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProviderApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof updateProviderApplication>>>
+    export type UpdateProviderApplicationMutationBody = BodyType<UpdateProviderApplicationRequest>
+    export type UpdateProviderApplicationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Save provider onboarding progress
+ */
+export const useUpdateProviderApplication = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProviderApplication>>, TError,{data: BodyType<UpdateProviderApplicationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProviderApplication>>,
+        TError,
+        {data: BodyType<UpdateProviderApplicationRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateProviderApplicationMutationOptions(options));
+    }
+
+export const getSubmitProviderApplicationUrl = () => {
+
+
+
+
+  return `/api/providers/application/submit`
+}
+
+/**
+ * Moves the authenticated owner's draft application to under_review after required profile fields are present.
+ * @summary Submit a provider application for review
+ */
+export const submitProviderApplication = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderApplicationDetailResponse> => {
+
+  return customFetch<ProviderApplicationDetailResponse>(getSubmitProviderApplicationUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSubmitProviderApplicationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitProviderApplication>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitProviderApplication>>, TError,void, TContext> => {
+
+const mutationKey = ['submitProviderApplication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitProviderApplication>>, void> = () => {
+
+
+          return  submitProviderApplication(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitProviderApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof submitProviderApplication>>>
+
+    export type SubmitProviderApplicationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Submit a provider application for review
+ */
+export const useSubmitProviderApplication = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitProviderApplication>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitProviderApplication>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSubmitProviderApplicationMutationOptions(options));
+    }
 
 export const getGetMyProviderProfileUrl = () => {
 

@@ -9,24 +9,30 @@ export default function Login() {
   const login = useLogin();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     login.mutate(
       { data: { email, password } },
       {
         onSuccess: (res) => {
           localStorage.setItem('oncallfoot_token', res.token);
-          if (res.user.role === 'provider') {
-            setLocation(ROUTES.provider.root);
-          } else if (res.user.role === 'admin') {
-            setLocation(ROUTES.admin.verification);
-          } else {
-            setLocation(ROUTES.client.discover);
-          }
+           if (res.user.role === 'provider') {
+             const status = res.user.providerApplication?.status;
+             setLocation(status === 'approved' ? ROUTES.provider.root :
+               status === 'under_review' || status === 'rejected' || status === 'suspended'
+                 ? ROUTES.provider.applicationStatus
+                 : ROUTES.onboarding.provider);
+           } else if (res.user.role === 'admin') {
+             setLocation(ROUTES.admin.verification);
+           } else {
+             setLocation(ROUTES.client.discover);
+           }
         },
         onError: () => {
-          toast.error('Invalid email or password');
+          setError('Invalid email or password.');
         }
       }
     );
@@ -42,7 +48,8 @@ export default function Login() {
         <p className="text-muted-foreground text-center mb-8">Sign in to manage your appointments and services.</p>
         
         <form onSubmit={handleSubmit} className="w-full space-y-4">
-          <div className="space-y-1.5">
+           {error && <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
+           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground" htmlFor="email">Email</label>
             <input
               id="email"
@@ -78,8 +85,8 @@ export default function Login() {
         </form>
 
         <p className="mt-8 text-sm text-muted-foreground">
-          Don't have an account?{' '}
-          <Link href="/register" className="font-semibold text-primary hover:underline">
+           Don't have an account?{' '}
+           <Link href={ROUTES.signup} className="font-semibold text-primary hover:underline">
             Create one
           </Link>
         </p>

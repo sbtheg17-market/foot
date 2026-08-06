@@ -159,6 +159,110 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProviderListResponse"
 
+  /providers/application:
+    get:
+      operationId: getProviderApplication
+      tags: [providers]
+      summary: Get the authenticated user's provider application
+      description: Returns the owner's provider application and onboarding profile data. This does not grant provider operations.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider application
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      operationId: createProviderApplication
+      tags: [providers]
+      summary: Start or resume provider onboarding
+      description: Idempotently creates provider membership, a provider profile, and a draft application for the authenticated client. It never changes the active role or grants provider operations.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Existing provider application resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "201":
+          description: Provider application created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    patch:
+      operationId: updateProviderApplication
+      tags: [providers]
+      summary: Save provider onboarding progress
+      description: Updates the authenticated owner's draft provider application and profile data. Submitted applications cannot be edited through this endpoint.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProviderApplicationRequest"
+      responses:
+        "200":
+          description: Provider application updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/application/submit:
+    post:
+      operationId: submitProviderApplication
+      tags: [providers]
+      summary: Submit a provider application for review
+      description: Moves the authenticated owner's draft application to under_review after required profile fields are present.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider application submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
   /providers/me:
     get:
       operationId: getMyProviderProfile
@@ -1045,6 +1149,83 @@ components:
         - submittedAt
         - reviewedAt
 
+    ProviderApplicationProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        city:
+          type: string
+        serviceAreaNotes:
+          type: string
+          nullable: true
+        yearsExperience:
+          type: integer
+          nullable: true
+        profileComplete:
+          type: boolean
+        verificationStatus:
+          $ref: "#/components/schemas/VerificationStatus"
+      required:
+        - id
+        - title
+        - bio
+        - city
+        - serviceAreaNotes
+        - yearsExperience
+        - profileComplete
+        - verificationStatus
+
+    ProviderApplicationDetail:
+      allOf:
+        - $ref: "#/components/schemas/ProviderApplicationState"
+        - type: object
+          properties:
+            providerProfileId:
+              type: integer
+            profile:
+              $ref: "#/components/schemas/ProviderApplicationProfile"
+          required:
+            - providerProfileId
+            - profile
+
+    ProviderApplicationDetailResponse:
+      type: object
+      properties:
+        application:
+          $ref: "#/components/schemas/ProviderApplicationDetail"
+      required:
+        - application
+
+    UpdateProviderApplicationRequest:
+      type: object
+      properties:
+        currentStep:
+          $ref: "#/components/schemas/ProviderApplicationStep"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        bio:
+          type: string
+          maxLength: 2000
+        city:
+          type: string
+          minLength: 1
+          maxLength: 120
+        serviceAreaNotes:
+          type: string
+          maxLength: 2000
+        yearsExperience:
+          type: integer
+          minimum: 0
+          maximum: 80
+
     OnboardingState:
       type: object
       properties:
@@ -1122,6 +1303,10 @@ components:
           type: string
           enum: [client, provider]
           default: client
+        roleIntent:
+          type: string
+          enum: [client, provider]
+          description: Signup intent. The server derives initial membership and never treats this field as ongoing authorization.
         phone:
           type: string
       required:

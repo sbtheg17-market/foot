@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.3.0
  */
 import type { RegisterRequestRole } from './registerRequestRole';
+import type { RegisterRequestRoleIntent } from './registerRequestRoleIntent';
 
 export interface RegisterRequest {
   email: string;
@@ -16,5 +17,7 @@ export interface RegisterRequest {
   /** @minLength 1 */
   lastName: string;
   role?: RegisterRequestRole;
+  /** Signup intent. The server derives initial membership and never treats this field as ongoing authorization. */
+  roleIntent?: RegisterRequestRoleIntent;
   phone?: string;
 }

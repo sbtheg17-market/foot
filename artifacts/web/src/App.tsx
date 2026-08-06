@@ -4,6 +4,9 @@ import { setAuthTokenGetter } from '@workspace/api-client-react';
 import NotFound from '@/pages/not-found';
 import Login from '@/pages/login';
 import Register from '@/pages/register';
+import ProviderOnboarding from '@/pages/onboarding/provider';
+import ClientOnboarding from '@/pages/onboarding/client';
+import ProviderApplicationStatus from '@/pages/provider-application-status';
 import Discover from '@/pages/discover';
 import ProviderProfile from '@/pages/provider-profile';
 import ClientBookings from '@/pages/bookings';
@@ -58,7 +61,11 @@ function Router() {
     <Switch>
       {/* Auth */}
       <Route path={ROUTES.login} component={Login} />
+      <Route path={ROUTES.signup} component={Register} />
       <Route path={ROUTES.register} component={Register} />
+      <Route path={ROUTES.onboarding.client} component={ClientOnboarding} />
+      <Route path={ROUTES.onboarding.provider} component={ProviderOnboarding} />
+      <Route path={ROUTES.provider.applicationStatus} component={ProviderApplicationStatus} />
 
       {/* Provider-first: root redirects to the provider home */}
       <Route path={ROUTES.home}>

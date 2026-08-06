@@ -48,6 +48,59 @@ export interface ProviderApplicationState {
   reviewedAt: string | null;
 }
 
+export type VerificationStatus = typeof VerificationStatus[keyof typeof VerificationStatus];
+
+
+export const VerificationStatus = {
+  pending: 'pending',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface ProviderApplicationProfile {
+  id: number;
+  title: string;
+  bio: string | null;
+  city: string;
+  serviceAreaNotes: string | null;
+  yearsExperience: number | null;
+  profileComplete: boolean;
+  verificationStatus: VerificationStatus;
+}
+
+export type ProviderApplicationDetail = ProviderApplicationState & {
+  providerProfileId: number;
+  profile: ProviderApplicationProfile;
+};
+
+export interface ProviderApplicationDetailResponse {
+  application: ProviderApplicationDetail;
+}
+
+export interface UpdateProviderApplicationRequest {
+  currentStep?: ProviderApplicationStep;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title?: string;
+  /** @maxLength 2000 */
+  bio?: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  city?: string;
+  /** @maxLength 2000 */
+  serviceAreaNotes?: string;
+  /**
+     * @minimum 0
+     * @maximum 80
+     */
+  yearsExperience?: number;
+}
+
 export type OnboardingStateClient = typeof OnboardingStateClient[keyof typeof OnboardingStateClient] | null;
 
 
@@ -83,6 +136,17 @@ export const RegisterRequestRole = {
   provider: 'provider',
 } as const;
 
+/**
+ * Signup intent. The server derives initial membership and never treats this field as ongoing authorization.
+ */
+export type RegisterRequestRoleIntent = typeof RegisterRequestRoleIntent[keyof typeof RegisterRequestRoleIntent];
+
+
+export const RegisterRequestRoleIntent = {
+  client: 'client',
+  provider: 'provider',
+} as const;
+
 export interface RegisterRequest {
   email: string;
   /** @minLength 8 */
@@ -92,6 +156,8 @@ export interface RegisterRequest {
   /** @minLength 1 */
   lastName: string;
   role?: RegisterRequestRole;
+  /** Signup intent. The server derives initial membership and never treats this field as ongoing authorization. */
+  roleIntent?: RegisterRequestRoleIntent;
   phone?: string;
 }
 
@@ -124,16 +190,6 @@ export interface ErrorResponse {
   error: string;
   details?: ErrorResponseDetails;
 }
-
-export type VerificationStatus = typeof VerificationStatus[keyof typeof VerificationStatus];
-
-
-export const VerificationStatus = {
-  pending: 'pending',
-  under_review: 'under_review',
-  approved: 'approved',
-  rejected: 'rejected',
-} as const;
 
 /**
  * Condensed provider card for list views
