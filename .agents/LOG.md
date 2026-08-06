@@ -51,7 +51,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, and mobile booking detail; provider profile trust surfaces and JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
-| GitHub sync | ✅ Synchronized | Client booking list/detail slice committed and pushed to `origin/main`; separate `conflict_*` branches remain reference-only. |
+| GitHub sync | ⚠️ Push pending authenticated path | Client booking list/detail slice is committed locally; pushing to `origin/main` requires usable GitHub credentials. Separate `conflict_*` branches remain reference-only. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -159,7 +159,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 - Kept cancellation behavior server-backed and unchanged; no Stripe, payment, schema, OpenAPI, provider-flow, or state-machine changes were made.
 - Kept provider-private `careNotes` out of the client detail UI; only client notes and cancellation reasons are shown.
 - Verified web and mobile typechecks, full workspace build, diff whitespace, web/mobile workflow startup, and 390px web preview behavior. The protected bookings route correctly redirects unauthenticated visitors to sign-in.
-- Committed and pushed this coherent slice to `origin/main`; the uploaded checkpoint brief remains untracked and was not included.
+- Committed this coherent slice locally as `f41e79f`; the push to `origin/main` was rejected because GitHub credentials are unavailable. The uploaded checkpoint brief remains untracked and was not included.
 
 **Files changed:**
 - `artifacts/web/src/App.tsx`
@@ -174,7 +174,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 **Build state at end:** Web and mobile typecheck pass; full `pnpm run build` passes; web and mobile workflows are running cleanly. No database, API contract, role guard, booking transition, notification, review, invoice, or payment changes were required.
 
-**Next best action:** Continue Checkpoint 2 with client cancellation confirmation and duplicate-submit protection on the booking detail/list surfaces, then add status freshness/notification presentation. Reviews and minimum completed-booking care history remain after the lifecycle core.
+**Next best action:** Push local commit `f41e79f` to `origin/main` when GitHub credentials are available. Then continue Checkpoint 2 with client cancellation confirmation and duplicate-submit protection, followed by status freshness/notification presentation. Reviews and minimum completed-booking care history remain after the lifecycle core.
 
 ---
 
