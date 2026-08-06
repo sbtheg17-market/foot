@@ -51,7 +51,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, bounded client care history, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, in-flight protection, and completed-booking review form; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Additive role-state fields generated | Review/care-history contracts remain current; auth responses now expose additive `roles`, `activeRole`, `onboarding`, and `providerApplication` state. |
-| GitHub sync | ⚠️ Phase 2 changes in progress | Compatibility backfill, additive auth state, and focused integration coverage are being verified; signup UI and authorization policy remain unchanged. |
+| GitHub sync | ✅ Synchronized | Phase 2 compatibility backfill and additive auth state are pushed; local and `origin/main` match at `4d764ea`, with ahead/behind `0/0`. Signup UI and authorization policy remain unchanged. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -86,9 +86,9 @@ Since agent credit balances cannot be read programmatically, each session entry 
 - `docs/role-aware-migration-plan.md`
 - `.agents/LOG.md`
 
-**Build state at end:** Backfill and API contract verification are pending. No new UI or authorization behavior is intended.
+**Build state at end:** Codegen, full typecheck, idempotent backfill (5 role rows and 2 applications on first run; zero rows on second run), seeded client/provider auth-state checks, focused role-state integration (2/2), full build, and all existing booking state-machine, concurrency, review, care-history, availability, and pressure suites pass. API workflow restarted successfully and served additive role/application state. No signup UI or authorization policy behavior changed.
 
-**Next best action:** Run codegen, typecheck, development backfill twice, auth response integration checks, full build, and existing booking/review/care-history/concurrency regressions. Commit only the verified Phase 2 checkpoint; do not begin signup UI or provider authorization hardening in the same checkpoint.
+**Next best action:** Keep Phase 2 stable. Do not begin signup UI or provider authorization hardening in this checkpoint. The next approved slice is Phase 3 authorization hardening.
 
 ---
 
