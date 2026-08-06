@@ -51,7 +51,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, and in-flight protection; provider profile trust surfaces and JWT auth via AsyncStorage |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Providers complete | v0.3.0 — all provider + discovery routes defined. Bookings/reviews/invoices to be added next. |
-| GitHub sync | ✅ Synchronized | Local `main` and `origin/main` are synchronized at `fadf20a`; the status-freshness checkpoint is published. Uploaded handoffs remain intentionally untracked. |
+| GitHub sync | ✅ Synchronized | Local `main` and `origin/main` are synchronized at `66fb7ad`; the status-freshness checkpoint is published. Uploaded handoffs remain intentionally untracked. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
@@ -253,7 +253,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 - `artifacts/mobile/hooks/use-push-notifications.ts`
 - `artifacts/mobile/hooks/use-client-booking-status-feedback.ts`
 
-**Build state at end:** Web and mobile typechecks pass; full build passes; 63 state-machine and 16 concurrency tests pass; web, API, mobile, and mockup workflows are running. Application commit `d4315b2` and documentation commits `fbd3a42`/`7c61640`/`5ad45e8`/`fadf20a` are published; local and remote refs are synchronized at `fadf20a`. Uploaded continuity handoffs remain excluded locally and outside repository history.
+**Build state at end:** Web and mobile typechecks pass; full build passes; 63 state-machine and 16 concurrency tests pass; web, API, mobile, and mockup workflows are running. Application commit `d4315b2` and documentation commits `fbd3a42`/`7c61640`/`5ad45e8`/`fadf20a`/`66fb7ad` are published; local and remote refs are synchronized at `66fb7ad`. Uploaded continuity handoffs remain excluded locally and outside repository history.
 
 **Next best action:** Continue only with the separately scoped client booking-status freshness follow-up if requested. Do not begin reviews, care history, Stripe, or admin work in the same checkpoint.
 
