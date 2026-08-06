@@ -1254,6 +1254,43 @@ Since agent credit balances cannot be read programmatically, each session entry 
 ---
 
 
+### Session 019 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `XL`
+**Triggered by:** User uploaded task spec (provider application completion) and asked to review the GitHub repo and start work.
+
+**What was done:**
+- Installed pnpm dependencies (node_modules was missing on fresh import).
+- Restarted all 4 workflows (API Server, web, mobile, mockup-sandbox) — all now running.
+- Ran `pnpm run git:check` — repo was synchronized at `1e4546f0`, working tree clean before edits.
+- **OpenAPI spec** (`lib/api-spec/openapi.yaml`): added 7 new paths (`/providers/application/completion`, `/providers/application/services`, `/providers/application/services/{serviceId}`, `/providers/application/availability`) plus `ApplicationCompletion` and `ApplicationCompletionResponse` schemas.
+- **Codegen**: ran `pnpm --filter @workspace/api-spec run codegen` — regenerated `lib/api-zod` and `lib/api-client-react`; typecheck:libs green.
+- **API routes** (`artifacts/api-server/src/routes/providers.ts`): added 342 lines — `computeCompletion()` helper, completion endpoint, application-scoped services CRUD (4 routes), application-scoped availability (2 routes); updated `/application/submit` to validate all 4 sections via `computeCompletion` before transitioning to `under_review`.
+- **Web** (`artifacts/web/src/pages/onboarding/provider.tsx`): rewrote from 170-line single-step profile form into a 5-step wizard (Profile → Services → Availability → Verification → Review & Submit) with: clickable progress bar, per-step save/back/continue, inline add/edit/delete for services and availability slots, "9–5 weekdays" preset button, verification doc metadata submission, review checklist from live completion endpoint, confirmation checkbox before submit, and all required loading/empty/error/saved states.
+- **Mobile** (`artifacts/mobile/app/onboarding/provider.tsx`): replaced single-step screen with full 5-step Expo wizard matching the web flow — day-chip availability selector, type-chip doc selector, same auth guard and step-restore logic.
+- **Tests** (`artifacts/api-server/src/__tests__/provider-application-completion.integration.test.ts`): 20 tests covering services owner/non-owner/invalid/public-exposure, availability owner/non-owner/idempotent/invalid, completion server-derivation, submission blocked when incomplete, successful full-funnel submission → under_review, idempotent re-submit, auth boundary (under_review ≠ portal access), pure-client access blocked.
+- Added `test:onboarding` script to `artifacts/api-server/package.json`.
+- Fixed 3 TypeScript errors (SubmitVerificationDocRequestDocType cast, Step/"submitted" comparison).
+- **Typecheck**: `pnpm run typecheck` — green across all 4 packages.
+- **Commit**: `15399d8` — "onboarding: add provider services, availability, and verification completion".
+
+**Files changed:**
+- `lib/api-spec/openapi.yaml`
+- `lib/api-client-react/src/generated/api.ts`, `api.schemas.ts` (codegen)
+- `lib/api-zod/src/generated/` (codegen)
+- `artifacts/api-server/src/routes/providers.ts`
+- `artifacts/api-server/package.json`
+- `artifacts/api-server/src/__tests__/provider-application-completion.integration.test.ts` (new)
+- `artifacts/web/src/pages/onboarding/provider.tsx`
+- `artifacts/mobile/app/onboarding/provider.tsx`
+- `.agents/LOG.md`
+
+**Build state at end:** `pnpm run typecheck` green; all 4 workflows running; commit `15399d8` on main (ahead of origin/main by 1 — push when GitHub auth is available).
+
+**Next best action:** Run `pnpm --filter @workspace/api-server run test:onboarding` against the live API to verify the 20 new integration tests pass, then push to GitHub. See proposed follow-up tasks #2–#4.
+
+---
+
 ## New Session Template
 
 Copy and append below the last entry:
