@@ -1,31 +1,60 @@
-# Next product task — preserve the care-history checkpoint
+# Next product task — role-aware marketplace signup and onboarding
 
-The minimal client-safe care-history slice is implemented locally and must be
-verified, documented, committed, and pushed before starting another product
-feature.
+## Audit status
 
-## Completed slice
+Phase 0 is complete. Implementation is paused because the requested one-account,
+multi-role onboarding model is not safely representable by the current schema.
+Do not begin implementation until the data-model change is explicitly approved
+as a planned migration checkpoint.
 
-- `GET /bookings/history` is client-only, ownership-scoped, bounded, and
-  returns completed, no-show, and cancelled booking history.
-- History responses include provider identity and service summaries.
-- Provider-private `careNotes` are excluded from care history and client booking
-  list/create/detail/status responses.
-- Web and mobile past-booking views include loading, empty, error/retry,
-  refresh, provider, service, and status states.
+## Current findings
 
-## Required checkpoint work
+- Web and mobile already use one shared authentication flow and one shared
+  `POST /auth/register` API.
+- Signup currently persists the selected `role` directly to `users.role` and
+  immediately issues a JWT containing that role.
+- `users.role` is a single PostgreSQL enum value (`client | provider | admin`);
+  a user cannot currently hold both client and provider roles.
+- `provider_profiles.user_id` is unique, but there is no provider application
+  or onboarding-state table.
+- Provider profile status exists (`pending`, `under_review`, `approved`,
+  `rejected`) and profile completion exists, but provider registration does not
+  create or manage a safe pending application flow.
+- Provider-only API routes authorize from the JWT role and provider profile;
+  changing role handling without a server-confirmed state would risk privilege
+  escalation.
+- There is no email/phone verification implementation beyond placeholder
+  password-reset routes.
+- No analytics/event-tracking convention was found.
+- Web currently uses `/register`, `/login`, `/discover`, `/bookings`, and
+  `/provider/*`; mobile uses Expo auth screens and tab/account routes. The
+  requested `/signup`, `/onboarding/*`, `/client/dashboard`, and
+  `/provider/application-status` routes do not exist.
 
-- Run focused care-history tests.
-- Rerun booking state-machine, booking concurrency, review, typecheck, build,
-  and 390px web/mobile checks.
-- Update `.agents/LOG.md` and continuation documentation.
-- Commit one focused checkpoint and push normally to `origin/main`.
-- Confirm local and remote hashes match, ahead/behind is `0/0`, and the working
-  tree is clean.
+## Decision gate
 
-## Explicit exclusions
+Before implementation, explicitly approve a planned schema/API checkpoint for:
 
-Do not start Stripe/payments, admin care-history views, clinical-record
-functionality, provider workflow redesign, new review workflows, messaging,
-or unrelated schema/API changes.
+- representing multiple roles per authenticated user without duplicating
+  accounts;
+- representing provider application/onboarding state separately from
+  authorization;
+- deriving effective authorization server-side and issuing refreshed session
+  claims after approved role changes;
+- preserving all existing client/provider/admin permissions and privacy
+  behavior.
+
+Do not add Stripe, payout onboarding, admin expansion, care-history expansion,
+or unrelated review work in this task.
+
+## After approval
+
+1. Define the migration and API contract in OpenAPI first.
+2. Add focused server tests for role intent versus authorization, pending
+   provider applications, cross-role access, duplicate signup, refresh/resume,
+   and privacy.
+3. Implement shared web/mobile signup and server-confirmed redirects.
+4. Add client and provider onboarding states without blocking ordinary client
+   signup on provider-only fields.
+5. Run the existing booking/review suites, new onboarding tests, typecheck,
+   build, workflows, and 390px previews.

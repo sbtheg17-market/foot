@@ -51,13 +51,36 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Running | Discover, Bookings, Account, Provider Profile, Login, Register, mobile booking detail, bounded client care history, cancellation confirmation, status refresh on focus/resume/reconnect, client push registration, in-flight protection, and completed-booking review form; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Reviews + care history complete | Review contracts and `GET /bookings/history` are defined; generated Zod validators and React Query hooks are current. |
-| GitHub sync | ✅ Pending final push | Care-history checkpoint is verified locally and ready to push. Uploaded handoffs remain intentionally untracked. |
+| GitHub sync | ⚠️ Audit changes uncommitted | Role-aware signup audit is documented locally; implementation is paused at the explicit schema-migration decision gate. The uploaded brief remains intentionally untracked. |
 
 **MVP completion estimate: ~80%** (all core flows built: auth, discovery, booking, mobile; remaining: push notifications, admin panel, Stripe payments)
 
 ---
 
 ## Session Entries
+
+---
+
+### Session 032 — 2026-08-06
+**Agent:** Replit Main Agent
+**Scope:** `S`
+**Triggered by:** Audit the uploaded role-aware marketplace signup and onboarding brief before implementation.
+
+**What was done:**
+- Audited current web/mobile signup and login screens, shared auth handlers, JWT/session behavior, role guards, route redirects, provider profile/status models, API contracts, and analytics conventions.
+- Confirmed web and mobile already reuse one shared `POST /auth/register` flow, but the selected role is persisted directly as the single `users.role` value and immediately becomes the JWT role claim.
+- Confirmed `users.role` is a single `client | provider | admin` enum, so the requested one-account multi-role path cannot be implemented safely without a planned schema/API migration.
+- Confirmed provider profile completion and verification status exist, but there is no provider application/onboarding-state model and provider registration does not create a server-controlled pending application.
+- Confirmed the requested `/signup`, `/onboarding/*`, `/client/dashboard`, and `/provider/application-status` routes do not currently exist. Email/phone verification and analytics tracking are also not implemented beyond placeholder password-reset routes.
+- Preserved all existing booking, review, care-history, notification, authorization, and `careNotes` privacy behavior. No application or schema behavior was changed.
+
+**Files changed:**
+- `.agents/NEXT_TASK.md`
+- `.agents/LOG.md`
+
+**Build state at end:** Existing workflows remain running. The prior care-history checkpoint remains synchronized at `7a730e3737543de0d3366570d9b439fc07861558`. No new tests or builds were needed because no runtime code changed.
+
+**Next best action:** Approve or reject a planned schema/API migration for multi-role identities and provider application state. Do not begin signup implementation until that decision is explicit.
 
 ---
 
