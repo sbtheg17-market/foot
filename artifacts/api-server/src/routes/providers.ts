@@ -4,6 +4,7 @@ import {
   db,
   providerProfilesTable,
   providerApplicationsTable,
+  providerApplicationSubmissionsTable,
   accountRolesTable,
   travelZonesTable,
   availabilityTable,
@@ -40,6 +41,15 @@ async function getOwnProfile(userId: number) {
   return rows[0] ?? null;
 }
 
+type PreviousSubmissionRow = {
+  id: number;
+  outcome: "rejected";
+  submittedAt: Date;
+  reviewedAt: Date | null;
+  rejectionReason: string | null;
+  createdAt: Date;
+};
+
 type ApplicationRow = {
   id: number;
   userId: number;
@@ -48,6 +58,7 @@ type ApplicationRow = {
   currentStep: "profile" | "services" | "availability" | "verification" | "submitted";
   submittedAt: Date | null;
   reviewedAt: Date | null;
+  rejectionReason: string | null;
   profile: {
     id: number;
     title: string;
@@ -58,6 +69,7 @@ type ApplicationRow = {
     profileComplete: boolean;
     verificationStatus: "pending" | "under_review" | "approved" | "rejected";
   };
+  previousSubmissions: PreviousSubmissionRow[];
 };
 
 async function getOwnApplication(userId: number): Promise<ApplicationRow | null> {
@@ -70,6 +82,7 @@ async function getOwnApplication(userId: number): Promise<ApplicationRow | null>
       currentStep: providerApplicationsTable.currentStep,
       submittedAt: providerApplicationsTable.submittedAt,
       reviewedAt: providerApplicationsTable.reviewedAt,
+      rejectionReason: providerApplicationsTable.rejectionReason,
       profile: {
         id: providerProfilesTable.id,
         title: providerProfilesTable.title,
@@ -89,7 +102,26 @@ async function getOwnApplication(userId: number): Promise<ApplicationRow | null>
     .where(eq(providerApplicationsTable.userId, userId))
     .limit(1);
 
-  return rows[0] ?? null;
+  const application = rows[0];
+  if (!application) return null;
+
+  // Owner-visible submission history: only public fields, never reviewerNotes.
+  const previousSubmissions = await db
+    .select({
+      id: providerApplicationSubmissionsTable.id,
+      outcome: providerApplicationSubmissionsTable.outcome,
+      submittedAt: providerApplicationSubmissionsTable.submittedAt,
+      reviewedAt: providerApplicationSubmissionsTable.reviewedAt,
+      rejectionReason: providerApplicationSubmissionsTable.rejectionReason,
+      createdAt: providerApplicationSubmissionsTable.createdAt,
+    })
+    .from(providerApplicationSubmissionsTable)
+    .where(
+      eq(providerApplicationSubmissionsTable.providerApplicationId, application.id),
+    )
+    .orderBy(providerApplicationSubmissionsTable.createdAt);
+
+  return { ...application, previousSubmissions };
 }
 
 function applicationResponse(application: ApplicationRow) {
@@ -102,6 +134,8 @@ function applicationResponse(application: ApplicationRow) {
       reviewedAt: application.reviewedAt,
       providerProfileId: application.providerProfileId,
       profile: application.profile,
+      rejectionReason: application.rejectionReason,
+      previousSubmissions: application.previousSubmissions,
     },
   };
 }
@@ -200,7 +234,13 @@ router.patch(
       res.status(404).json({ error: "Provider application not found." });
       return;
     }
-    if (application.status !== "draft" && application.status !== "rejected") {
+    if (application.status === "rejected") {
+      res.status(409).json({
+        error: "Reset the rejected application to draft before editing.",
+      });
+      return;
+    }
+    if (application.status !== "draft") {
       res.status(409).json({ error: "This application is no longer editable." });
       return;
     }
@@ -291,6 +331,12 @@ router.post(
       res.status(200).json(applicationResponse(application));
       return;
     }
+    if (application.status === "rejected") {
+      res.status(409).json({
+        error: "Reset the rejected application to draft before resubmitting.",
+      });
+      return;
+    }
     if (application.status === "suspended") {
       res.status(409).json({ error: "Suspended applications cannot be submitted." });
       return;
@@ -337,6 +383,97 @@ router.post(
       return;
     }
     res.json(applicationResponse(submitted));
+  },
+);
+
+// ── Rejected → draft resubmission reset ─────────────────────────────────────
+//
+// Owner-only. Idempotent when the application is already `draft`.
+// On `rejected`, snapshots the closed cycle into the immutable
+// `provider_application_submissions` history table, then clears rejection
+// fields on the main row. Never touches provider-operations authorization.
+
+router.post(
+  "/application/reset",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+
+    const outcome = await db.transaction(async (tx) => {
+      const rows = await tx
+        .select({
+          id: providerApplicationsTable.id,
+          userId: providerApplicationsTable.userId,
+          status: providerApplicationsTable.status,
+          submittedAt: providerApplicationsTable.submittedAt,
+          reviewedAt: providerApplicationsTable.reviewedAt,
+          reviewedBy: providerApplicationsTable.reviewedBy,
+          reviewerNotes: providerApplicationsTable.reviewerNotes,
+          rejectionReason: providerApplicationsTable.rejectionReason,
+        })
+        .from(providerApplicationsTable)
+        .where(eq(providerApplicationsTable.userId, req.user!.sub))
+        .limit(1)
+        .for("update");
+
+      const current = rows[0];
+      if (!current) return { kind: "not_found" as const };
+      if (current.status === "draft") return { kind: "noop" as const };
+      if (current.status !== "rejected") {
+        return { kind: "conflict" as const, status: current.status };
+      }
+
+      // Snapshot the closed rejection cycle. submittedAt must exist because
+      // the application only reaches `rejected` after a prior submit set it.
+      await tx.insert(providerApplicationSubmissionsTable).values({
+        providerApplicationId: current.id,
+        outcome: "rejected",
+        submittedAt: current.submittedAt ?? new Date(),
+        reviewedAt: current.reviewedAt,
+        reviewedBy: current.reviewedBy,
+        reviewerNotes: current.reviewerNotes,
+        rejectionReason: current.rejectionReason,
+      });
+
+      await tx
+        .update(providerApplicationsTable)
+        .set({
+          status: "draft",
+          currentStep: "profile",
+          submittedAt: null,
+          reviewedAt: null,
+          reviewedBy: null,
+          reviewerNotes: null,
+          rejectionReason: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(providerApplicationsTable.id, current.id),
+            eq(providerApplicationsTable.userId, req.user!.sub),
+          ),
+        );
+
+      return { kind: "reset" as const };
+    });
+
+    if (outcome.kind === "not_found") {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+    if (outcome.kind === "conflict") {
+      res.status(409).json({
+        error: `Applications in status "${outcome.status}" cannot be reset to draft.`,
+      });
+      return;
+    }
+
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(500).json({ error: "Provider application could not be loaded." });
+      return;
+    }
+    res.json(applicationResponse(application));
   },
 );
 

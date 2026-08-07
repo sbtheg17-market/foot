@@ -339,8 +339,38 @@ describe("Phase 4 provider application lifecycle", () => {
 
     await db
       .update(providerApplicationsTable)
-      .set({ status: "rejected", updatedAt: new Date() })
+      .set({
+        status: "rejected",
+        rejectionReason: "Missing verification documents",
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(eq(providerApplicationsTable.id, providerBApplicationId));
+
+    // Rejected applications can no longer be edited directly; owner must reset first.
+    const rejectedPatch = await apiFetch("/providers/application", {
+      method: "PATCH",
+      token: providerB.token,
+      body: JSON.stringify({ title: "Updated after review" }),
+    });
+    assert.equal(rejectedPatch.status, 409);
+
+    // Rejected applications cannot resubmit directly; owner must reset first.
+    const rejectedSubmit = await apiFetch("/providers/application/submit", {
+      method: "POST",
+      token: providerB.token,
+    });
+    assert.equal(rejectedSubmit.status, 409);
+
+    // Reset transitions rejected → draft.
+    const reset = await apiFetch("/providers/application/reset", {
+      method: "POST",
+      token: providerB.token,
+    });
+    assert.equal(reset.status, 200);
+    assert.equal(applicationStatus(reset.body), "draft");
+
+    // Draft edits succeed after reset.
     const rejectedUpdate = await apiFetch("/providers/application", {
       method: "PATCH",
       token: providerB.token,

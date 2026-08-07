@@ -69,10 +69,36 @@ export interface ProviderApplicationProfile {
   verificationStatus: VerificationStatus;
 }
 
-export type ProviderApplicationDetail = ProviderApplicationState & {
+export type ProviderApplicationPreviousSubmissionOutcome = typeof ProviderApplicationPreviousSubmissionOutcome[keyof typeof ProviderApplicationPreviousSubmissionOutcome];
+
+
+export const ProviderApplicationPreviousSubmissionOutcome = {
+  rejected: 'rejected',
+} as const;
+
+/**
+ * Immutable snapshot of a closed submission cycle. Written only when the
+ * owner resets a `rejected` application back to `draft`. Reviewer-private
+ * content (`reviewerNotes`) is never exposed here; only provider-visible
+ * fields are returned.
+ */
+export interface ProviderApplicationPreviousSubmission {
+  id: number;
+  outcome: ProviderApplicationPreviousSubmissionOutcome;
+  submittedAt: string;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+}
+
+export type ProviderApplicationDetail = ProviderApplicationState & ({
   providerProfileId: number;
   profile: ProviderApplicationProfile;
-};
+  /** Provider-visible reason present while `status` is `rejected`. Cleared on reset back to `draft`; historical values remain in `previousSubmissions`. */
+  rejectionReason: string | null;
+  /** Immutable history of closed submission cycles, ordered oldest to newest. */
+  previousSubmissions: ProviderApplicationPreviousSubmission[];
+});
 
 export interface ProviderApplicationDetailResponse {
   application: ProviderApplicationDetail;

@@ -773,6 +773,84 @@ export const useUpdateProviderApplication = <TError = ErrorType<BadRequestRespon
       return useMutation(getUpdateProviderApplicationMutationOptions(options));
     }
 
+export const getResetProviderApplicationUrl = () => {
+
+
+
+
+  return `/api/providers/application/reset`
+}
+
+/**
+ * Transitions the authenticated owner's application from `rejected` back to `draft`
+ * so it can be edited and resubmitted. Snapshots the closed submission cycle
+ * (submittedAt, reviewedAt, reviewer identity, private reviewer notes, and the
+ * provider-visible rejection reason) into an immutable history record before
+ * clearing those fields on the main row. Idempotent: calling reset on an
+ * application that is already `draft` returns the current state without change.
+ * Applications in `under_review`, `approved`, or `suspended` cannot be reset.
+ * @summary Reset a rejected provider application back to draft
+ */
+export const resetProviderApplication = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderApplicationDetailResponse> => {
+
+  return customFetch<ProviderApplicationDetailResponse>(getResetProviderApplicationUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResetProviderApplicationMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetProviderApplication>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetProviderApplication>>, TError,void, TContext> => {
+
+const mutationKey = ['resetProviderApplication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetProviderApplication>>, void> = () => {
+
+
+          return  resetProviderApplication(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetProviderApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof resetProviderApplication>>>
+
+    export type ResetProviderApplicationMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Reset a rejected provider application back to draft
+ */
+export const useResetProviderApplication = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetProviderApplication>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetProviderApplication>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getResetProviderApplicationMutationOptions(options));
+    }
+
 export const getSubmitProviderApplicationUrl = () => {
 
 
@@ -782,7 +860,9 @@ export const getSubmitProviderApplicationUrl = () => {
 }
 
 /**
- * Moves the authenticated owner's draft application to under_review after required profile fields are present.
+ * Moves the authenticated owner's draft application to `under_review` after
+ * required profile fields are present. Applications in `rejected` state must
+ * first be reset via `/providers/application/reset`.
  * @summary Submit a provider application for review
  */
 export const submitProviderApplication = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderApplicationDetailResponse> => {

@@ -237,12 +237,46 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
 
+  /providers/application/reset:
+    post:
+      operationId: resetProviderApplication
+      tags: [providers]
+      summary: Reset a rejected provider application back to draft
+      description: |
+        Transitions the authenticated owner's application from `rejected` back to `draft`
+        so it can be edited and resubmitted. Snapshots the closed submission cycle
+        (submittedAt, reviewedAt, reviewer identity, private reviewer notes, and the
+        provider-visible rejection reason) into an immutable history record before
+        clearing those fields on the main row. Idempotent: calling reset on an
+        application that is already `draft` returns the current state without change.
+        Applications in `under_review`, `approved`, or `suspended` cannot be reset.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider application draft state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
   /providers/application/submit:
     post:
       operationId: submitProviderApplication
       tags: [providers]
       summary: Submit a provider application for review
-      description: Moves the authenticated owner's draft application to under_review after required profile fields are present.
+      description: |
+        Moves the authenticated owner's draft application to `under_review` after
+        required profile fields are present. Applications in `rejected` state must
+        first be reset via `/providers/application/reset`.
       security:
         - bearerAuth: []
       responses:
@@ -1371,6 +1405,40 @@ components:
         - profileComplete
         - verificationStatus
 
+    ProviderApplicationPreviousSubmission:
+      type: object
+      description: |
+        Immutable snapshot of a closed submission cycle. Written only when the
+        owner resets a `rejected` application back to `draft`. Reviewer-private
+        content (`reviewerNotes`) is never exposed here; only provider-visible
+        fields are returned.
+      properties:
+        id:
+          type: integer
+        outcome:
+          type: string
+          enum: [rejected]
+        submittedAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - outcome
+        - submittedAt
+        - reviewedAt
+        - rejectionReason
+        - createdAt
+
     ProviderApplicationDetail:
       allOf:
         - $ref: "#/components/schemas/ProviderApplicationState"
@@ -1380,9 +1448,20 @@ components:
               type: integer
             profile:
               $ref: "#/components/schemas/ProviderApplicationProfile"
+            rejectionReason:
+              type: string
+              nullable: true
+              description: Provider-visible reason present while `status` is `rejected`. Cleared on reset back to `draft`; historical values remain in `previousSubmissions`.
+            previousSubmissions:
+              type: array
+              description: Immutable history of closed submission cycles, ordered oldest to newest.
+              items:
+                $ref: "#/components/schemas/ProviderApplicationPreviousSubmission"
           required:
             - providerProfileId
             - profile
+            - rejectionReason
+            - previousSubmissions
 
     ProviderApplicationDetailResponse:
       type: object

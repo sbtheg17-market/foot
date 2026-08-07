@@ -48,6 +48,13 @@ export const providerApplicationsTable = pgTable(
       onDelete: "set null",
     }),
     reviewerNotes: text("reviewer_notes"),
+    /**
+     * Provider-visible reason surfaced when `status` is `rejected`.
+     * Distinct from the admin-only `reviewerNotes` field. Cleared when the
+     * owner resets the application back to `draft`; a snapshot is preserved
+     * in `provider_application_submissions` for audit.
+     */
+    rejectionReason: text("rejection_reason"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

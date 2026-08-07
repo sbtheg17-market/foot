@@ -210,7 +210,16 @@ export const GetProviderApplicationResponse = zod.object({
   "yearsExperience": zod.int().nullable(),
   "profileComplete": zod.boolean(),
   "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
-})
+}),
+  "rejectionReason": zod.string().nullable().describe('Provider-visible reason present while `status` is `rejected`. Cleared on reset back to `draft`; historical values remain in `previousSubmissions`.'),
+  "previousSubmissions": zod.array(zod.object({
+  "id": zod.int(),
+  "outcome": zod.enum(['rejected']),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('Immutable snapshot of a closed submission cycle. Written only when the\nowner resets a `rejected` application back to `draft`. Reviewer-private\ncontent (`reviewerNotes`) is never exposed here; only provider-visible\nfields are returned.\n')).describe('Immutable history of closed submission cycles, ordered oldest to newest.')
 }))
 })
 
@@ -237,7 +246,16 @@ export const CreateProviderApplicationResponse = zod.object({
   "yearsExperience": zod.int().nullable(),
   "profileComplete": zod.boolean(),
   "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
-})
+}),
+  "rejectionReason": zod.string().nullable().describe('Provider-visible reason present while `status` is `rejected`. Cleared on reset back to `draft`; historical values remain in `previousSubmissions`.'),
+  "previousSubmissions": zod.array(zod.object({
+  "id": zod.int(),
+  "outcome": zod.enum(['rejected']),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('Immutable snapshot of a closed submission cycle. Written only when the\nowner resets a `rejected` application back to `draft`. Reviewer-private\ncontent (`reviewerNotes`) is never exposed here; only provider-visible\nfields are returned.\n')).describe('Immutable history of closed submission cycles, ordered oldest to newest.')
 }))
 })
 
@@ -286,13 +304,66 @@ export const UpdateProviderApplicationResponse = zod.object({
   "yearsExperience": zod.int().nullable(),
   "profileComplete": zod.boolean(),
   "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
-})
+}),
+  "rejectionReason": zod.string().nullable().describe('Provider-visible reason present while `status` is `rejected`. Cleared on reset back to `draft`; historical values remain in `previousSubmissions`.'),
+  "previousSubmissions": zod.array(zod.object({
+  "id": zod.int(),
+  "outcome": zod.enum(['rejected']),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('Immutable snapshot of a closed submission cycle. Written only when the\nowner resets a `rejected` application back to `draft`. Reviewer-private\ncontent (`reviewerNotes`) is never exposed here; only provider-visible\nfields are returned.\n')).describe('Immutable history of closed submission cycles, ordered oldest to newest.')
 }))
 })
 
 
 /**
- * Moves the authenticated owner's draft application to under_review after required profile fields are present.
+ * Transitions the authenticated owner's application from `rejected` back to `draft`
+ * so it can be edited and resubmitted. Snapshots the closed submission cycle
+ * (submittedAt, reviewedAt, reviewer identity, private reviewer notes, and the
+ * provider-visible rejection reason) into an immutable history record before
+ * clearing those fields on the main row. Idempotent: calling reset on an
+ * application that is already `draft` returns the current state without change.
+ * Applications in `under_review`, `approved`, or `suspended` cannot be reset.
+ * @summary Reset a rejected provider application back to draft
+ */
+export const ResetProviderApplicationResponse = zod.object({
+  "application": zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "providerProfileId": zod.int(),
+  "profile": zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "bio": zod.string().nullable(),
+  "city": zod.string(),
+  "serviceAreaNotes": zod.string().nullable(),
+  "yearsExperience": zod.int().nullable(),
+  "profileComplete": zod.boolean(),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+}),
+  "rejectionReason": zod.string().nullable().describe('Provider-visible reason present while `status` is `rejected`. Cleared on reset back to `draft`; historical values remain in `previousSubmissions`.'),
+  "previousSubmissions": zod.array(zod.object({
+  "id": zod.int(),
+  "outcome": zod.enum(['rejected']),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('Immutable snapshot of a closed submission cycle. Written only when the\nowner resets a `rejected` application back to `draft`. Reviewer-private\ncontent (`reviewerNotes`) is never exposed here; only provider-visible\nfields are returned.\n')).describe('Immutable history of closed submission cycles, ordered oldest to newest.')
+}))
+})
+
+
+/**
+ * Moves the authenticated owner's draft application to `under_review` after
+ * required profile fields are present. Applications in `rejected` state must
+ * first be reset via `/providers/application/reset`.
  * @summary Submit a provider application for review
  */
 export const SubmitProviderApplicationResponse = zod.object({
@@ -313,7 +384,16 @@ export const SubmitProviderApplicationResponse = zod.object({
   "yearsExperience": zod.int().nullable(),
   "profileComplete": zod.boolean(),
   "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
-})
+}),
+  "rejectionReason": zod.string().nullable().describe('Provider-visible reason present while `status` is `rejected`. Cleared on reset back to `draft`; historical values remain in `previousSubmissions`.'),
+  "previousSubmissions": zod.array(zod.object({
+  "id": zod.int(),
+  "outcome": zod.enum(['rejected']),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('Immutable snapshot of a closed submission cycle. Written only when the\nowner resets a `rejected` application back to `draft`. Reviewer-private\ncontent (`reviewerNotes`) is never exposed here; only provider-visible\nfields are returned.\n')).describe('Immutable history of closed submission cycles, ordered oldest to newest.')
 }))
 })
 

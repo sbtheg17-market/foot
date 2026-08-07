@@ -1,28 +1,38 @@
-# Next product task — progressive provider onboarding
+# Next product task — Phase 1 micro-checkpoint 2: rejection-reason / status API
 
 ## Current gate
 
-The shared signup and role-aware provider onboarding checkpoint is complete and
-verified. Provider application ownership, concurrent idempotent start/resume,
-draft validation, submission transitions, approval prerequisites, role-intent
-authorization boundaries, existing-client enrollment, credential submission,
-and privacy boundaries are covered by API integration tests.
+Phase 1 micro-checkpoint 1 is complete and locally verified. The server now
+supports the explicit `rejected → draft → under_review` provider-application
+resubmission flow with immutable submission history, owner-scoped access,
+idempotent resets, and the existing approved-provider authorization gate
+unchanged.
 
 ## Audit status
 
-Phase 0, the additive schema migration, compatibility backfill/server-state
+Phase 0, additive schema migration, compatibility backfill/server-state
 exposure, Phase 3 authorization hardening, and Phase 4 shared signup/provider
-onboarding are complete. The full API regression matrix, workspace build,
-workflow startup, and 390px signup previews have passed.
+onboarding remain complete. The new Phase 1 slice adds:
 
-## Next scope
+- `POST /providers/application/reset` (server transition only)
+- `rejectionReason` column on `provider_applications`
+- `provider_application_submissions` append-only history table
+- Rejected applications are blocked from direct `PATCH` and direct submit
+- Focused resubmission tests (11/11) and full regression suite pass
 
-- Extend provider onboarding beyond the initial profile step with services,
-  availability, and verification-document completion.
-- Keep onboarding endpoints owner-scoped and preserve the existing
-  `requireApprovedProvider` authorization gate.
-- Add each new onboarding endpoint to OpenAPI first, regenerate clients, and
-  add focused integration coverage before exposing it in web or mobile.
+## Next scope — Phase 1 micro-checkpoint 2
+
+Expose the rejection reason and structured application status through a stable
+owner-scoped API so the web and mobile rejected-state screens (subsequent
+slices) have a single server-authoritative source. Scope is server-only.
+
+- Confirm the shape returned by `GET /providers/application` is sufficient for
+  the rejected-state screen: `status`, `rejectionReason`, `previousSubmissions`.
+  If additional public fields are needed (e.g. last reviewedAt formatted, or a
+  human-readable `nextAction`), add them behind an owner-scoped endpoint.
+- Do not begin web or mobile UI work in this slice.
+- Do not add admin rejection endpoints (Phase 3).
+- Do not touch approved-provider authorization.
 
 ## Guardrails
 
@@ -31,5 +41,7 @@ workflow startup, and 390px signup previews have passed.
 - Provider operations require database-backed provider membership, an
   owner-linked application with `approved` status, and an approved provider
   profile.
-- Do not add Stripe, payouts, active-role switching, or unrelated admin,
-  care-history, or review expansion in this scope.
+- Do not add Stripe, payouts, active-role switching, disputes, background
+  checks, or unrelated admin / care-history / review expansion in this scope.
+- `reviewerNotes` must never appear in owner-facing responses; only the
+  provider-visible `rejectionReason` is exposed.

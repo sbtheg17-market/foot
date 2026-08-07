@@ -52,6 +52,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Phase 4 application contract generated | Auth role intent plus owner-scoped provider application get/create/update/submit contracts are generated into the React and Zod clients; generated files were not edited manually. |
 | Provider application coverage | ✅ Phase 4 checkpoint verified | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. |
+| Provider application resubmission | ✅ Phase 1 checkpoint 1 verified | `POST /providers/application/reset` transitions `rejected → draft` with an immutable `provider_application_submissions` history snapshot, owner-only access, idempotent no-op on `draft`, 409 on non-resettable states, and preserved `rejectionReason` in history. `PATCH` and direct `submit` are blocked while `rejected`; approved-provider authorization is unchanged. `test:provider-resubmission` passes all 11 focused integration tests. |
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
 | GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
 
@@ -59,7 +60,60 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
-### Session 037 — 2026-08-06
+### Session 039 — 2026-08-06
+**Agent:** E1 Agent (Emergent)
+**Scope:** `M`
+**Triggered by:** Phase 1 micro-checkpoint 1 — rejected-provider resubmission (server state transitions only), executed in an isolated non-Replit container after account-independent clone.
+
+**What was done:**
+- Confirmed Phase 0 preflight: `HEAD` at `4836938` (ahead of the plan's `1e4546f`); `origin/main` at `4836938`; ahead/behind `0/0`; working tree clean; `pnpm run git:check` passed. Repository identity verified against `https://github.com/sbtheg17-market/foot.git`.
+- Added additive schema for the resubmission lifecycle: a new `rejection_reason` column on `provider_applications` (nullable, provider-visible), a new `provider_application_submissions` append-only history table with `outcome`/`submittedAt`/`reviewedAt`/`reviewedBy`/`reviewerNotes`/`rejectionReason` columns, and a new `provider_application_submission_outcome` enum. Applied via `pnpm --filter @workspace/db run push` (development schema sync only).
+- Added the OpenAPI-first `POST /providers/application/reset` endpoint. Rejected applications transition back to `draft` with a `SELECT … FOR UPDATE`-serialized cycle snapshot; already-draft applications are idempotent no-ops; `under_review`, `approved`, and `suspended` states are 409. Regenerated the React Query and Zod clients from the contract.
+- Extended `GET /providers/application` to expose `rejectionReason` and a public `previousSubmissions[]` history. Reviewer-private `reviewerNotes` is never included in owner-facing responses or history payloads.
+- Modified `PATCH /providers/application` to reject direct edits while the application is `rejected` (409 with a stable message asking the owner to reset first). `POST /providers/application/submit` now returns 409 for `rejected` state, requiring the explicit two-step transition. Approved-provider authorization remains unchanged.
+- Added focused integration coverage in `provider-application-resubmission.integration.test.ts`: rejected→draft transition, immutable submission history snapshot, owner-only enforcement (client denied, cross-provider isolation), idempotency on repeated resets, concurrency (five concurrent resets write exactly one history entry), draft→under_review resubmission after reset, multi-cycle history accumulation, 409 for non-resettable states, and approved-provider authorization regression.
+- Updated the existing `provider-application.integration.test.ts` rejected block to reflect the new two-step transition semantics.
+- Added the `test:provider-resubmission` package script.
+
+**Verification (local, isolated Postgres 15 + JWT_SECRET):**
+- `test:provider-resubmission`: 11/11 ✅ (new focused slice)
+- `test:authorization`: 7/7 ✅
+- `test:care-history` (careNotes privacy): 4/4 ✅
+- `test:role-state`: 2/2 ✅
+- `test:reviews`: 7/7 ✅
+- `test:availability`: 3/3 ✅
+- `test` (booking state-machine): 63/63 ✅
+- `test:integration` (booking-concurrency): 16/16 ✅
+- `test:pressure` (booking-pressure): 13/13 ✅
+- Full workspace typecheck (all 4 projects): ✅
+- Full workspace build (api-server + web): ✅
+- `pnpm run git:check`: ✅
+
+**Pre-existing failures on baseline HEAD (independently verified via `git stash` before applying this slice — NOT caused by this slice):**
+- `test:provider-application`: 6/8 pass; 2 pre-existing failures — a stale expected error message in test 5 and an incomplete submit prerequisite in test 6. Session 037's claim of 8/8 pass appears to have drifted after that commit.
+- `test:onboarding` (`provider-application-completion.integration.test.ts`): 1 pre-existing failure.
+
+These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and were confirmed present on `4836938` before any of this slice's changes.
+
+**Files changed:**
+- `lib/db/src/schema/provider-applications.ts` (added `rejectionReason` column)
+- `lib/db/src/schema/provider-application-submissions.ts` (new)
+- `lib/db/src/schema/index.ts` (export new table)
+- `lib/api-spec/openapi.yaml` (new `/providers/application/reset`, extended `ProviderApplicationDetail`, new `ProviderApplicationPreviousSubmission` schema)
+- `lib/api-client-react/src/generated/`, `lib/api-zod/src/generated/` (regenerated)
+- `artifacts/api-server/src/routes/providers.ts` (reset endpoint; PATCH/submit rejected-state gating; response fields)
+- `artifacts/api-server/src/__tests__/provider-application-resubmission.integration.test.ts` (new)
+- `artifacts/api-server/src/__tests__/provider-application.integration.test.ts` (rejected block updated)
+- `artifacts/api-server/package.json` (added `test:provider-resubmission`)
+- `docs/api-routes.md` (documented `/providers/application` surface incl. reset)
+- `.agents/NEXT_TASK.md` (points to Phase 1 micro-checkpoint 2)
+- `.agents/LOG.md`
+
+**Build state at end:** All in-scope verification passes. `pnpm-lock.yaml` was restored to baseline (no dependency changes in this slice). No secrets, uploaded handoffs, prompt files, or unrelated changes are staged. The local test database (`foot_test_db`) and `JWT_SECRET` are contained inside `.env`, which is git-ignored. `HEAD` still at `4836938`; the Phase 1 commit is prepared locally with author `E1 Agent <e1@emergent.dev>` but not pushed from this environment per the user's decision to push from Replit where GitHub is already authenticated.
+
+**Next best action:** Push the local commit to `origin/main` from the authenticated Replit workspace and verify `0/0`. Then continue with Phase 1 micro-checkpoint 2 (rejection-reason/status API), followed by web and mobile rejected-state UI as separately scoped micro-checkpoints. Keep Stripe, admin verification, disputes, and background checks out of scope.
+
+
 **Agent:** Replit Main Agent
 **Scope:** `M`
 **Triggered by:** Close the Phase 4 checkpoint only after addressing the uploaded critique's missing integration-coverage requirement.

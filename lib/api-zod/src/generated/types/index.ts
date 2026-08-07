@@ -57,6 +57,8 @@ export * from './onboardingState';
 export * from './onboardingStateClient';
 export * from './providerApplicationDetail';
 export * from './providerApplicationDetailResponse';
+export * from './providerApplicationPreviousSubmission';
+export * from './providerApplicationPreviousSubmissionOutcome';
 export * from './providerApplicationProfile';
 export * from './providerApplicationState';
 export * from './providerApplicationStatus';

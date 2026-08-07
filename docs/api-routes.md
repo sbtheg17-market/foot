@@ -25,6 +25,30 @@ onboarding review but does not grant provider operations.
 
 ---
 
+## Provider Application (onboarding)
+
+Owner-scoped provider onboarding endpoints. Reading, saving, resetting, or
+submitting an application does not grant provider operations — the
+approved-provider gate requires provider membership, an owner-linked
+application with `approved` status, and an approved provider profile.
+
+| Method | Path | Access | Description |
+|--------|------|--------|-------------|
+| GET | /providers/application | auth (owner) | Own application detail; includes `rejectionReason` (nullable) and `previousSubmissions[]` history |
+| POST | /providers/application | auth | Idempotently start or resume provider onboarding (creates draft) |
+| PATCH | /providers/application | auth (owner) | Save draft profile fields; blocked on `rejected`/`under_review`/`approved`/`suspended` |
+| POST | /providers/application/reset | auth (owner) | Reset a `rejected` application back to `draft`; snapshots the closed cycle into immutable history and clears rejection fields; idempotent when already `draft` |
+| POST | /providers/application/submit | auth (owner) | `draft → under_review`; requires reset first when status is `rejected` |
+| GET | /providers/application/completion | auth (owner) | Server-derived completion summary |
+| GET | /providers/application/services | auth (owner) | Application-scoped services list |
+| POST | /providers/application/services | auth (owner) | Add an application-scoped service |
+
+Application responses expose `rejectionReason` (provider-visible) but never
+expose `reviewerNotes` (admin-private). `previousSubmissions` returns only
+public snapshot fields per closed cycle.
+
+---
+
 ## Marketplace / Provider Discovery
 
 | Method | Path | Access | Description |

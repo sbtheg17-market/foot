@@ -5,10 +5,15 @@
  * OnCall Foot API — foot rejuvenation marketplace
  * OpenAPI spec version: 0.3.0
  */
+import type { ProviderApplicationPreviousSubmission } from './providerApplicationPreviousSubmission';
 import type { ProviderApplicationProfile } from './providerApplicationProfile';
 import type { ProviderApplicationState } from './providerApplicationState';
 
-export type ProviderApplicationDetail = ProviderApplicationState & {
+export type ProviderApplicationDetail = ProviderApplicationState & ({
   providerProfileId: number;
   profile: ProviderApplicationProfile;
-};
+  /** Provider-visible reason present while `status` is `rejected`. Cleared on reset back to `draft`; historical values remain in `previousSubmissions`. */
+  rejectionReason: string | null;
+  /** Immutable history of closed submission cycles, ordered oldest to newest. */
+  previousSubmissions: ProviderApplicationPreviousSubmission[];
+});
