@@ -55,9 +55,32 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Provider application resubmission | ✅ Phase 1 checkpoint 1 verified | `POST /providers/application/reset` transitions `rejected → draft` with an immutable `provider_application_submissions` history snapshot, owner-only access, idempotent no-op on `draft`, 409 on non-resettable states, and preserved `rejectionReason` in history. `PATCH` and direct `submit` are blocked while `rejected`; approved-provider authorization is unchanged. `test:provider-resubmission` passes all 11 focused integration tests. |
 | Provider application status API | ✅ Phase 1 checkpoint 2 verified | `GET /providers/application/status` returns a compact owner-scoped view: `status`, current-cycle `submittedAt`/`reviewedAt`, provider-visible `rejectionReason`, `submissionCount`, `latestSubmission` snapshot, server-derived `nextAction` (`resume_draft`/`wait_for_review`/`provider_operations_available`/`reset_to_draft`/`contact_support`), and `canEdit`/`canReset`/`canResubmit` capability flags. Reviewer-private `reviewerNotes` never appears. `test:provider-status` passes all 9 focused tests; approved-provider authorization and `careNotes` privacy regressions remain green. |
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
-| GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
+| GitHub sync | ⚠️ MC2 handoff branch | `conflict_070826_mc2` contains the verified MC2 commit; `origin/main` remains on the unrelated import-marker history and must be reconciled without force-push. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
+
+---
+
+### Session 041 — 2026-08-07
+**Agent:** Replit Main Agent  
+**Scope:** `S`  
+**Triggered by:** User requested a safe conflict-branch handoff after the MC2 push to `main` was rejected.
+
+**What was done:**
+- Created `conflict_070826_mc2` from the clean, verified MC2 commit `5f9992e`.
+- Added `docs/phase1-mc2-handoff.md` with the exact base, patch checksum, validation results, remote-history mismatch, and no-force-push merge procedure.
+- Kept `main` and `origin/main` unchanged; no remote history was overwritten.
+
+**Verification:**
+- MC2 status API: 9/9 passed.
+- MC1 resubmission regression: 11/11 passed.
+- Workspace typecheck: passed.
+- Workspace build: passed.
+- Working tree is clean before the branch push.
+
+**Build state at end:** MC2 is preserved on the conflict handoff branch. The remote `main` branch still points to the unrelated import-marker commit and requires a deliberate history reconciliation before MC2 can be merged.
+
+**Next best action:** Push `conflict_070826_mc2`, then have a maintainer reconcile the expected base with `origin/main`, merge `5f9992e`, and confirm `0/0` synchronization before starting MC3.
 
 ---
 
