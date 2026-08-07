@@ -91,6 +91,41 @@ export interface ProviderApplicationPreviousSubmission {
   createdAt: string;
 }
 
+export type ProviderApplicationNextAction = typeof ProviderApplicationNextAction[keyof typeof ProviderApplicationNextAction];
+
+
+export const ProviderApplicationNextAction = {
+  resume_draft: 'resume_draft',
+  wait_for_review: 'wait_for_review',
+  provider_operations_available: 'provider_operations_available',
+  reset_to_draft: 'reset_to_draft',
+  contact_support: 'contact_support',
+} as const;
+
+/**
+ * Compact owner-scoped status projection of a provider application.
+ * Only exposes provider-visible fields; `reviewerNotes` never appears.
+ */
+export interface ProviderApplicationStatusView {
+  applicationId: number;
+  status: ProviderApplicationStatus;
+  currentStep: ProviderApplicationStep;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  /** @minimum 0 */
+  submissionCount: number;
+  latestSubmission: ProviderApplicationPreviousSubmission | null;
+  nextAction: ProviderApplicationNextAction;
+  canEdit: boolean;
+  canReset: boolean;
+  canResubmit: boolean;
+}
+
+export interface ProviderApplicationStatusResponse {
+  status: ProviderApplicationStatusView;
+}
+
 export type ProviderApplicationDetail = ProviderApplicationState & ({
   providerProfileId: number;
   profile: ProviderApplicationProfile;

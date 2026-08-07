@@ -1,47 +1,44 @@
-# Next product task — Phase 1 micro-checkpoint 2: rejection-reason / status API
+# Next product task — Phase 1 micro-checkpoint 3: web rejected-state UI
 
 ## Current gate
 
-Phase 1 micro-checkpoint 1 is complete and locally verified. The server now
-supports the explicit `rejected → draft → under_review` provider-application
-resubmission flow with immutable submission history, owner-scoped access,
-idempotent resets, and the existing approved-provider authorization gate
-unchanged.
+Phase 1 micro-checkpoint 1 (server transitions) and micro-checkpoint 2
+(rejection-reason / status API) are complete and pushed to `origin/main`.
+The server now offers:
 
-## Audit status
+- `GET /providers/application` — full owner-scoped detail with history
+- `GET /providers/application/status` — compact owner-scoped status view
+  with server-derived `nextAction` and capability flags
+- `POST /providers/application/reset` — explicit `rejected → draft`
+- `POST /providers/application/submit` — `draft → under_review`
+- Immutable `provider_application_submissions` history
+- Provider-visible `rejectionReason`, admin-private `reviewerNotes`
 
-Phase 0, additive schema migration, compatibility backfill/server-state
-exposure, Phase 3 authorization hardening, and Phase 4 shared signup/provider
-onboarding remain complete. The new Phase 1 slice adds:
+## Next scope — Phase 1 micro-checkpoint 3 (web only)
 
-- `POST /providers/application/reset` (server transition only)
-- `rejectionReason` column on `provider_applications`
-- `provider_application_submissions` append-only history table
-- Rejected applications are blocked from direct `PATCH` and direct submit
-- Focused resubmission tests (11/11) and full regression suite pass
+Add the web rejected-state UI on top of the existing `/provider/application-status`
+route (or wherever the current post-submission status screen lives).
 
-## Next scope — Phase 1 micro-checkpoint 2
-
-Expose the rejection reason and structured application status through a stable
-owner-scoped API so the web and mobile rejected-state screens (subsequent
-slices) have a single server-authoritative source. Scope is server-only.
-
-- Confirm the shape returned by `GET /providers/application` is sufficient for
-  the rejected-state screen: `status`, `rejectionReason`, `previousSubmissions`.
-  If additional public fields are needed (e.g. last reviewedAt formatted, or a
-  human-readable `nextAction`), add them behind an owner-scoped endpoint.
-- Do not begin web or mobile UI work in this slice.
-- Do not add admin rejection endpoints (Phase 3).
-- Do not touch approved-provider authorization.
+- Read from `GET /providers/application/status`.
+- When `status === "rejected"`, show the provider-visible `rejectionReason`
+  and a primary CTA that calls `POST /providers/application/reset`.
+- Show `latestSubmission` and `submissionCount` in a low-emphasis
+  summary line so providers understand how many prior cycles occurred.
+- Respect `canEdit` / `canReset` / `canResubmit` — never render actions
+  the server says are unavailable.
+- Use existing web design tokens, routing, and query patterns.
+- Keep loading, retry, empty, and error states aligned with the rest of
+  the portal.
+- Do not add mobile work in this slice (that becomes Phase 1 MC4).
+- Do not add server changes.
 
 ## Guardrails
 
-- Signup `roleIntent` remains an onboarding request, never an authorization
-  claim.
-- Provider operations require database-backed provider membership, an
-  owner-linked application with `approved` status, and an approved provider
-  profile.
-- Do not add Stripe, payouts, active-role switching, disputes, background
-  checks, or unrelated admin / care-history / review expansion in this scope.
-- `reviewerNotes` must never appear in owner-facing responses; only the
-  provider-visible `rejectionReason` is exposed.
+- Do not fix the pre-existing `test:provider-application` (2) or
+  `test:onboarding` (1) baseline drift in this slice — separate cleanup.
+- Do not add Stripe, payouts, admin verification, disputes, background
+  checks, or unrelated admin/care-history/review work.
+- Never expose `reviewerNotes` in the UI; only `rejectionReason` and public
+  history fields are safe to render.
+- Signup `roleIntent` remains an onboarding request, not an authorization
+  claim. Approved-provider authorization boundary must stay intact.

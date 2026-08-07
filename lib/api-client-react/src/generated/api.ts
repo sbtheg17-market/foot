@@ -50,6 +50,7 @@ import type {
   MessageResponse,
   NotFoundResponse,
   ProviderApplicationDetailResponse,
+  ProviderApplicationStatusResponse,
   ProviderListResponse,
   ProviderProfileResponse,
   RegisterRequest,
@@ -924,6 +925,90 @@ export const useSubmitProviderApplication = <TError = ErrorType<BadRequestRespon
       > => {
       return useMutation(getSubmitProviderApplicationMutationOptions(options));
     }
+
+export const getGetProviderApplicationStatusUrl = () => {
+
+
+
+
+  return `/api/providers/application/status`
+}
+
+/**
+ * Compact, owner-scoped status view. Includes the current `status`,
+ * current-cycle `submittedAt`/`reviewedAt`, the provider-visible
+ * `rejectionReason` (nullable), a `submissionCount` derived from the
+ * immutable history, the most-recent closed submission summary
+ * (`latestSubmission`), a server-derived `nextAction` guidance value,
+ * and server-derived `canEdit`/`canReset`/`canResubmit` capability
+ * flags. Reviewer-private `reviewerNotes` is never included.
+ * @summary Server-authoritative status view for the owner's application
+ */
+export const getProviderApplicationStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderApplicationStatusResponse> => {
+
+  return customFetch<ProviderApplicationStatusResponse>(getGetProviderApplicationStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProviderApplicationStatusQueryKey = () => {
+    return [
+    `/api/providers/application/status`
+    ] as const;
+    }
+
+
+export const getGetProviderApplicationStatusQueryOptions = <TData = Awaited<ReturnType<typeof getProviderApplicationStatus>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProviderApplicationStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderApplicationStatus>>> = ({ signal }) => getProviderApplicationStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProviderApplicationStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderApplicationStatus>>>
+export type GetProviderApplicationStatusQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Server-authoritative status view for the owner's application
+ */
+
+export function useGetProviderApplicationStatus<TData = Awaited<ReturnType<typeof getProviderApplicationStatus>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProviderApplicationStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetProviderApplicationCompletionUrl = () => {
 

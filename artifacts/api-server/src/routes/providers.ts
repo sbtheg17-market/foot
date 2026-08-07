@@ -543,6 +543,69 @@ router.get(
   },
 );
 
+// ── Application status (owner-scoped, read-only) ─────────────────────────────
+//
+// Compact server-authoritative view of the owner's application: current
+// status, current cycle timestamps, provider-visible rejectionReason, closed
+// submission summary, and server-derived `nextAction` + capability flags.
+// Never returns reviewerNotes (admin-private).
+
+type NextAction =
+  | "resume_draft"
+  | "wait_for_review"
+  | "provider_operations_available"
+  | "reset_to_draft"
+  | "contact_support";
+
+function deriveNextAction(status: ApplicationRow["status"]): NextAction {
+  switch (status) {
+    case "draft":
+      return "resume_draft";
+    case "under_review":
+      return "wait_for_review";
+    case "approved":
+      return "provider_operations_available";
+    case "rejected":
+      return "reset_to_draft";
+    case "suspended":
+      return "contact_support";
+  }
+}
+
+router.get(
+  "/application/status",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+
+    const history = application.previousSubmissions;
+    const latestSubmission =
+      history.length > 0 ? history[history.length - 1] : null;
+
+    res.json({
+      status: {
+        applicationId: application.id,
+        status: application.status,
+        currentStep: application.currentStep,
+        submittedAt: application.submittedAt,
+        reviewedAt: application.reviewedAt,
+        rejectionReason: application.rejectionReason,
+        submissionCount: history.length,
+        latestSubmission,
+        nextAction: deriveNextAction(application.status),
+        canEdit: application.status === "draft",
+        canReset: application.status === "rejected",
+        canResubmit: application.status === "draft",
+      },
+    });
+  },
+);
+
 // ── Application-scoped services (pre-approval) ────────────────────────────────
 
 router.get(

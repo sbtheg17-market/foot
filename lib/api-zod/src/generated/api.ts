@@ -399,6 +399,45 @@ export const SubmitProviderApplicationResponse = zod.object({
 
 
 /**
+ * Compact, owner-scoped status view. Includes the current `status`,
+ * current-cycle `submittedAt`/`reviewedAt`, the provider-visible
+ * `rejectionReason` (nullable), a `submissionCount` derived from the
+ * immutable history, the most-recent closed submission summary
+ * (`latestSubmission`), a server-derived `nextAction` guidance value,
+ * and server-derived `canEdit`/`canReset`/`canResubmit` capability
+ * flags. Reviewer-private `reviewerNotes` is never included.
+ * @summary Server-authoritative status view for the owner's application
+ */
+export const getProviderApplicationStatusResponseStatusSubmissionCountMin = 0;
+
+
+
+export const GetProviderApplicationStatusResponse = zod.object({
+  "status": zod.object({
+  "applicationId": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "submissionCount": zod.int().min(getProviderApplicationStatusResponseStatusSubmissionCountMin),
+  "latestSubmission": zod.object({
+  "id": zod.int(),
+  "outcome": zod.enum(['rejected']),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('Immutable snapshot of a closed submission cycle. Written only when the\nowner resets a `rejected` application back to `draft`. Reviewer-private\ncontent (`reviewerNotes`) is never exposed here; only provider-visible\nfields are returned.\n').nullable(),
+  "nextAction": zod.enum(['resume_draft', 'wait_for_review', 'provider_operations_available', 'reset_to_draft', 'contact_support']),
+  "canEdit": zod.boolean(),
+  "canReset": zod.boolean(),
+  "canResubmit": zod.boolean()
+}).describe('Compact owner-scoped status projection of a provider application.\nOnly exposes provider-visible fields; `reviewerNotes` never appears.\n')
+})
+
+
+/**
  * Returns a completion status for each required onboarding section. The server calculates all flags — do not trust client-side values for authorization.
  * @summary Get server-derived completion summary for the provider application
  */
