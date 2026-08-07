@@ -297,6 +297,35 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
 
+  /providers/application/status:
+    get:
+      operationId: getProviderApplicationStatus
+      tags: [providers]
+      summary: Server-authoritative status view for the owner's application
+      description: |
+        Compact, owner-scoped status view. Includes the current `status`,
+        current-cycle `submittedAt`/`reviewedAt`, the provider-visible
+        `rejectionReason` (nullable), a `submissionCount` derived from the
+        immutable history, the most-recent closed submission summary
+        (`latestSubmission`), a server-derived `nextAction` guidance value,
+        and server-derived `canEdit`/`canReset`/`canResubmit` capability
+        flags. Reviewer-private `reviewerNotes` is never included.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider application status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /providers/application/completion:
     get:
       operationId: getProviderApplicationCompletion
@@ -1438,6 +1467,75 @@ components:
         - reviewedAt
         - rejectionReason
         - createdAt
+
+    ProviderApplicationNextAction:
+      type: string
+      enum:
+        - resume_draft
+        - wait_for_review
+        - provider_operations_available
+        - reset_to_draft
+        - contact_support
+
+    ProviderApplicationStatusView:
+      type: object
+      description: |
+        Compact owner-scoped status projection of a provider application.
+        Only exposes provider-visible fields; `reviewerNotes` never appears.
+      properties:
+        applicationId:
+          type: integer
+        status:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+        currentStep:
+          $ref: "#/components/schemas/ProviderApplicationStep"
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        submissionCount:
+          type: integer
+          minimum: 0
+        latestSubmission:
+          allOf:
+            - $ref: "#/components/schemas/ProviderApplicationPreviousSubmission"
+          nullable: true
+        nextAction:
+          $ref: "#/components/schemas/ProviderApplicationNextAction"
+        canEdit:
+          type: boolean
+        canReset:
+          type: boolean
+        canResubmit:
+          type: boolean
+      required:
+        - applicationId
+        - status
+        - currentStep
+        - submittedAt
+        - reviewedAt
+        - rejectionReason
+        - submissionCount
+        - latestSubmission
+        - nextAction
+        - canEdit
+        - canReset
+        - canResubmit
+
+    ProviderApplicationStatusResponse:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ProviderApplicationStatusView"
+      required:
+        - status
 
     ProviderApplicationDetail:
       allOf:

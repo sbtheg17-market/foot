@@ -53,10 +53,58 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | OpenAPI spec | ✅ Phase 4 application contract generated | Auth role intent plus owner-scoped provider application get/create/update/submit contracts are generated into the React and Zod clients; generated files were not edited manually. |
 | Provider application coverage | ✅ Phase 4 checkpoint verified | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. |
 | Provider application resubmission | ✅ Phase 1 checkpoint 1 verified | `POST /providers/application/reset` transitions `rejected → draft` with an immutable `provider_application_submissions` history snapshot, owner-only access, idempotent no-op on `draft`, 409 on non-resettable states, and preserved `rejectionReason` in history. `PATCH` and direct `submit` are blocked while `rejected`; approved-provider authorization is unchanged. `test:provider-resubmission` passes all 11 focused integration tests. |
+| Provider application status API | ✅ Phase 1 checkpoint 2 verified | `GET /providers/application/status` returns a compact owner-scoped view: `status`, current-cycle `submittedAt`/`reviewedAt`, provider-visible `rejectionReason`, `submissionCount`, `latestSubmission` snapshot, server-derived `nextAction` (`resume_draft`/`wait_for_review`/`provider_operations_available`/`reset_to_draft`/`contact_support`), and `canEdit`/`canReset`/`canResubmit` capability flags. Reviewer-private `reviewerNotes` never appears. `test:provider-status` passes all 9 focused tests; approved-provider authorization and `careNotes` privacy regressions remain green. |
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
 | GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
+
+---
+
+### Session 040 — 2026-08-07
+**Agent:** E1 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Phase 1 micro-checkpoint 2 — rejection-reason and status API (server-only), after Replit pushed micro-checkpoint 1 to `origin/main` and Neo synced to `27654e3` with a safety branch `backup/neo-before-mc2`.
+
+**What was done:**
+- Verified sync: `origin/main` at `27654e3` contains three commits ahead of the previous Phase 0 baseline — `a51e573` (agent log), `54534b0` (the applied Phase 1 MC1 patch), and `27654e3` (an unexpected `attached_assets/phase1-mc1_*.patch` file commit). The MC1 content is in `54534b0`; the extra patch-file commit is a Replit-side guardrail deviation flagged for a separate cleanup slice — Neo did not fix it in this scope.
+- Neo reset local `HEAD` to `origin/main` after preserving the local MC1 commit under `backup/neo-before-mc2`.
+- Implemented `GET /providers/application/status` — owner-scoped, read-only, returns a compact view with `applicationId`, `status`, `currentStep`, `submittedAt`, `reviewedAt`, `rejectionReason`, `submissionCount`, `latestSubmission`, `nextAction`, and `canEdit`/`canReset`/`canResubmit`. The endpoint delegates to the same `getOwnApplication` used by MC1, so reviewer-private `reviewerNotes` is never selected into the response path.
+- Added the OpenAPI contract (`ProviderApplicationStatusResponse`, `ProviderApplicationStatusView`, `ProviderApplicationNextAction`) and regenerated the React Query and Zod clients from it. No manual edits to generated files.
+- Added focused integration coverage in `provider-application-status.integration.test.ts`: draft view, non-owner denial (client 403, unauthenticated 401), cross-provider isolation, under-review view with empty history, rejected view with private-note privacy (verifies both the `reviewerNotes` field name and the private phrase itself never appear), history accumulation after reset, multi-cycle `submissionCount`, approved-state view including approved-provider authorization regression, and suspended-state view.
+- Added `test:provider-status` package script.
+- Updated `docs/api-routes.md` with the new endpoint row and `.agents/NEXT_TASK.md` to point to Phase 1 micro-checkpoint 3 (web rejected-state UI).
+
+**Verification (local, isolated Postgres 15 + `.env` JWT_SECRET):**
+- `test:provider-status`: 9/9 ✅ (new focused slice)
+- `test:provider-resubmission`: 11/11 ✅ (regression)
+- `test:authorization`: 7/7 ✅
+- `test:care-history` (careNotes privacy): 4/4 ✅
+- `test:role-state`: 2/2 ✅
+- `test:reviews`: 7/7 ✅
+- `test:availability`: 3/3 ✅
+- `test` (booking state-machine): 63/63 ✅
+- `test:integration` (booking-concurrency): 16/16 ✅
+- `test:pressure`: 13/13 ✅
+- Full workspace typecheck (4 projects: api-server, web, mobile, scripts): ✅
+- Full workspace build (7/10 projects incl. web bundle): ✅
+- `pnpm run git:check`: clean, 0/0 vs `origin/main` pre-commit
+
+**Deferred (not in this slice):**
+- Pre-existing `test:provider-application` 2/8 failures and `test:onboarding` 1 failure — still queued for a separately scoped cleanup slice.
+- Removal of `attached_assets/phase1-mc1_1786063790850.patch` from `origin/main` and tightening `.gitignore` for `attached_assets/*.patch` — queued for a separate cleanup slice.
+
+**Files changed:**
+- `artifacts/api-server/src/routes/providers.ts` (new status endpoint + `deriveNextAction`)
+- `artifacts/api-server/src/__tests__/provider-application-status.integration.test.ts` (new)
+- `artifacts/api-server/package.json` (added `test:provider-status`)
+- `lib/api-spec/openapi.yaml` (new endpoint + `ProviderApplicationStatusResponse`, `ProviderApplicationStatusView`, `ProviderApplicationNextAction` schemas)
+- `lib/api-client-react/src/generated/`, `lib/api-zod/src/generated/` (regenerated)
+- `docs/api-routes.md`, `.agents/LOG.md`, `.agents/NEXT_TASK.md`
+
+**Build state at end:** All in-scope verification passes. The Phase 1 MC2 commit is prepared locally with author `E1 Agent <e1@emergent.dev>` but not pushed from this environment per the user's Replit-transfer decision. A `phase1-mc2.patch` will be produced at `/app/phase1-mc2.patch` for Replit to `git am --3way` on top of `27654e3`.
+
+**Next best action:** Transfer `phase1-mc2.patch` to the authenticated OnCall Foot Replit workspace, `git am --3way` it on top of `origin/main`, push, and confirm `0/0`. Then begin Phase 1 micro-checkpoint 3 (web rejected-state UI) as a separate slice. Keep the `attached_assets/*.patch` cleanup and the pre-existing test drift as their own separately scoped slices.
 
 ---
 

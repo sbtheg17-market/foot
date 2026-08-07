@@ -35,6 +35,7 @@ application with `approved` status, and an approved provider profile.
 | Method | Path | Access | Description |
 |--------|------|--------|-------------|
 | GET | /providers/application | auth (owner) | Own application detail; includes `rejectionReason` (nullable) and `previousSubmissions[]` history |
+| GET | /providers/application/status | auth (owner) | Compact server-authoritative status view: `status`, `rejectionReason`, `submissionCount`, `latestSubmission`, server-derived `nextAction`, and `canEdit`/`canReset`/`canResubmit` capability flags. Never exposes `reviewerNotes`. |
 | POST | /providers/application | auth | Idempotently start or resume provider onboarding (creates draft) |
 | PATCH | /providers/application | auth (owner) | Save draft profile fields; blocked on `rejected`/`under_review`/`approved`/`suspended` |
 | POST | /providers/application/reset | auth (owner) | Reset a `rejected` application back to `draft`; snapshots the closed cycle into immutable history and clears rejection fields; idempotent when already `draft` |
