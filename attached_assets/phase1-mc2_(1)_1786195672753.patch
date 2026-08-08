@@ -1,0 +1,1135 @@
+From 620ba584fde6e7f6af311e841e2de333d898514e Mon Sep 17 00:00:00 2001
+From: E1 Agent <e1@emergent.dev>
+Date: Fri, 7 Aug 2026 01:02:58 +0000
+Subject: [PATCH] onboarding: expose provider application status via dedicated
+ API
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Phase 1 micro-checkpoint 2 — server-only, read-only.
+
+Adds GET /providers/application/status: a compact, owner-scoped view that
+turns the current application state into a single response the eventual
+web and mobile rejected-state screens can rely on. The endpoint gives the
+provider exactly what they need to see next — the current status, the
+reviewer's rejection reason if any, a submission history summary, and a
+server-derived nextAction plus canEdit/canReset/canResubmit flags — so
+the UI never has to guess or duplicate rules.
+
+- Reuses getOwnApplication so reviewer-private reviewerNotes cannot leak
+  into responses; the test file verifies both the field name and the
+  private phrase itself are absent.
+- Owner-only via requireAuth + assertProviderMember; client tokens 403,
+  unauthenticated 401.
+- Server-derived nextAction covers all five status values (draft,
+  under_review, approved, rejected, suspended).
+- Approved-provider authorization and careNotes privacy remain unchanged.
+- Focused test:provider-status covers draft, under_review, rejected,
+  reset+history, multi-cycle counts, approved (with provider ops
+  regression), and suspended (with provider ops still blocked).
+- Regressions green locally: provider-resubmission 11/11, authorization
+  7/7, care-history 4/4, role-state 2/2, reviews 7/7, availability 3/3,
+  booking state-machine 63/63, booking-concurrency 16/16, booking-pressure
+  13/13, full workspace typecheck + build.
+---
+ .agents/LOG.md                                |  48 +++
+ .agents/NEXT_TASK.md                          |  79 ++--
+ artifacts/api-server/package.json             |   1 +
+ ...der-application-status.integration.test.ts | 404 ++++++++++++++++++
+ artifacts/api-server/src/routes/providers.ts  |  63 +++
+ docs/api-routes.md                            |   1 +
+ .../src/generated/api.schemas.ts              |  35 ++
+ lib/api-client-react/src/generated/api.ts     |  85 ++++
+ lib/api-spec/openapi.yaml                     |  98 +++++
+ lib/api-zod/src/generated/api.ts              |  39 ++
+ lib/api-zod/src/generated/types/index.ts      |   3 +
+ .../types/providerApplicationNextAction.ts    |  18 +
+ .../providerApplicationStatusResponse.ts      |  12 +
+ .../types/providerApplicationStatusView.ts    |  31 ++
+ 14 files changed, 876 insertions(+), 41 deletions(-)
+ create mode 100644 artifacts/api-server/src/__tests__/provider-application-status.integration.test.ts
+ create mode 100644 lib/api-zod/src/generated/types/providerApplicationNextAction.ts
+ create mode 100644 lib/api-zod/src/generated/types/providerApplicationStatusResponse.ts
+ create mode 100644 lib/api-zod/src/generated/types/providerApplicationStatusView.ts
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index 3410160..f01ccc3 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -53,6 +53,7 @@ Since agent credit balances cannot be read programmatically, each session entry
+ | OpenAPI spec | ✅ Phase 4 application contract generated | Auth role intent plus owner-scoped provider application get/create/update/submit contracts are generated into the React and Zod clients; generated files were not edited manually. |
+ | Provider application coverage | ✅ Phase 4 checkpoint verified | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. |
+ | Provider application resubmission | ✅ Phase 1 checkpoint 1 verified | `POST /providers/application/reset` transitions `rejected → draft` with an immutable `provider_application_submissions` history snapshot, owner-only access, idempotent no-op on `draft`, 409 on non-resettable states, and preserved `rejectionReason` in history. `PATCH` and direct `submit` are blocked while `rejected`; approved-provider authorization is unchanged. `test:provider-resubmission` passes all 11 focused integration tests. |
++| Provider application status API | ✅ Phase 1 checkpoint 2 verified | `GET /providers/application/status` returns a compact owner-scoped view: `status`, current-cycle `submittedAt`/`reviewedAt`, provider-visible `rejectionReason`, `submissionCount`, `latestSubmission` snapshot, server-derived `nextAction` (`resume_draft`/`wait_for_review`/`provider_operations_available`/`reset_to_draft`/`contact_support`), and `canEdit`/`canReset`/`canResubmit` capability flags. Reviewer-private `reviewerNotes` never appears. `test:provider-status` passes all 9 focused tests; approved-provider authorization and `careNotes` privacy regressions remain green. |
+ | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
+ | GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
+ 
+@@ -60,6 +61,53 @@ Since agent credit balances cannot be read programmatically, each session entry
+ 
+ ---
+ 
++### Session 040 — 2026-08-07
++**Agent:** E1 Agent (Emergent, Neo)
++**Scope:** `S`
++**Triggered by:** Phase 1 micro-checkpoint 2 — rejection-reason and status API (server-only), after Replit pushed micro-checkpoint 1 to `origin/main` and Neo synced to `27654e3` with a safety branch `backup/neo-before-mc2`.
++
++**What was done:**
++- Verified sync: `origin/main` at `27654e3` contains three commits ahead of the previous Phase 0 baseline — `a51e573` (agent log), `54534b0` (the applied Phase 1 MC1 patch), and `27654e3` (an unexpected `attached_assets/phase1-mc1_*.patch` file commit). The MC1 content is in `54534b0`; the extra patch-file commit is a Replit-side guardrail deviation flagged for a separate cleanup slice — Neo did not fix it in this scope.
++- Neo reset local `HEAD` to `origin/main` after preserving the local MC1 commit under `backup/neo-before-mc2`.
++- Implemented `GET /providers/application/status` — owner-scoped, read-only, returns a compact view with `applicationId`, `status`, `currentStep`, `submittedAt`, `reviewedAt`, `rejectionReason`, `submissionCount`, `latestSubmission`, `nextAction`, and `canEdit`/`canReset`/`canResubmit`. The endpoint delegates to the same `getOwnApplication` used by MC1, so reviewer-private `reviewerNotes` is never selected into the response path.
++- Added the OpenAPI contract (`ProviderApplicationStatusResponse`, `ProviderApplicationStatusView`, `ProviderApplicationNextAction`) and regenerated the React Query and Zod clients from it. No manual edits to generated files.
++- Added focused integration coverage in `provider-application-status.integration.test.ts`: draft view, non-owner denial (client 403, unauthenticated 401), cross-provider isolation, under-review view with empty history, rejected view with private-note privacy (verifies both the `reviewerNotes` field name and the private phrase itself never appear), history accumulation after reset, multi-cycle `submissionCount`, approved-state view including approved-provider authorization regression, and suspended-state view.
++- Added `test:provider-status` package script.
++- Updated `docs/api-routes.md` with the new endpoint row and `.agents/NEXT_TASK.md` to point to Phase 1 micro-checkpoint 3 (web rejected-state UI).
++
++**Verification (local, isolated Postgres 15 + `.env` JWT_SECRET):**
++- `test:provider-status`: 9/9 ✅ (new focused slice)
++- `test:provider-resubmission`: 11/11 ✅ (regression)
++- `test:authorization`: 7/7 ✅
++- `test:care-history` (careNotes privacy): 4/4 ✅
++- `test:role-state`: 2/2 ✅
++- `test:reviews`: 7/7 ✅
++- `test:availability`: 3/3 ✅
++- `test` (booking state-machine): 63/63 ✅
++- `test:integration` (booking-concurrency): 16/16 ✅
++- `test:pressure`: 13/13 ✅
++- Full workspace typecheck (4 projects: api-server, web, mobile, scripts): ✅
++- Full workspace build (7/10 projects incl. web bundle): ✅
++- `pnpm run git:check`: clean, 0/0 vs `origin/main` pre-commit
++
++**Deferred (not in this slice):**
++- Pre-existing `test:provider-application` 2/8 failures and `test:onboarding` 1 failure — still queued for a separately scoped cleanup slice.
++- Removal of `attached_assets/phase1-mc1_1786063790850.patch` from `origin/main` and tightening `.gitignore` for `attached_assets/*.patch` — queued for a separate cleanup slice.
++
++**Files changed:**
++- `artifacts/api-server/src/routes/providers.ts` (new status endpoint + `deriveNextAction`)
++- `artifacts/api-server/src/__tests__/provider-application-status.integration.test.ts` (new)
++- `artifacts/api-server/package.json` (added `test:provider-status`)
++- `lib/api-spec/openapi.yaml` (new endpoint + `ProviderApplicationStatusResponse`, `ProviderApplicationStatusView`, `ProviderApplicationNextAction` schemas)
++- `lib/api-client-react/src/generated/`, `lib/api-zod/src/generated/` (regenerated)
++- `docs/api-routes.md`, `.agents/LOG.md`, `.agents/NEXT_TASK.md`
++
++**Build state at end:** All in-scope verification passes. The Phase 1 MC2 commit is prepared locally with author `E1 Agent <e1@emergent.dev>` but not pushed from this environment per the user's Replit-transfer decision. A `phase1-mc2.patch` will be produced at `/app/phase1-mc2.patch` for Replit to `git am --3way` on top of `27654e3`.
++
++**Next best action:** Transfer `phase1-mc2.patch` to the authenticated OnCall Foot Replit workspace, `git am --3way` it on top of `origin/main`, push, and confirm `0/0`. Then begin Phase 1 micro-checkpoint 3 (web rejected-state UI) as a separate slice. Keep the `attached_assets/*.patch` cleanup and the pre-existing test drift as their own separately scoped slices.
++
++---
++
+ ### Session 039 — 2026-08-06
+ **Agent:** E1 Agent (Emergent)
+ **Scope:** `M`
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index a503fbe..85b7da1 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -1,47 +1,44 @@
+-# Next product task — Phase 1 micro-checkpoint 2: rejection-reason / status API
++# Next product task — Phase 1 micro-checkpoint 3: web rejected-state UI
+ 
+ ## Current gate
+ 
+-Phase 1 micro-checkpoint 1 is complete and locally verified. The server now
+-supports the explicit `rejected → draft → under_review` provider-application
+-resubmission flow with immutable submission history, owner-scoped access,
+-idempotent resets, and the existing approved-provider authorization gate
+-unchanged.
+-
+-## Audit status
+-
+-Phase 0, additive schema migration, compatibility backfill/server-state
+-exposure, Phase 3 authorization hardening, and Phase 4 shared signup/provider
+-onboarding remain complete. The new Phase 1 slice adds:
+-
+-- `POST /providers/application/reset` (server transition only)
+-- `rejectionReason` column on `provider_applications`
+-- `provider_application_submissions` append-only history table
+-- Rejected applications are blocked from direct `PATCH` and direct submit
+-- Focused resubmission tests (11/11) and full regression suite pass
+-
+-## Next scope — Phase 1 micro-checkpoint 2
+-
+-Expose the rejection reason and structured application status through a stable
+-owner-scoped API so the web and mobile rejected-state screens (subsequent
+-slices) have a single server-authoritative source. Scope is server-only.
+-
+-- Confirm the shape returned by `GET /providers/application` is sufficient for
+-  the rejected-state screen: `status`, `rejectionReason`, `previousSubmissions`.
+-  If additional public fields are needed (e.g. last reviewedAt formatted, or a
+-  human-readable `nextAction`), add them behind an owner-scoped endpoint.
+-- Do not begin web or mobile UI work in this slice.
+-- Do not add admin rejection endpoints (Phase 3).
+-- Do not touch approved-provider authorization.
++Phase 1 micro-checkpoint 1 (server transitions) and micro-checkpoint 2
++(rejection-reason / status API) are complete and pushed to `origin/main`.
++The server now offers:
++
++- `GET /providers/application` — full owner-scoped detail with history
++- `GET /providers/application/status` — compact owner-scoped status view
++  with server-derived `nextAction` and capability flags
++- `POST /providers/application/reset` — explicit `rejected → draft`
++- `POST /providers/application/submit` — `draft → under_review`
++- Immutable `provider_application_submissions` history
++- Provider-visible `rejectionReason`, admin-private `reviewerNotes`
++
++## Next scope — Phase 1 micro-checkpoint 3 (web only)
++
++Add the web rejected-state UI on top of the existing `/provider/application-status`
++route (or wherever the current post-submission status screen lives).
++
++- Read from `GET /providers/application/status`.
++- When `status === "rejected"`, show the provider-visible `rejectionReason`
++  and a primary CTA that calls `POST /providers/application/reset`.
++- Show `latestSubmission` and `submissionCount` in a low-emphasis
++  summary line so providers understand how many prior cycles occurred.
++- Respect `canEdit` / `canReset` / `canResubmit` — never render actions
++  the server says are unavailable.
++- Use existing web design tokens, routing, and query patterns.
++- Keep loading, retry, empty, and error states aligned with the rest of
++  the portal.
++- Do not add mobile work in this slice (that becomes Phase 1 MC4).
++- Do not add server changes.
+ 
+ ## Guardrails
+ 
+-- Signup `roleIntent` remains an onboarding request, never an authorization
+-  claim.
+-- Provider operations require database-backed provider membership, an
+-  owner-linked application with `approved` status, and an approved provider
+-  profile.
+-- Do not add Stripe, payouts, active-role switching, disputes, background
+-  checks, or unrelated admin / care-history / review expansion in this scope.
+-- `reviewerNotes` must never appear in owner-facing responses; only the
+-  provider-visible `rejectionReason` is exposed.
++- Do not fix the pre-existing `test:provider-application` (2) or
++  `test:onboarding` (1) baseline drift in this slice — separate cleanup.
++- Do not add Stripe, payouts, admin verification, disputes, background
++  checks, or unrelated admin/care-history/review work.
++- Never expose `reviewerNotes` in the UI; only `rejectionReason` and public
++  history fields are safe to render.
++- Signup `roleIntent` remains an onboarding request, not an authorization
++  claim. Approved-provider authorization boundary must stay intact.
+diff --git a/artifacts/api-server/package.json b/artifacts/api-server/package.json
+index e8f2345..1080414 100644
+--- a/artifacts/api-server/package.json
++++ b/artifacts/api-server/package.json
+@@ -18,6 +18,7 @@
+     "test:authorization": "node --import tsx/esm --test src/__tests__/authorization-hardening.integration.test.ts",
+     "test:provider-application": "node --import tsx/esm --test src/__tests__/provider-application.integration.test.ts",
+     "test:provider-resubmission": "node --import tsx/esm --test src/__tests__/provider-application-resubmission.integration.test.ts",
++    "test:provider-status": "node --import tsx/esm --test src/__tests__/provider-application-status.integration.test.ts",
+     "test:availability": "node --import tsx/esm --test src/__tests__/availability-preset.test.ts",
+     "test:pressure": "node --import tsx/esm --test src/__tests__/booking-pressure.test.ts",
+     "test:onboarding": "node --import tsx/esm --test src/__tests__/provider-application-completion.integration.test.ts"
+diff --git a/artifacts/api-server/src/__tests__/provider-application-status.integration.test.ts b/artifacts/api-server/src/__tests__/provider-application-status.integration.test.ts
+new file mode 100644
+index 0000000..546d187
+--- /dev/null
++++ b/artifacts/api-server/src/__tests__/provider-application-status.integration.test.ts
+@@ -0,0 +1,404 @@
++/**
++ * Phase 1 micro-checkpoint 2 — Rejection-reason and status API (server-only).
++ *
++ * Prerequisites: API server running with the local test database.
++ *
++ * Run:
++ *   pnpm --filter @workspace/api-server run test:provider-status
++ *
++ * Scope:
++ *   - GET /providers/application/status returns compact owner-scoped view
++ *   - Exposes status, rejectionReason, submissionCount, latestSubmission
++ *   - Server-derived nextAction + canEdit/canReset/canResubmit flags
++ *   - Owner-only access
++ *   - Reviewer-private reviewerNotes never surfaces in responses
++ *   - Stable status codes: 200 owner, 403 non-provider-member, 404 no app
++ *   - Does not change provider operations authorization
++ */
++
++import { describe, it, before, after } from "node:test";
++import assert from "node:assert/strict";
++import { eq } from "drizzle-orm";
++import {
++  availabilityTable,
++  db,
++  providerApplicationsTable,
++  providerProfilesTable,
++  servicesTable,
++  usersTable,
++  verificationDocsTable,
++} from "@workspace/db";
++
++const PORT = process.env["PORT"] ?? "8080";
++const BASE = `http://localhost:${PORT}/api`;
++const PASSWORD = "phase1-mc2-status-password";
++const suffix = `${process.pid}-${Date.now()}`;
++
++type JsonBody = Record<string, unknown>;
++
++async function apiFetch(
++  path: string,
++  options: RequestInit & { token?: string } = {},
++): Promise<{ status: number; body: JsonBody }> {
++  const { token, ...rest } = options;
++  const response = await fetch(`${BASE}${path}`, {
++    ...rest,
++    headers: {
++      "Content-Type": "application/json",
++      ...(token ? { Authorization: `Bearer ${token}` } : {}),
++      ...((rest.headers as Record<string, string>) ?? {}),
++    },
++  });
++  const text = await response.text();
++  let body: JsonBody;
++  try {
++    body = JSON.parse(text) as JsonBody;
++  } catch {
++    body = { error: `Non-JSON response: ${text.slice(0, 200)}` };
++  }
++  return { status: response.status, body };
++}
++
++async function register(
++  email: string,
++  roleIntent: "client" | "provider",
++): Promise<{ token: string; user: JsonBody }> {
++  const result = await apiFetch("/auth/register", {
++    method: "POST",
++    body: JSON.stringify({
++      email,
++      password: PASSWORD,
++      firstName: "MC2",
++      lastName: roleIntent === "provider" ? "Provider" : "Client",
++      role: roleIntent,
++      roleIntent,
++    }),
++  });
++  assert.equal(
++    result.status,
++    201,
++    `Registration failed: ${JSON.stringify(result.body)}`,
++  );
++  return {
++    token: result.body["token"] as string,
++    user: result.body["user"] as JsonBody,
++  };
++}
++
++function statusView(body: JsonBody): JsonBody {
++  return body["status"] as JsonBody;
++}
++
++async function fillDraft(token: string, cityLabel: string) {
++  const result = await apiFetch("/providers/application", {
++    method: "PATCH",
++    token,
++    body: JSON.stringify({
++      title: "Mobile foot-care specialist",
++      bio: "Professional in-home foot care with a calm, client-first approach.",
++      city: cityLabel,
++      yearsExperience: 5,
++    }),
++  });
++  assert.equal(result.status, 200, `PATCH draft failed: ${JSON.stringify(result.body)}`);
++}
++
++async function seedSubmissionPrerequisites(providerProfileId: number) {
++  await db.insert(servicesTable).values({
++    providerId: providerProfileId,
++    title: "In-home foot care visit",
++    durationMinutes: 60,
++    priceCents: 12000,
++    category: "foot_care",
++    isActive: true,
++  });
++  await db.insert(availabilityTable).values({
++    providerId: providerProfileId,
++    dayOfWeek: 1,
++    startTime: "09:00",
++    endTime: "17:00",
++  });
++  await db.insert(verificationDocsTable).values({
++    providerId: providerProfileId,
++    docType: "license",
++    fileName: `phase1-mc2-license-${suffix}.pdf`,
++  });
++}
++
++async function markRejected(
++  applicationId: number,
++  rejectionReason: string,
++  reviewerNotes: string,
++  reviewerId: number,
++) {
++  await db
++    .update(providerApplicationsTable)
++    .set({
++      status: "rejected",
++      rejectionReason,
++      reviewerNotes,
++      reviewedAt: new Date(),
++      reviewedBy: reviewerId,
++      updatedAt: new Date(),
++    })
++    .where(eq(providerApplicationsTable.id, applicationId));
++}
++
++describe("Phase 1 MC2 — Provider application status API", () => {
++  let providerA: { token: string; user: JsonBody };
++  let providerB: { token: string; user: JsonBody };
++  let clientC: { token: string; user: JsonBody };
++  let appAId: number;
++  let profileAId: number;
++  const createdUserIds: number[] = [];
++  let adminUserId: number;
++
++  before(async () => {
++    const [pa, pb, cc] = await Promise.all([
++      register(`mc2-status-a-${suffix}@example.test`, "provider"),
++      register(`mc2-status-b-${suffix}@example.test`, "provider"),
++      register(`mc2-status-c-${suffix}@example.test`, "client"),
++    ]);
++    providerA = pa;
++    providerB = pb;
++    clientC = cc;
++    for (const s of [providerA, providerB, clientC]) {
++      createdUserIds.push(s.user["id"] as number);
++    }
++
++    const [adminRow] = await db
++      .insert(usersTable)
++      .values({
++        email: `mc2-status-admin-${suffix}@example.test`,
++        passwordHash: "unused-hash-mc2",
++        role: "admin",
++        firstName: "MC2",
++        lastName: "Admin",
++        isActive: true,
++      })
++      .returning({ id: usersTable.id });
++    assert.ok(adminRow);
++    adminUserId = adminRow.id;
++    createdUserIds.push(adminUserId);
++
++    const [aApp] = await db
++      .select({
++        id: providerApplicationsTable.id,
++        providerProfileId: providerApplicationsTable.providerProfileId,
++      })
++      .from(providerApplicationsTable)
++      .where(eq(providerApplicationsTable.userId, providerA.user["id"] as number))
++      .limit(1);
++    assert.ok(aApp);
++    appAId = aApp.id;
++    profileAId = aApp.providerProfileId;
++
++    await fillDraft(providerA.token, "Toronto");
++    await seedSubmissionPrerequisites(profileAId);
++  });
++
++  after(async () => {
++    for (const userId of createdUserIds) {
++      await db.delete(usersTable).where(eq(usersTable.id, userId));
++    }
++  });
++
++  it("returns a compact status view for a fresh draft, owner-only", async () => {
++    const result = await apiFetch("/providers/application/status", {
++      token: providerA.token,
++    });
++    assert.equal(result.status, 200);
++    const view = statusView(result.body);
++    assert.equal(view["status"], "draft");
++    assert.equal(view["applicationId"], appAId);
++    assert.equal(view["rejectionReason"], null);
++    assert.equal(view["submittedAt"], null);
++    assert.equal(view["reviewedAt"], null);
++    assert.equal(view["submissionCount"], 0);
++    assert.equal(view["latestSubmission"], null);
++    assert.equal(view["nextAction"], "resume_draft");
++    assert.equal(view["canEdit"], true);
++    assert.equal(view["canReset"], false);
++    assert.equal(view["canResubmit"], true);
++  });
++
++  it("denies non-provider-member access with 403 and unauthenticated with 401", async () => {
++    const clientAttempt = await apiFetch("/providers/application/status", {
++      token: clientC.token,
++    });
++    assert.equal(clientAttempt.status, 403);
++
++    const unauthed = await apiFetch("/providers/application/status");
++    assert.equal(unauthed.status, 401);
++  });
++
++  it("scopes the response to the authenticated owner (cross-provider isolation)", async () => {
++    const bStatus = await apiFetch("/providers/application/status", {
++      token: providerB.token,
++    });
++    assert.equal(bStatus.status, 200);
++    const bView = statusView(bStatus.body);
++    // Provider B's application id must NOT equal Provider A's.
++    assert.notEqual(bView["applicationId"], appAId);
++    assert.equal(bView["status"], "draft");
++  });
++
++  it("returns under_review with wait_for_review after submit; no history yet", async () => {
++    const submit = await apiFetch("/providers/application/submit", {
++      method: "POST",
++      token: providerA.token,
++    });
++    assert.equal(submit.status, 200, `submit failed: ${JSON.stringify(submit.body)}`);
++
++    const view = statusView(
++      (await apiFetch("/providers/application/status", { token: providerA.token })).body,
++    );
++    assert.equal(view["status"], "under_review");
++    assert.equal(view["nextAction"], "wait_for_review");
++    assert.equal(view["canEdit"], false);
++    assert.equal(view["canReset"], false);
++    assert.equal(view["canResubmit"], false);
++    assert.equal(view["submissionCount"], 0);
++    assert.equal(view["latestSubmission"], null);
++    assert.ok(view["submittedAt"], "current-cycle submittedAt must be present");
++  });
++
++  it("returns rejected view with rejectionReason and reset_to_draft when reviewer flags rejection", async () => {
++    await markRejected(
++      appAId,
++      "Please attach a valid insurance document.",
++      "internal: called reference, unresolved",
++      adminUserId,
++    );
++
++    const view = statusView(
++      (await apiFetch("/providers/application/status", { token: providerA.token })).body,
++    );
++    assert.equal(view["status"], "rejected");
++    assert.equal(view["rejectionReason"], "Please attach a valid insurance document.");
++    assert.equal(view["nextAction"], "reset_to_draft");
++    assert.equal(view["canEdit"], false);
++    assert.equal(view["canReset"], true);
++    assert.equal(view["canResubmit"], false);
++    assert.ok(view["reviewedAt"], "reviewedAt is set on rejection");
++    assert.equal(view["submissionCount"], 0, "history not yet snapshotted until reset");
++
++    // Privacy: reviewerNotes must not surface anywhere in the response body.
++    assert.equal(
++      JSON.stringify(view).includes("reviewerNotes"),
++      false,
++      "reviewerNotes must not appear in status view",
++    );
++    assert.equal(
++      JSON.stringify(view).includes("called reference"),
++      false,
++      "reviewer-private content must not leak through the status endpoint",
++    );
++  });
++
++  it("after reset, submissionCount and latestSubmission reflect the immutable history", async () => {
++    const reset = await apiFetch("/providers/application/reset", {
++      method: "POST",
++      token: providerA.token,
++    });
++    assert.equal(reset.status, 200);
++
++    const view = statusView(
++      (await apiFetch("/providers/application/status", { token: providerA.token })).body,
++    );
++    assert.equal(view["status"], "draft");
++    assert.equal(view["rejectionReason"], null, "current-row reason cleared on reset");
++    assert.equal(view["submittedAt"], null);
++    assert.equal(view["reviewedAt"], null);
++    assert.equal(view["submissionCount"], 1);
++    assert.equal(view["nextAction"], "resume_draft");
++    assert.equal(view["canEdit"], true);
++    assert.equal(view["canReset"], false);
++    assert.equal(view["canResubmit"], true);
++
++    const latest = view["latestSubmission"] as JsonBody;
++    assert.ok(latest, "latestSubmission is populated after first reset");
++    assert.equal(latest["outcome"], "rejected");
++    assert.equal(latest["rejectionReason"], "Please attach a valid insurance document.");
++    // Even the historical snapshot in status must not carry reviewerNotes.
++    assert.equal(
++      JSON.stringify(latest).includes("reviewerNotes"),
++      false,
++      "reviewerNotes must not appear in latestSubmission payload",
++    );
++  });
++
++  it("accumulates submissionCount across multiple rejection cycles", async () => {
++    // Second cycle: resubmit, reject, reset.
++    const submit2 = await apiFetch("/providers/application/submit", {
++      method: "POST",
++      token: providerA.token,
++    });
++    assert.equal(submit2.status, 200);
++    await markRejected(appAId, "Second-cycle reason", "internal: still incomplete", adminUserId);
++    const reset2 = await apiFetch("/providers/application/reset", {
++      method: "POST",
++      token: providerA.token,
++    });
++    assert.equal(reset2.status, 200);
++
++    const view = statusView(
++      (await apiFetch("/providers/application/status", { token: providerA.token })).body,
++    );
++    assert.equal(view["submissionCount"], 2);
++    const latest = view["latestSubmission"] as JsonBody;
++    assert.equal(latest["rejectionReason"], "Second-cycle reason");
++  });
++
++  it("returns provider_operations_available for approved applications (auth boundary unchanged)", async () => {
++    // Flip to approved via DB (admin-approve flow is out of scope for this slice).
++    await db
++      .update(providerApplicationsTable)
++      .set({ status: "approved", updatedAt: new Date() })
++      .where(eq(providerApplicationsTable.id, appAId));
++    await db
++      .update(providerProfilesTable)
++      .set({
++        verificationStatus: "approved",
++        title: "Approved title",
++        bio: "Bio for MC2 approved test.",
++        city: "Toronto",
++        profileComplete: true,
++        updatedAt: new Date(),
++      })
++      .where(eq(providerProfilesTable.id, profileAId));
++
++    const view = statusView(
++      (await apiFetch("/providers/application/status", { token: providerA.token })).body,
++    );
++    assert.equal(view["status"], "approved");
++    assert.equal(view["nextAction"], "provider_operations_available");
++    assert.equal(view["canEdit"], false);
++    assert.equal(view["canReset"], false);
++    assert.equal(view["canResubmit"], false);
++
++    // Regression: approved-provider authorization still passes (unchanged by MC2).
++    const providerOps = await apiFetch("/providers/me", { token: providerA.token });
++    assert.equal(providerOps.status, 200);
++  });
++
++  it("returns contact_support for suspended and hides can-* actions", async () => {
++    await db
++      .update(providerApplicationsTable)
++      .set({ status: "suspended", updatedAt: new Date() })
++      .where(eq(providerApplicationsTable.id, appAId));
++
++    const view = statusView(
++      (await apiFetch("/providers/application/status", { token: providerA.token })).body,
++    );
++    assert.equal(view["status"], "suspended");
++    assert.equal(view["nextAction"], "contact_support");
++    assert.equal(view["canEdit"], false);
++    assert.equal(view["canReset"], false);
++    assert.equal(view["canResubmit"], false);
++
++    // Provider operations remain blocked for suspended (auth unchanged).
++    const providerOps = await apiFetch("/providers/me", { token: providerA.token });
++    assert.equal(providerOps.status, 403);
++  });
++});
+diff --git a/artifacts/api-server/src/routes/providers.ts b/artifacts/api-server/src/routes/providers.ts
+index 6716b76..2805c80 100644
+--- a/artifacts/api-server/src/routes/providers.ts
++++ b/artifacts/api-server/src/routes/providers.ts
+@@ -543,6 +543,69 @@ router.get(
+   },
+ );
+ 
++// ── Application status (owner-scoped, read-only) ─────────────────────────────
++//
++// Compact server-authoritative view of the owner's application: current
++// status, current cycle timestamps, provider-visible rejectionReason, closed
++// submission summary, and server-derived `nextAction` + capability flags.
++// Never returns reviewerNotes (admin-private).
++
++type NextAction =
++  | "resume_draft"
++  | "wait_for_review"
++  | "provider_operations_available"
++  | "reset_to_draft"
++  | "contact_support";
++
++function deriveNextAction(status: ApplicationRow["status"]): NextAction {
++  switch (status) {
++    case "draft":
++      return "resume_draft";
++    case "under_review":
++      return "wait_for_review";
++    case "approved":
++      return "provider_operations_available";
++    case "rejected":
++      return "reset_to_draft";
++    case "suspended":
++      return "contact_support";
++  }
++}
++
++router.get(
++  "/application/status",
++  requireAuth,
++  async (req: Request, res: Response): Promise<void> => {
++    if (!assertProviderMember(req, res)) return;
++    const application = await getOwnApplication(req.user!.sub);
++    if (!application) {
++      res.status(404).json({ error: "Provider application not found." });
++      return;
++    }
++
++    const history = application.previousSubmissions;
++    const latestSubmission =
++      history.length > 0 ? history[history.length - 1] : null;
++
++    res.json({
++      status: {
++        applicationId: application.id,
++        status: application.status,
++        currentStep: application.currentStep,
++        submittedAt: application.submittedAt,
++        reviewedAt: application.reviewedAt,
++        rejectionReason: application.rejectionReason,
++        submissionCount: history.length,
++        latestSubmission,
++        nextAction: deriveNextAction(application.status),
++        canEdit: application.status === "draft",
++        canReset: application.status === "rejected",
++        canResubmit: application.status === "draft",
++      },
++    });
++  },
++);
++
+ // ── Application-scoped services (pre-approval) ────────────────────────────────
+ 
+ router.get(
+diff --git a/docs/api-routes.md b/docs/api-routes.md
+index ad7fe8c..75ac857 100644
+--- a/docs/api-routes.md
++++ b/docs/api-routes.md
+@@ -35,6 +35,7 @@ application with `approved` status, and an approved provider profile.
+ | Method | Path | Access | Description |
+ |--------|------|--------|-------------|
+ | GET | /providers/application | auth (owner) | Own application detail; includes `rejectionReason` (nullable) and `previousSubmissions[]` history |
++| GET | /providers/application/status | auth (owner) | Compact server-authoritative status view: `status`, `rejectionReason`, `submissionCount`, `latestSubmission`, server-derived `nextAction`, and `canEdit`/`canReset`/`canResubmit` capability flags. Never exposes `reviewerNotes`. |
+ | POST | /providers/application | auth | Idempotently start or resume provider onboarding (creates draft) |
+ | PATCH | /providers/application | auth (owner) | Save draft profile fields; blocked on `rejected`/`under_review`/`approved`/`suspended` |
+ | POST | /providers/application/reset | auth (owner) | Reset a `rejected` application back to `draft`; snapshots the closed cycle into immutable history and clears rejection fields; idempotent when already `draft` |
+diff --git a/lib/api-client-react/src/generated/api.schemas.ts b/lib/api-client-react/src/generated/api.schemas.ts
+index 4010057..193b52a 100644
+--- a/lib/api-client-react/src/generated/api.schemas.ts
++++ b/lib/api-client-react/src/generated/api.schemas.ts
+@@ -91,6 +91,41 @@ export interface ProviderApplicationPreviousSubmission {
+   createdAt: string;
+ }
+ 
++export type ProviderApplicationNextAction = typeof ProviderApplicationNextAction[keyof typeof ProviderApplicationNextAction];
++
++
++export const ProviderApplicationNextAction = {
++  resume_draft: 'resume_draft',
++  wait_for_review: 'wait_for_review',
++  provider_operations_available: 'provider_operations_available',
++  reset_to_draft: 'reset_to_draft',
++  contact_support: 'contact_support',
++} as const;
++
++/**
++ * Compact owner-scoped status projection of a provider application.
++ * Only exposes provider-visible fields; `reviewerNotes` never appears.
++ */
++export interface ProviderApplicationStatusView {
++  applicationId: number;
++  status: ProviderApplicationStatus;
++  currentStep: ProviderApplicationStep;
++  submittedAt: string | null;
++  reviewedAt: string | null;
++  rejectionReason: string | null;
++  /** @minimum 0 */
++  submissionCount: number;
++  latestSubmission: ProviderApplicationPreviousSubmission | null;
++  nextAction: ProviderApplicationNextAction;
++  canEdit: boolean;
++  canReset: boolean;
++  canResubmit: boolean;
++}
++
++export interface ProviderApplicationStatusResponse {
++  status: ProviderApplicationStatusView;
++}
++
+ export type ProviderApplicationDetail = ProviderApplicationState & ({
+   providerProfileId: number;
+   profile: ProviderApplicationProfile;
+diff --git a/lib/api-client-react/src/generated/api.ts b/lib/api-client-react/src/generated/api.ts
+index c78bfea..25936a0 100644
+--- a/lib/api-client-react/src/generated/api.ts
++++ b/lib/api-client-react/src/generated/api.ts
+@@ -50,6 +50,7 @@ import type {
+   MessageResponse,
+   NotFoundResponse,
+   ProviderApplicationDetailResponse,
++  ProviderApplicationStatusResponse,
+   ProviderListResponse,
+   ProviderProfileResponse,
+   RegisterRequest,
+@@ -925,6 +926,90 @@ export const useSubmitProviderApplication = <TError = ErrorType<BadRequestRespon
+       return useMutation(getSubmitProviderApplicationMutationOptions(options));
+     }
+ 
++export const getGetProviderApplicationStatusUrl = () => {
++
++
++
++
++  return `/api/providers/application/status`
++}
++
++/**
++ * Compact, owner-scoped status view. Includes the current `status`,
++ * current-cycle `submittedAt`/`reviewedAt`, the provider-visible
++ * `rejectionReason` (nullable), a `submissionCount` derived from the
++ * immutable history, the most-recent closed submission summary
++ * (`latestSubmission`), a server-derived `nextAction` guidance value,
++ * and server-derived `canEdit`/`canReset`/`canResubmit` capability
++ * flags. Reviewer-private `reviewerNotes` is never included.
++ * @summary Server-authoritative status view for the owner's application
++ */
++export const getProviderApplicationStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderApplicationStatusResponse> => {
++
++  return customFetch<ProviderApplicationStatusResponse>(getGetProviderApplicationStatusUrl(),
++  {
++    ...options,
++    method: 'GET'
++
++
++  }
++);}
++
++
++
++
++
++export const getGetProviderApplicationStatusQueryKey = () => {
++    return [
++    `/api/providers/application/status`
++    ] as const;
++    }
++
++
++export const getGetProviderApplicationStatusQueryOptions = <TData = Awaited<ReturnType<typeof getProviderApplicationStatus>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
++) => {
++
++const {query: queryOptions, request: requestOptions} = options ?? {};
++
++  const queryKey =  queryOptions?.queryKey ?? getGetProviderApplicationStatusQueryKey();
++
++
++
++    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderApplicationStatus>>> = ({ signal }) => getProviderApplicationStatus({ signal, ...requestOptions });
++
++
++
++
++
++   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationStatus>>, TError, TData> & { queryKey: QueryKey }
++}
++
++export type GetProviderApplicationStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderApplicationStatus>>>
++export type GetProviderApplicationStatusQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
++
++
++/**
++ * @summary Server-authoritative status view for the owner's application
++ */
++
++export function useGetProviderApplicationStatus<TData = Awaited<ReturnType<typeof getProviderApplicationStatus>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
++  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
++
++ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
++
++  const queryOptions = getGetProviderApplicationStatusQueryOptions(options)
++
++  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
++
++  return withQueryKey(query, queryOptions.queryKey);
++}
++
++
++
++
++
++
++
+ export const getGetProviderApplicationCompletionUrl = () => {
+ 
+ 
+diff --git a/lib/api-spec/openapi.yaml b/lib/api-spec/openapi.yaml
+index 88e1218..85d87d5 100644
+--- a/lib/api-spec/openapi.yaml
++++ b/lib/api-spec/openapi.yaml
+@@ -297,6 +297,35 @@ paths:
+         "409":
+           $ref: "#/components/responses/Conflict"
+ 
++  /providers/application/status:
++    get:
++      operationId: getProviderApplicationStatus
++      tags: [providers]
++      summary: Server-authoritative status view for the owner's application
++      description: |
++        Compact, owner-scoped status view. Includes the current `status`,
++        current-cycle `submittedAt`/`reviewedAt`, the provider-visible
++        `rejectionReason` (nullable), a `submissionCount` derived from the
++        immutable history, the most-recent closed submission summary
++        (`latestSubmission`), a server-derived `nextAction` guidance value,
++        and server-derived `canEdit`/`canReset`/`canResubmit` capability
++        flags. Reviewer-private `reviewerNotes` is never included.
++      security:
++        - bearerAuth: []
++      responses:
++        "200":
++          description: Provider application status
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/ProviderApplicationStatusResponse"
++        "401":
++          $ref: "#/components/responses/Unauthorized"
++        "403":
++          $ref: "#/components/responses/Forbidden"
++        "404":
++          $ref: "#/components/responses/NotFound"
++
+   /providers/application/completion:
+     get:
+       operationId: getProviderApplicationCompletion
+@@ -1439,6 +1468,75 @@ components:
+         - rejectionReason
+         - createdAt
+ 
++    ProviderApplicationNextAction:
++      type: string
++      enum:
++        - resume_draft
++        - wait_for_review
++        - provider_operations_available
++        - reset_to_draft
++        - contact_support
++
++    ProviderApplicationStatusView:
++      type: object
++      description: |
++        Compact owner-scoped status projection of a provider application.
++        Only exposes provider-visible fields; `reviewerNotes` never appears.
++      properties:
++        applicationId:
++          type: integer
++        status:
++          $ref: "#/components/schemas/ProviderApplicationStatus"
++        currentStep:
++          $ref: "#/components/schemas/ProviderApplicationStep"
++        submittedAt:
++          type: string
++          format: date-time
++          nullable: true
++        reviewedAt:
++          type: string
++          format: date-time
++          nullable: true
++        rejectionReason:
++          type: string
++          nullable: true
++        submissionCount:
++          type: integer
++          minimum: 0
++        latestSubmission:
++          allOf:
++            - $ref: "#/components/schemas/ProviderApplicationPreviousSubmission"
++          nullable: true
++        nextAction:
++          $ref: "#/components/schemas/ProviderApplicationNextAction"
++        canEdit:
++          type: boolean
++        canReset:
++          type: boolean
++        canResubmit:
++          type: boolean
++      required:
++        - applicationId
++        - status
++        - currentStep
++        - submittedAt
++        - reviewedAt
++        - rejectionReason
++        - submissionCount
++        - latestSubmission
++        - nextAction
++        - canEdit
++        - canReset
++        - canResubmit
++
++    ProviderApplicationStatusResponse:
++      type: object
++      properties:
++        status:
++          $ref: "#/components/schemas/ProviderApplicationStatusView"
++      required:
++        - status
++
+     ProviderApplicationDetail:
+       allOf:
+         - $ref: "#/components/schemas/ProviderApplicationState"
+diff --git a/lib/api-zod/src/generated/api.ts b/lib/api-zod/src/generated/api.ts
+index e67ca9f..4aac9cc 100644
+--- a/lib/api-zod/src/generated/api.ts
++++ b/lib/api-zod/src/generated/api.ts
+@@ -398,6 +398,45 @@ export const SubmitProviderApplicationResponse = zod.object({
+ })
+ 
+ 
++/**
++ * Compact, owner-scoped status view. Includes the current `status`,
++ * current-cycle `submittedAt`/`reviewedAt`, the provider-visible
++ * `rejectionReason` (nullable), a `submissionCount` derived from the
++ * immutable history, the most-recent closed submission summary
++ * (`latestSubmission`), a server-derived `nextAction` guidance value,
++ * and server-derived `canEdit`/`canReset`/`canResubmit` capability
++ * flags. Reviewer-private `reviewerNotes` is never included.
++ * @summary Server-authoritative status view for the owner's application
++ */
++export const getProviderApplicationStatusResponseStatusSubmissionCountMin = 0;
++
++
++
++export const GetProviderApplicationStatusResponse = zod.object({
++  "status": zod.object({
++  "applicationId": zod.int(),
++  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
++  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
++  "submittedAt": zod.coerce.date().nullable(),
++  "reviewedAt": zod.coerce.date().nullable(),
++  "rejectionReason": zod.string().nullable(),
++  "submissionCount": zod.int().min(getProviderApplicationStatusResponseStatusSubmissionCountMin),
++  "latestSubmission": zod.object({
++  "id": zod.int(),
++  "outcome": zod.enum(['rejected']),
++  "submittedAt": zod.coerce.date(),
++  "reviewedAt": zod.coerce.date().nullable(),
++  "rejectionReason": zod.string().nullable(),
++  "createdAt": zod.coerce.date()
++}).describe('Immutable snapshot of a closed submission cycle. Written only when the\nowner resets a `rejected` application back to `draft`. Reviewer-private\ncontent (`reviewerNotes`) is never exposed here; only provider-visible\nfields are returned.\n').nullable(),
++  "nextAction": zod.enum(['resume_draft', 'wait_for_review', 'provider_operations_available', 'reset_to_draft', 'contact_support']),
++  "canEdit": zod.boolean(),
++  "canReset": zod.boolean(),
++  "canResubmit": zod.boolean()
++}).describe('Compact owner-scoped status projection of a provider application.\nOnly exposes provider-visible fields; `reviewerNotes` never appears.\n')
++})
++
++
+ /**
+  * Returns a completion status for each required onboarding section. The server calculates all flags — do not trust client-side values for authorization.
+  * @summary Get server-derived completion summary for the provider application
+diff --git a/lib/api-zod/src/generated/types/index.ts b/lib/api-zod/src/generated/types/index.ts
+index ef8c8b7..b4035b4 100644
+--- a/lib/api-zod/src/generated/types/index.ts
++++ b/lib/api-zod/src/generated/types/index.ts
+@@ -57,11 +57,14 @@ export * from './onboardingState';
+ export * from './onboardingStateClient';
+ export * from './providerApplicationDetail';
+ export * from './providerApplicationDetailResponse';
++export * from './providerApplicationNextAction';
+ export * from './providerApplicationPreviousSubmission';
+ export * from './providerApplicationPreviousSubmissionOutcome';
+ export * from './providerApplicationProfile';
+ export * from './providerApplicationState';
+ export * from './providerApplicationStatus';
++export * from './providerApplicationStatusResponse';
++export * from './providerApplicationStatusView';
+ export * from './providerApplicationStep';
+ export * from './providerListResponse';
+ export * from './providerProfile';
+diff --git a/lib/api-zod/src/generated/types/providerApplicationNextAction.ts b/lib/api-zod/src/generated/types/providerApplicationNextAction.ts
+new file mode 100644
+index 0000000..9ba26d1
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/providerApplicationNextAction.ts
+@@ -0,0 +1,18 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++
++export type ProviderApplicationNextAction = typeof ProviderApplicationNextAction[keyof typeof ProviderApplicationNextAction];
++
++
++export const ProviderApplicationNextAction = {
++  resume_draft: 'resume_draft',
++  wait_for_review: 'wait_for_review',
++  provider_operations_available: 'provider_operations_available',
++  reset_to_draft: 'reset_to_draft',
++  contact_support: 'contact_support',
++} as const;
+diff --git a/lib/api-zod/src/generated/types/providerApplicationStatusResponse.ts b/lib/api-zod/src/generated/types/providerApplicationStatusResponse.ts
+new file mode 100644
+index 0000000..8c9fef5
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/providerApplicationStatusResponse.ts
+@@ -0,0 +1,12 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++import type { ProviderApplicationStatusView } from './providerApplicationStatusView';
++
++export interface ProviderApplicationStatusResponse {
++  status: ProviderApplicationStatusView;
++}
+diff --git a/lib/api-zod/src/generated/types/providerApplicationStatusView.ts b/lib/api-zod/src/generated/types/providerApplicationStatusView.ts
+new file mode 100644
+index 0000000..b1c2364
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/providerApplicationStatusView.ts
+@@ -0,0 +1,31 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++import type { ProviderApplicationNextAction } from './providerApplicationNextAction';
++import type { ProviderApplicationPreviousSubmission } from './providerApplicationPreviousSubmission';
++import type { ProviderApplicationStatus } from './providerApplicationStatus';
++import type { ProviderApplicationStep } from './providerApplicationStep';
++
++/**
++ * Compact owner-scoped status projection of a provider application.
++ * Only exposes provider-visible fields; `reviewerNotes` never appears.
++ */
++export interface ProviderApplicationStatusView {
++  applicationId: number;
++  status: ProviderApplicationStatus;
++  currentStep: ProviderApplicationStep;
++  submittedAt: Date | null;
++  reviewedAt: Date | null;
++  rejectionReason: string | null;
++  /** @minimum 0 */
++  submissionCount: number;
++  latestSubmission: ProviderApplicationPreviousSubmission | null;
++  nextAction: ProviderApplicationNextAction;
++  canEdit: boolean;
++  canReset: boolean;
++  canResubmit: boolean;
++}
+-- 
+2.39.5
+
