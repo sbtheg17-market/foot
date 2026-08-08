@@ -54,10 +54,55 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Provider application coverage | ✅ Phase 4 checkpoint verified | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. |
 | Provider application resubmission | ✅ Phase 1 checkpoint 1 verified | `POST /providers/application/reset` transitions `rejected → draft` with an immutable `provider_application_submissions` history snapshot, owner-only access, idempotent no-op on `draft`, 409 on non-resettable states, and preserved `rejectionReason` in history. `PATCH` and direct `submit` are blocked while `rejected`; approved-provider authorization is unchanged. `test:provider-resubmission` passes all 11 focused integration tests. |
 | Provider application status API | ✅ Phase 1 checkpoint 2 verified | `GET /providers/application/status` returns a compact owner-scoped view: `status`, current-cycle `submittedAt`/`reviewedAt`, provider-visible `rejectionReason`, `submissionCount`, `latestSubmission` snapshot, server-derived `nextAction` (`resume_draft`/`wait_for_review`/`provider_operations_available`/`reset_to_draft`/`contact_support`), and `canEdit`/`canReset`/`canResubmit` capability flags. Reviewer-private `reviewerNotes` never appears. `test:provider-status` passes all 9 focused tests; approved-provider authorization and `careNotes` privacy regressions remain green. |
+| Provider application rejected-state web UI | ✅ Phase 1 checkpoint 3 verified | `/provider/application-status` now consumes `GET /providers/application/status` via the generated `useGetProviderApplicationStatus` hook, renders the provider-visible `rejectionReason` and `previousSubmissions` summary, and gates the reset/resubmit/edit CTAs on server-provided `canReset`/`canResubmit`/`canEdit`. Loading, unauthorized, 404 (no application yet), 403 (non-provider member), and mutation-error states are handled without duplicating server authorization logic. `reviewerNotes` is never rendered because it never enters the status response. Full workspace typecheck and web build both pass; 26 `data-testid` attributes cover every state and action. |
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
 | GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
+
+---
+
+### Session 041 — 2026-08-07
+**Agent:** E1 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Phase 1 micro-checkpoint 3 — web rejected-state UI (web-only), after the authorized publisher landed MC2 at `origin/main = 1f4c018` and Neo fast-synced local `main` to that commit.
+
+**What was done:**
+- Rewrote `artifacts/web/src/pages/provider-application-status.tsx` to consume the MC2 status API. The page now calls the generated `useGetProviderApplicationStatus` hook (compact endpoint) instead of the older `useGetProviderApplication` (full detail). Reset and resubmit actions use the generated `useResetProviderApplication` / `useSubmitProviderApplication` mutation hooks with a shared `queryKey` invalidation on success.
+- Renders the provider-visible `rejectionReason` inside a dedicated feedback card that only appears when `status === "rejected"` and a reason is present. Reviewer-private `reviewerNotes` is never referenced in code because it never enters the status response payload.
+- Renders `submissionCount` and the public fields of `latestSubmission` (`outcome`, `submittedAt`, `rejectionReason`) whenever the history is non-empty. History card is hidden for zero-history applications.
+- Gates every action strictly on server-provided flags:
+  * Reset CTA → only when `view.canReset === true`
+  * Resubmit CTA → only when `view.canResubmit === true`
+  * Continue-editing CTA → only when `view.canEdit === true`
+  The client never checks `status` directly to decide button visibility.
+- Handles loading (spinner with role="status"), unauthorized (redirect to /login), 404 (owner has no application row → shows "Start onboarding" CTA), 403 (non-provider member → shows the client-fallback link), generic error (retry button), and mutation-error (inline destructive message) states.
+- Preserves existing routing behavior: `draft` → onboarding, `approved` → provider portal (server-derived).
+- 26 `data-testid` attributes across every state and interactive element for future browser-automation coverage.
+- No API, database, mobile, migration, or generated-client changes.
+
+**Verification (local):**
+- `@workspace/web` typecheck: ✅
+- Full workspace typecheck (api-server, web, mobile, scripts): ✅
+- Web production build: ✅ (`466.62 kB` JS, `112.70 kB` CSS, `1.50 kB` HTML)
+- Diff scope inspection: only 1 file changed under `artifacts/web/` (plus `.agents/LOG.md` and this doc)
+- Focused web *unit* tests: **not applicable** — the web workspace has no vitest / jest infrastructure yet. The API-side `test:provider-status` slice (verified 9/9 in Session 040 on the exact same tree that is now `1f4c018`) validates the endpoint this page consumes. Adding a web test runner is a separate future slice.
+- Backend regressions were not re-run because no server code changed in MC3.
+
+**Deferred (not in this slice):**
+- Pre-existing `test:provider-application` 2/8 and `test:onboarding` 1/2 baseline drift — still queued for a separately scoped cleanup slice.
+- Removal of the `attached_assets/phase1-mc1_*.patch` file that lives on the `origin/conflict_070826_mc2` branch — untouched by design.
+- Web test infrastructure (vitest + testing-library setup) — separate future slice.
+- Mobile rejected-state UI — separate future micro-checkpoint (Phase 1 MC4).
+
+**Files changed:**
+- `artifacts/web/src/pages/provider-application-status.tsx` (rewritten)
+- `.agents/LOG.md`
+- `.agents/NEXT_TASK.md`
+
+**Build state at end:** Local `main` is 1 commit ahead of `origin/main = 1f4c018`. Working tree clean apart from the intentional `phase1-mc2.patch` and `phase1-mc3.patch` handoff artifacts. Commit prepared with author `E1 Agent <e1@emergent.dev>` but not pushed from this environment — per the standing Emergent-only workflow, the authorized publisher will `git am --3way` the patch onto canonical `origin/main` and push.
+
+**Next best action:** Transfer `phase1-mc3.patch` to the authorized publisher. Do not begin MC4 (mobile rejected-state UI) until the MC3 push lands on `origin/main` at `0 / 0`.
 
 ---
 
