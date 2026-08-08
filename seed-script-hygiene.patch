@@ -1,0 +1,211 @@
+From 1e416891d37c749bee19d3b7665d09824b2ed710 Mon Sep 17 00:00:00 2001
+From: E1 Agent <e1@emergent.dev>
+Date: Sat, 8 Aug 2026 16:00:21 +0000
+Subject: [PATCH] seed: create demo role memberships and approved provider
+ applications
+
+- mirror the registration transaction for directly-inserted demo data:
+  one account_roles membership row per demo user, and approved
+  provider_applications rows (currentStep submitted, back-dated
+  submittedAt/reviewedAt, reviewedBy demo admin) for Sarah and Mike
+- a freshly provisioned database now passes test:authorization after
+  'pnpm run seed' alone, with no manual inserts and without the legacy
+  backfill:role-state script
+- idempotent: rerunning the seed skips every existing record; counts
+  stay at 5 users / 5 memberships / 2 profiles / 2 applications
+- verified on a fresh database: test:authorization 7/7, typecheck clean,
+  regression green (provider-application 8/8, onboarding 23/23,
+  provider-status 9/9, provider-resubmission 11/11)
+---
+ .agents/LOG.md                   | 31 ++++++++++++-
+ .agents/NEXT_TASK.md             | 13 +++---
+ artifacts/api-server/src/seed.ts | 75 +++++++++++++++++++++++++++++++-
+ 3 files changed, 110 insertions(+), 9 deletions(-)
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index 66003b7..712e387 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -41,7 +41,7 @@ Since agent credit balances cannot be read programmatically, each session entry
+ | Auth routes | ✅ Shared role-intent flow added | Registration accepts additive `roleIntent`, creates provider membership/profile/application transactionally for provider intent, and preserves database-backed authorization. Login/signup routing uses server-confirmed application state. |
+ | JWT middleware | ✅ Database-backed | `requireAuth` confirms active user/context from PostgreSQL; `requireRole` checks `account_roles`; approved-provider middleware checks application/profile ownership and approval. JWT claims remain unchanged. |
+ | JWT_SECRET | ✅ Available to managed workflow | Added by the user through the development/shared Secrets panel; value was never inspected, printed, logged, committed, or exposed. |
+-| Seed script | ✅ Idempotent and restored | `pnpm run seed` created 5 demo accounts and full sample data; a second run skipped existing records without duplicates. |
++| Seed script | ✅ Self-contained role state | `pnpm run seed` creates 5 demo accounts, `account_roles` memberships, approved `provider_applications` for both demo providers, and full sample data on a fresh database; a second run skips every existing record without duplicates. `test:authorization` passes on a freshly seeded database without manual inserts or the legacy backfill script. |
+ | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
+ | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/history, GET /bookings/:id, PATCH /bookings/:id/status — client-safe bounded history, strict state machine, auto-invoice on confirm |
+ | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, booking-scoped client review lookup, GET /invoices, GET /invoices/:id — role-scoped; completed-booking review validation and duplicate races return safe conflicts |
+@@ -1525,6 +1525,35 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
+ 
+ ---
+ 
++### Session 023 — 2026-08-08
++**Agent:** E1 (Emergent) Main Agent
++**Scope:** `S`
++**Triggered by:** User explicitly approved the seed-script hygiene checkpoint: make a fresh local database setup create the approved demo provider applications required by the authorization suite, so `test:authorization` passes without manual database inserts.
++
++**What was done:**
++- Root-caused the gap: registration (`auth.ts`) transactionally creates an `account_roles` membership row plus, for provider intent, a provider profile and a `provider_applications` row — but `seed.ts` predates the Phase 3/4 role-state schema and inserted users and approved profiles directly, never writing `account_roles` or `provider_applications`. The intended legacy path was "seed + `backfill:role-state`" (the Phase 2 backfill prerequisite in the test header); a fresh seed alone left the authorization suite's `before` hook unable to find sarah's application and test 2 unable to find admin's database-backed membership.
++- Extended `seed.ts` (the existing discoverable seed module) with two new sections, both following the file's check-then-insert idempotency convention:
++  - **Account Roles** — one membership row per demo user (`admin`, 2×`provider`, 2×`client`), mirroring the registration transaction; unique on `(userId, role)`.
++  - **Provider Applications** — approved applications for Sarah and Mike (`status: approved`, `currentStep: submitted`, `submittedAt`/`reviewedAt` back-dated, `reviewedBy` the demo admin), linked to their seeded profiles; unique on `userId` and `providerProfileId`.
++- Validation on a freshly provisioned database (drop, recreate, `pnpm --filter @workspace/db run push`, restart API server, `pnpm run seed` from scratch):
++  - `test:authorization` 7/7 with **zero** manual database intervention.
++  - Seed rerun: every record skipped (`⏭`), no duplicates — counts stayed at 5 users / 5 memberships / 2 profiles / 2 applications.
++  - `pnpm --filter @workspace/api-server run typecheck` clean.
++  - Regression: `test:provider-application` 8/8, `test:onboarding` 23/23, `test:provider-status` 9/9, `test:provider-resubmission` 11/11.
++- Scope hygiene: no web, mobile, schema, migration, generated-client, or unrelated-API changes; no manual SQL outside the seed mechanism; `backfill:role-state` left untouched for legacy production data.
++
++**Files changed:**
++- `artifacts/api-server/src/seed.ts`
++- `.agents/LOG.md`
++- `.agents/NEXT_TASK.md`
++
++**Build state at end:** Local HEAD == 1 focused seed-hygiene commit on top of `origin/main` (`ceb01e3`). Ahead 1 / behind 0. Working tree clean except intentional untracked handoff artifacts. Patch generated at `/app/seed-script-hygiene.patch` for external application.
++
++**Next best action:** After the patch is applied to canonical `origin/main` and local is hard-reset to it, plan Phase 2 — post-submission progress presentation — starting with the API scope decision: full ordered submission history vs. latest-submission-only data.
++
++---
++
++
+ 
+ ## New Session Template
+ 
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index 67148d9..ed41ff2 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -2,8 +2,12 @@
+ 
+ ## Current gate
+ 
+-Phase 1 micro-checkpoints 1–4 are complete, and the baseline test-drift
+-cleanup slice is done.
++Phase 1 micro-checkpoints 1–4 are complete, the baseline test-drift
++cleanup slice is done (`ceb01e3`), and the seed-script hygiene slice is
++done: `pnpm run seed` now creates `account_roles` memberships and
++approved `provider_applications` rows for the demo providers, so
++`test:authorization` passes on a freshly provisioned database without
++manual inserts or the legacy `backfill:role-state` script.
+ 
+ - MC1 (rejected-provider resubmission — server state transitions) merged at
+   `54534b0`.
+@@ -55,11 +59,6 @@ product scope is confirmed with the user. Candidate slices:
+ 
+ ## Separately queued cleanup slices
+ 
+-- Seed-script drift: `seed.ts` creates provider profiles but no
+-  `provider_applications` rows, so `test:authorization` cannot pass on a
+-  freshly seeded database without manual inserts. Extend the seed to
+-  create approved application rows for the demo providers — separate
+-  hygiene slice.
+ - `attached_assets/phase1-mc1_1786063790850.patch` remains committed on
+   `origin/conflict_070826_mc2` — safe to leave; delete the branch
+   entirely as a hygiene action.
+diff --git a/artifacts/api-server/src/seed.ts b/artifacts/api-server/src/seed.ts
+index 330aa9b..3aa953a 100644
+--- a/artifacts/api-server/src/seed.ts
++++ b/artifacts/api-server/src/seed.ts
+@@ -11,11 +11,13 @@
+  */
+ 
+ import bcrypt from "bcryptjs";
+-import { eq } from "drizzle-orm";
++import { and, eq } from "drizzle-orm";
+ import {
+   db,
+   pool,
+   usersTable,
++  accountRolesTable,
++  providerApplicationsTable,
+   providerProfilesTable,
+   servicesTable,
+   bookingsTable,
+@@ -103,6 +105,35 @@ async function seed() {
+     console.log(`  ✅  Created ${u.role}: ${u.email}`);
+   }
+ 
++  // ── Account Roles ─────────────────────────────────────────────────────────────
++  //
++  // Registration inserts an `account_roles` membership row transactionally
++  // (auth.ts); database-backed authorization reads memberships from this
++  // table, not from the JWT role claim. Demo users are inserted directly,
++  // so their membership rows must be seeded too.
++
++  for (const u of users) {
++    const userId = createdUsers[u.email]!;
++    const existingRole = await db
++      .select({ id: accountRolesTable.id })
++      .from(accountRolesTable)
++      .where(
++        and(
++          eq(accountRolesTable.userId, userId),
++          eq(accountRolesTable.role, u.role),
++        ),
++      )
++      .limit(1);
++
++    if (existingRole.length > 0) {
++      console.log(`  ⏭  ${u.email} ${u.role} membership already exists — skipping`);
++      continue;
++    }
++
++    await db.insert(accountRolesTable).values({ userId, role: u.role });
++    console.log(`  ✅  Created ${u.role} membership: ${u.email}`);
++  }
++
+   // ── Provider Profiles ─────────────────────────────────────────────────────────
+ 
+   const sarahUserId = createdUsers["sarah@oncallfoot.com"]!;
+@@ -176,6 +207,48 @@ async function seed() {
+     console.log("  ✅  Created provider profile: Mike Okafor");
+   }
+ 
++  // ── Provider Applications ─────────────────────────────────────────────────────
++  //
++  // Registration creates a provider application transactionally (auth.ts),
++  // but the demo providers above are inserted directly, so their approved
++  // application rows must be seeded too. Database-backed authorization and
++  // `test:authorization` require every approved demo provider to have a
++  // matching approved `provider_applications` row.
++
++  const adminUserId = createdUsers["admin@oncallfoot.com"]!;
++
++  const demoApplications = [
++    { label: "Sarah", userId: sarahUserId, providerProfileId: sarahProfileId },
++    { label: "Mike", userId: mikeUserId, providerProfileId: mikeProfileId },
++  ];
++
++  for (const app of demoApplications) {
++    const existingApplication = await db
++      .select({ id: providerApplicationsTable.id })
++      .from(providerApplicationsTable)
++      .where(eq(providerApplicationsTable.userId, app.userId))
++      .limit(1);
++
++    if (existingApplication.length > 0) {
++      console.log(
++        `  ⏭  ${app.label}'s provider application already exists — skipping`,
++      );
++      continue;
++    }
++
++    const dayMs = 24 * 60 * 60 * 1000;
++    await db.insert(providerApplicationsTable).values({
++      userId: app.userId,
++      providerProfileId: app.providerProfileId,
++      status: "approved",
++      currentStep: "submitted",
++      submittedAt: new Date(Date.now() - 30 * dayMs),
++      reviewedAt: new Date(Date.now() - 29 * dayMs),
++      reviewedBy: adminUserId,
++    });
++    console.log(`  ✅  Created approved provider application: ${app.label}`);
++  }
++
+   // ── Services ──────────────────────────────────────────────────────────────────
+ 
+   const existingServices = await db
+-- 
+2.39.5
+

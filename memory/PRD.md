@@ -20,11 +20,14 @@ Execute the approved phased plan for the OnCall Foot monorepo (Node/Express 5, P
   - F2: happy-path submit test now seeds service + availability + verification doc before `/submit`.
   - F3 (product fix): public `GET /providers/:providerId/services` gated on `verificationStatus === "approved"`; unapproved providers return `{ services: [] }`.
   - Verified: provider-application 8/8, onboarding 23/23; regression sweep provider-status 9/9, provider-resubmission 11/11, authorization 7/7.
+  - STATUS: applied externally as `ceb01e3` (published origin/main), local synchronized 0/0.
+- 2026-08-08 — Seed-script hygiene (`1e41689`, patch `/app/seed-script-hygiene.patch`, SHA-256 `cfc5b2af8d33550e19fa0b5e9a1a01c3ef12bcd47c64acc80efedec21f50902b`):
+  - `seed.ts` now mirrors the registration transaction: `account_roles` membership per demo user + approved `provider_applications` (back-dated submittedAt/reviewedAt, reviewedBy admin) for Sarah & Mike.
+  - Fresh-DB validated: drop/recreate + drizzle push + seed → `test:authorization` 7/7 with zero manual inserts; seed rerun fully idempotent (5 users / 5 memberships / 2 profiles / 2 applications); typecheck clean; regression 8/8, 23/23, 9/9, 11/11.
   - STATUS: awaiting user to apply patch externally, then local `git reset --hard origin/main`.
 
 ## Backlog (priority order)
-- P0: Phase 2 — post-submission progress presentation (submission-history / progress-timeline on status API + web + mobile). Scope needs user confirmation.
-- P1: Seed-script hygiene — create approved `provider_applications` rows for demo providers in `seed.ts`.
+- P0: Phase 2 — post-submission progress presentation (submission-history / progress-timeline on status API + web + mobile). First decision: full ordered submission history vs. latest-submission-only in the API.
 - P1: Delete stale branch `origin/conflict_070826_mc2` (user action, external).
 - P2: Web test infrastructure (vitest + testing-library).
 - Phase 3: Admin verification & trust ops. Phase 4: Stripe Connect payments. Phase 5: Provider SaaS tiers. Phase 6: Growth. Phase 7: Disputes/background checks/insurance. Phase 8: Observability & release polish.
