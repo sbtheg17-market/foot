@@ -126,6 +126,31 @@ export interface ProviderApplicationStatusResponse {
   status: ProviderApplicationStatusView;
 }
 
+/**
+ * Keyset pagination envelope for submission history.
+ */
+export interface ProviderApplicationSubmissionsPagination {
+  /**
+     * @minimum 1
+     * @maximum 50
+     */
+  limit: number;
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+/**
+ * Owner-scoped submission history. `summary` is the same status
+ * projection returned by `GET /providers/application/status`;
+ * `submissions` is the newest-first, keyset-paginated list of closed
+ * rejected cycles.
+ */
+export interface ProviderApplicationSubmissionHistoryResponse {
+  summary: ProviderApplicationStatusView;
+  submissions: ProviderApplicationPreviousSubmission[];
+  pagination: ProviderApplicationSubmissionsPagination;
+}
+
 export type ProviderApplicationDetail = ProviderApplicationState & ({
   providerProfileId: number;
   profile: ProviderApplicationProfile;
@@ -808,6 +833,18 @@ limit?: number;
  * @minimum 0
  */
 offset?: number;
+};
+
+export type GetProviderApplicationSubmissionsParams = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+/**
+ * Opaque pagination cursor returned as `nextCursor` by a prior page.
+ */
+cursor?: string;
 };
 
 export type GetAdminVerificationQueueParams = {

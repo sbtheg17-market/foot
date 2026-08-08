@@ -326,6 +326,56 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /providers/application/submissions:
+    get:
+      operationId: getProviderApplicationSubmissions
+      tags: [providers]
+      summary: Paginated history of the owner's closed submission cycles
+      description: |
+        Owner-scoped, keyset-paginated history of the authenticated provider's
+        closed application submission cycles, newest first. Each item exposes
+        only provider-visible fields; reviewer-private material is never
+        returned.
+
+        Honesty note: `submissions` contains closed **rejected** cycles only,
+        snapshotted at the moment the owner resets a rejected application back
+        to draft. The current open cycle is not a history row — it is reflected
+        in `summary`. This endpoint is therefore not a complete persisted
+        lifecycle event log (submitted/under_review/approved transitions are
+        not recorded here).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque pagination cursor returned as `nextCursor` by a prior page.
+      responses:
+        "200":
+          description: Submission history page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationSubmissionHistoryResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /providers/application/completion:
     get:
       operationId: getProviderApplicationCompletion
@@ -1536,6 +1586,45 @@ components:
           $ref: "#/components/schemas/ProviderApplicationStatusView"
       required:
         - status
+
+    ProviderApplicationSubmissionsPagination:
+      type: object
+      description: Keyset pagination envelope for submission history.
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+        hasMore:
+          type: boolean
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+        - limit
+        - hasMore
+        - nextCursor
+
+    ProviderApplicationSubmissionHistoryResponse:
+      type: object
+      description: |
+        Owner-scoped submission history. `summary` is the same status
+        projection returned by `GET /providers/application/status`;
+        `submissions` is the newest-first, keyset-paginated list of closed
+        rejected cycles.
+      properties:
+        summary:
+          $ref: "#/components/schemas/ProviderApplicationStatusView"
+        submissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderApplicationPreviousSubmission"
+        pagination:
+          $ref: "#/components/schemas/ProviderApplicationSubmissionsPagination"
+      required:
+        - summary
+        - submissions
+        - pagination
 
     ProviderApplicationDetail:
       allOf:

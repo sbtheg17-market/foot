@@ -54,11 +54,44 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Provider application coverage | ✅ Baseline drift resolved | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. `test:onboarding` passes 23/23. Public `GET /providers/:providerId/services` now gates on `verificationStatus === "approved"` so draft services of unapproved providers are never publicly discoverable. |
 | Provider application resubmission | ✅ Phase 1 checkpoint 1 verified | `POST /providers/application/reset` transitions `rejected → draft` with an immutable `provider_application_submissions` history snapshot, owner-only access, idempotent no-op on `draft`, 409 on non-resettable states, and preserved `rejectionReason` in history. `PATCH` and direct `submit` are blocked while `rejected`; approved-provider authorization is unchanged. `test:provider-resubmission` passes all 11 focused integration tests. |
 | Provider application status API | ✅ Phase 1 checkpoint 2 verified | `GET /providers/application/status` returns a compact owner-scoped view: `status`, current-cycle `submittedAt`/`reviewedAt`, provider-visible `rejectionReason`, `submissionCount`, `latestSubmission` snapshot, server-derived `nextAction` (`resume_draft`/`wait_for_review`/`provider_operations_available`/`reset_to_draft`/`contact_support`), and `canEdit`/`canReset`/`canResubmit` capability flags. Reviewer-private `reviewerNotes` never appears. `test:provider-status` passes all 9 focused tests; approved-provider authorization and `careNotes` privacy regressions remain green. |
+| Provider application submission-history API | ✅ Phase 2 MC5 verified | `GET /providers/application/submissions` returns an owner-scoped, keyset-paginated (`ORDER BY created_at DESC, id DESC`) history of closed rejected cycles, newest first. Response is `{ summary, submissions[], pagination }`: `summary` reuses the exact `GET /providers/application/status` projection (shared `buildStatusView`, no second derivation); `submissions[]` is a strict six-field allow-list (`id`, `outcome`, `submittedAt`, `reviewedAt`, `rejectionReason`, `createdAt`); `pagination` is `{ limit, hasMore, nextCursor }`. Cursor is opaque base64 of `{ createdAt, id }`, position-only — `provider_application_id` is always re-derived from the authenticated user. `limit` 1–50 default 20; bad limit/cursor → 400; non-provider → 403; missing application → 404. `reviewerNotes`/`reviewedBy` never exposed. `test:provider-history` passes 11/11; full regression stays green. |
 | Provider application rejected-state web UI | ✅ Phase 1 checkpoint 3 verified | `/provider/application-status` now consumes `GET /providers/application/status` via the generated `useGetProviderApplicationStatus` hook, renders the provider-visible `rejectionReason` and `previousSubmissions` summary, and gates the reset/resubmit/edit CTAs on server-provided `canReset`/`canResubmit`/`canEdit`. Loading, unauthorized, 404 (no application yet), 403 (non-provider member), and mutation-error states are handled without duplicating server authorization logic. `reviewerNotes` is never rendered because it never enters the status response. Full workspace typecheck and web build both pass; 26 `data-testid` attributes cover every state and action. |
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
 | GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
+
+---
+
+### Session 042 — 2026-08-08
+**Agent:** E1 Agent (Emergent, Neo)
+**Scope:** `M`
+**Triggered by:** Phase 2 MC5 — Provider submission-history API (backend only), executed in an isolated non-Replit container (`/app/external/foot`) cloned fresh from canonical `origin/main`.
+
+**What was done:**
+- Step 0 gate passed: `HEAD == origin/main == 783052223e27fb781f1dae5e3c17a4eb583e8dce`, ahead/behind `0/0`, clean tracked tree. (`phase1-mc2.patch` is absent in this fresh checkout — it was an artifact of a previous environment, never part of canonical `main`; its absence does not violate the clean-tracked-tree gate.) Implemented on safety branch `phase2-mc5-submission-history`.
+- Added `GET /providers/application/submissions` (operationId `getProviderApplicationSubmissions`, tag `providers`, `bearerAuth`, `requireAuth` + `assertProviderMember`). Owner-scoped, keyset-paginated closed rejected-cycle history, newest first (`ORDER BY created_at DESC, id DESC`).
+- Response `ProviderApplicationSubmissionHistoryResponse` = `{ summary, submissions[], pagination }`. `summary` reuses the exact status projection via a new shared `buildStatusView` helper (the `/status` route now calls it too) — single source of truth, no second derivation. `submissions[]` is an explicit six-column Drizzle allow-list (`id`, `outcome`, `submittedAt`, `reviewedAt`, `rejectionReason`, `createdAt`); no `select()`, no spread. `pagination` = new `ProviderApplicationSubmissionsPagination` (`{ limit, hasMore, nextCursor }`, all required).
+- Cursor is opaque base64 of `{ createdAt ISO, id }`; keyset predicate selects rows strictly after the cursor position; position only — `provider_application_id` is always re-derived server-side from the authenticated user, never from the cursor. Errors follow repo conventions: 400 (bad `limit`/cursor), 401, 403 (`"Provider onboarding access is required."`), 404 (`"Provider application not found."`). 422 not used.
+- OpenAPI description carries the honesty clause: history holds closed rejected cycles only (snapshotted at reset); the current open cycle appears in `summary`; not a complete persisted lifecycle event log. Regenerated the React Query + Zod clients via `pnpm --filter @workspace/api-spec run codegen` only — generated files were not hand-edited. `info.title` ("Api") untouched.
+- Added focused suite `provider-application-history.integration.test.ts` (11 cases, MC2 harness idiom) and `test:provider-history` script. No schema/migration/seed/web/mobile/test-of-other-slices changes. No composite index added (D1 deferred) — a `(provider_application_id, created_at DESC, id DESC)` index is a documented follow-up should this endpoint get hot.
+
+**Verification (local, isolated Postgres 15 + test DB, server on PORT 8099):**
+- `test:provider-history`: 11/11 ✅ (new focused slice — 401/403, zero-history, cross-provider isolation, newest-first, limit=2 paging with no gaps/overlap, identical-`created_at` id tie-breaker, bad limit/cursor → 400, `reviewerNotes`/private-phrase absent incl. paged, `summary` parity with `/status`, reads create zero rows)
+- `test:authorization`: 7/7 ✅ (after idempotent `pnpm run seed`) · `test:provider-application`: 8/8 ✅ · `test:onboarding`: 23/23 ✅ · `test:provider-status`: 9/9 ✅ · `test:provider-resubmission`: 11/11 ✅
+- `pnpm run typecheck`: ✅ (4 projects) · `pnpm run build`: ✅ (api-server + web)
+
+**Files changed:**
+- `lib/api-spec/openapi.yaml` (new path + `ProviderApplicationSubmissionHistoryResponse`, `ProviderApplicationSubmissionsPagination`)
+- `lib/api-client-react/src/generated/`, `lib/api-zod/src/generated/` (regenerated)
+- `artifacts/api-server/src/routes/providers.ts` (submissions handler + `buildStatusView`/cursor/query helpers; `/status` refactored to shared helper)
+- `artifacts/api-server/src/__tests__/provider-application-history.integration.test.ts` (new)
+- `artifacts/api-server/package.json` (`test:provider-history`)
+- `docs/api-routes.md`, `.agents/LOG.md`, `.agents/NEXT_TASK.md`
+
+**Build state at end:** Local `phase2-mc5-submission-history` is exactly 1 commit ahead of `origin/main`, 0 behind. Working tree clean; `pnpm-lock.yaml` restored to baseline (the local `--no-frozen-lockfile` install was environment-only). `.env` never created/committed; secrets passed only as process env. Commit prepared with author `E1 Agent <e1@emergent.dev>`; not pushed — per the standing Emergent-only workflow the authorized publisher applies `/app/phase2-mc5-submission-history.patch` onto canonical `origin/main`.
+
+**Next best action:** Transfer `/app/phase2-mc5-submission-history.patch` to the authorized publisher; confirm it lands on `origin/main` at `0/0`. Do not begin MC6 (web submission-history timeline) until the MC5 push is confirmed.
 
 ---
 

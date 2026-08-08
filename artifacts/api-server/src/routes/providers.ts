@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { eq, ilike, and, sql } from "drizzle-orm";
+import { eq, ilike, and, or, lt, desc, sql } from "drizzle-orm";
 import {
   db,
   providerProfilesTable,
@@ -572,6 +572,118 @@ function deriveNextAction(status: ApplicationRow["status"]): NextAction {
   }
 }
 
+type SubmissionCursor = { createdAt: string; id: number };
+
+/**
+ * Owner-scoped status projection shared by GET /application/status and the
+ * `summary` field of GET /application/submissions. Single source of truth so
+ * both endpoints report identical `submissionCount` / `latestSubmission`.
+ * Reviewer-private fields are never included.
+ */
+function buildStatusView(application: ApplicationRow) {
+  const history = application.previousSubmissions;
+  const latestSubmission =
+    history.length > 0 ? history[history.length - 1] : null;
+  return {
+    applicationId: application.id,
+    status: application.status,
+    currentStep: application.currentStep,
+    submittedAt: application.submittedAt,
+    reviewedAt: application.reviewedAt,
+    rejectionReason: application.rejectionReason,
+    submissionCount: history.length,
+    latestSubmission,
+    nextAction: deriveNextAction(application.status),
+    canEdit: application.status === "draft",
+    canReset: application.status === "rejected",
+    canResubmit: application.status === "draft",
+  };
+}
+
+/** Opaque base64 of the keyset position. Encodes position only. */
+function encodeSubmissionCursor(row: { createdAt: Date; id: number }): string {
+  const payload: SubmissionCursor = {
+    createdAt: row.createdAt.toISOString(),
+    id: row.id,
+  };
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64");
+}
+
+function decodeSubmissionCursor(raw: string): SubmissionCursor | null {
+  let decoded: string;
+  try {
+    decoded = Buffer.from(raw, "base64").toString("utf8");
+  } catch {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const { createdAt, id } = parsed as Record<string, unknown>;
+  if (
+    typeof createdAt !== "string" ||
+    typeof id !== "number" ||
+    !Number.isInteger(id)
+  ) {
+    return null;
+  }
+  if (Number.isNaN(new Date(createdAt).getTime())) return null;
+  return { createdAt, id };
+}
+
+/**
+ * Keyset page of closed submission cycles for one application, newest first.
+ * ORDER BY created_at DESC, id DESC; the cursor predicate selects rows strictly
+ * after the cursor position. The application id is always supplied by the
+ * caller from the authenticated user — never derived from the cursor. Explicit
+ * six-column allow-list; reviewerNotes / reviewedBy are never selected.
+ */
+async function fetchSubmissionPage(
+  providerApplicationId: number,
+  limit: number,
+  cursor: SubmissionCursor | null,
+): Promise<PreviousSubmissionRow[]> {
+  const ownership = eq(
+    providerApplicationSubmissionsTable.providerApplicationId,
+    providerApplicationId,
+  );
+  const cursorDate = cursor ? new Date(cursor.createdAt) : null;
+  const where =
+    cursor && cursorDate
+      ? and(
+          ownership,
+          or(
+            lt(providerApplicationSubmissionsTable.createdAt, cursorDate),
+            and(
+              eq(providerApplicationSubmissionsTable.createdAt, cursorDate),
+              lt(providerApplicationSubmissionsTable.id, cursor.id),
+            ),
+          ),
+        )
+      : ownership;
+
+  return db
+    .select({
+      id: providerApplicationSubmissionsTable.id,
+      outcome: providerApplicationSubmissionsTable.outcome,
+      submittedAt: providerApplicationSubmissionsTable.submittedAt,
+      reviewedAt: providerApplicationSubmissionsTable.reviewedAt,
+      rejectionReason: providerApplicationSubmissionsTable.rejectionReason,
+      createdAt: providerApplicationSubmissionsTable.createdAt,
+    })
+    .from(providerApplicationSubmissionsTable)
+    .where(where)
+    .orderBy(
+      desc(providerApplicationSubmissionsTable.createdAt),
+      desc(providerApplicationSubmissionsTable.id),
+    )
+    .limit(limit + 1);
+}
+
 router.get(
   "/application/status",
   requireAuth,
@@ -583,25 +695,72 @@ router.get(
       return;
     }
 
-    const history = application.previousSubmissions;
-    const latestSubmission =
-      history.length > 0 ? history[history.length - 1] : null;
+    res.json({ status: buildStatusView(application) });
+  },
+);
+
+// ── Submission history (owner-scoped, keyset-paginated, read-only) ───────────
+//
+// Newest-first history of closed rejected submission cycles. `summary` is the
+// same status projection returned by GET /application/status; `submissions` is
+// the keyset page. Honest scope: only closed rejected cycles are recorded here
+// (snapshotted at reset); the current open cycle lives in `summary`. This is
+// not a complete persisted lifecycle event log.
+
+router.get(
+  "/application/submissions",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+
+    // limit: integer 1..50, default 20.
+    let limit = 20;
+    const rawLimit = req.query["limit"];
+    if (rawLimit !== undefined) {
+      const asString = String(rawLimit);
+      const parsed = Number(asString);
+      if (
+        !/^\d+$/.test(asString) ||
+        !Number.isInteger(parsed) ||
+        parsed < 1 ||
+        parsed > 50
+      ) {
+        res
+          .status(400)
+          .json({ error: "limit must be an integer between 1 and 50." });
+        return;
+      }
+      limit = parsed;
+    }
+
+    // cursor: opaque position token. Position only — never ownership or scope.
+    let cursor: SubmissionCursor | null = null;
+    const rawCursor = req.query["cursor"];
+    if (rawCursor !== undefined) {
+      cursor = decodeSubmissionCursor(String(rawCursor));
+      if (!cursor) {
+        res.status(400).json({ error: "Invalid pagination cursor." });
+        return;
+      }
+    }
+
+    // provider_application_id is always re-derived from the authenticated user.
+    const application = await getOwnApplication(req.user!.sub);
+    if (!application) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+
+    const rows = await fetchSubmissionPage(application.id, limit, cursor);
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const last = page[page.length - 1];
+    const nextCursor = hasMore && last ? encodeSubmissionCursor(last) : null;
 
     res.json({
-      status: {
-        applicationId: application.id,
-        status: application.status,
-        currentStep: application.currentStep,
-        submittedAt: application.submittedAt,
-        reviewedAt: application.reviewedAt,
-        rejectionReason: application.rejectionReason,
-        submissionCount: history.length,
-        latestSubmission,
-        nextAction: deriveNextAction(application.status),
-        canEdit: application.status === "draft",
-        canReset: application.status === "rejected",
-        canResubmit: application.status === "draft",
-      },
+      summary: buildStatusView(application),
+      submissions: page,
+      pagination: { limit, hasMore, nextCursor },
     });
   },
 );

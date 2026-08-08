@@ -438,6 +438,74 @@ export const GetProviderApplicationStatusResponse = zod.object({
 
 
 /**
+ * Owner-scoped, keyset-paginated history of the authenticated provider's
+ * closed application submission cycles, newest first. Each item exposes
+ * only provider-visible fields; reviewer-private material is never
+ * returned.
+ *
+ * Honesty note: `submissions` contains closed **rejected** cycles only,
+ * snapshotted at the moment the owner resets a rejected application back
+ * to draft. The current open cycle is not a history row — it is reflected
+ * in `summary`. This endpoint is therefore not a complete persisted
+ * lifecycle event log (submitted/under_review/approved transitions are
+ * not recorded here).
+ * @summary Paginated history of the owner's closed submission cycles
+ */
+export const getProviderApplicationSubmissionsQueryLimitDefault = 20;
+export const getProviderApplicationSubmissionsQueryLimitMax = 50;
+
+
+
+export const GetProviderApplicationSubmissionsQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(getProviderApplicationSubmissionsQueryLimitMax).default(getProviderApplicationSubmissionsQueryLimitDefault),
+  "cursor": zod.coerce.string().optional().describe('Opaque pagination cursor returned as `nextCursor` by a prior page.')
+})
+
+export const getProviderApplicationSubmissionsResponseSummarySubmissionCountMin = 0;
+
+export const getProviderApplicationSubmissionsResponsePaginationLimitMax = 50;
+
+
+
+export const GetProviderApplicationSubmissionsResponse = zod.object({
+  "summary": zod.object({
+  "applicationId": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "submissionCount": zod.int().min(getProviderApplicationSubmissionsResponseSummarySubmissionCountMin),
+  "latestSubmission": zod.object({
+  "id": zod.int(),
+  "outcome": zod.enum(['rejected']),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('Immutable snapshot of a closed submission cycle. Written only when the\nowner resets a `rejected` application back to `draft`. Reviewer-private\ncontent (`reviewerNotes`) is never exposed here; only provider-visible\nfields are returned.\n').nullable(),
+  "nextAction": zod.enum(['resume_draft', 'wait_for_review', 'provider_operations_available', 'reset_to_draft', 'contact_support']),
+  "canEdit": zod.boolean(),
+  "canReset": zod.boolean(),
+  "canResubmit": zod.boolean()
+}).describe('Compact owner-scoped status projection of a provider application.\nOnly exposes provider-visible fields; `reviewerNotes` never appears.\n'),
+  "submissions": zod.array(zod.object({
+  "id": zod.int(),
+  "outcome": zod.enum(['rejected']),
+  "submittedAt": zod.coerce.date(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('Immutable snapshot of a closed submission cycle. Written only when the\nowner resets a `rejected` application back to `draft`. Reviewer-private\ncontent (`reviewerNotes`) is never exposed here; only provider-visible\nfields are returned.\n')),
+  "pagination": zod.object({
+  "limit": zod.int().min(1).max(getProviderApplicationSubmissionsResponsePaginationLimitMax),
+  "hasMore": zod.boolean(),
+  "nextCursor": zod.string().nullable()
+}).describe('Keyset pagination envelope for submission history.')
+}).describe('Owner-scoped submission history. `summary` is the same status\nprojection returned by `GET \/providers\/application\/status`;\n`submissions` is the newest-first, keyset-paginated list of closed\nrejected cycles.\n')
+
+
+/**
  * Returns a completion status for each required onboarding section. The server calculates all flags — do not trust client-side values for authorization.
  * @summary Get server-derived completion summary for the provider application
  */

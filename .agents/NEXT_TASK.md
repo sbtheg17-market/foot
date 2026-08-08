@@ -2,49 +2,43 @@
 
 ## Current gate
 
-Phase 1 micro-checkpoints 1–4 are complete, the baseline test-drift
-cleanup slice is done (`ceb01e3`), and the seed-script hygiene slice is
-done: `pnpm run seed` now creates `account_roles` memberships and
-approved `provider_applications` rows for the demo providers, so
-`test:authorization` passes on a freshly provisioned database without
-manual inserts or the legacy `backfill:role-state` script.
+MC5 (Provider submission-history API — backend only) is implemented and
+verified on the safety branch `phase2-mc5-submission-history`, one commit
+ahead of canonical `origin/main = 783052223e27fb781f1dae5e3c17a4eb583e8dce`.
+Do not begin MC6 until the MC5 patch lands on `origin/main` at `0/0`.
 
-- MC1 (rejected-provider resubmission — server state transitions) merged at
-  `54534b0`.
-- MC2 (rejection-reason and status API — server only) merged at `1f4c018`.
-- MC3 (web rejected-state UI) merged at `dc7a40d`.
-- MC4 (mobile rejected-state UI) merged at `f2ed537`.
-- Baseline test-drift cleanup lands one focused commit on top that changes
-  only `artifacts/api-server/src/__tests__/provider-application.integration.test.ts`,
-  `artifacts/api-server/src/routes/providers.ts`, and the two `.agents/`
-  docs — no web, mobile, database-schema, migration, or generated-client
-  changes.
+- `GET /providers/application/submissions` — owner-scoped, keyset-paginated
+  (`created_at DESC, id DESC`) history of closed rejected cycles, newest
+  first. Returns `{ summary, submissions[], pagination }`; `summary` reuses
+  the `/status` projection (shared `buildStatusView`), `submissions[]` is a
+  six-field public allow-list, `pagination` is `{ limit, hasMore,
+  nextCursor }` with an opaque position-only base64 cursor.
+- `test:provider-history` 11/11; regression green
+  (`test:authorization` 7/7, `test:provider-application` 8/8,
+  `test:onboarding` 23/23, `test:provider-status` 9/9,
+  `test:provider-resubmission` 11/11); typecheck + build clean.
 
-The API integration baseline is fully green again:
-
-- `test:provider-application` 8/8 — stale submit-validation assertion (F1)
-  and incomplete happy-path submission setup (F2) fixed.
-- `test:onboarding` 23/23 — restored by the F3 product fix.
-- F3 was a product regression, not test drift: public
-  `GET /providers/:providerId/services` leaked draft services of
-  unapproved providers. It now applies the same
-  `verificationStatus === "approved"` gate as the provider-listing
-  endpoint and returns a stable-shaped empty list for unapproved
-  providers.
-- Regression sweep also green: `test:provider-status` 9/9,
-  `test:provider-resubmission` 11/11, `test:authorization` 7/7.
+Phase 1 micro-checkpoints 1–4 remain merged on canonical `main`
+(MC1 `54534b0`, MC2 `1f4c018`, MC3 `dc7a40d`, MC4 `f2ed537`), and the
+baseline test-drift + seed-hygiene cleanups are done.
 
 ## Next scope (queued, not started)
 
-**Phase 2 — post-submission progress presentation.** Extend the status
-API and UIs with a submission-history / progress-timeline surface once
-product scope is confirmed with the user. Candidate slices:
+**MC6 — Web submission-history timeline.** Render the newest-first
+timeline on `/provider/application-status` by consuming the generated
+`useGetProviderApplicationSubmissions` hook (paged). Then **MC7** mirrors
+it on mobile. Both are UI-only and must not change server behavior.
 
-1. Server: expose the full ordered `previousSubmissions` history (public
-   snapshot fields only) on the status endpoint, or a dedicated
-   sub-resource, with owner-only access.
-2. Web: render the progress timeline on `/provider/application-status`.
-3. Mobile: mirror the timeline on `provider/application-status`.
+## Deferred (explicitly not MC5/MC6)
+
+- Composite index `(provider_application_id, created_at DESC, id DESC)` on
+  `provider_application_submissions` — documented follow-up (D1 deferred);
+  add only if this endpoint becomes hot.
+- Lifecycle event recording (submitted/under_review/approved outcomes) —
+  the history is honestly closed-rejected-cycles only until a later
+  checkpoint starts recording those events.
+- `attemptNumber` (D2), submission-outcome enum expansion (B1=A),
+  notifications, admin/reviewer history access.
 
 ## Guardrails
 

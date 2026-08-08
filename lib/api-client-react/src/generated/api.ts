@@ -38,6 +38,7 @@ import type {
   ForbiddenResponse,
   GetAdminVerificationQueueParams,
   GetClientCareHistoryParams,
+  GetProviderApplicationSubmissionsParams,
   HealthStatus,
   InvoiceListResponse,
   InvoiceResponse,
@@ -51,6 +52,7 @@ import type {
   NotFoundResponse,
   ProviderApplicationDetailResponse,
   ProviderApplicationStatusResponse,
+  ProviderApplicationSubmissionHistoryResponse,
   ProviderListResponse,
   ProviderProfileResponse,
   RegisterRequest,
@@ -998,6 +1000,101 @@ export function useGetProviderApplicationStatus<TData = Awaited<ReturnType<typeo
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetProviderApplicationStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetProviderApplicationSubmissionsUrl = (params?: GetProviderApplicationSubmissionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/providers/application/submissions?${stringifiedParams}` : `/api/providers/application/submissions`
+}
+
+/**
+ * Owner-scoped, keyset-paginated history of the authenticated provider's
+ * closed application submission cycles, newest first. Each item exposes
+ * only provider-visible fields; reviewer-private material is never
+ * returned.
+ *
+ * Honesty note: `submissions` contains closed **rejected** cycles only,
+ * snapshotted at the moment the owner resets a rejected application back
+ * to draft. The current open cycle is not a history row — it is reflected
+ * in `summary`. This endpoint is therefore not a complete persisted
+ * lifecycle event log (submitted/under_review/approved transitions are
+ * not recorded here).
+ * @summary Paginated history of the owner's closed submission cycles
+ */
+export const getProviderApplicationSubmissions = async (params?: GetProviderApplicationSubmissionsParams, options?: Parameters<typeof customFetch>[1]): Promise<ProviderApplicationSubmissionHistoryResponse> => {
+
+  return customFetch<ProviderApplicationSubmissionHistoryResponse>(getGetProviderApplicationSubmissionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProviderApplicationSubmissionsQueryKey = (params?: GetProviderApplicationSubmissionsParams,) => {
+    return [
+    `/api/providers/application/submissions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetProviderApplicationSubmissionsQueryOptions = <TData = Awaited<ReturnType<typeof getProviderApplicationSubmissions>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(params?: GetProviderApplicationSubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProviderApplicationSubmissionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderApplicationSubmissions>>> = ({ signal }) => getProviderApplicationSubmissions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationSubmissions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProviderApplicationSubmissionsQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderApplicationSubmissions>>>
+export type GetProviderApplicationSubmissionsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Paginated history of the owner's closed submission cycles
+ */
+
+export function useGetProviderApplicationSubmissions<TData = Awaited<ReturnType<typeof getProviderApplicationSubmissions>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ params?: GetProviderApplicationSubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderApplicationSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProviderApplicationSubmissionsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
