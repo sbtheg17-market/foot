@@ -2,8 +2,12 @@
 
 ## Current gate
 
-Phase 1 micro-checkpoints 1–4 are complete, and the baseline test-drift
-cleanup slice is done.
+Phase 1 micro-checkpoints 1–4 are complete, the baseline test-drift
+cleanup slice is done (`ceb01e3`), and the seed-script hygiene slice is
+done: `pnpm run seed` now creates `account_roles` memberships and
+approved `provider_applications` rows for the demo providers, so
+`test:authorization` passes on a freshly provisioned database without
+manual inserts or the legacy `backfill:role-state` script.
 
 - MC1 (rejected-provider resubmission — server state transitions) merged at
   `54534b0`.
@@ -55,11 +59,6 @@ product scope is confirmed with the user. Candidate slices:
 
 ## Separately queued cleanup slices
 
-- Seed-script drift: `seed.ts` creates provider profiles but no
-  `provider_applications` rows, so `test:authorization` cannot pass on a
-  freshly seeded database without manual inserts. Extend the seed to
-  create approved application rows for the demo providers — separate
-  hygiene slice.
 - `attached_assets/phase1-mc1_1786063790850.patch` remains committed on
   `origin/conflict_070826_mc2` — safe to leave; delete the branch
   entirely as a hygiene action.

@@ -11,11 +11,13 @@
  */
 
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   db,
   pool,
   usersTable,
+  accountRolesTable,
+  providerApplicationsTable,
   providerProfilesTable,
   servicesTable,
   bookingsTable,
@@ -103,6 +105,35 @@ async function seed() {
     console.log(`  ✅  Created ${u.role}: ${u.email}`);
   }
 
+  // ── Account Roles ─────────────────────────────────────────────────────────────
+  //
+  // Registration inserts an `account_roles` membership row transactionally
+  // (auth.ts); database-backed authorization reads memberships from this
+  // table, not from the JWT role claim. Demo users are inserted directly,
+  // so their membership rows must be seeded too.
+
+  for (const u of users) {
+    const userId = createdUsers[u.email]!;
+    const existingRole = await db
+      .select({ id: accountRolesTable.id })
+      .from(accountRolesTable)
+      .where(
+        and(
+          eq(accountRolesTable.userId, userId),
+          eq(accountRolesTable.role, u.role),
+        ),
+      )
+      .limit(1);
+
+    if (existingRole.length > 0) {
+      console.log(`  ⏭  ${u.email} ${u.role} membership already exists — skipping`);
+      continue;
+    }
+
+    await db.insert(accountRolesTable).values({ userId, role: u.role });
+    console.log(`  ✅  Created ${u.role} membership: ${u.email}`);
+  }
+
   // ── Provider Profiles ─────────────────────────────────────────────────────────
 
   const sarahUserId = createdUsers["sarah@oncallfoot.com"]!;
@@ -174,6 +205,48 @@ async function seed() {
 
     mikeProfileId = mikeProfile!.id;
     console.log("  ✅  Created provider profile: Mike Okafor");
+  }
+
+  // ── Provider Applications ─────────────────────────────────────────────────────
+  //
+  // Registration creates a provider application transactionally (auth.ts),
+  // but the demo providers above are inserted directly, so their approved
+  // application rows must be seeded too. Database-backed authorization and
+  // `test:authorization` require every approved demo provider to have a
+  // matching approved `provider_applications` row.
+
+  const adminUserId = createdUsers["admin@oncallfoot.com"]!;
+
+  const demoApplications = [
+    { label: "Sarah", userId: sarahUserId, providerProfileId: sarahProfileId },
+    { label: "Mike", userId: mikeUserId, providerProfileId: mikeProfileId },
+  ];
+
+  for (const app of demoApplications) {
+    const existingApplication = await db
+      .select({ id: providerApplicationsTable.id })
+      .from(providerApplicationsTable)
+      .where(eq(providerApplicationsTable.userId, app.userId))
+      .limit(1);
+
+    if (existingApplication.length > 0) {
+      console.log(
+        `  ⏭  ${app.label}'s provider application already exists — skipping`,
+      );
+      continue;
+    }
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    await db.insert(providerApplicationsTable).values({
+      userId: app.userId,
+      providerProfileId: app.providerProfileId,
+      status: "approved",
+      currentStep: "submitted",
+      submittedAt: new Date(Date.now() - 30 * dayMs),
+      reviewedAt: new Date(Date.now() - 29 * dayMs),
+      reviewedBy: adminUserId,
+    });
+    console.log(`  ✅  Created approved provider application: ${app.label}`);
   }
 
   // ── Services ──────────────────────────────────────────────────────────────────

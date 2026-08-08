@@ -41,7 +41,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Auth routes | ✅ Shared role-intent flow added | Registration accepts additive `roleIntent`, creates provider membership/profile/application transactionally for provider intent, and preserves database-backed authorization. Login/signup routing uses server-confirmed application state. |
 | JWT middleware | ✅ Database-backed | `requireAuth` confirms active user/context from PostgreSQL; `requireRole` checks `account_roles`; approved-provider middleware checks application/profile ownership and approval. JWT claims remain unchanged. |
 | JWT_SECRET | ✅ Available to managed workflow | Added by the user through the development/shared Secrets panel; value was never inspected, printed, logged, committed, or exposed. |
-| Seed script | ✅ Idempotent and restored | `pnpm run seed` created 5 demo accounts and full sample data; a second run skipped existing records without duplicates. |
+| Seed script | ✅ Self-contained role state | `pnpm run seed` creates 5 demo accounts, `account_roles` memberships, approved `provider_applications` for both demo providers, and full sample data on a fresh database; a second run skips every existing record without duplicates. `test:authorization` passes on a freshly seeded database without manual inserts or the legacy backfill script. |
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/history, GET /bookings/:id, PATCH /bookings/:id/status — client-safe bounded history, strict state machine, auto-invoice on confirm |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, booking-scoped client review lookup, GET /invoices, GET /invoices/:id — role-scoped; completed-booking review validation and duplicate races return safe conflicts |
@@ -1524,6 +1524,35 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Next best action:** After the patch is applied to canonical `origin/main` and local is hard-reset to it, begin Phase 2 — post-submission progress presentation (submission-history / progress-timeline surface on the status API and web/mobile pages), pending explicit user approval of scope.
 
 ---
+
+### Session 023 — 2026-08-08
+**Agent:** E1 (Emergent) Main Agent
+**Scope:** `S`
+**Triggered by:** User explicitly approved the seed-script hygiene checkpoint: make a fresh local database setup create the approved demo provider applications required by the authorization suite, so `test:authorization` passes without manual database inserts.
+
+**What was done:**
+- Root-caused the gap: registration (`auth.ts`) transactionally creates an `account_roles` membership row plus, for provider intent, a provider profile and a `provider_applications` row — but `seed.ts` predates the Phase 3/4 role-state schema and inserted users and approved profiles directly, never writing `account_roles` or `provider_applications`. The intended legacy path was "seed + `backfill:role-state`" (the Phase 2 backfill prerequisite in the test header); a fresh seed alone left the authorization suite's `before` hook unable to find sarah's application and test 2 unable to find admin's database-backed membership.
+- Extended `seed.ts` (the existing discoverable seed module) with two new sections, both following the file's check-then-insert idempotency convention:
+  - **Account Roles** — one membership row per demo user (`admin`, 2×`provider`, 2×`client`), mirroring the registration transaction; unique on `(userId, role)`.
+  - **Provider Applications** — approved applications for Sarah and Mike (`status: approved`, `currentStep: submitted`, `submittedAt`/`reviewedAt` back-dated, `reviewedBy` the demo admin), linked to their seeded profiles; unique on `userId` and `providerProfileId`.
+- Validation on a freshly provisioned database (drop, recreate, `pnpm --filter @workspace/db run push`, restart API server, `pnpm run seed` from scratch):
+  - `test:authorization` 7/7 with **zero** manual database intervention.
+  - Seed rerun: every record skipped (`⏭`), no duplicates — counts stayed at 5 users / 5 memberships / 2 profiles / 2 applications.
+  - `pnpm --filter @workspace/api-server run typecheck` clean.
+  - Regression: `test:provider-application` 8/8, `test:onboarding` 23/23, `test:provider-status` 9/9, `test:provider-resubmission` 11/11.
+- Scope hygiene: no web, mobile, schema, migration, generated-client, or unrelated-API changes; no manual SQL outside the seed mechanism; `backfill:role-state` left untouched for legacy production data.
+
+**Files changed:**
+- `artifacts/api-server/src/seed.ts`
+- `.agents/LOG.md`
+- `.agents/NEXT_TASK.md`
+
+**Build state at end:** Local HEAD == 1 focused seed-hygiene commit on top of `origin/main` (`ceb01e3`). Ahead 1 / behind 0. Working tree clean except intentional untracked handoff artifacts. Patch generated at `/app/seed-script-hygiene.patch` for external application.
+
+**Next best action:** After the patch is applied to canonical `origin/main` and local is hard-reset to it, plan Phase 2 — post-submission progress presentation — starting with the API scope decision: full ordered submission history vs. latest-submission-only data.
+
+---
+
 
 
 ## New Session Template
