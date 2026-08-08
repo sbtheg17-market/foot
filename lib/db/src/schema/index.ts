@@ -6,6 +6,7 @@ export * from "./account-roles";
 export * from "./providers";
 export * from "./provider-applications";
 export * from "./provider-application-submissions";
+export * from "./provider-application-events";
 export * from "./services";
 export * from "./bookings";
 export * from "./reviews";

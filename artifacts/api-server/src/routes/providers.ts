@@ -5,6 +5,7 @@ import {
   providerProfilesTable,
   providerApplicationsTable,
   providerApplicationSubmissionsTable,
+  providerApplicationEventsTable,
   accountRolesTable,
   travelZonesTable,
   availabilityTable,
@@ -375,6 +376,16 @@ router.post(
             eq(providerProfilesTable.userId, req.user!.sub),
           ),
         );
+      // Lifecycle event (MC8): draft → under_review. Same transaction, so the
+      // event is recorded iff the transition commits. Reachable only from
+      // `draft` (other statuses early-return above), so exactly one per submit.
+      await tx.insert(providerApplicationEventsTable).values({
+        providerApplicationId: application.id,
+        userId: req.user!.sub,
+        type: "submitted",
+        fromStatus: "draft",
+        toStatus: "under_review",
+      });
     });
 
     const submitted = await getOwnApplication(req.user!.sub);
@@ -453,6 +464,17 @@ router.post(
             eq(providerApplicationsTable.userId, req.user!.sub),
           ),
         );
+
+      // Lifecycle event (MC8): rejected → draft. Same transaction; reached
+      // only when current.status === "rejected" (draft is a noop, others
+      // conflict above), so exactly one per real reset.
+      await tx.insert(providerApplicationEventsTable).values({
+        providerApplicationId: current.id,
+        userId: req.user!.sub,
+        type: "reset_to_draft",
+        fromStatus: "rejected",
+        toStatus: "draft",
+      });
 
       return { kind: "reset" as const };
     });

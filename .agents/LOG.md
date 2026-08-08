@@ -65,6 +65,30 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 046 — 2026-08-08
+**Agent:** E1 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Phase 2 MC8-lite **Commit 2 of 4** — lifecycle event store, off verified base `0ab99641e9e50a2fd7a3ce811e2f644eb8cfafb9`.
+
+**What was done:**
+- Step-0 gate re-run: `origin/main == HEAD == 0ab9964`, `0/0`, clean. Branch `phase2-mc8-notifications` (continuing from Commit 1).
+- Added append-only table `provider_application_events` (`lib/db/src/schema/provider-application-events.ts`): `id`, `provider_application_id → provider_applications(id) ON DELETE CASCADE`, `user_id → users(id) ON DELETE CASCADE`, `type` (new pgEnum `provider_application_event_type` = `submitted` | `reset_to_draft`), `from_status`/`to_status` (reusing `provider_application_status` enum), `created_at`. Index `(provider_application_id, created_at)`. Registered in `schema/index.ts`.
+- Emitted events **inside the existing submit/reset transactions** in `providers.ts` (the authorized emission point): `submitted` (draft→under_review) in the submit tx, `reset_to_draft` (rejected→draft) in the reset tx. Both are reached only on a real transition (submit early-returns for non-draft; reset is a noop on draft and conflicts otherwise), so emission is exactly-once and atomic with the state change.
+- Honesty boundary preserved: only these two owner-driven transitions are recorded; approved/rejected/under_review and all other transitions are NOT emitted (no reviewer path in MC8-lite). **No notification table/API, no reviewer endpoint, no web/mobile changes.**
+- Scope note: per the authorization's enumerated deliverable, Commit 2 necessarily edits `artifacts/api-server/src/routes/providers.ts` (the emission point) in addition to DB schema — this is the one intended application-code touch; no other app/API behavior changed.
+
+**Validation (local, Postgres 15 test DB):**
+- Schema applied via `drizzle-kit push`; `\d provider_application_events` confirms columns/enums/index.
+- Live flow: submit emits exactly **1 `submitted`**; a second (idempotent) submit adds **0**; reset emits exactly **1 `reset_to_draft`**; a second (idempotent) reset adds **0**; an invalid submit (400, missing prerequisites) and a noop reset on draft each create **0** events. Row shapes: `submitted: draft→under_review`, `reset_to_draft: rejected→draft`.
+- Regression: `test:provider-history` 11/11, `test:provider-resubmission` 11/11, `test:provider-status` 9/9. `@workspace/db` + full-workspace typecheck ✅; api-server build ✅.
+- Scope diff: events schema (new), `schema/index.ts`, `providers.ts` (emission), `.agents`. No `.patch`/`.bundle` tracked.
+
+**Files changed:** `lib/db/src/schema/provider-application-events.ts` (new), `lib/db/src/schema/index.ts`, `artifacts/api-server/src/routes/providers.ts`, `.agents/LOG.md`, `.agents/NEXT_TASK.md`.
+
+**Build state at end:** `phase2-mc8-notifications` 1 ahead / 0 behind `origin/main`; clean; lockfile restored; not pushed. Commit 3 (notifications table + read APIs) and Commit 4 (regression coverage) remain separately gated.
+
+---
+
 ### Session 045 — 2026-08-08
 **Agent:** E1 Agent (Emergent, Neo)
 **Scope:** `XS`
