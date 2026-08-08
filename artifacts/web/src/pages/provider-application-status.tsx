@@ -9,6 +9,7 @@ import {
   useSubmitProviderApplication,
 } from '@workspace/api-client-react';
 import { ROUTES } from '@/lib/routes';
+import { SubmissionHistoryTimeline } from '@/components/submission-history-timeline';
 
 /**
  * Provider application status screen — Phase 1 micro-checkpoint 3.
@@ -204,8 +205,6 @@ export default function ProviderApplicationStatus() {
   // ── Loaded — view is present ────────────────────────────────────────────
   const copy = statusHeadline[view.status] ?? statusHeadline.under_review!;
   const isRejected = view.status === 'rejected';
-  const historyCount = view.submissionCount ?? 0;
-  const latest = view.latestSubmission;
 
   return (
     <StatusShell>
@@ -272,50 +271,9 @@ export default function ProviderApplicationStatus() {
         </div>
       )}
 
-      {/* Submission history summary (public snapshot fields only) */}
-      {historyCount > 0 && (
-        <div
-          data-testid="application-status-history-card"
-          className="mt-6 w-full rounded-2xl border border-border bg-card p-5 text-left"
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-foreground">Prior submissions</span>
-            <span
-              data-testid="application-status-history-count"
-              className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground"
-            >
-              {historyCount}
-            </span>
-          </div>
-          {latest && (
-            <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-              <p>
-                <span className="font-semibold text-foreground">Latest outcome:</span>{' '}
-                <span
-                  data-testid="application-status-latest-outcome"
-                  className="capitalize"
-                >
-                  {latest.outcome}
-                </span>
-              </p>
-              {latest.submittedAt && (
-                <p>
-                  <span className="font-semibold text-foreground">Submitted:</span>{' '}
-                  <span data-testid="application-status-latest-submitted-at">
-                    {formatDateTime(latest.submittedAt)}
-                  </span>
-                </p>
-              )}
-              {latest.rejectionReason && (
-                <p data-testid="application-status-latest-rejection-reason">
-                  <span className="font-semibold text-foreground">Feedback:</span>{' '}
-                  {latest.rejectionReason}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Submission history timeline (MC6) — current status + prior closed
+          rejected cycles, keyset-paginated. Public snapshot fields only. */}
+      <SubmissionHistoryTimeline currentView={view} />
 
       {/* Action row — every action is server-gated */}
       <div className="mt-8 flex w-full flex-col gap-3">

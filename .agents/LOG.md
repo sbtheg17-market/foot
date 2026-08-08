@@ -55,11 +55,43 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Provider application resubmission | ✅ Phase 1 checkpoint 1 verified | `POST /providers/application/reset` transitions `rejected → draft` with an immutable `provider_application_submissions` history snapshot, owner-only access, idempotent no-op on `draft`, 409 on non-resettable states, and preserved `rejectionReason` in history. `PATCH` and direct `submit` are blocked while `rejected`; approved-provider authorization is unchanged. `test:provider-resubmission` passes all 11 focused integration tests. |
 | Provider application status API | ✅ Phase 1 checkpoint 2 verified | `GET /providers/application/status` returns a compact owner-scoped view: `status`, current-cycle `submittedAt`/`reviewedAt`, provider-visible `rejectionReason`, `submissionCount`, `latestSubmission` snapshot, server-derived `nextAction` (`resume_draft`/`wait_for_review`/`provider_operations_available`/`reset_to_draft`/`contact_support`), and `canEdit`/`canReset`/`canResubmit` capability flags. Reviewer-private `reviewerNotes` never appears. `test:provider-status` passes all 9 focused tests; approved-provider authorization and `careNotes` privacy regressions remain green. |
 | Provider application submission-history API | ✅ Phase 2 MC5 verified | `GET /providers/application/submissions` returns an owner-scoped, keyset-paginated (`ORDER BY created_at DESC, id DESC`) history of closed rejected cycles, newest first. Response is `{ summary, submissions[], pagination }`: `summary` reuses the exact `GET /providers/application/status` projection (shared `buildStatusView`, no second derivation); `submissions[]` is a strict six-field allow-list (`id`, `outcome`, `submittedAt`, `reviewedAt`, `rejectionReason`, `createdAt`); `pagination` is `{ limit, hasMore, nextCursor }`. Cursor is opaque base64 of `{ createdAt, id }`, position-only — `provider_application_id` is always re-derived from the authenticated user. `limit` 1–50 default 20; bad limit/cursor → 400; non-provider → 403; missing application → 404. `reviewerNotes`/`reviewedBy` never exposed. `test:provider-history` passes 11/11; full regression stays green. |
+| Provider application submission-history web timeline | ✅ Phase 2 MC6 verified | `/provider/application-status` now renders `SubmissionHistoryTimeline`, consuming `GET /providers/application/submissions` (newest-first) with opaque keyset cursor paging (`nextCursor`/`hasMore`, "Load older cycles"). Displays prior closed rejected cycles chronologically (oldest→newest) with a final current-cycle node from the server `summary`, rejection reasons, and loading / empty / error+retry / unauthorized / paging states. CTAs stay gated on `canEdit`/`canReset`/`canResubmit`; `reviewerNotes`/`reviewedBy` never referenced. A caption states the history is current status + prior rejected cycles only, not a full lifecycle log. Web + full-workspace typecheck and web production build pass; scope limited to `artifacts/web/`. |
 | Provider application rejected-state web UI | ✅ Phase 1 checkpoint 3 verified | `/provider/application-status` now consumes `GET /providers/application/status` via the generated `useGetProviderApplicationStatus` hook, renders the provider-visible `rejectionReason` and `previousSubmissions` summary, and gates the reset/resubmit/edit CTAs on server-provided `canReset`/`canResubmit`/`canEdit`. Loading, unauthorized, 404 (no application yet), 403 (non-provider member), and mutation-error states are handled without duplicating server authorization logic. `reviewerNotes` is never rendered because it never enters the status response. Full workspace typecheck and web build both pass; 26 `data-testid` attributes cover every state and action. |
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
 | GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
+
+---
+
+### Session 043 — 2026-08-08
+**Agent:** E1 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Phase 2 MC6 — web submission-history timeline UI (web-only), authorized after MC5 landed and the attachment-drift cleanup (`origin/main = 64db70a`) was verified; Neo reset local `main` to that clean tip.
+
+**What was done:**
+- Pre-coding gate passed: `origin/main == HEAD == 64db70a87cf05f6c19d2041b002435e067f39cb7`, ahead/behind `0/0`, no tracked changes. Implemented on safety branch `phase2-mc6-web-timeline`.
+- Added `artifacts/web/src/components/submission-history-timeline.tsx`, consuming the published MC5 endpoint `GET /providers/application/submissions` via the generated `getProviderApplicationSubmissions` client. Newest-first API consumption with opaque keyset cursor pagination (`pagination.nextCursor` / `pagination.hasMore`), accumulating pages behind a "Load older cycles" control.
+- Renders a chronological (oldest→newest) timeline of prior closed **rejected** cycles, each with submitted/reviewed dates and the provider-visible `rejectionReason`, and a final current-cycle node built from the server `summary` (identical to `GET /providers/application/status`). Covers loading (skeleton, `role=status`), empty (no prior cycles), error + retry, unauthorized (401/403), and pagination (load-more + inline page-error) states. Accessible, responsive card/rail layout with `data-testid`s on every state and node.
+- Wired the component into `artifacts/web/src/pages/provider-application-status.tsx`, replacing the older static "Prior submissions" summary card (removed its now-unused `historyCount`/`latest` locals). Reset/resubmit/edit CTAs remain gated strictly on server `canReset`/`canResubmit`/`canEdit`.
+- Honesty caption states the surface shows current status plus prior rejected cycles only — not a complete persisted lifecycle event log. `reviewerNotes` / `reviewedBy` are never referenced in code.
+- No API, database/schema/migration, `seed.ts`, mobile, notifications, admin/reviewer, generated-client, root `attached_assets`, or unrelated-web changes.
+
+**Verification (local):**
+- `@workspace/web` typecheck: ✅
+- Full workspace typecheck (api-server, web, mobile, scripts): ✅
+- Web production build: ✅ (`471.95 kB` JS / `113.78 kB` CSS; module count 1770 → 1771, confirming the new component is bundled)
+- Focused web *unit* tests: **not applicable** — the web workspace still has no vitest/jest runner (unchanged since MC3). The consumed endpoint is covered by the API-side `test:provider-history` slice (11/11 on the exact tree now at `origin/main`).
+- Diff scope inspection: only `artifacts/web/src/pages/provider-application-status.tsx` (modified) and `artifacts/web/src/components/submission-history-timeline.tsx` (new), plus `.agents/` docs. No out-of-scope files.
+
+**Files changed:**
+- `artifacts/web/src/components/submission-history-timeline.tsx` (new)
+- `artifacts/web/src/pages/provider-application-status.tsx` (timeline wired in; static summary card removed)
+- `.agents/LOG.md`, `.agents/NEXT_TASK.md`
+
+**Build state at end:** Local `phase2-mc6-web-timeline` is exactly 1 commit ahead of `origin/main = 64db70a`, 0 behind. Working tree clean. Commit prepared with author `E1 Agent <e1@emergent.dev>`; not pushed — the authorized publisher applies `/app/phase2-mc6-web-timeline.patch` onto canonical `origin/main`.
+
+**Next best action:** Transfer `/app/phase2-mc6-web-timeline.patch` to the authorized publisher; confirm it lands on `origin/main` at `0/0`. Do not begin MC7 (mobile timeline) until the MC6 push is confirmed.
 
 ---
 
