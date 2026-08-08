@@ -1,11 +1,12 @@
 import { Router, type Request, type Response } from "express";
-import { eq, ilike, and, or, lt, desc, sql } from "drizzle-orm";
+import { eq, ilike, and, or, lt, desc, sql, isNull } from "drizzle-orm";
 import {
   db,
   providerProfilesTable,
   providerApplicationsTable,
   providerApplicationSubmissionsTable,
   providerApplicationEventsTable,
+  providerNotificationsTable,
   accountRolesTable,
   travelZonesTable,
   availabilityTable,
@@ -31,6 +32,59 @@ const requireProviderOperation = [
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+// Drizzle transaction handle type, derived from db.transaction's callback.
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+type ApplicationEventType = "submitted" | "reset_to_draft";
+
+// Server-rendered, event-keyed, provider-safe notification content. No
+// reviewer-private material. `link` is a relative in-app path.
+const NOTIFICATION_CONTENT: Record<
+  ApplicationEventType,
+  { title: string; body: string; link: string }
+> = {
+  submitted: {
+    title: "Application submitted",
+    body: "Your provider application was submitted and is now under review.",
+    link: "/provider/application-status",
+  },
+  reset_to_draft: {
+    title: "Application reopened",
+    body: "Your application was reset to draft. You can update your details and resubmit when ready.",
+    link: "/provider/application-status",
+  },
+};
+
+/**
+ * Create the in-app notification for a lifecycle event, inside the same
+ * transaction as the event. Idempotent via UNIQUE(user_id, event_id):
+ * onConflictDoNothing means a retried transition never double-notifies.
+ */
+async function createApplicationNotification(
+  tx: Tx,
+  userId: number,
+  eventId: number,
+  type: ApplicationEventType,
+): Promise<void> {
+  const content = NOTIFICATION_CONTENT[type];
+  await tx
+    .insert(providerNotificationsTable)
+    .values({
+      userId,
+      eventId,
+      type,
+      title: content.title,
+      body: content.body,
+      link: content.link,
+    })
+    .onConflictDoNothing({
+      target: [
+        providerNotificationsTable.userId,
+        providerNotificationsTable.eventId,
+      ],
+    });
+}
 
 /** Fetch the provider profile row for the currently authenticated provider. */
 async function getOwnProfile(userId: number) {
@@ -379,13 +433,17 @@ router.post(
       // Lifecycle event (MC8): draft → under_review. Same transaction, so the
       // event is recorded iff the transition commits. Reachable only from
       // `draft` (other statuses early-return above), so exactly one per submit.
-      await tx.insert(providerApplicationEventsTable).values({
-        providerApplicationId: application.id,
-        userId: req.user!.sub,
-        type: "submitted",
-        fromStatus: "draft",
-        toStatus: "under_review",
-      });
+      const [event] = await tx
+        .insert(providerApplicationEventsTable)
+        .values({
+          providerApplicationId: application.id,
+          userId: req.user!.sub,
+          type: "submitted",
+          fromStatus: "draft",
+          toStatus: "under_review",
+        })
+        .returning({ id: providerApplicationEventsTable.id });
+      await createApplicationNotification(tx, req.user!.sub, event!.id, "submitted");
     });
 
     const submitted = await getOwnApplication(req.user!.sub);
@@ -468,13 +526,22 @@ router.post(
       // Lifecycle event (MC8): rejected → draft. Same transaction; reached
       // only when current.status === "rejected" (draft is a noop, others
       // conflict above), so exactly one per real reset.
-      await tx.insert(providerApplicationEventsTable).values({
-        providerApplicationId: current.id,
-        userId: req.user!.sub,
-        type: "reset_to_draft",
-        fromStatus: "rejected",
-        toStatus: "draft",
-      });
+      const [event] = await tx
+        .insert(providerApplicationEventsTable)
+        .values({
+          providerApplicationId: current.id,
+          userId: req.user!.sub,
+          type: "reset_to_draft",
+          fromStatus: "rejected",
+          toStatus: "draft",
+        })
+        .returning({ id: providerApplicationEventsTable.id });
+      await createApplicationNotification(
+        tx,
+        req.user!.sub,
+        event!.id,
+        "reset_to_draft",
+      );
 
       return { kind: "reset" as const };
     });
@@ -1088,6 +1155,216 @@ async function buildProviderPublic(profileId: number) {
     .limit(1);
   return rows[0] ?? null;
 }
+
+// ── In-app provider notifications (owner-scoped, read-only + mark-read) ───────
+//
+// Provider-facing notifications generated transactionally from lifecycle
+// events. Owner scope is derived from the authenticated user; a notification's
+// user_id is never taken from the request. Reviewer-private material is never
+// exposed. Registered before the public "/:providerId" route so the literal
+// "/notifications" paths are not captured as a providerId.
+
+type NotificationCursor = { createdAt: string; id: number };
+
+function encodeNotificationCursor(row: { createdAt: Date; id: number }): string {
+  return Buffer.from(
+    JSON.stringify({ createdAt: row.createdAt.toISOString(), id: row.id }),
+    "utf8",
+  ).toString("base64");
+}
+
+function decodeNotificationCursor(raw: string): NotificationCursor | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.from(raw, "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const { createdAt, id } = parsed as Record<string, unknown>;
+  if (
+    typeof createdAt !== "string" ||
+    typeof id !== "number" ||
+    !Number.isInteger(id)
+  ) {
+    return null;
+  }
+  if (Number.isNaN(new Date(createdAt).getTime())) return null;
+  return { createdAt, id };
+}
+
+function serializeNotification(row: {
+  id: number;
+  type: ApplicationEventType;
+  title: string;
+  body: string;
+  link: string;
+  readAt: Date | null;
+  createdAt: Date;
+}) {
+  return {
+    id: row.id,
+    type: row.type,
+    title: row.title,
+    body: row.body,
+    link: row.link,
+    readAt: row.readAt,
+    createdAt: row.createdAt,
+  };
+}
+
+const notificationColumns = {
+  id: providerNotificationsTable.id,
+  type: providerNotificationsTable.type,
+  title: providerNotificationsTable.title,
+  body: providerNotificationsTable.body,
+  link: providerNotificationsTable.link,
+  readAt: providerNotificationsTable.readAt,
+  createdAt: providerNotificationsTable.createdAt,
+};
+
+// GET /providers/notifications — owner-scoped, newest-first, keyset-paginated.
+router.get(
+  "/notifications",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+
+    let limit = 20;
+    const rawLimit = req.query["limit"];
+    if (rawLimit !== undefined) {
+      const asString = String(rawLimit);
+      const parsed = Number(asString);
+      if (
+        !/^\d+$/.test(asString) ||
+        !Number.isInteger(parsed) ||
+        parsed < 1 ||
+        parsed > 50
+      ) {
+        res
+          .status(400)
+          .json({ error: "limit must be an integer between 1 and 50." });
+        return;
+      }
+      limit = parsed;
+    }
+
+    let cursor: NotificationCursor | null = null;
+    const rawCursor = req.query["cursor"];
+    if (rawCursor !== undefined) {
+      cursor = decodeNotificationCursor(String(rawCursor));
+      if (!cursor) {
+        res.status(400).json({ error: "Invalid pagination cursor." });
+        return;
+      }
+    }
+
+    // Ownership is always the authenticated user — never from the cursor.
+    const ownership = eq(providerNotificationsTable.userId, req.user!.sub);
+    const cursorDate = cursor ? new Date(cursor.createdAt) : null;
+    const where =
+      cursor && cursorDate
+        ? and(
+            ownership,
+            or(
+              lt(providerNotificationsTable.createdAt, cursorDate),
+              and(
+                eq(providerNotificationsTable.createdAt, cursorDate),
+                lt(providerNotificationsTable.id, cursor.id),
+              ),
+            ),
+          )
+        : ownership;
+
+    const rows = await db
+      .select(notificationColumns)
+      .from(providerNotificationsTable)
+      .where(where)
+      .orderBy(
+        desc(providerNotificationsTable.createdAt),
+        desc(providerNotificationsTable.id),
+      )
+      .limit(limit + 1);
+
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const last = page[page.length - 1];
+    const nextCursor = hasMore && last ? encodeNotificationCursor(last) : null;
+
+    res.json({
+      notifications: page.map(serializeNotification),
+      pagination: { limit, hasMore, nextCursor },
+    });
+  },
+);
+
+// GET /providers/notifications/unread-count — owner-scoped unread total.
+router.get(
+  "/notifications/unread-count",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const rows = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(providerNotificationsTable)
+      .where(
+        and(
+          eq(providerNotificationsTable.userId, req.user!.sub),
+          isNull(providerNotificationsTable.readAt),
+        ),
+      );
+    res.json({ unreadCount: rows[0]?.count ?? 0 });
+  },
+);
+
+// POST /providers/notifications/:id/read — owner-only, non-enumerating,
+// idempotent. 404 for a non-owner or unknown id (no existence disclosure).
+router.post(
+  "/notifications/:id/read",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+
+    const rawId = String(req.params["id"] ?? "");
+    if (!/^\d+$/.test(rawId)) {
+      res.status(400).json({ error: "Invalid notification id." });
+      return;
+    }
+    const id = Number(rawId);
+
+    const [row] = await db
+      .select(notificationColumns)
+      .from(providerNotificationsTable)
+      .where(
+        and(
+          eq(providerNotificationsTable.id, id),
+          eq(providerNotificationsTable.userId, req.user!.sub),
+        ),
+      )
+      .limit(1);
+
+    if (!row) {
+      res.status(404).json({ error: "Notification not found." });
+      return;
+    }
+
+    if (!row.readAt) {
+      const now = new Date();
+      await db
+        .update(providerNotificationsTable)
+        .set({ readAt: now })
+        .where(
+          and(
+            eq(providerNotificationsTable.id, id),
+            eq(providerNotificationsTable.userId, req.user!.sub),
+          ),
+        );
+      row.readAt = now;
+    }
+
+    res.json({ notification: serializeNotification(row) });
+  },
+);
 
 // ── Public: Provider Discovery ────────────────────────────────────────────────
 

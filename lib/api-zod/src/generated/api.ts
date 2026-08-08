@@ -506,6 +506,74 @@ export const GetProviderApplicationSubmissionsResponse = zod.object({
 
 
 /**
+ * In-app provider notifications generated from application lifecycle
+ * events, newest first, keyset-paginated. Owner-scoped to the
+ * authenticated provider; reviewer-private material is never returned.
+ * @summary Owner-scoped, newest-first in-app notifications (paginated)
+ */
+export const getProviderNotificationsQueryLimitDefault = 20;
+export const getProviderNotificationsQueryLimitMax = 50;
+
+
+
+export const GetProviderNotificationsQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(getProviderNotificationsQueryLimitMax).default(getProviderNotificationsQueryLimitDefault),
+  "cursor": zod.coerce.string().optional().describe('Opaque pagination cursor returned as `nextCursor` by a prior page.')
+})
+
+export const getProviderNotificationsResponsePaginationLimitMax = 50;
+
+
+
+export const GetProviderNotificationsResponse = zod.object({
+  "notifications": zod.array(zod.object({
+  "id": zod.int(),
+  "type": zod.enum(['submitted', 'reset_to_draft']),
+  "title": zod.string(),
+  "body": zod.string(),
+  "link": zod.string().describe('Provider-safe relative in-app path.'),
+  "readAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('In-app provider notification derived from a lifecycle event.')),
+  "pagination": zod.object({
+  "limit": zod.int().min(1).max(getProviderNotificationsResponsePaginationLimitMax),
+  "hasMore": zod.boolean(),
+  "nextCursor": zod.string().nullable()
+}).describe('Keyset pagination envelope for notifications.')
+})
+
+
+/**
+ * @summary Count of the owner's unread notifications
+ */
+export const GetProviderNotificationUnreadCountResponse = zod.object({
+  "unreadCount": zod.int()
+})
+
+
+/**
+ * Owner-only and non-enumerating: a notification that does not exist or
+ * is owned by another user returns 404 without disclosing which.
+ * @summary Mark one owned notification as read (idempotent)
+ */
+export const MarkProviderNotificationReadParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const MarkProviderNotificationReadResponse = zod.object({
+  "notification": zod.object({
+  "id": zod.int(),
+  "type": zod.enum(['submitted', 'reset_to_draft']),
+  "title": zod.string(),
+  "body": zod.string(),
+  "link": zod.string().describe('Provider-safe relative in-app path.'),
+  "readAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}).describe('In-app provider notification derived from a lifecycle event.')
+})
+
+
+/**
  * Returns a completion status for each required onboarding section. The server calculates all flags — do not trust client-side values for authorization.
  * @summary Get server-derived completion summary for the provider application
  */

@@ -376,6 +376,97 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /providers/notifications:
+    get:
+      operationId: getProviderNotifications
+      tags: [providers]
+      summary: Owner-scoped, newest-first in-app notifications (paginated)
+      description: |
+        In-app provider notifications generated from application lifecycle
+        events, newest first, keyset-paginated. Owner-scoped to the
+        authenticated provider; reviewer-private material is never returned.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque pagination cursor returned as `nextCursor` by a prior page.
+      responses:
+        "200":
+          description: Notification page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderNotificationListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /providers/notifications/unread-count:
+    get:
+      operationId: getProviderNotificationUnreadCount
+      tags: [providers]
+      summary: Count of the owner's unread notifications
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderNotificationUnreadCountResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /providers/notifications/{id}/read:
+    post:
+      operationId: markProviderNotificationRead
+      tags: [providers]
+      summary: Mark one owned notification as read (idempotent)
+      description: |
+        Owner-only and non-enumerating: a notification that does not exist or
+        is owned by another user returns 404 without disclosing which.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The notification after marking it read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderNotificationReadResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /providers/application/completion:
     get:
       operationId: getProviderApplicationCompletion
@@ -1625,6 +1716,87 @@ components:
         - summary
         - submissions
         - pagination
+
+    ProviderNotification:
+      type: object
+      description: In-app provider notification derived from a lifecycle event.
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum:
+            - submitted
+            - reset_to_draft
+        title:
+          type: string
+        body:
+          type: string
+        link:
+          type: string
+          description: Provider-safe relative in-app path.
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - title
+        - body
+        - link
+        - readAt
+        - createdAt
+
+    ProviderNotificationsPagination:
+      type: object
+      description: Keyset pagination envelope for notifications.
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+        hasMore:
+          type: boolean
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+        - limit
+        - hasMore
+        - nextCursor
+
+    ProviderNotificationListResponse:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderNotification"
+        pagination:
+          $ref: "#/components/schemas/ProviderNotificationsPagination"
+      required:
+        - notifications
+        - pagination
+
+    ProviderNotificationUnreadCountResponse:
+      type: object
+      properties:
+        unreadCount:
+          type: integer
+      required:
+        - unreadCount
+
+    ProviderNotificationReadResponse:
+      type: object
+      properties:
+        notification:
+          $ref: "#/components/schemas/ProviderNotification"
+      required:
+        - notification
 
     ProviderApplicationDetail:
       allOf:

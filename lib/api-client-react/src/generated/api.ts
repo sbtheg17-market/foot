@@ -39,6 +39,7 @@ import type {
   GetAdminVerificationQueueParams,
   GetClientCareHistoryParams,
   GetProviderApplicationSubmissionsParams,
+  GetProviderNotificationsParams,
   HealthStatus,
   InvoiceListResponse,
   InvoiceResponse,
@@ -54,6 +55,9 @@ import type {
   ProviderApplicationStatusResponse,
   ProviderApplicationSubmissionHistoryResponse,
   ProviderListResponse,
+  ProviderNotificationListResponse,
+  ProviderNotificationReadResponse,
+  ProviderNotificationUnreadCountResponse,
   ProviderProfileResponse,
   RegisterRequest,
   ReviewListResponse,
@@ -1106,6 +1110,243 @@ export function useGetProviderApplicationSubmissions<TData = Awaited<ReturnType<
 
 
 
+
+export const getGetProviderNotificationsUrl = (params?: GetProviderNotificationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/providers/notifications?${stringifiedParams}` : `/api/providers/notifications`
+}
+
+/**
+ * In-app provider notifications generated from application lifecycle
+ * events, newest first, keyset-paginated. Owner-scoped to the
+ * authenticated provider; reviewer-private material is never returned.
+ * @summary Owner-scoped, newest-first in-app notifications (paginated)
+ */
+export const getProviderNotifications = async (params?: GetProviderNotificationsParams, options?: Parameters<typeof customFetch>[1]): Promise<ProviderNotificationListResponse> => {
+
+  return customFetch<ProviderNotificationListResponse>(getGetProviderNotificationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProviderNotificationsQueryKey = (params?: GetProviderNotificationsParams,) => {
+    return [
+    `/api/providers/notifications`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetProviderNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof getProviderNotifications>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(params?: GetProviderNotificationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProviderNotificationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderNotifications>>> = ({ signal }) => getProviderNotifications(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderNotifications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProviderNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderNotifications>>>
+export type GetProviderNotificationsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Owner-scoped, newest-first in-app notifications (paginated)
+ */
+
+export function useGetProviderNotifications<TData = Awaited<ReturnType<typeof getProviderNotifications>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(
+ params?: GetProviderNotificationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProviderNotificationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetProviderNotificationUnreadCountUrl = () => {
+
+
+
+
+  return `/api/providers/notifications/unread-count`
+}
+
+/**
+ * @summary Count of the owner's unread notifications
+ */
+export const getProviderNotificationUnreadCount = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderNotificationUnreadCountResponse> => {
+
+  return customFetch<ProviderNotificationUnreadCountResponse>(getGetProviderNotificationUnreadCountUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProviderNotificationUnreadCountQueryKey = () => {
+    return [
+    `/api/providers/notifications/unread-count`
+    ] as const;
+    }
+
+
+export const getGetProviderNotificationUnreadCountQueryOptions = <TData = Awaited<ReturnType<typeof getProviderNotificationUnreadCount>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderNotificationUnreadCount>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProviderNotificationUnreadCountQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderNotificationUnreadCount>>> = ({ signal }) => getProviderNotificationUnreadCount({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderNotificationUnreadCount>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProviderNotificationUnreadCountQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderNotificationUnreadCount>>>
+export type GetProviderNotificationUnreadCountQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Count of the owner's unread notifications
+ */
+
+export function useGetProviderNotificationUnreadCount<TData = Awaited<ReturnType<typeof getProviderNotificationUnreadCount>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderNotificationUnreadCount>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProviderNotificationUnreadCountQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMarkProviderNotificationReadUrl = (id: number,) => {
+
+
+
+
+  return `/api/providers/notifications/${id}/read`
+}
+
+/**
+ * Owner-only and non-enumerating: a notification that does not exist or
+ * is owned by another user returns 404 without disclosing which.
+ * @summary Mark one owned notification as read (idempotent)
+ */
+export const markProviderNotificationRead = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ProviderNotificationReadResponse> => {
+
+  return customFetch<ProviderNotificationReadResponse>(getMarkProviderNotificationReadUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkProviderNotificationReadMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markProviderNotificationRead>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markProviderNotificationRead>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['markProviderNotificationRead'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markProviderNotificationRead>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  markProviderNotificationRead(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkProviderNotificationReadMutationResult = NonNullable<Awaited<ReturnType<typeof markProviderNotificationRead>>>
+
+    export type MarkProviderNotificationReadMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Mark one owned notification as read (idempotent)
+ */
+export const useMarkProviderNotificationRead = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markProviderNotificationRead>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markProviderNotificationRead>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getMarkProviderNotificationReadMutationOptions(options));
+    }
 
 export const getGetProviderApplicationCompletionUrl = () => {
 

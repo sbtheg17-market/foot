@@ -151,6 +151,54 @@ export interface ProviderApplicationSubmissionHistoryResponse {
   pagination: ProviderApplicationSubmissionsPagination;
 }
 
+export type ProviderNotificationType = typeof ProviderNotificationType[keyof typeof ProviderNotificationType];
+
+
+export const ProviderNotificationType = {
+  submitted: 'submitted',
+  reset_to_draft: 'reset_to_draft',
+} as const;
+
+/**
+ * In-app provider notification derived from a lifecycle event.
+ */
+export interface ProviderNotification {
+  id: number;
+  type: ProviderNotificationType;
+  title: string;
+  body: string;
+  /** Provider-safe relative in-app path. */
+  link: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
+/**
+ * Keyset pagination envelope for notifications.
+ */
+export interface ProviderNotificationsPagination {
+  /**
+     * @minimum 1
+     * @maximum 50
+     */
+  limit: number;
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+export interface ProviderNotificationListResponse {
+  notifications: ProviderNotification[];
+  pagination: ProviderNotificationsPagination;
+}
+
+export interface ProviderNotificationUnreadCountResponse {
+  unreadCount: number;
+}
+
+export interface ProviderNotificationReadResponse {
+  notification: ProviderNotification;
+}
+
 export type ProviderApplicationDetail = ProviderApplicationState & ({
   providerProfileId: number;
   profile: ProviderApplicationProfile;
@@ -836,6 +884,18 @@ offset?: number;
 };
 
 export type GetProviderApplicationSubmissionsParams = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+/**
+ * Opaque pagination cursor returned as `nextCursor` by a prior page.
+ */
+cursor?: string;
+};
+
+export type GetProviderNotificationsParams = {
 /**
  * @minimum 1
  * @maximum 50

@@ -65,6 +65,32 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 047 — 2026-08-08
+**Agent:** E1 Agent (Emergent, Neo)
+**Scope:** `M`
+**Triggered by:** Phase 2 MC8-lite **Commit 3 of 4** — in-app provider notifications + owner-scoped read APIs, off verified base `971cf70715b9d630e8fd59459f6675ae452f80b1`.
+
+**What was done:**
+- Step-0 gate re-run: base `971cf70`, `0/0`, clean. Branch `phase2-mc8-notifications`.
+- Added `provider_notifications` (`lib/db/src/schema/provider-notifications.ts`): FKs `user_id → users`, `event_id → provider_application_events` (both `ON DELETE CASCADE`), `type` (reuses the event enum), server-rendered `title`/`body`, provider-safe relative `link`, nullable `read_at`, `created_at`. `UNIQUE(user_id, event_id)` idempotency + index `(user_id, created_at DESC, id DESC)`. Registered in `schema/index.ts`.
+- Notifications are created **in the same transaction as their lifecycle event** (submit/reset), via a shared `createApplicationNotification` helper using `onConflictDoNothing` on the unique target — so a retried transition never double-notifies. Content is event-keyed and provider-safe; no reviewer-private material.
+- New owner-scoped APIs on the providers router (registered before the public `/:providerId` route): `GET /providers/notifications` (newest-first, MC5-style keyset cursor pagination, limit 1–50 default 20), `GET /providers/notifications/unread-count`, `POST /providers/notifications/:id/read` (owner-only, non-enumerating 404, idempotent). OpenAPI spec extended + zod/react-query clients regenerated (codegen only).
+- Exclusions honored: no push/email, no outbox/retry, no reviewer/admin notifications, no reviewer endpoint, no new event types, no web/mobile UI, no Commit-4 tests.
+
+**Validation (local, Postgres 15 test DB, server on 8099):**
+- Atomicity: submit → exactly 1 `submitted` notification (events=1/notifs=1); reset → exactly 1 `reset_to_draft`. Idempotent submit/reset add none.
+- Ownership isolation: provider B sees 0; B marking A's notification → 404; A's unread unchanged.
+- Pagination: `limit=1` keyset — page1 `[reset_to_draft]` hasMore=true → page2 `[submitted]` hasMore=false, nextCursor=null.
+- Unread count + mark-read: unread 1→0 after read; second read idempotent (200, unread stays 0).
+- Errors: unknown id 404, non-numeric id 400, unauthenticated 401.
+- Regression: `test:provider-history` 11/11, `test:provider-resubmission` 11/11, `test:provider-status` 9/9, `test:onboarding` 23/23, `test:authorization` 7/7. Full-workspace typecheck ✅, build ✅.
+
+**Files changed:** `lib/db/src/schema/provider-notifications.ts` (new), `lib/db/src/schema/index.ts`, `artifacts/api-server/src/routes/providers.ts`, `lib/api-spec/openapi.yaml`, regenerated `lib/api-client-react/src/generated/*` and `lib/api-zod/src/generated/*`, `.agents/LOG.md`, `.agents/NEXT_TASK.md`.
+
+**Build state at end:** `phase2-mc8-notifications` 1 ahead / 0 behind `origin/main`; clean; lockfile restored; not pushed. Commit 4 (durable API regression coverage) remains separately gated.
+
+---
+
 ### Session 046 — 2026-08-08
 **Agent:** E1 Agent (Emergent, Neo)
 **Scope:** `S`

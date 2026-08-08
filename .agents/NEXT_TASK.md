@@ -3,25 +3,28 @@
 ## Current gate
 
 MC8-lite is in progress as four separately-reviewed commits off the MC7
-base. **Commits 1–2 of 4 are done** on `phase2-mc8-notifications`
-(1 ahead / 0 behind `origin/main` after each publish):
+base. **Commits 1–3 of 4 are done** on `phase2-mc8-notifications`:
 
-- **Commit 1 (landed, `0ab9964`):** composite index
-  `(provider_application_id, created_at DESC, id DESC)` on
+- **Commit 1 (landed, `0ab9964`):** composite index on
   `provider_application_submissions`; redundant single-column index retired.
-- **Commit 2 (done, awaiting review):** append-only `provider_application_events`
-  (enum `submitted` | `reset_to_draft`, `from_status`/`to_status`), emitted
-  inside the existing submit/reset transactions — exactly-once, atomic. No
-  notification table/API, reviewer endpoint, or web/mobile changes.
+- **Commit 2 (landed, `971cf70`):** append-only `provider_application_events`
+  (`submitted` | `reset_to_draft`), emitted inside the submit/reset
+  transactions — exactly-once, atomic.
+- **Commit 3 (done, awaiting review):** `provider_notifications`
+  (`UNIQUE(user_id, event_id)`) created in the same transaction as each
+  event via `onConflictDoNothing`; owner-scoped read APIs
+  `GET /providers/notifications` (keyset paginated),
+  `GET /providers/notifications/unread-count`,
+  `POST /providers/notifications/:id/read` (non-enumerating, idempotent).
+  OpenAPI + generated clients regenerated. No push/email, outbox,
+  reviewer/admin notifications, reviewer endpoint, new event types, or UI.
 
-**Commits 3–4 remain gated pending separate approval of Commit 2:**
-3. In-app notifications (`provider_notifications`, `UNIQUE(user_id,
-   event_id)`) + owner-scoped read APIs (list, unread-count, mark-read),
-   created in the same transaction as each event.
-4. API regression coverage (extend the `node:test` harness), including
-   durable event-emission and notification tests.
+**Commit 4 remains gated pending separate approval of Commit 3:**
+4. Durable API regression coverage (extend the `node:test` harness):
+   event emission, notification atomicity, ownership isolation, pagination,
+   unread-count, mark-read idempotency, and privacy assertions.
 
-Do not start Commit 3 until Commit 2 is reviewed and approved.
+Do not start Commit 4 until Commit 3 is reviewed and approved.
 
 ## Post-MC8 deferred
 
