@@ -1466,6 +1466,39 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 
 ---
 
+### Session 021 — 2026-08-08
+**Agent:** E1 (Emergent) Main Agent
+**Scope:** `S`
+**Triggered by:** User explicitly approved Phase 1 Micro-checkpoint 4 (mobile Expo rejected-state UI).
+
+**What was done:**
+- Verified pre-flight state: `origin/main` at `dc7a40d…07591` (MC3), local HEAD == origin/main, tracked working tree clean, only untracked handoff artifact `phase1-mc2.patch`.
+- Created safety branch `backup/neo-before-mc4` from `main`.
+- Inspected mobile architecture (`artifacts/mobile/` — Expo Router, `useAuth` context, `useColors` hook, existing `provider/application-status.tsx`), the generated shared client (`@workspace/api-client-react`) hooks and schemas for the MC2 status API, and the web MC3 reference (`artifacts/web/src/pages/provider-application-status.tsx`) to preserve behaviour parity.
+- Rewrote `artifacts/mobile/app/provider/application-status.tsx` to:
+  - Consume `GET /providers/application/status` via `useGetProviderApplicationStatus` and its generated query-key helper.
+  - Derive every action's visibility strictly from server-provided `canEdit` / `canReset` / `canResubmit`.
+  - Render the provider-visible `rejectionReason` prominently only when `status === 'rejected'` (reviewer-private `reviewerNotes` is never referenced and never in the payload).
+  - Render the `submissionCount` and public snapshot fields of `latestSubmission` (a low-emphasis card, not a full history list — matches web MC3).
+  - Preserve the existing mobile navigation contract: approved → `/(tabs)/account`, draft → `/onboarding/provider`, unauthenticated → `/auth/login`.
+  - Cover loading, unauthorized, 404 (empty-application), 403 (non-member), generic error, and mutation-error states via `testID`s aligned with the web page.
+  - Wire `useResetProviderApplication` and `useSubmitProviderApplication` mutations with server-only cache invalidation via `getGetProviderApplicationStatusQueryKey()`.
+- Updated `.agents/NEXT_TASK.md` to reflect MC1–MC4 completion and to queue the next baseline-cleanup and Phase 2 slices.
+- Validation: `pnpm --filter @workspace/mobile run typecheck` → clean; `pnpm --filter @workspace/mobile run build` → clean.
+- Scope hygiene: no changes to API, database, migrations, generated API contracts, web code, or unrelated mobile screens.
+- Followed the credit-safe workflow: single focused commit, no push. Patch generated at `/app/phase1-mc4.patch`.
+
+**Files changed:**
+- `artifacts/mobile/app/provider/application-status.tsx`
+- `.agents/LOG.md`
+- `.agents/NEXT_TASK.md`
+
+**Build state at end:** Local HEAD == 1 focused MC4 commit on top of `origin/main` (`dc7a40d`). Ahead 1 / behind 0. Working tree clean except intentional untracked handoff artifacts. All safety branches preserved.
+
+**Next best action:** Await user's external application of `/app/phase1-mc4.patch` to canonical `origin/main`, then perform read-only verification and `git reset --hard origin/main` locally. Do not begin baseline test-drift cleanup or Phase 2 until explicitly approved.
+
+---
+
 ## New Session Template
 
 Copy and append below the last entry:
