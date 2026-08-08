@@ -1,0 +1,815 @@
+From cf949c9e67af0d2d48f314fdfef9b8761cf3b342 Mon Sep 17 00:00:00 2001
+From: E1 Agent <e1@emergent.dev>
+Date: Sat, 8 Aug 2026 14:37:18 +0000
+Subject: [PATCH] onboarding: mirror provider status rejected-state UI on
+ mobile
+
+---
+ .agents/LOG.md                                |  33 +
+ .agents/NEXT_TASK.md                          |  62 +-
+ .../app/provider/application-status.tsx       | 605 ++++++++++++++++--
+ 3 files changed, 621 insertions(+), 79 deletions(-)
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index 6113e5e..52a918c 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -1466,6 +1466,39 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
+ 
+ ---
+ 
++### Session 021 — 2026-08-08
++**Agent:** E1 (Emergent) Main Agent
++**Scope:** `S`
++**Triggered by:** User explicitly approved Phase 1 Micro-checkpoint 4 (mobile Expo rejected-state UI).
++
++**What was done:**
++- Verified pre-flight state: `origin/main` at `dc7a40d…07591` (MC3), local HEAD == origin/main, tracked working tree clean, only untracked handoff artifact `phase1-mc2.patch`.
++- Created safety branch `backup/neo-before-mc4` from `main`.
++- Inspected mobile architecture (`artifacts/mobile/` — Expo Router, `useAuth` context, `useColors` hook, existing `provider/application-status.tsx`), the generated shared client (`@workspace/api-client-react`) hooks and schemas for the MC2 status API, and the web MC3 reference (`artifacts/web/src/pages/provider-application-status.tsx`) to preserve behaviour parity.
++- Rewrote `artifacts/mobile/app/provider/application-status.tsx` to:
++  - Consume `GET /providers/application/status` via `useGetProviderApplicationStatus` and its generated query-key helper.
++  - Derive every action's visibility strictly from server-provided `canEdit` / `canReset` / `canResubmit`.
++  - Render the provider-visible `rejectionReason` prominently only when `status === 'rejected'` (reviewer-private `reviewerNotes` is never referenced and never in the payload).
++  - Render the `submissionCount` and public snapshot fields of `latestSubmission` (a low-emphasis card, not a full history list — matches web MC3).
++  - Preserve the existing mobile navigation contract: approved → `/(tabs)/account`, draft → `/onboarding/provider`, unauthenticated → `/auth/login`.
++  - Cover loading, unauthorized, 404 (empty-application), 403 (non-member), generic error, and mutation-error states via `testID`s aligned with the web page.
++  - Wire `useResetProviderApplication` and `useSubmitProviderApplication` mutations with server-only cache invalidation via `getGetProviderApplicationStatusQueryKey()`.
++- Updated `.agents/NEXT_TASK.md` to reflect MC1–MC4 completion and to queue the next baseline-cleanup and Phase 2 slices.
++- Validation: `pnpm --filter @workspace/mobile run typecheck` → clean; `pnpm --filter @workspace/mobile run build` → clean.
++- Scope hygiene: no changes to API, database, migrations, generated API contracts, web code, or unrelated mobile screens.
++- Followed the credit-safe workflow: single focused commit, no push. Patch generated at `/app/phase1-mc4.patch`.
++
++**Files changed:**
++- `artifacts/mobile/app/provider/application-status.tsx`
++- `.agents/LOG.md`
++- `.agents/NEXT_TASK.md`
++
++**Build state at end:** Local HEAD == 1 focused MC4 commit on top of `origin/main` (`dc7a40d`). Ahead 1 / behind 0. Working tree clean except intentional untracked handoff artifacts. All safety branches preserved.
++
++**Next best action:** Await user's external application of `/app/phase1-mc4.patch` to canonical `origin/main`, then perform read-only verification and `git reset --hard origin/main` locally. Do not begin baseline test-drift cleanup or Phase 2 until explicitly approved.
++
++---
++
+ ## New Session Template
+ 
+ Copy and append below the last entry:
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index 3c15cb2..dec6f78 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -1,16 +1,22 @@
+-# Next product task — Phase 1 micro-checkpoint 4: mobile rejected-state UI
++# Next product task — Phase 1 cleanup and Phase 2 progress presentation
+ 
+ ## Current gate
+ 
+-Phase 1 micro-checkpoints 1–3 are complete. `origin/main` at time of MC3
+-handoff was `1f4c018` (MC2 published). MC3 lands one focused commit on top
+-that changes only `artifacts/web/src/pages/provider-application-status.tsx`
+-plus the two `.agents/` docs — no server, database, mobile, migration, or
+-generated-client changes.
++Phase 1 micro-checkpoints 1–4 are complete.
+ 
+-The provider now sees, on the web:
++- MC1 (rejected-provider resubmission — server state transitions) merged at
++  `54534b0`.
++- MC2 (rejection-reason and status API — server only) merged at `1f4c018`.
++- MC3 (web rejected-state UI) merged at `dc7a40d`.
++- MC4 (mobile rejected-state UI) lands one focused commit on top that
++  changes only `artifacts/mobile/app/provider/application-status.tsx`
++  plus the two `.agents/` docs — no server, database, web, migration,
++  or generated-client changes.
+ 
+-- current `status` with a labeled pill
++The provider now sees, on Expo mobile, the same server-authoritative
++rejected-state experience already live on web:
++
++- current `status` with a labelled pill
+ - `submittedAt` / `reviewedAt` for the current cycle
+ - a dedicated reviewer-feedback card containing the provider-visible
+   `rejectionReason` (only when status is `rejected`)
+@@ -18,35 +24,23 @@ The provider now sees, on the web:
+   fields of `latestSubmission`
+ - server-gated CTAs — Reset (when `canReset`), Submit for review
+   (when `canResubmit`), Continue editing (when `canEdit`)
+-- loading, unauthorized (401), no-application (404), non-member (403),
++- loading, unauthorized, no-application (404), non-member (403),
+   generic error, and mutation-error states
+ 
+-Reviewer-private `reviewerNotes` is never referenced by the web code and
+-never enters the status response payload.
++Reviewer-private `reviewerNotes` is never referenced by the mobile code
++and never enters the status response payload.
+ 
+-## Next scope — Phase 1 micro-checkpoint 4 (mobile only)
++## Next scope (queued, not started)
+ 
+-Bring the same server-authoritative rejected-state experience to Expo
+-mobile (`artifacts/mobile/`).
++Two independent cleanup / follow-up slices can be scheduled after user
++approval:
+ 
+-- Read from `GET /providers/application/status` via the shared
+-  `@workspace/api-client-react` hook (`useGetProviderApplicationStatus`).
+-- Reuse the exact same server-derived visibility rules: Reset action only
+-  when `canReset`, Resubmit only when `canResubmit`, Continue editing only
+-  when `canEdit`.
+-- Render the provider-visible `rejectionReason` prominently when the
+-  status is `rejected`; never render `reviewerNotes` (it isn't in the
+-  payload).
+-- Render the `submissionCount` and public `latestSubmission` summary the
+-  same way the web page does — a low-emphasis card, not a list of every
+-  historical submission.
+-- Preserve the mobile navigation contract (approved → provider tabs,
+-  draft → mobile onboarding flow).
+-- Keep loading / unauthorized / 404 / 403 / error / mutation-error
+-  states aligned with the mobile design system already in use elsewhere
+-  in the app.
+-- Do not add web work in this slice.
+-- Do not add server changes.
++1. **Baseline test-drift cleanup** — resolve the pre-existing failures
++   in `test:provider-application` (2/8) and `test:onboarding` (1/2)
++   without expanding scope beyond the affected test files.
++2. **Phase 2 — post-submission progress presentation** — extend the
++   status API and UIs with a submission-history timeline surface once
++   product scope is confirmed.
+ 
+ ## Guardrails
+ 
+@@ -59,8 +53,8 @@ mobile (`artifacts/mobile/`).
+   public snapshot fields of `previousSubmissions` are safe to render.
+ - Signup `roleIntent` remains an onboarding request, not an authorization
+   claim. Approved-provider authorization boundary must stay intact.
+-- Do not duplicate server authorization rules in the mobile client —
+-  render actions strictly from `canEdit` / `canReset` / `canResubmit`.
++- Do not duplicate server authorization rules in any client — render
++  actions strictly from `canEdit` / `canReset` / `canResubmit`.
+ 
+ ## Separately queued cleanup slices (not for MC4)
+ 
+diff --git a/artifacts/mobile/app/provider/application-status.tsx b/artifacts/mobile/app/provider/application-status.tsx
+index 61c5395..d83ea14 100644
+--- a/artifacts/mobile/app/provider/application-status.tsx
++++ b/artifacts/mobile/app/provider/application-status.tsx
+@@ -1,96 +1,611 @@
+ import React, { useEffect } from 'react';
+-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
++import {
++  ActivityIndicator,
++  ScrollView,
++  StyleSheet,
++  Text,
++  TouchableOpacity,
++  View,
++} from 'react-native';
+ import { router } from 'expo-router';
+-import { useGetProviderApplication } from '@workspace/api-client-react';
++import { useQueryClient } from '@tanstack/react-query';
++import {
++  getGetProviderApplicationStatusQueryKey,
++  useGetProviderApplicationStatus,
++  useResetProviderApplication,
++  useSubmitProviderApplication,
++} from '@workspace/api-client-react';
+ import { useAuth } from '@/context/auth';
+ import { useColors } from '@/hooks/useColors';
+ 
+-const copy: Record<string, { title: string; body: string }> = {
++/**
++ * Provider application status screen — Phase 1 micro-checkpoint 4 (mobile).
++ *
++ * Mobile parity for the web MC3 experience. Reads the server-authoritative
++ * status view from `GET /providers/application/status` and derives every
++ * action's visibility strictly from server-provided fields
++ * (`canReset`, `canResubmit`, `canEdit`). The client never duplicates
++ * authorization logic. The provider-visible `rejectionReason` and public
++ * `previousSubmissions` snapshot are surfaced only for the owner;
++ * reviewer-private notes are never rendered because they are never present
++ * in the response payload.
++ */
++
++const statusCopy: Record<
++  string,
++  { eyebrow: string; title: string; body: string }
++> = {
++  draft: {
++    eyebrow: 'APPLICATION STATUS',
++    title: 'Pick up where you left off',
++    body: 'Finish the remaining onboarding steps to send your application in for review.',
++  },
+   under_review: {
++    eyebrow: 'APPLICATION STATUS',
+     title: 'Your application is with our review team',
+     body: 'We are checking your profile and credentials so clients can book with confidence. We will update this space when there is a decision.',
+   },
++  approved: {
++    eyebrow: 'APPLICATION STATUS',
++    title: "You're approved",
++    body: 'Your provider account is active. You can accept bookings and manage clients.',
++  },
+   rejected: {
++    eyebrow: 'APPLICATION STATUS',
+     title: 'A little more information is needed',
+-    body: 'Your application needs an update before it can move forward. Review your profile and continue when you are ready.',
++    body: 'Please review the reviewer feedback below, reset the application to draft, update the flagged details, and resubmit when ready.',
+   },
+   suspended: {
++    eyebrow: 'APPLICATION STATUS',
+     title: 'Your provider application is paused',
+     body: 'Provider access is currently paused. Please contact support if you need help understanding the next step.',
+   },
+ };
+ 
++function formatDateTime(value: string | null | undefined): string {
++  if (!value) return '—';
++  try {
++    return new Date(value).toLocaleString(undefined, {
++      dateStyle: 'medium',
++      timeStyle: 'short',
++    });
++  } catch {
++    return value;
++  }
++}
++
++function errorStatus(err: unknown): number | undefined {
++  return (err as { status?: number } | undefined)?.status;
++}
++
+ export default function ProviderApplicationStatusScreen() {
+   const colors = useColors();
+   const { user, isLoading: authLoading } = useAuth();
+-  const query = useGetProviderApplication({
+-    query: { enabled: Boolean(user), retry: false, queryKey: ['provider-application'] },
++  const queryClient = useQueryClient();
++
++  const statusQuery = useGetProviderApplicationStatus({
++    query: {
++      enabled: Boolean(user),
++      retry: false,
++      queryKey: getGetProviderApplicationStatusQueryKey(),
++    },
++  });
++  const view = statusQuery.data?.status;
++
++  const invalidateStatus = () =>
++    queryClient.invalidateQueries({
++      queryKey: getGetProviderApplicationStatusQueryKey(),
++    });
++
++  const resetMutation = useResetProviderApplication({
++    mutation: { onSuccess: invalidateStatus },
++  });
++  const submitMutation = useSubmitProviderApplication({
++    mutation: { onSuccess: invalidateStatus },
+   });
+-  const application = query.data?.application;
+ 
+   useEffect(() => {
+-    if (!authLoading && !user) router.replace('/auth/login');
+-    if (application?.status === 'draft') router.replace('/onboarding/provider');
+-    if (application?.status === 'approved') router.replace('/(tabs)/account');
+-  }, [application, authLoading, user]);
++    if (!authLoading && !user) {
++      router.replace('/auth/login');
++      return;
++    }
++    // Route out of this screen when the server-derived state says another
++    // surface is the right destination. Drafts belong in the onboarding
++    // funnel; approved providers belong in the provider tabs.
++    if (view?.status === 'draft') {
++      router.replace('/onboarding/provider');
++    } else if (view?.status === 'approved') {
++      router.replace('/(tabs)/account');
++    }
++  }, [authLoading, user, view?.status]);
+ 
+-  if (authLoading || query.isLoading) {
++  // ── Loading ──────────────────────────────────────────────────────────────
++  if (authLoading || statusQuery.isLoading) {
+     return (
+-      <View style={[styles.center, { backgroundColor: colors.background }]}>
++      <View
++        testID="application-status-loading"
++        style={[styles.center, { backgroundColor: colors.background }]}
++      >
+         <ActivityIndicator color={colors.primary} />
+       </View>
+     );
+   }
+ 
+-  const status = application?.status ?? 'under_review';
+-  const statusCopy = copy[status] ?? copy.under_review;
++  // ── Unauthorized (no session) ────────────────────────────────────────────
++  if (!user) {
++    return (
++      <Shell colors={colors}>
++        <Text
++          testID="application-status-unauthorized"
++          style={[styles.body, { color: colors.mutedForeground }]}
++        >
++          Redirecting to sign in…
++        </Text>
++      </Shell>
++    );
++  }
++
++  // ── Error / empty branches (401 → redirect above; 404, 403, generic) ────
++  if (statusQuery.isError || !view) {
++    const status = errorStatus(statusQuery.error);
++
++    if (status === 404) {
++      return (
++        <Shell colors={colors}>
++          <Text style={[styles.eyebrow, { color: colors.primary }]}>
++            APPLICATION STATUS
++          </Text>
++          <Text
++            testID="application-status-empty-title"
++            style={[styles.title, { color: colors.foreground }]}
++          >
++            Start your provider application
++          </Text>
++          <Text style={[styles.body, { color: colors.mutedForeground }]}>
++            You haven&apos;t started an application yet. Begin onboarding to
++            send one in.
++          </Text>
++          <TouchableOpacity
++            testID="application-status-start-cta"
++            onPress={() => router.replace('/onboarding/provider')}
++            style={[styles.button, { backgroundColor: colors.primary }]}
++          >
++            <Text style={styles.buttonText}>Start onboarding</Text>
++          </TouchableOpacity>
++        </Shell>
++      );
++    }
++
++    if (status === 403) {
++      return (
++        <Shell colors={colors}>
++          <Text
++            testID="application-status-forbidden"
++            style={[styles.body, { color: colors.mutedForeground }]}
++          >
++            You don&apos;t have access to a provider application on this
++            account.
++          </Text>
++          <TouchableOpacity
++            testID="application-status-continue-client-cta"
++            onPress={() => router.replace('/(tabs)')}
++            style={styles.linkButton}
++          >
++            <Text style={[styles.linkText, { color: colors.mutedForeground }]}>
++              Continue as a client
++            </Text>
++          </TouchableOpacity>
++        </Shell>
++      );
++    }
++
++    return (
++      <Shell colors={colors}>
++        <Text
++          testID="application-status-error"
++          style={[styles.body, { color: colors.destructive }]}
++        >
++          We couldn&apos;t load your application status. Please try again in a
++          moment.
++        </Text>
++        <TouchableOpacity
++          testID="application-status-retry"
++          onPress={() => statusQuery.refetch()}
++          style={[styles.secondaryButton, { borderColor: colors.border }]}
++        >
++          <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
++            Try again
++          </Text>
++        </TouchableOpacity>
++      </Shell>
++    );
++  }
++
++  // ── Loaded — view is present ─────────────────────────────────────────────
++  const copy = statusCopy[view.status] ?? statusCopy.under_review!;
++  const isRejected = view.status === 'rejected';
++  const historyCount = view.submissionCount ?? 0;
++  const latest = view.latestSubmission;
+ 
+   return (
+-    <View style={[styles.container, { backgroundColor: colors.background }]}>
++    <ScrollView
++      testID="application-status-page"
++      contentContainerStyle={[
++        styles.scrollContent,
++        { backgroundColor: colors.background },
++      ]}
++      style={{ backgroundColor: colors.background }}
++    >
+       <View style={[styles.logo, { backgroundColor: colors.primary }]}>
+         <Text style={styles.logoText}>O</Text>
+       </View>
+-      <Text style={[styles.eyebrow, { color: colors.primary }]}>APPLICATION STATUS</Text>
+-      <Text style={[styles.title, { color: colors.foreground }]}>{statusCopy.title}</Text>
+-      <Text style={[styles.body, { color: colors.mutedForeground }]}>{statusCopy.body}</Text>
+-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
++      <Text style={[styles.eyebrow, { color: colors.primary }]}>
++        {copy.eyebrow}
++      </Text>
++      <Text
++        testID="application-status-title"
++        style={[styles.title, { color: colors.foreground }]}
++      >
++        {copy.title}
++      </Text>
++      <Text
++        testID="application-status-body"
++        style={[styles.body, { color: colors.mutedForeground }]}
++      >
++        {copy.body}
++      </Text>
++
++      {/* Current status card */}
++      <View
++        style={[
++          styles.card,
++          { backgroundColor: colors.card, borderColor: colors.border },
++        ]}
++      >
+         <View style={styles.statusRow}>
+-          <Text style={[styles.statusLabel, { color: colors.foreground }]}>Current status</Text>
+-          <Text style={[styles.badge, { backgroundColor: colors.secondary, color: colors.foreground }]}>
+-            {status.replace('_', ' ')}
++          <Text style={[styles.statusLabel, { color: colors.foreground }]}>
++            Current status
++          </Text>
++          <Text
++            testID="application-status-pill"
++            style={[
++              styles.badge,
++              {
++                backgroundColor: colors.secondary,
++                color: colors.foreground,
++              },
++            ]}
++          >
++            {view.status.replace('_', ' ')}
+           </Text>
+         </View>
+-        <Text style={[styles.cardText, { color: colors.mutedForeground }]}>
+-          You can still use your client account while provider review is in progress.
+-        </Text>
++        {view.submittedAt && (
++          <Text style={[styles.metaLine, { color: colors.mutedForeground }]}>
++            <Text style={[styles.metaLabel, { color: colors.foreground }]}>
++              Submitted:{' '}
++            </Text>
++            <Text testID="application-status-submitted-at">
++              {formatDateTime(view.submittedAt)}
++            </Text>
++          </Text>
++        )}
++        {view.reviewedAt && (
++          <Text style={[styles.metaLine, { color: colors.mutedForeground }]}>
++            <Text style={[styles.metaLabel, { color: colors.foreground }]}>
++              Reviewed:{' '}
++            </Text>
++            <Text testID="application-status-reviewed-at">
++              {formatDateTime(view.reviewedAt)}
++            </Text>
++          </Text>
++        )}
+       </View>
+-      {status === 'rejected' && (
+-        <TouchableOpacity onPress={() => router.replace('/onboarding/provider')} style={[styles.button, { backgroundColor: colors.primary }]}>
+-          <Text style={styles.buttonText}>Update application</Text>
++
++      {/* Rejection reason (owner-visible; reviewerNotes never appears) */}
++      {isRejected && view.rejectionReason && (
++        <View
++          testID="application-status-rejection-card"
++          style={[
++            styles.card,
++            {
++              backgroundColor: colors.card,
++              borderColor: colors.destructive,
++            },
++          ]}
++        >
++          <Text
++            style={[styles.rejectionEyebrow, { color: colors.destructive }]}
++          >
++            REVIEWER FEEDBACK
++          </Text>
++          <Text
++            testID="application-status-rejection-reason"
++            style={[styles.rejectionBody, { color: colors.foreground }]}
++          >
++            {view.rejectionReason}
++          </Text>
++        </View>
++      )}
++
++      {/* Prior-submissions summary (public snapshot fields only) */}
++      {historyCount > 0 && (
++        <View
++          testID="application-status-history-card"
++          style={[
++            styles.card,
++            { backgroundColor: colors.card, borderColor: colors.border },
++          ]}
++        >
++          <View style={styles.statusRow}>
++            <Text style={[styles.statusLabel, { color: colors.foreground }]}>
++              Prior submissions
++            </Text>
++            <Text
++              testID="application-status-history-count"
++              style={[
++                styles.badge,
++                {
++                  backgroundColor: colors.secondary,
++                  color: colors.foreground,
++                },
++              ]}
++            >
++              {historyCount}
++            </Text>
++          </View>
++          {latest && (
++            <View style={styles.historyList}>
++              <Text style={[styles.metaLine, { color: colors.mutedForeground }]}>
++                <Text style={[styles.metaLabel, { color: colors.foreground }]}>
++                  Latest outcome:{' '}
++                </Text>
++                <Text
++                  testID="application-status-latest-outcome"
++                  style={styles.capitalize}
++                >
++                  {latest.outcome}
++                </Text>
++              </Text>
++              {latest.submittedAt && (
++                <Text
++                  style={[styles.metaLine, { color: colors.mutedForeground }]}
++                >
++                  <Text style={[styles.metaLabel, { color: colors.foreground }]}>
++                    Submitted:{' '}
++                  </Text>
++                  <Text testID="application-status-latest-submitted-at">
++                    {formatDateTime(latest.submittedAt)}
++                  </Text>
++                </Text>
++              )}
++              {latest.rejectionReason && (
++                <Text
++                  testID="application-status-latest-rejection-reason"
++                  style={[styles.metaLine, { color: colors.mutedForeground }]}
++                >
++                  <Text style={[styles.metaLabel, { color: colors.foreground }]}>
++                    Feedback:{' '}
++                  </Text>
++                  {latest.rejectionReason}
++                </Text>
++              )}
++            </View>
++          )}
++        </View>
++      )}
++
++      {/* Action row — every action is server-gated */}
++      <View style={styles.actionColumn}>
++        {view.canReset && (
++          <TouchableOpacity
++            testID="application-status-reset-cta"
++            disabled={resetMutation.isPending}
++            onPress={() => resetMutation.mutate()}
++            style={[
++              styles.button,
++              {
++                backgroundColor: colors.primary,
++                opacity: resetMutation.isPending ? 0.6 : 1,
++              },
++            ]}
++          >
++            <Text style={styles.buttonText}>
++              {resetMutation.isPending ? 'Resetting…' : 'Reset to draft'}
++            </Text>
++          </TouchableOpacity>
++        )}
++        {view.canResubmit && (
++          <TouchableOpacity
++            testID="application-status-resubmit-cta"
++            disabled={submitMutation.isPending}
++            onPress={() => submitMutation.mutate()}
++            style={[
++              styles.button,
++              {
++                backgroundColor: colors.primary,
++                opacity: submitMutation.isPending ? 0.6 : 1,
++              },
++            ]}
++          >
++            <Text style={styles.buttonText}>
++              {submitMutation.isPending ? 'Sending…' : 'Submit for review'}
++            </Text>
++          </TouchableOpacity>
++        )}
++        {view.canEdit && (
++          <TouchableOpacity
++            testID="application-status-edit-cta"
++            onPress={() => router.replace('/onboarding/provider')}
++            style={[styles.secondaryButton, { borderColor: colors.border }]}
++          >
++            <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>
++              Continue editing
++            </Text>
++          </TouchableOpacity>
++        )}
++        <TouchableOpacity
++          testID="application-status-continue-client-cta"
++          onPress={() => router.replace('/(tabs)')}
++          style={styles.linkButton}
++        >
++          <Text style={[styles.linkText, { color: colors.mutedForeground }]}>
++            Continue as a client
++          </Text>
+         </TouchableOpacity>
++      </View>
++
++      {(resetMutation.isError || submitMutation.isError) && (
++        <Text
++          testID="application-status-mutation-error"
++          style={[styles.mutationError, { color: colors.destructive }]}
++        >
++          Something went wrong. Please try again in a moment.
++        </Text>
+       )}
+-      <TouchableOpacity onPress={() => router.replace('/(tabs)')} style={styles.linkButton}>
+-        <Text style={[styles.linkText, { color: colors.mutedForeground }]}>Continue as a client</Text>
+-      </TouchableOpacity>
++    </ScrollView>
++  );
++}
++
++function Shell({
++  children,
++  colors,
++}: {
++  children: React.ReactNode;
++  colors: ReturnType<typeof useColors>;
++}) {
++  return (
++    <View style={[styles.container, { backgroundColor: colors.background }]}>
++      <View style={[styles.logo, { backgroundColor: colors.primary }]}>
++        <Text style={styles.logoText}>O</Text>
++      </View>
++      {children}
+     </View>
+   );
+ }
+ 
+ const styles = StyleSheet.create({
+-  container: { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 78 },
++  container: {
++    flex: 1,
++    alignItems: 'center',
++    paddingHorizontal: 24,
++    paddingTop: 78,
++  },
++  scrollContent: {
++    alignItems: 'center',
++    paddingHorizontal: 24,
++    paddingTop: 78,
++    paddingBottom: 48,
++    flexGrow: 1,
++  },
+   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+-  logo: { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 22 },
++  logo: {
++    width: 64,
++    height: 64,
++    borderRadius: 18,
++    alignItems: 'center',
++    justifyContent: 'center',
++    marginBottom: 22,
++  },
+   logoText: { color: '#fff', fontFamily: 'Inter_700Bold', fontSize: 30 },
+-  eyebrow: { fontFamily: 'Inter_700Bold', fontSize: 11, letterSpacing: 1.4, marginBottom: 10 },
+-  title: { fontFamily: 'Inter_700Bold', fontSize: 27, lineHeight: 34, textAlign: 'center', marginBottom: 14 },
+-  body: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 21, textAlign: 'center' },
+-  card: { width: '100%', borderWidth: 1, borderRadius: 16, padding: 16, marginTop: 26 },
+-  statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
++  eyebrow: {
++    fontFamily: 'Inter_700Bold',
++    fontSize: 11,
++    letterSpacing: 1.4,
++    marginBottom: 10,
++  },
++  title: {
++    fontFamily: 'Inter_700Bold',
++    fontSize: 27,
++    lineHeight: 34,
++    textAlign: 'center',
++    marginBottom: 14,
++  },
++  body: {
++    fontFamily: 'Inter_400Regular',
++    fontSize: 14,
++    lineHeight: 21,
++    textAlign: 'center',
++  },
++  card: {
++    width: '100%',
++    borderWidth: 1,
++    borderRadius: 16,
++    padding: 16,
++    marginTop: 26,
++  },
++  statusRow: {
++    flexDirection: 'row',
++    alignItems: 'center',
++    justifyContent: 'space-between',
++    gap: 10,
++  },
+   statusLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+-  badge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, fontFamily: 'Inter_600SemiBold', fontSize: 12, textTransform: 'capitalize' },
+-  cardText: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, marginTop: 12 },
+-  button: { width: '100%', minHeight: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 20 },
+-  buttonText: { color: '#fff', fontFamily: 'Inter_600SemiBold', fontSize: 15 },
+-  linkButton: { paddingVertical: 18 },
++  badge: {
++    borderRadius: 20,
++    paddingHorizontal: 10,
++    paddingVertical: 5,
++    fontFamily: 'Inter_600SemiBold',
++    fontSize: 12,
++    textTransform: 'capitalize',
++    overflow: 'hidden',
++  },
++  metaLine: {
++    fontFamily: 'Inter_400Regular',
++    fontSize: 12,
++    lineHeight: 18,
++    marginTop: 10,
++  },
++  metaLabel: { fontFamily: 'Inter_600SemiBold' },
++  capitalize: { textTransform: 'capitalize' },
++  rejectionEyebrow: {
++    fontFamily: 'Inter_700Bold',
++    fontSize: 11,
++    letterSpacing: 1.2,
++  },
++  rejectionBody: {
++    fontFamily: 'Inter_400Regular',
++    fontSize: 14,
++    lineHeight: 21,
++    marginTop: 8,
++  },
++  historyList: { marginTop: 4 },
++  actionColumn: {
++    width: '100%',
++    marginTop: 26,
++    gap: 12,
++  },
++  button: {
++    width: '100%',
++    minHeight: 52,
++    borderRadius: 14,
++    alignItems: 'center',
++    justifyContent: 'center',
++    paddingHorizontal: 16,
++  },
++  buttonText: {
++    color: '#fff',
++    fontFamily: 'Inter_600SemiBold',
++    fontSize: 15,
++  },
++  secondaryButton: {
++    width: '100%',
++    minHeight: 52,
++    borderRadius: 14,
++    borderWidth: 1,
++    alignItems: 'center',
++    justifyContent: 'center',
++    paddingHorizontal: 16,
++  },
++  secondaryButtonText: {
++    fontFamily: 'Inter_600SemiBold',
++    fontSize: 15,
++  },
++  linkButton: { paddingVertical: 14, alignItems: 'center' },
+   linkText: { fontFamily: 'Inter_500Medium', fontSize: 13 },
+-});
+\ No newline at end of file
++  mutationError: {
++    fontFamily: 'Inter_400Regular',
++    fontSize: 12,
++    marginTop: 14,
++    textAlign: 'center',
++  },
++});
+-- 
+2.39.5
+
