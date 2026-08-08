@@ -1,0 +1,304 @@
+From 27c8a1d5342ca373fdb149a395c5c7af4bf385c2 Mon Sep 17 00:00:00 2001
+From: E1 Agent <e1@emergent.dev>
+Date: Sat, 8 Aug 2026 15:33:53 +0000
+Subject: [PATCH] tests: resolve baseline drift and gate public services on
+ provider approval
+
+- provider-application F1: update stale submit-validation assertion to the
+  current contract (generic error + structured missingRequirements array)
+- provider-application F2: seed service, availability, and verification
+  sections before the happy-path /submit so server-derived readiness passes
+- F3 (product fix): public GET /providers/:providerId/services now applies
+  the verificationStatus === 'approved' gate, so draft services of
+  unapproved providers are never publicly discoverable; restores the
+  failing test:onboarding expectation
+- verified: test:provider-application 8/8, test:onboarding 23/23;
+  regression sweep test:provider-status 9/9, test:provider-resubmission
+  11/11, test:authorization 7/7
+---
+ .agents/LOG.md                                | 29 ++++++-
+ .agents/NEXT_TASK.md                          | 80 +++++++++----------
+ .../provider-application.integration.test.ts  | 64 ++++++++++++++-
+ artifacts/api-server/src/routes/providers.ts  | 18 ++++-
+ 4 files changed, 147 insertions(+), 44 deletions(-)
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index 52a918c..66003b7 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -51,7 +51,7 @@ Since agent credit balances cannot be read programmatically, each session entry
+ | Expo mobile app | ✅ Phase 4 onboarding surfaces running | Discover, Bookings, Account, Provider Profile, Login, shared role-intent Register, mobile booking detail, bounded client care history, provider onboarding/application-status routes, client "Become a provider" entry point, and existing booking/review flows; 390px preview verified |
+ | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
+ | OpenAPI spec | ✅ Phase 4 application contract generated | Auth role intent plus owner-scoped provider application get/create/update/submit contracts are generated into the React and Zod clients; generated files were not edited manually. |
+-| Provider application coverage | ✅ Phase 4 checkpoint verified | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. |
++| Provider application coverage | ✅ Baseline drift resolved | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. `test:onboarding` passes 23/23. Public `GET /providers/:providerId/services` now gates on `verificationStatus === "approved"` so draft services of unapproved providers are never publicly discoverable. |
+ | Provider application resubmission | ✅ Phase 1 checkpoint 1 verified | `POST /providers/application/reset` transitions `rejected → draft` with an immutable `provider_application_submissions` history snapshot, owner-only access, idempotent no-op on `draft`, 409 on non-resettable states, and preserved `rejectionReason` in history. `PATCH` and direct `submit` are blocked while `rejected`; approved-provider authorization is unchanged. `test:provider-resubmission` passes all 11 focused integration tests. |
+ | Provider application status API | ✅ Phase 1 checkpoint 2 verified | `GET /providers/application/status` returns a compact owner-scoped view: `status`, current-cycle `submittedAt`/`reviewedAt`, provider-visible `rejectionReason`, `submissionCount`, `latestSubmission` snapshot, server-derived `nextAction` (`resume_draft`/`wait_for_review`/`provider_operations_available`/`reset_to_draft`/`contact_support`), and `canEdit`/`canReset`/`canResubmit` capability flags. Reviewer-private `reviewerNotes` never appears. `test:provider-status` passes all 9 focused tests; approved-provider authorization and `careNotes` privacy regressions remain green. |
+ | Provider application rejected-state web UI | ✅ Phase 1 checkpoint 3 verified | `/provider/application-status` now consumes `GET /providers/application/status` via the generated `useGetProviderApplicationStatus` hook, renders the provider-visible `rejectionReason` and `previousSubmissions` summary, and gates the reset/resubmit/edit CTAs on server-provided `canReset`/`canResubmit`/`canEdit`. Loading, unauthorized, 404 (no application yet), 403 (non-provider member), and mutation-error states are handled without duplicating server authorization logic. `reviewerNotes` is never rendered because it never enters the status response. Full workspace typecheck and web build both pass; 26 `data-testid` attributes cover every state and action. |
+@@ -1499,6 +1499,33 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
+ 
+ ---
+ 
++### Session 022 — 2026-08-08
++**Agent:** E1 (Emergent) Main Agent
++**Scope:** `S`
++**Triggered by:** User explicitly approved the baseline test-drift cleanup slice: resolve the pre-existing failures in `test:provider-application` (2/8) and `test:onboarding` (1) with no web or mobile changes.
++
++**What was done:**
++- Root-caused the three drifted tests:
++  - **F1 — stale assertion.** `test:provider-application` asserted the legacy free-form submit-validation copy ("Complete your title, bio, and city before submitting.") while the server now returns a generic error paired with a structured `missingRequirements` array. Updated the assertion to the current contract: generic error text plus an array entry flagging the incomplete profile section.
++  - **F2 — incomplete test setup.** The happy-path submission test only saved profile fields before calling `/submit`, while server-derived readiness (`computeCompletion` in `providers.ts`) requires every section: profile fields, at least one service, at least one availability slot, and at least one verification document. The test now seeds all four sections before submitting.
++  - **F3 — product regression, not test drift.** Public `GET /providers/:providerId/services` leaked draft services of unapproved providers. Added the same `verificationStatus === "approved"` gate already used by the general provider-listing endpoint; unapproved providers now return a stable-shaped empty list (`{ services: [] }`). This product fix also restored the failing `test:onboarding` expectation.
++- Verified against the current server code: `test:provider-application` 8/8, `test:onboarding` 23/23.
++- Regression sweep: `test:provider-status` 9/9, `test:provider-resubmission` 11/11, `test:authorization` 7/7 — all green. (Note: `test:authorization` requires seeded demo accounts *and* `provider_applications` rows for the seeded providers; the current `seed.ts` does not create application rows, so they were inserted manually in the local test database. Seed-script drift is a separate hygiene slice.)
++- Scope hygiene: no web, mobile, database-schema, migration, or generated-client changes.
++
++**Files changed:**
++- `artifacts/api-server/src/__tests__/provider-application.integration.test.ts`
++- `artifacts/api-server/src/routes/providers.ts`
++- `.agents/LOG.md`
++- `.agents/NEXT_TASK.md`
++
++**Build state at end:** Local HEAD == 1 focused cleanup commit on top of `origin/main` (`f2ed537`). Ahead 1 / behind 0. Working tree clean except intentional untracked handoff artifacts. Patch generated at `/app/baseline-test-drift.patch` for external application.
++
++**Next best action:** After the patch is applied to canonical `origin/main` and local is hard-reset to it, begin Phase 2 — post-submission progress presentation (submission-history / progress-timeline surface on the status API and web/mobile pages), pending explicit user approval of scope.
++
++---
++
++
+ ## New Session Template
+ 
+ Copy and append below the last entry:
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index dec6f78..67148d9 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -1,66 +1,66 @@
+-# Next product task — Phase 1 cleanup and Phase 2 progress presentation
++# Next product task — Phase 2: post-submission progress presentation
+ 
+ ## Current gate
+ 
+-Phase 1 micro-checkpoints 1–4 are complete.
++Phase 1 micro-checkpoints 1–4 are complete, and the baseline test-drift
++cleanup slice is done.
+ 
+ - MC1 (rejected-provider resubmission — server state transitions) merged at
+   `54534b0`.
+ - MC2 (rejection-reason and status API — server only) merged at `1f4c018`.
+ - MC3 (web rejected-state UI) merged at `dc7a40d`.
+-- MC4 (mobile rejected-state UI) lands one focused commit on top that
+-  changes only `artifacts/mobile/app/provider/application-status.tsx`
+-  plus the two `.agents/` docs — no server, database, web, migration,
+-  or generated-client changes.
++- MC4 (mobile rejected-state UI) merged at `f2ed537`.
++- Baseline test-drift cleanup lands one focused commit on top that changes
++  only `artifacts/api-server/src/__tests__/provider-application.integration.test.ts`,
++  `artifacts/api-server/src/routes/providers.ts`, and the two `.agents/`
++  docs — no web, mobile, database-schema, migration, or generated-client
++  changes.
+ 
+-The provider now sees, on Expo mobile, the same server-authoritative
+-rejected-state experience already live on web:
++The API integration baseline is fully green again:
+ 
+-- current `status` with a labelled pill
+-- `submittedAt` / `reviewedAt` for the current cycle
+-- a dedicated reviewer-feedback card containing the provider-visible
+-  `rejectionReason` (only when status is `rejected`)
+-- a prior-submissions history card with `submissionCount` and the public
+-  fields of `latestSubmission`
+-- server-gated CTAs — Reset (when `canReset`), Submit for review
+-  (when `canResubmit`), Continue editing (when `canEdit`)
+-- loading, unauthorized, no-application (404), non-member (403),
+-  generic error, and mutation-error states
+-
+-Reviewer-private `reviewerNotes` is never referenced by the mobile code
+-and never enters the status response payload.
++- `test:provider-application` 8/8 — stale submit-validation assertion (F1)
++  and incomplete happy-path submission setup (F2) fixed.
++- `test:onboarding` 23/23 — restored by the F3 product fix.
++- F3 was a product regression, not test drift: public
++  `GET /providers/:providerId/services` leaked draft services of
++  unapproved providers. It now applies the same
++  `verificationStatus === "approved"` gate as the provider-listing
++  endpoint and returns a stable-shaped empty list for unapproved
++  providers.
++- Regression sweep also green: `test:provider-status` 9/9,
++  `test:provider-resubmission` 11/11, `test:authorization` 7/7.
+ 
+ ## Next scope (queued, not started)
+ 
+-Two independent cleanup / follow-up slices can be scheduled after user
+-approval:
++**Phase 2 — post-submission progress presentation.** Extend the status
++API and UIs with a submission-history / progress-timeline surface once
++product scope is confirmed with the user. Candidate slices:
+ 
+-1. **Baseline test-drift cleanup** — resolve the pre-existing failures
+-   in `test:provider-application` (2/8) and `test:onboarding` (1/2)
+-   without expanding scope beyond the affected test files.
+-2. **Phase 2 — post-submission progress presentation** — extend the
+-   status API and UIs with a submission-history timeline surface once
+-   product scope is confirmed.
++1. Server: expose the full ordered `previousSubmissions` history (public
++   snapshot fields only) on the status endpoint, or a dedicated
++   sub-resource, with owner-only access.
++2. Web: render the progress timeline on `/provider/application-status`.
++3. Mobile: mirror the timeline on `provider/application-status`.
+ 
+ ## Guardrails
+ 
+-- Do not fix the pre-existing `test:provider-application` (2 failing) or
+-  `test:onboarding` (1 failing) baseline drift in this slice — separate
+-  cleanup.
+-- Do not add Stripe, payouts, admin verification, disputes, background
+-  checks, or any unrelated admin / care-history / review work.
+-- Never render `reviewerNotes` in the UI. Only `rejectionReason` and the
+-  public snapshot fields of `previousSubmissions` are safe to render.
++- Never render `reviewerNotes` in any client. Only `rejectionReason` and
++  the public snapshot fields of `previousSubmissions` are safe to render.
+ - Signup `roleIntent` remains an onboarding request, not an authorization
+   claim. Approved-provider authorization boundary must stay intact.
+ - Do not duplicate server authorization rules in any client — render
+   actions strictly from `canEdit` / `canReset` / `canResubmit`.
++- Do not add Stripe, payouts, admin verification, disputes, background
++  checks, or any unrelated admin / care-history / review work.
+ 
+-## Separately queued cleanup slices (not for MC4)
++## Separately queued cleanup slices
+ 
++- Seed-script drift: `seed.ts` creates provider profiles but no
++  `provider_applications` rows, so `test:authorization` cannot pass on a
++  freshly seeded database without manual inserts. Extend the seed to
++  create approved application rows for the demo providers — separate
++  hygiene slice.
+ - `attached_assets/phase1-mc1_1786063790850.patch` remains committed on
+   `origin/conflict_070826_mc2` — safe to leave; delete the branch
+-  entirely as a hygiene action after MC4 lands.
++  entirely as a hygiene action.
+ - Web test infrastructure (vitest + testing-library) — separate slice.
+-- `test:provider-application` (2/8) and `test:onboarding` (1/2) drift —
+-  separate slice.
+diff --git a/artifacts/api-server/src/__tests__/provider-application.integration.test.ts b/artifacts/api-server/src/__tests__/provider-application.integration.test.ts
+index 2ba8f5e..099805b 100644
+--- a/artifacts/api-server/src/__tests__/provider-application.integration.test.ts
++++ b/artifacts/api-server/src/__tests__/provider-application.integration.test.ts
+@@ -305,7 +305,23 @@ describe("Phase 4 provider application lifecycle", () => {
+       token: providerB.token,
+     });
+     assert.equal(incomplete.status, 400);
+-    assert.equal(incomplete.body["error"], "Complete your title, bio, and city before submitting.");
++    // The submit endpoint returns a generic error paired with a structured
++    // `missingRequirements` array so clients can surface each incomplete
++    // section without parsing free-form copy. See providers.ts:346–351 and
++    // computeCompletion in providers.ts:507–528.
++    assert.equal(
++      incomplete.body["error"],
++      "Your application is not ready for submission.",
++    );
++    assert.ok(
++      Array.isArray(incomplete.body["missingRequirements"]),
++      `missingRequirements should be an array: ${JSON.stringify(incomplete.body)}`,
++    );
++    const missing = incomplete.body["missingRequirements"] as string[];
++    assert.ok(
++      missing.some((r) => /title|bio|city|profile/i.test(r)),
++      `missingRequirements should flag the incomplete profile section: ${JSON.stringify(missing)}`,
++    );
+     assert.equal((await apiFetch("/providers/me", { token: providerB.token })).status, 403);
+   });
+ 
+@@ -322,6 +338,52 @@ describe("Phase 4 provider application lifecycle", () => {
+     });
+     assert.equal(saved.status, 200);
+ 
++    // Server-derived readiness (computeCompletion in providers.ts:485–528)
++    // requires every section to be complete before /submit will move the
++    // application to `under_review`: profile fields, at least one service,
++    // at least one availability slot, and at least one verification doc.
++    const serviceRes = await apiFetch("/providers/application/services", {
++      method: "POST",
++      token: providerB.token,
++      body: JSON.stringify({
++        title: "Foot rejuvenation session",
++        durationMinutes: 60,
++        priceCents: 8000,
++      }),
++    });
++    assert.equal(
++      serviceRes.status,
++      201,
++      `Service seed failed: ${JSON.stringify(serviceRes.body)}`,
++    );
++
++    const availabilityRes = await apiFetch("/providers/application/availability", {
++      method: "PUT",
++      token: providerB.token,
++      body: JSON.stringify({
++        slots: [{ dayOfWeek: 1, startTime: "09:00", endTime: "17:00" }],
++      }),
++    });
++    assert.equal(
++      availabilityRes.status,
++      200,
++      `Availability seed failed: ${JSON.stringify(availabilityRes.body)}`,
++    );
++
++    const verificationRes = await apiFetch("/providers/me/verification", {
++      method: "POST",
++      token: providerB.token,
++      body: JSON.stringify({
++        docType: "license",
++        fileName: `phase4-provider-b-license-${suffix}.pdf`,
++      }),
++    });
++    assert.equal(
++      verificationRes.status,
++      201,
++      `Verification seed failed: ${JSON.stringify(verificationRes.body)}`,
++    );
++
+     const submitted = await apiFetch("/providers/application/submit", {
+       method: "POST",
+       token: providerB.token,
+diff --git a/artifacts/api-server/src/routes/providers.ts b/artifacts/api-server/src/routes/providers.ts
+index 2805c80..35d8dbd 100644
+--- a/artifacts/api-server/src/routes/providers.ts
++++ b/artifacts/api-server/src/routes/providers.ts
+@@ -1436,9 +1436,15 @@ router.get(
+   async (req: Request, res: Response): Promise<void> => {
+     const providerId = Number(req.params["providerId"]);
+ 
+-    // Verify provider exists
++    // Verify provider exists, and read the approval gate.
++    // Draft services from unapproved providers must never be publicly
++    // discoverable — mirrors the `verificationStatus === "approved"` gate
++    // already used by the general provider-listing endpoint above.
+     const profile = await db
+-      .select({ id: providerProfilesTable.id })
++      .select({
++        id: providerProfilesTable.id,
++        verificationStatus: providerProfilesTable.verificationStatus,
++      })
+       .from(providerProfilesTable)
+       .where(eq(providerProfilesTable.id, providerId))
+       .limit(1);
+@@ -1448,6 +1454,14 @@ router.get(
+       return;
+     }
+ 
++    if (profile[0].verificationStatus !== "approved") {
++      // Profile page may still render publicly, but no services are exposed
++      // until the provider is fully approved. Returning an empty list keeps
++      // the shape stable for clients.
++      res.json({ services: [] });
++      return;
++    }
++
+     const services = await db
+       .select()
+       .from(servicesTable)
+-- 
+2.39.5
+
