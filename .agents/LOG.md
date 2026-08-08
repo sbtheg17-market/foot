@@ -51,7 +51,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Expo mobile app | ✅ Phase 4 onboarding surfaces running | Discover, Bookings, Account, Provider Profile, Login, shared role-intent Register, mobile booking detail, bounded client care history, provider onboarding/application-status routes, client "Become a provider" entry point, and existing booking/review flows; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Phase 4 application contract generated | Auth role intent plus owner-scoped provider application get/create/update/submit contracts are generated into the React and Zod clients; generated files were not edited manually. |
-| Provider application coverage | ✅ Phase 4 checkpoint verified | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. |
+| Provider application coverage | ✅ Baseline drift resolved | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. `test:onboarding` passes 23/23. Public `GET /providers/:providerId/services` now gates on `verificationStatus === "approved"` so draft services of unapproved providers are never publicly discoverable. |
 | Provider application resubmission | ✅ Phase 1 checkpoint 1 verified | `POST /providers/application/reset` transitions `rejected → draft` with an immutable `provider_application_submissions` history snapshot, owner-only access, idempotent no-op on `draft`, 409 on non-resettable states, and preserved `rejectionReason` in history. `PATCH` and direct `submit` are blocked while `rejected`; approved-provider authorization is unchanged. `test:provider-resubmission` passes all 11 focused integration tests. |
 | Provider application status API | ✅ Phase 1 checkpoint 2 verified | `GET /providers/application/status` returns a compact owner-scoped view: `status`, current-cycle `submittedAt`/`reviewedAt`, provider-visible `rejectionReason`, `submissionCount`, `latestSubmission` snapshot, server-derived `nextAction` (`resume_draft`/`wait_for_review`/`provider_operations_available`/`reset_to_draft`/`contact_support`), and `canEdit`/`canReset`/`canResubmit` capability flags. Reviewer-private `reviewerNotes` never appears. `test:provider-status` passes all 9 focused tests; approved-provider authorization and `careNotes` privacy regressions remain green. |
 | Provider application rejected-state web UI | ✅ Phase 1 checkpoint 3 verified | `/provider/application-status` now consumes `GET /providers/application/status` via the generated `useGetProviderApplicationStatus` hook, renders the provider-visible `rejectionReason` and `previousSubmissions` summary, and gates the reset/resubmit/edit CTAs on server-provided `canReset`/`canResubmit`/`canEdit`. Loading, unauthorized, 404 (no application yet), 403 (non-provider member), and mutation-error states are handled without duplicating server authorization logic. `reviewerNotes` is never rendered because it never enters the status response. Full workspace typecheck and web build both pass; 26 `data-testid` attributes cover every state and action. |
@@ -1498,6 +1498,33 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Next best action:** Await user's external application of `/app/phase1-mc4.patch` to canonical `origin/main`, then perform read-only verification and `git reset --hard origin/main` locally. Do not begin baseline test-drift cleanup or Phase 2 until explicitly approved.
 
 ---
+
+### Session 022 — 2026-08-08
+**Agent:** E1 (Emergent) Main Agent
+**Scope:** `S`
+**Triggered by:** User explicitly approved the baseline test-drift cleanup slice: resolve the pre-existing failures in `test:provider-application` (2/8) and `test:onboarding` (1) with no web or mobile changes.
+
+**What was done:**
+- Root-caused the three drifted tests:
+  - **F1 — stale assertion.** `test:provider-application` asserted the legacy free-form submit-validation copy ("Complete your title, bio, and city before submitting.") while the server now returns a generic error paired with a structured `missingRequirements` array. Updated the assertion to the current contract: generic error text plus an array entry flagging the incomplete profile section.
+  - **F2 — incomplete test setup.** The happy-path submission test only saved profile fields before calling `/submit`, while server-derived readiness (`computeCompletion` in `providers.ts`) requires every section: profile fields, at least one service, at least one availability slot, and at least one verification document. The test now seeds all four sections before submitting.
+  - **F3 — product regression, not test drift.** Public `GET /providers/:providerId/services` leaked draft services of unapproved providers. Added the same `verificationStatus === "approved"` gate already used by the general provider-listing endpoint; unapproved providers now return a stable-shaped empty list (`{ services: [] }`). This product fix also restored the failing `test:onboarding` expectation.
+- Verified against the current server code: `test:provider-application` 8/8, `test:onboarding` 23/23.
+- Regression sweep: `test:provider-status` 9/9, `test:provider-resubmission` 11/11, `test:authorization` 7/7 — all green. (Note: `test:authorization` requires seeded demo accounts *and* `provider_applications` rows for the seeded providers; the current `seed.ts` does not create application rows, so they were inserted manually in the local test database. Seed-script drift is a separate hygiene slice.)
+- Scope hygiene: no web, mobile, database-schema, migration, or generated-client changes.
+
+**Files changed:**
+- `artifacts/api-server/src/__tests__/provider-application.integration.test.ts`
+- `artifacts/api-server/src/routes/providers.ts`
+- `.agents/LOG.md`
+- `.agents/NEXT_TASK.md`
+
+**Build state at end:** Local HEAD == 1 focused cleanup commit on top of `origin/main` (`f2ed537`). Ahead 1 / behind 0. Working tree clean except intentional untracked handoff artifacts. Patch generated at `/app/baseline-test-drift.patch` for external application.
+
+**Next best action:** After the patch is applied to canonical `origin/main` and local is hard-reset to it, begin Phase 2 — post-submission progress presentation (submission-history / progress-timeline surface on the status API and web/mobile pages), pending explicit user approval of scope.
+
+---
+
 
 ## New Session Template
 

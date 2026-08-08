@@ -305,7 +305,23 @@ describe("Phase 4 provider application lifecycle", () => {
       token: providerB.token,
     });
     assert.equal(incomplete.status, 400);
-    assert.equal(incomplete.body["error"], "Complete your title, bio, and city before submitting.");
+    // The submit endpoint returns a generic error paired with a structured
+    // `missingRequirements` array so clients can surface each incomplete
+    // section without parsing free-form copy. See providers.ts:346–351 and
+    // computeCompletion in providers.ts:507–528.
+    assert.equal(
+      incomplete.body["error"],
+      "Your application is not ready for submission.",
+    );
+    assert.ok(
+      Array.isArray(incomplete.body["missingRequirements"]),
+      `missingRequirements should be an array: ${JSON.stringify(incomplete.body)}`,
+    );
+    const missing = incomplete.body["missingRequirements"] as string[];
+    assert.ok(
+      missing.some((r) => /title|bio|city|profile/i.test(r)),
+      `missingRequirements should flag the incomplete profile section: ${JSON.stringify(missing)}`,
+    );
     assert.equal((await apiFetch("/providers/me", { token: providerB.token })).status, 403);
   });
 
@@ -321,6 +337,52 @@ describe("Phase 4 provider application lifecycle", () => {
       }),
     });
     assert.equal(saved.status, 200);
+
+    // Server-derived readiness (computeCompletion in providers.ts:485–528)
+    // requires every section to be complete before /submit will move the
+    // application to `under_review`: profile fields, at least one service,
+    // at least one availability slot, and at least one verification doc.
+    const serviceRes = await apiFetch("/providers/application/services", {
+      method: "POST",
+      token: providerB.token,
+      body: JSON.stringify({
+        title: "Foot rejuvenation session",
+        durationMinutes: 60,
+        priceCents: 8000,
+      }),
+    });
+    assert.equal(
+      serviceRes.status,
+      201,
+      `Service seed failed: ${JSON.stringify(serviceRes.body)}`,
+    );
+
+    const availabilityRes = await apiFetch("/providers/application/availability", {
+      method: "PUT",
+      token: providerB.token,
+      body: JSON.stringify({
+        slots: [{ dayOfWeek: 1, startTime: "09:00", endTime: "17:00" }],
+      }),
+    });
+    assert.equal(
+      availabilityRes.status,
+      200,
+      `Availability seed failed: ${JSON.stringify(availabilityRes.body)}`,
+    );
+
+    const verificationRes = await apiFetch("/providers/me/verification", {
+      method: "POST",
+      token: providerB.token,
+      body: JSON.stringify({
+        docType: "license",
+        fileName: `phase4-provider-b-license-${suffix}.pdf`,
+      }),
+    });
+    assert.equal(
+      verificationRes.status,
+      201,
+      `Verification seed failed: ${JSON.stringify(verificationRes.body)}`,
+    );
 
     const submitted = await apiFetch("/providers/application/submit", {
       method: "POST",

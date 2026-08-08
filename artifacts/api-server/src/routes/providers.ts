@@ -1436,15 +1436,29 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     const providerId = Number(req.params["providerId"]);
 
-    // Verify provider exists
+    // Verify provider exists, and read the approval gate.
+    // Draft services from unapproved providers must never be publicly
+    // discoverable — mirrors the `verificationStatus === "approved"` gate
+    // already used by the general provider-listing endpoint above.
     const profile = await db
-      .select({ id: providerProfilesTable.id })
+      .select({
+        id: providerProfilesTable.id,
+        verificationStatus: providerProfilesTable.verificationStatus,
+      })
       .from(providerProfilesTable)
       .where(eq(providerProfilesTable.id, providerId))
       .limit(1);
 
     if (!profile[0]) {
       res.status(404).json({ error: "Provider not found." });
+      return;
+    }
+
+    if (profile[0].verificationStatus !== "approved") {
+      // Profile page may still render publicly, but no services are exposed
+      // until the provider is fully approved. Returning an empty list keeps
+      // the shape stable for clients.
+      res.json({ services: [] });
       return;
     }
 
