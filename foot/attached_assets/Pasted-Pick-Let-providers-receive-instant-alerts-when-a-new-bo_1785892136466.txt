@@ -1,0 +1,48 @@
+Pick **“Let providers receive instant alerts when a new booking arrives.”** That is the best next task because it adds immediate operational value on top of the existing booking flow, while still keeping the booking and provider experience coherent. [perplexity](https://www.perplexity.ai/search/9c5bd666-4d4d-48ca-b753-309110401714)
+
+## Why this one first
+
+You already have bookings and provider flows in place, so instant alerts are the most natural next layer. They improve response time, reduce missed requests, and make the app feel alive without forcing you into payment or verification complexity yet.
+
+## What to tell it
+
+Use this:
+
+```md
+Proceed with instant alerts for new bookings.
+
+Requirements:
+1. Keep booking and provider flows working exactly as they are.
+2. Trigger provider alerts when a new booking is created.
+3. Make alerts visible quickly on mobile and web.
+4. Keep the implementation checkpoint-sized and pushable.
+5. Do not break existing booking state machine logic.
+6. Do not add Stripe yet.
+7. Do not add credential verification yet.
+8. Do not add new portals or unrelated UI.
+9. Keep GitHub updated at checkpoint boundaries.
+10. If you need to touch shared notification infrastructure, keep it reusable for future booking status updates.
+
+Goal:
+providers should know immediately when a new booking lands.
+```
+
+## Why not the other options
+
+- **Keep booking and provider flows working as new code lands** is a maintenance instruction, not a feature task.
+- **Enable providers and clients to create and manage bookings end-to-end** is broader and probably already mostly in motion.
+- **Instant alerts** is the most focused, high-value next step that complements what already exists. [perplexity](https://www.perplexity.ai/search/9c5bd666-4d4d-48ca-b753-309110401714)
+
+## Best sequence
+
+After this, the natural order is:
+1. booking alerts,
+2. booking status notifications,
+3. Stripe,
+4. credential verification.
+
+That keeps the app moving toward a full operational workflow without jumping ahead too fast.
+
+## Short answer
+
+So choose: **“Let providers receive instant alerts when a new booking arrives.”**

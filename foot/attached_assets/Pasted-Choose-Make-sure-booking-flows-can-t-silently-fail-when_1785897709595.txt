@@ -1,0 +1,48 @@
+Choose “Make sure booking flows can't silently fail when the database is under pressure.” That is the best next task because it protects the core system reliability before adding payments or credential workflows, both of which are higher-level features that depend on a stable booking pipeline.
+
+Why this first
+If the database is under pressure and booking writes fail silently, users can lose trust fast and you may create duplicate or half-complete bookings. Hardening the booking flow now is the right move because it ensures the system degrades safely instead of pretending a change succeeded.
+
+Why not payments yet
+“Let clients pay for confirmed bookings without leaving the app” is important, but payment flow should come after the booking path is stress-tested and confirmed stable. Otherwise you risk mixing checkout errors with booking integrity issues and making debugging much harder.
+
+Why not credentials yet
+“Let providers submit credentials for admin approval” is also valuable, but it’s a trust/ops workflow that should come after the system is reliable under load. Booking reliability is the foundation; verification can layer on after that.
+
+What to tell Replit
+Use this:
+
+text
+Proceed with the next task:
+Make sure booking flows can't silently fail when the database is under pressure.
+
+Requirements:
+1. Keep the booking state machine as the source of truth.
+2. Detect and surface database write failures clearly.
+3. Never report success to the UI if the booking write did not persist.
+4. Preserve idempotency/safety for retries where possible.
+5. Keep the booking flow behavior unchanged for valid successful actions.
+6. Add or extend tests to cover write failure scenarios and pressure cases.
+7. Keep the implementation checkpoint-sized and pushable to GitHub after each stable chunk.
+8. Do not add Stripe yet.
+9. Do not add credential verification yet.
+10. Do not add unrelated portals or monetization UI.
+11. After each stable chunk, commit and push immediately so the repo stays matched to GitHub.
+
+Goal:
+make booking operations fail loudly and safely instead of silently under database pressure.
+GitHub sync note
+Add this line too if you want it explicit:
+
+text
+Push every stable checkpoint to GitHub immediately so the repo always stays current and can be resumed safely.
+Recommendation
+So the answer is:
+
+yes to database-pressure safety now,
+
+not yet to in-app payments,
+
+not yet to credential submission.
+
+That is the cleanest next step to protect the core booking engine while keeping GitHub in sync.

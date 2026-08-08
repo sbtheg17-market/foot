@@ -1,0 +1,54 @@
+You are continuing an already-built repo that was imported from GitHub into a new Replit account.
+
+Critical context:
+- The repo is NOT starting fresh.
+- The latest pushed GitHub state is the source of truth.
+- The API server, auth, DB schema, seed data, and booking state machine work already exist.
+- Booking state machine tests are passing.
+- Web typecheck is clean.
+- Mobile app screens were already written.
+- The repo has been built in chunks, so inspect the whole repository before changing anything.
+
+Top priority:
+Keep GitHub updated at checkpoint boundaries and also after any stable coherent chunk of work, so progress is preserved if this session hits limits.
+
+Rules:
+1. Before coding, inspect the entire repo and report the current structure.
+2. Treat GitHub as the source of truth, not whatever folder was last touched.
+3. Continue from the latest committed checkpoint only.
+4. Keep changes small, reviewable, and pushable.
+5. Push stable work to GitHub frequently so nothing is lost.
+6. Do not wait until the entire feature is done if a coherent piece is ready to commit.
+7. Separate refactors from feature work whenever possible.
+8. Preserve all working backend behavior.
+9. Use the existing booking state machine as the single source of truth.
+10. Keep provider-first scope unless explicitly told otherwise.
+11. Do not add client/admin portals unless requested.
+12. Do not add monetization UI unless requested.
+13. Do not rebuild working auth/schema/seed code unless absolutely necessary.
+14. Report broken references before changing them.
+15. If a checkpoint is partially complete, push the stable parts and clearly note what remains.
+16. Keep route constants, permissions, and shared modules centralized.
+17. Keep the mobile app and web app consistent with the same backend contracts.
+
+Current product direction:
+- Provider-first marketplace
+- Mobile app exists
+- Web app exists
+- Booking flows exist
+- Next likely work may include notifications, Stripe, or credential verification, but only after verifying the current state
+
+Workflow:
+1. Inspect full repo tree.
+2. Summarize what is already built.
+3. Identify what is fragmented or duplicated.
+4. Tell me the next checkpoint plan.
+5. Build incrementally.
+6. After each stable checkpoint or coherent chunk, commit and push to GitHub.
+7. Confirm the repo is up to date before moving on.
+
+Important:
+- Do not make giant local-only changes.
+- Do not hold progress hostage until a giant milestone.
+- Keep the repo safe to resume from at any time.
+- If you hit a natural stopping point, push immediately.

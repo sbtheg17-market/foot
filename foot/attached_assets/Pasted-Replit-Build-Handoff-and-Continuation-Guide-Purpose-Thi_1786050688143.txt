@@ -1,0 +1,367 @@
+Replit Build Handoff and Continuation Guide
+Purpose
+This document is the operating handoff for continuing the booking platform build in Replit or a replacement account. It defines the current repository state, engineering expectations, checkpoint rules, GitHub synchronization requirements, usage-limit protections, and the next product scope.
+
+The primary goals are to preserve working code, prevent accidental data or history loss, keep provider-private information private, and ensure every stable checkpoint can be continued by a new account or agent without relying on conversation history.
+
+Current checkpoint
+Current feature: eligible completed-booking reviews.
+
+Current synchronized commit: 4d717abfe3a0dc179c977f3ec5e918ccd5d1bab7.
+
+Local main: synchronized with origin/main.
+
+Ahead/behind: 0 / 0.
+
+Working tree: clean.
+
+No suspicious files, uploaded handoff files, prompt files, secrets, or unrelated changes are present in the synchronized range.
+
+The next scoped product feature is minimal client-safe care history.
+
+Completed functionality
+Client cancellation
+Cancellation confirmation exists on web booking list and detail screens.
+
+Cancellation confirmation exists on mobile booking list and detail screens.
+
+Cancellation is available only for requested, confirmed, and rescheduled bookings.
+
+Duplicate submissions are blocked while cancellation is in progress.
+
+Successful cancellation provides clear feedback and refreshes booking data.
+
+Stale or concurrent updates return safe handling for HTTP 409.
+
+Validation, permission, and generic failures are handled for HTTP 400, 403, and other failures.
+
+Existing provider cancellation behavior and notifications remain unchanged.
+
+Booking freshness and notifications
+Web booking list and detail refresh on mount, window focus, and reconnect.
+
+Mobile booking list and detail refresh on mount, screen focus, app resume, and reconnect.
+
+Client-facing feedback exists for confirmation, rescheduling, provider cancellation, and completion.
+
+Existing Expo push-token registration is enabled for authenticated clients while provider notifications are preserved.
+
+Reviews
+Booking-scoped review lookup exists at GET /reviews/booking/:bookingId.
+
+Review creation is limited to completed bookings.
+
+Review creation enforces client ownership and role permissions.
+
+Ratings accept only values from 1 through 5.
+
+Comments are limited to 1,000 characters.
+
+Duplicate review attempts are safely handled with HTTP 409.
+
+Provider rating and count updates remain transactional.
+
+Web and mobile forms include star controls, inline validation, loading protection, duplicate-submit protection, post-submit cache refresh, and existing-review display.
+
+Provider-private careNotes remain hidden from clients.
+
+Verification baseline
+The following checks passed for the completed checkpoints:
+
+Web typecheck.
+
+Mobile typecheck.
+
+Full workspace or production build.
+
+63 booking state-machine tests.
+
+16 booking concurrency and integration tests.
+
+7 review integration tests.
+
+Web and mobile workflow verification.
+
+Web and mobile 390px previews.
+
+Repeat all relevant checks after changes. Add focused tests for every new authorization, privacy, concurrency, or state-transition behavior.
+
+Immediate next feature
+Implement minimal client-safe care history.
+
+In scope
+A client can view their own relevant booking history.
+
+History can show client-visible dates, provider identity, service information, booking status, and approved client-visible summaries.
+
+Current and historical bookings are clearly separated where useful.
+
+Web and mobile provide loading, empty, error, and refresh states.
+
+Server-side ownership and authorization checks are mandatory.
+
+History is paginated or bounded if the existing data volume requires it.
+
+Existing booking, cancellation, freshness, notification, and review behavior remains unchanged.
+
+Out of scope
+Provider-private careNotes.
+
+Admin views.
+
+New clinical-record functionality.
+
+Payments or Stripe.
+
+New review workflows.
+
+Unnecessary database schema changes.
+
+Unnecessary OpenAPI changes.
+
+Provider workflow redesign.
+
+Acceptance criteria
+A client can view only their own care history.
+
+Provider-private notes never appear in client API responses, serialized objects, logs, or UI.
+
+Unauthorized users receive safe denial behavior.
+
+The existing booking and authorization model remains the source of truth.
+
+Web and mobile behavior is consistent.
+
+Existing cancellation and review protections continue to pass.
+
+Focused care-history tests cover ownership, permissions, privacy, empty history, loading/error behavior, and bounded or paginated results.
+
+Web typecheck, mobile typecheck, full build, booking tests, concurrency tests, review tests, and focused care-history tests pass.
+
+390px web and mobile previews are checked.
+
+Engineering best practices
+Inspect the existing architecture before editing files.
+
+Reuse existing API clients, query keys, cache invalidation, authorization helpers, UI components, and notification mechanisms.
+
+Keep server-owned booking state authoritative; do not duplicate the state machine in the client.
+
+Prefer small, reversible changes over broad refactors.
+
+Keep web and mobile implementations behaviorally consistent while respecting platform conventions.
+
+Validate authorization on the server even when the UI hides an action.
+
+Treat privacy boundaries as API boundaries, not only UI boundaries.
+
+Do not log private notes, tokens, credentials, or sensitive user data.
+
+Preserve existing public contracts unless a change is necessary and documented.
+
+Add or update tests with the implementation, not afterward.
+
+Keep commits focused and descriptive.
+
+Do not combine unrelated product areas in one checkpoint.
+
+Checkpoint and push policy
+Create a checkpoint when a coherent unit is implemented and verified. Push stable checkpoints to GitHub as updates are created, but only through normal non-force pushes.
+
+A checkpoint is push-eligible only when all of the following are true:
+
+The change is limited to the active scoped feature.
+
+Relevant typechecks, tests, builds, and previews pass.
+
+The working tree contains no unintended changes.
+
+The commit contains no secrets, credentials, prompt files, uploaded handoff files, temporary exports, or unrelated assets.
+
+The remote branch has been fetched and inspected.
+
+The push will not require force-push, reset, rebase of published history, or history rewriting.
+
+.agents/LOG.md records the change, verification, limitations, and next step.
+
+Setup and continuation documentation is current.
+
+When these conditions pass:
+
+Review the diff and commit contents.
+
+Run the relevant verification commands.
+
+Commit the focused checkpoint.
+
+Fetch origin/main.
+
+Confirm there is no unexpected remote divergence.
+
+Push normally to origin/main.
+
+Confirm local HEAD equals origin/main.
+
+Confirm ahead/behind is 0 / 0.
+
+Confirm the working tree is clean.
+
+Record the final commit hash in the log.
+
+Never force-push. Never overwrite remote work. Never push secrets. Never push uploaded handoff files or copied prompts.
+
+If authentication or the managed GitHub worker fails:
+
+Do not retry invalid credentials repeatedly.
+
+Do not modify application code to work around the failure.
+
+Do not rewrite history.
+
+Preserve the local commit.
+
+Report the exact local commit, remote commit, ahead/behind status, and failure.
+
+Keep the working tree clean where possible.
+
+Resume with a normal push after GitHub integration is restored.
+
+Usage-limit protection
+Before starting a broad task, assess whether remaining account, tool, build, or agent usage is sufficient to implement, verify, document, and synchronize one coherent checkpoint.
+
+If usage may run out before the checkpoint can be completed:
+
+Do not start another feature.
+
+Finish the smallest safe unit of work.
+
+Avoid optional refactors and cleanup.
+
+Run the highest-value tests first.
+
+Save implementation notes and exact next steps.
+
+Commit only if the push gate passes.
+
+Otherwise leave changes local and clearly report their state.
+
+Stop before the usage limit is exhausted.
+
+Priority order when usage is constrained:
+
+Preserve working application code.
+
+Prevent privacy or authorization regressions.
+
+Run focused verification.
+
+Document repository state.
+
+Synchronize a clean checkpoint if possible.
+
+Defer optional improvements.
+
+New-account continuation package
+Maintain these files as appropriate:
+
+README.md — installation, development, testing, build, and deployment instructions.
+
+.env.example — environment-variable names and safe placeholders only.
+
+.agents/LOG.md — chronological checkpoint history.
+
+.agents/SETUP.md — new-account and service-connection instructions.
+
+.agents/NEXT_TASK.md — current task, acceptance criteria, and exclusions.
+
+.agents/KNOWN_ISSUES.md — blockers, failed integrations, and unresolved decisions.
+
+The package must document:
+
+Required runtime, package manager, and tool versions.
+
+Install, development, typecheck, test, build, and preview commands.
+
+Required external services and how to reconnect them.
+
+Environment-variable names without real values.
+
+Database and migration prerequisites without credentials.
+
+Authentication and authorization assumptions.
+
+Current branch, commit, remote, and synchronization status.
+
+Completed features and verification results.
+
+Known issues and blocked integrations.
+
+Files that must remain untracked or ignored.
+
+The exact next task and its acceptance criteria.
+
+Recovery and rollback guidance.
+
+Never place real credentials, access tokens, private keys, database passwords, personal data, uploaded prompts, or conversation transcripts in the continuation package.
+
+Environment placeholder policy
+Use names only in .env.example, for example:
+
+text
+DATABASE_URL=<configure-in-new-account>
+AUTH_SECRET=<configure-in-new-account>
+EXPO_PUBLIC_API_URL=<configure-in-new-account>
+STRIPE_SECRET_KEY=<configure-only-if-enabled-later>
+GITHUB_TOKEN=<configure-through-supported-integration>
+Do not create fake production values. Do not commit local .env files.
+
+Required checkpoint report
+At the end of every checkpoint, report:
+
+What changed.
+
+What did not change.
+
+Tests, builds, and previews completed.
+
+Current commit hash.
+
+Remote commit hash.
+
+Ahead/behind status.
+
+Working-tree status.
+
+Whether the checkpoint was pushed.
+
+Remaining blockers.
+
+Exact next task.
+
+Whether a new account can continue using the setup package.
+
+Do not start the next product feature until the current checkpoint is either pushed successfully or explicitly marked as a local, safely recoverable checkpoint.
+
+Stop conditions
+Stop implementation and request review when:
+
+A schema migration appears necessary but was not planned.
+
+A change could expose provider-private data.
+
+A permission rule is ambiguous.
+
+The remote branch has unexpected commits or divergence.
+
+A push would require force-push or history rewrite.
+
+Tests reveal a state-machine or concurrency regression.
+
+The managed GitHub worker or credential flow fails.
+
+Usage limits may prevent a complete checkpoint.
+
+The requested work expands beyond the current scope.
+
+Next-task handoff
+Start with repository inspection and identify the existing booking-history endpoints, authorization helpers, query/cache patterns, and privacy boundaries. Then implement only the minimal client-safe care-history slice, with focused tests and web/mobile UI verification. Finish by updating the logs and setup package, committing one focused checkpoint, pushing normally, and confirming local and remote synchronization at 0 / 0.

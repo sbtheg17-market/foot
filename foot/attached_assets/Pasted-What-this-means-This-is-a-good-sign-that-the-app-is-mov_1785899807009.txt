@@ -1,0 +1,54 @@
+What this means
+This is a good sign that the app is moving from “works in the happy path” to “fails safely.” That matters because payments and credential workflows both depend on the booking engine being trustworthy first.
+
+Best next task
+Now the strongest next step is credential submission / provider verification rather than Stripe.
+
+Why:
+
+booking integrity is already hardened,
+
+payment adds extra complexity and failure modes,
+
+verification is the next trust layer that fits naturally on top of stable bookings.
+
+What to tell Replit
+Use this:
+
+text
+Great — keep going from this checkpoint.
+
+Current state to preserve:
+- JSON error handler is in place
+- write-result guards are in place
+- pressure tests are passing
+- booking flow is hardened under concurrent load
+- all changes are pushed to origin/main
+
+Next task:
+Let providers submit credentials for admin approval.
+
+Requirements:
+1. Keep the booking state machine and booking reliability work untouched.
+2. Add provider credential submission flow.
+3. Allow providers to upload or submit verification documents/details.
+4. Keep the UX mobile-friendly.
+5. Make the feature provider-first and checkpoint-sized.
+6. Do not add Stripe yet.
+7. Do not break the existing booking paths.
+8. Keep GitHub synced at each stable checkpoint.
+9. If shared review/approval infrastructure is needed, keep it reusable for future admin workflows.
+10. Report the plan before coding.
+
+Goal:
+add the provider trust layer now that the booking engine is stable.
+Why not Stripe yet
+Stripe is still a good future step, but if you add it now you’ll be combining monetization with trust and booking stability work all at once. Since verification is the next logical layer and usually simpler to validate, it’s the better move right now.
+
+Short version
+If you want a shorter instruction:
+
+text
+Booking reliability is now hardened and all tests pass. Next, build provider credential submission for admin approval. Keep it mobile-friendly, provider-first, checkpoint-sized, and do not add Stripe yet. Keep pushing stable chunks to origin/main at every checkpoint.
+If you want, I can also help you outline the credential submission flow so Replit knows exactly what fields and states to implement.
+
