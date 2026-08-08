@@ -1,36 +1,42 @@
-# Next product task — Phase 2: post-submission progress presentation
+# Next product task — Phase 2 complete; awaiting next checkpoint
 
 ## Current gate
 
-MC5 (submission-history API) is published on canonical `main`, and the
-attachment-drift cleanup landed at `origin/main = 64db70a`. MC6 (web
-submission-history timeline UI) is implemented and verified on the safety
-branch `phase2-mc6-web-timeline`, one commit ahead of `origin/main`.
-Do not begin MC7 until the MC6 patch lands on `origin/main` at `0/0`.
+The post-submission progress presentation is complete across all surfaces:
+MC5 (submission-history API), MC6 (web timeline), and MC7 (mobile timeline).
+MC7 is implemented and verified on the safety branch
+`phase2-mc7-mobile-timeline`, one commit ahead of
+`origin/main = 982334332defaf9441bea181b5271c15168618e9`.
+No new product work should begin until the MC7 patch lands on
+`origin/main` at `0/0` and the next checkpoint is explicitly approved.
 
-- Web `/provider/application-status` renders `SubmissionHistoryTimeline`,
-  consuming `GET /providers/application/submissions` newest-first with
-  opaque keyset cursor paging; shows prior closed rejected cycles
-  (oldest→newest) plus a current-cycle node from the server `summary`,
-  with loading / empty / error / unauthorized / paging states and
-  server-gated CTAs. `reviewerNotes`/`reviewedBy` never referenced.
-- Web + full-workspace typecheck and web production build pass; scope
-  limited to `artifacts/web/` (+ `.agents/`).
+- Mobile `provider/application-status` renders `SubmissionHistoryTimeline`
+  (Expo/React Native), consuming `GET /providers/application/submissions`
+  newest-first with opaque keyset cursor paging; shows prior closed
+  rejected cycles (oldest→newest) plus a current-cycle node from the
+  server `summary`, with loading / empty / error / unauthorized / paging
+  states and server-gated CTAs. `reviewerNotes`/`reviewedBy` never
+  referenced; honesty caption matches MC6.
+- Mobile + full-workspace typecheck pass; `expo export --platform web`
+  bundles the whole module graph with no errors. Native Hermes/device
+  preview is not runnable in this headless container.
 
-## Next scope (queued, not started)
+## Next scope (queued, not started — requires explicit approval)
 
-**MC7 — Mobile submission-history timeline.** Mirror the web timeline on
-`artifacts/mobile` `provider/application-status`, consuming the same MC5
-endpoint via the generated client, with the same privacy rules, honest
-scope caption, and server-gated CTAs. Mobile-only; no server changes.
+Nothing in the submission-history line remains. Candidate future work is
+all explicitly deferred (see below); each needs its own checkpoint sign-off.
 
-## Deferred (explicitly not MC6/MC7)
+## Deferred (explicitly not part of MC5–MC7)
 
+- Lifecycle event recording (submitted/under_review/approved outcomes) —
+  the history remains closed-rejected-cycles only until a later checkpoint
+  starts recording those events. Until then no surface may claim to show a
+  complete persisted lifecycle event log.
+- Notifications (`expo-notifications` is present but unused for this line).
 - Composite index `(provider_application_id, created_at DESC, id DESC)` on
   `provider_application_submissions` — documented follow-up (D1 deferred).
-- Lifecycle event recording (submitted/under_review/approved outcomes) —
-  history remains closed-rejected-cycles only until a later checkpoint.
-- Web test infrastructure (vitest + testing-library) — separate slice.
+- Web/mobile test infrastructure (vitest / RN testing-library) — the
+  timelines are validated by typecheck + build/export today.
 - Root `attached_assets/Pasted-*.txt` (pre-existing canonical content) —
   optional separate remote cleanup; not touched here.
 

@@ -17,6 +17,7 @@ import {
 } from '@workspace/api-client-react';
 import { useAuth } from '@/context/auth';
 import { useColors } from '@/hooks/useColors';
+import { SubmissionHistoryTimeline } from '@/components/submission-history-timeline';
 
 /**
  * Provider application status screen — Phase 1 micro-checkpoint 4 (mobile).
@@ -224,8 +225,6 @@ export default function ProviderApplicationStatusScreen() {
   // ── Loaded — view is present ─────────────────────────────────────────────
   const copy = statusCopy[view.status] ?? statusCopy.under_review!;
   const isRejected = view.status === 'rejected';
-  const historyCount = view.submissionCount ?? 0;
-  const latest = view.latestSubmission;
 
   return (
     <ScrollView
@@ -327,72 +326,9 @@ export default function ProviderApplicationStatusScreen() {
         </View>
       )}
 
-      {/* Prior-submissions summary (public snapshot fields only) */}
-      {historyCount > 0 && (
-        <View
-          testID="application-status-history-card"
-          style={[
-            styles.card,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-        >
-          <View style={styles.statusRow}>
-            <Text style={[styles.statusLabel, { color: colors.foreground }]}>
-              Prior submissions
-            </Text>
-            <Text
-              testID="application-status-history-count"
-              style={[
-                styles.badge,
-                {
-                  backgroundColor: colors.secondary,
-                  color: colors.foreground,
-                },
-              ]}
-            >
-              {historyCount}
-            </Text>
-          </View>
-          {latest && (
-            <View style={styles.historyList}>
-              <Text style={[styles.metaLine, { color: colors.mutedForeground }]}>
-                <Text style={[styles.metaLabel, { color: colors.foreground }]}>
-                  Latest outcome:{' '}
-                </Text>
-                <Text
-                  testID="application-status-latest-outcome"
-                  style={styles.capitalize}
-                >
-                  {latest.outcome}
-                </Text>
-              </Text>
-              {latest.submittedAt && (
-                <Text
-                  style={[styles.metaLine, { color: colors.mutedForeground }]}
-                >
-                  <Text style={[styles.metaLabel, { color: colors.foreground }]}>
-                    Submitted:{' '}
-                  </Text>
-                  <Text testID="application-status-latest-submitted-at">
-                    {formatDateTime(latest.submittedAt)}
-                  </Text>
-                </Text>
-              )}
-              {latest.rejectionReason && (
-                <Text
-                  testID="application-status-latest-rejection-reason"
-                  style={[styles.metaLine, { color: colors.mutedForeground }]}
-                >
-                  <Text style={[styles.metaLabel, { color: colors.foreground }]}>
-                    Feedback:{' '}
-                  </Text>
-                  {latest.rejectionReason}
-                </Text>
-              )}
-            </View>
-          )}
-        </View>
-      )}
+      {/* Submission history timeline (MC7) — current status + prior closed
+          rejected cycles, keyset-paginated. Public snapshot fields only. */}
+      <SubmissionHistoryTimeline currentView={view} />
 
       {/* Action row — every action is server-gated */}
       <View style={styles.actionColumn}>
