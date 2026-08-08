@@ -1,0 +1,615 @@
+From 8dad104b5bfe2623502b6bd960a41dd57b7c431f Mon Sep 17 00:00:00 2001
+From: E1 Agent <e1@emergent.dev>
+Date: Sat, 8 Aug 2026 13:55:34 +0000
+Subject: [PATCH] onboarding: surface rejection reasons on provider status page
+
+---
+ .agents/LOG.md                                |  45 ++
+ .agents/NEXT_TASK.md                          |  96 +++--
+ .../src/pages/provider-application-status.tsx | 392 ++++++++++++++++--
+ 3 files changed, 466 insertions(+), 67 deletions(-)
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index f01ccc3..6113e5e 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -54,6 +54,7 @@ Since agent credit balances cannot be read programmatically, each session entry
+ | Provider application coverage | ✅ Phase 4 checkpoint verified | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. |
+ | Provider application resubmission | ✅ Phase 1 checkpoint 1 verified | `POST /providers/application/reset` transitions `rejected → draft` with an immutable `provider_application_submissions` history snapshot, owner-only access, idempotent no-op on `draft`, 409 on non-resettable states, and preserved `rejectionReason` in history. `PATCH` and direct `submit` are blocked while `rejected`; approved-provider authorization is unchanged. `test:provider-resubmission` passes all 11 focused integration tests. |
+ | Provider application status API | ✅ Phase 1 checkpoint 2 verified | `GET /providers/application/status` returns a compact owner-scoped view: `status`, current-cycle `submittedAt`/`reviewedAt`, provider-visible `rejectionReason`, `submissionCount`, `latestSubmission` snapshot, server-derived `nextAction` (`resume_draft`/`wait_for_review`/`provider_operations_available`/`reset_to_draft`/`contact_support`), and `canEdit`/`canReset`/`canResubmit` capability flags. Reviewer-private `reviewerNotes` never appears. `test:provider-status` passes all 9 focused tests; approved-provider authorization and `careNotes` privacy regressions remain green. |
++| Provider application rejected-state web UI | ✅ Phase 1 checkpoint 3 verified | `/provider/application-status` now consumes `GET /providers/application/status` via the generated `useGetProviderApplicationStatus` hook, renders the provider-visible `rejectionReason` and `previousSubmissions` summary, and gates the reset/resubmit/edit CTAs on server-provided `canReset`/`canResubmit`/`canEdit`. Loading, unauthorized, 404 (no application yet), 403 (non-provider member), and mutation-error states are handled without duplicating server authorization logic. `reviewerNotes` is never rendered because it never enters the status response. Full workspace typecheck and web build both pass; 26 `data-testid` attributes cover every state and action. |
+ | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
+ | GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
+ 
+@@ -61,6 +62,50 @@ Since agent credit balances cannot be read programmatically, each session entry
+ 
+ ---
+ 
++### Session 041 — 2026-08-07
++**Agent:** E1 Agent (Emergent, Neo)
++**Scope:** `S`
++**Triggered by:** Phase 1 micro-checkpoint 3 — web rejected-state UI (web-only), after the authorized publisher landed MC2 at `origin/main = 1f4c018` and Neo fast-synced local `main` to that commit.
++
++**What was done:**
++- Rewrote `artifacts/web/src/pages/provider-application-status.tsx` to consume the MC2 status API. The page now calls the generated `useGetProviderApplicationStatus` hook (compact endpoint) instead of the older `useGetProviderApplication` (full detail). Reset and resubmit actions use the generated `useResetProviderApplication` / `useSubmitProviderApplication` mutation hooks with a shared `queryKey` invalidation on success.
++- Renders the provider-visible `rejectionReason` inside a dedicated feedback card that only appears when `status === "rejected"` and a reason is present. Reviewer-private `reviewerNotes` is never referenced in code because it never enters the status response payload.
++- Renders `submissionCount` and the public fields of `latestSubmission` (`outcome`, `submittedAt`, `rejectionReason`) whenever the history is non-empty. History card is hidden for zero-history applications.
++- Gates every action strictly on server-provided flags:
++  * Reset CTA → only when `view.canReset === true`
++  * Resubmit CTA → only when `view.canResubmit === true`
++  * Continue-editing CTA → only when `view.canEdit === true`
++  The client never checks `status` directly to decide button visibility.
++- Handles loading (spinner with role="status"), unauthorized (redirect to /login), 404 (owner has no application row → shows "Start onboarding" CTA), 403 (non-provider member → shows the client-fallback link), generic error (retry button), and mutation-error (inline destructive message) states.
++- Preserves existing routing behavior: `draft` → onboarding, `approved` → provider portal (server-derived).
++- 26 `data-testid` attributes across every state and interactive element for future browser-automation coverage.
++- No API, database, mobile, migration, or generated-client changes.
++
++**Verification (local):**
++- `@workspace/web` typecheck: ✅
++- Full workspace typecheck (api-server, web, mobile, scripts): ✅
++- Web production build: ✅ (`466.62 kB` JS, `112.70 kB` CSS, `1.50 kB` HTML)
++- Diff scope inspection: only 1 file changed under `artifacts/web/` (plus `.agents/LOG.md` and this doc)
++- Focused web *unit* tests: **not applicable** — the web workspace has no vitest / jest infrastructure yet. The API-side `test:provider-status` slice (verified 9/9 in Session 040 on the exact same tree that is now `1f4c018`) validates the endpoint this page consumes. Adding a web test runner is a separate future slice.
++- Backend regressions were not re-run because no server code changed in MC3.
++
++**Deferred (not in this slice):**
++- Pre-existing `test:provider-application` 2/8 and `test:onboarding` 1/2 baseline drift — still queued for a separately scoped cleanup slice.
++- Removal of the `attached_assets/phase1-mc1_*.patch` file that lives on the `origin/conflict_070826_mc2` branch — untouched by design.
++- Web test infrastructure (vitest + testing-library setup) — separate future slice.
++- Mobile rejected-state UI — separate future micro-checkpoint (Phase 1 MC4).
++
++**Files changed:**
++- `artifacts/web/src/pages/provider-application-status.tsx` (rewritten)
++- `.agents/LOG.md`
++- `.agents/NEXT_TASK.md`
++
++**Build state at end:** Local `main` is 1 commit ahead of `origin/main = 1f4c018`. Working tree clean apart from the intentional `phase1-mc2.patch` and `phase1-mc3.patch` handoff artifacts. Commit prepared with author `E1 Agent <e1@emergent.dev>` but not pushed from this environment — per the standing Emergent-only workflow, the authorized publisher will `git am --3way` the patch onto canonical `origin/main` and push.
++
++**Next best action:** Transfer `phase1-mc3.patch` to the authorized publisher. Do not begin MC4 (mobile rejected-state UI) until the MC3 push lands on `origin/main` at `0 / 0`.
++
++---
++
+ ### Session 040 — 2026-08-07
+ **Agent:** E1 Agent (Emergent, Neo)
+ **Scope:** `S`
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index 85b7da1..3c15cb2 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -1,44 +1,72 @@
+-# Next product task — Phase 1 micro-checkpoint 3: web rejected-state UI
++# Next product task — Phase 1 micro-checkpoint 4: mobile rejected-state UI
+ 
+ ## Current gate
+ 
+-Phase 1 micro-checkpoint 1 (server transitions) and micro-checkpoint 2
+-(rejection-reason / status API) are complete and pushed to `origin/main`.
+-The server now offers:
+-
+-- `GET /providers/application` — full owner-scoped detail with history
+-- `GET /providers/application/status` — compact owner-scoped status view
+-  with server-derived `nextAction` and capability flags
+-- `POST /providers/application/reset` — explicit `rejected → draft`
+-- `POST /providers/application/submit` — `draft → under_review`
+-- Immutable `provider_application_submissions` history
+-- Provider-visible `rejectionReason`, admin-private `reviewerNotes`
+-
+-## Next scope — Phase 1 micro-checkpoint 3 (web only)
+-
+-Add the web rejected-state UI on top of the existing `/provider/application-status`
+-route (or wherever the current post-submission status screen lives).
+-
+-- Read from `GET /providers/application/status`.
+-- When `status === "rejected"`, show the provider-visible `rejectionReason`
+-  and a primary CTA that calls `POST /providers/application/reset`.
+-- Show `latestSubmission` and `submissionCount` in a low-emphasis
+-  summary line so providers understand how many prior cycles occurred.
+-- Respect `canEdit` / `canReset` / `canResubmit` — never render actions
+-  the server says are unavailable.
+-- Use existing web design tokens, routing, and query patterns.
+-- Keep loading, retry, empty, and error states aligned with the rest of
+-  the portal.
+-- Do not add mobile work in this slice (that becomes Phase 1 MC4).
++Phase 1 micro-checkpoints 1–3 are complete. `origin/main` at time of MC3
++handoff was `1f4c018` (MC2 published). MC3 lands one focused commit on top
++that changes only `artifacts/web/src/pages/provider-application-status.tsx`
++plus the two `.agents/` docs — no server, database, mobile, migration, or
++generated-client changes.
++
++The provider now sees, on the web:
++
++- current `status` with a labeled pill
++- `submittedAt` / `reviewedAt` for the current cycle
++- a dedicated reviewer-feedback card containing the provider-visible
++  `rejectionReason` (only when status is `rejected`)
++- a prior-submissions history card with `submissionCount` and the public
++  fields of `latestSubmission`
++- server-gated CTAs — Reset (when `canReset`), Submit for review
++  (when `canResubmit`), Continue editing (when `canEdit`)
++- loading, unauthorized (401), no-application (404), non-member (403),
++  generic error, and mutation-error states
++
++Reviewer-private `reviewerNotes` is never referenced by the web code and
++never enters the status response payload.
++
++## Next scope — Phase 1 micro-checkpoint 4 (mobile only)
++
++Bring the same server-authoritative rejected-state experience to Expo
++mobile (`artifacts/mobile/`).
++
++- Read from `GET /providers/application/status` via the shared
++  `@workspace/api-client-react` hook (`useGetProviderApplicationStatus`).
++- Reuse the exact same server-derived visibility rules: Reset action only
++  when `canReset`, Resubmit only when `canResubmit`, Continue editing only
++  when `canEdit`.
++- Render the provider-visible `rejectionReason` prominently when the
++  status is `rejected`; never render `reviewerNotes` (it isn't in the
++  payload).
++- Render the `submissionCount` and public `latestSubmission` summary the
++  same way the web page does — a low-emphasis card, not a list of every
++  historical submission.
++- Preserve the mobile navigation contract (approved → provider tabs,
++  draft → mobile onboarding flow).
++- Keep loading / unauthorized / 404 / 403 / error / mutation-error
++  states aligned with the mobile design system already in use elsewhere
++  in the app.
++- Do not add web work in this slice.
+ - Do not add server changes.
+ 
+ ## Guardrails
+ 
+-- Do not fix the pre-existing `test:provider-application` (2) or
+-  `test:onboarding` (1) baseline drift in this slice — separate cleanup.
++- Do not fix the pre-existing `test:provider-application` (2 failing) or
++  `test:onboarding` (1 failing) baseline drift in this slice — separate
++  cleanup.
+ - Do not add Stripe, payouts, admin verification, disputes, background
+-  checks, or unrelated admin/care-history/review work.
+-- Never expose `reviewerNotes` in the UI; only `rejectionReason` and public
+-  history fields are safe to render.
++  checks, or any unrelated admin / care-history / review work.
++- Never render `reviewerNotes` in the UI. Only `rejectionReason` and the
++  public snapshot fields of `previousSubmissions` are safe to render.
+ - Signup `roleIntent` remains an onboarding request, not an authorization
+   claim. Approved-provider authorization boundary must stay intact.
++- Do not duplicate server authorization rules in the mobile client —
++  render actions strictly from `canEdit` / `canReset` / `canResubmit`.
++
++## Separately queued cleanup slices (not for MC4)
++
++- `attached_assets/phase1-mc1_1786063790850.patch` remains committed on
++  `origin/conflict_070826_mc2` — safe to leave; delete the branch
++  entirely as a hygiene action after MC4 lands.
++- Web test infrastructure (vitest + testing-library) — separate slice.
++- `test:provider-application` (2/8) and `test:onboarding` (1/2) drift —
++  separate slice.
+diff --git a/artifacts/web/src/pages/provider-application-status.tsx b/artifacts/web/src/pages/provider-application-status.tsx
+index 8b636cd..b6588d0 100644
+--- a/artifacts/web/src/pages/provider-application-status.tsx
++++ b/artifacts/web/src/pages/provider-application-status.tsx
+@@ -1,62 +1,388 @@
+ import React, { useEffect } from 'react';
+ import { Link, useLocation } from 'wouter';
+-import { useGetMe, useGetProviderApplication } from '@workspace/api-client-react';
++import { useQueryClient } from '@tanstack/react-query';
++import {
++  getGetProviderApplicationStatusQueryKey,
++  useGetMe,
++  useGetProviderApplicationStatus,
++  useResetProviderApplication,
++  useSubmitProviderApplication,
++} from '@workspace/api-client-react';
+ import { ROUTES } from '@/lib/routes';
+ 
+-const statusCopy: Record<string, { title: string; body: string }> = {
++/**
++ * Provider application status screen — Phase 1 micro-checkpoint 3.
++ *
++ * Reads the server-authoritative status view from GET /providers/application/status
++ * (published in MC2). All action visibility and next-step copy is derived from
++ * server-provided fields (`nextAction`, `canReset`, `canResubmit`, `canEdit`);
++ * the client never duplicates that authorization logic. The provider-visible
++ * `rejectionReason` and public `previousSubmissions` summary are surfaced only
++ * for the owner; reviewer-private notes are never rendered because they are
++ * never present in the response payload.
++ */
++
++const statusHeadline: Record<string, { eyebrow: string; title: string; body: string }> = {
++  draft: {
++    eyebrow: 'Application status',
++    title: 'Pick up where you left off',
++    body: "Finish the remaining onboarding steps to send your application in for review.",
++  },
+   under_review: {
++    eyebrow: 'Application status',
+     title: 'Your application is with our review team',
+     body: 'We are checking your profile and credentials so clients can book with confidence. We will update this space when there is a decision.',
+   },
++  approved: {
++    eyebrow: 'Application status',
++    title: "You're approved",
++    body: 'Your provider account is active. You can accept bookings and manage clients.',
++  },
+   rejected: {
++    eyebrow: 'Application status',
+     title: 'A little more information is needed',
+-    body: 'Your application needs an update before it can move forward. Review the feedback and continue your profile when you are ready.',
++    body: 'Please review the reviewer notes below, reset the application to draft, update the flagged details, and resubmit when ready.',
+   },
+   suspended: {
++    eyebrow: 'Application status',
+     title: 'Your provider application is paused',
+     body: 'Provider access is currently paused. Please contact support if you need help understanding the next step.',
+   },
+ };
+ 
++function formatDateTime(value: string | null | undefined): string {
++  if (!value) return '—';
++  try {
++    return new Date(value).toLocaleString(undefined, {
++      dateStyle: 'medium',
++      timeStyle: 'short',
++    });
++  } catch {
++    return value;
++  }
++}
++
+ export default function ProviderApplicationStatus() {
+   const [, setLocation] = useLocation();
+-  const { data: me, isLoading: meLoading, error: meError } = useGetMe();
+-  const query = useGetProviderApplication({ query: { enabled: Boolean(me?.user), retry: false, queryKey: ['provider-application'] } });
+-  const application = query.data?.application;
++  const queryClient = useQueryClient();
++  const meQuery = useGetMe();
++  const meLoading = meQuery.isLoading;
++  const meError = meQuery.error;
++  const me = meQuery.data;
++
++  const statusQuery = useGetProviderApplicationStatus({
++    query: {
++      enabled: Boolean(me?.user),
++      retry: false,
++      queryKey: getGetProviderApplicationStatusQueryKey(),
++    },
++  });
++  const view = statusQuery.data?.status;
++
++  const invalidateStatus = () =>
++    queryClient.invalidateQueries({
++      queryKey: getGetProviderApplicationStatusQueryKey(),
++    });
++
++  const resetMutation = useResetProviderApplication({
++    mutation: { onSuccess: invalidateStatus },
++  });
++  const submitMutation = useSubmitProviderApplication({
++    mutation: { onSuccess: invalidateStatus },
++  });
+ 
+   useEffect(() => {
+-    if (!meLoading && (meError || !me?.user)) setLocation(ROUTES.login, { replace: true });
+-    if (application?.status === 'draft') setLocation(ROUTES.onboarding.provider, { replace: true });
+-    if (application?.status === 'approved') setLocation(ROUTES.provider.root, { replace: true });
+-  }, [application, me, meError, meLoading, setLocation]);
++    if (!meLoading && (meError || !me?.user)) {
++      setLocation(ROUTES.login, { replace: true });
++      return;
++    }
++    // Route out of this screen when the server-derived state says another
++    // surface is the right destination. Drafts belong in the onboarding
++    // funnel; approved providers belong in their portal.
++    if (view?.status === 'draft') {
++      setLocation(ROUTES.onboarding.provider, { replace: true });
++    } else if (view?.status === 'approved') {
++      setLocation(ROUTES.provider.root, { replace: true });
++    }
++  }, [view, me, meError, meLoading, setLocation]);
+ 
+-  const copy = statusCopy[application?.status ?? 'under_review'] ?? statusCopy.under_review;
++  // ── Loading ──────────────────────────────────────────────────────────────
++  if (meLoading || statusQuery.isLoading) {
++    return (
++      <StatusShell>
++        <div
++          data-testid="application-status-loading"
++          className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
++          role="status"
++          aria-label="Loading application status"
++        />
++      </StatusShell>
++    );
++  }
++
++  // ── Unauthorized (no session or /me failed) ─────────────────────────────
++  if (meError || !me?.user) {
++    return (
++      <StatusShell>
++        <p
++          data-testid="application-status-unauthorized"
++          className="text-sm text-muted-foreground"
++        >
++          Redirecting to sign in…
++        </p>
++      </StatusShell>
++    );
++  }
++
++  // ── No application yet (owner is a provider member without a draft row) ─
++  if (statusQuery.isError || !view) {
++    const status = (statusQuery.error as { status?: number } | undefined)?.status;
++    if (status === 404) {
++      return (
++        <StatusShell>
++          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">
++            Application status
++          </p>
++          <h1
++            data-testid="application-status-empty-title"
++            className="mt-3 font-serif text-3xl font-bold text-foreground"
++          >
++            Start your provider application
++          </h1>
++          <p className="mt-4 text-sm leading-6 text-muted-foreground">
++            You haven&apos;t started an application yet. Begin onboarding to send one in.
++          </p>
++          <Link
++            href={ROUTES.onboarding.provider}
++            data-testid="application-status-start-cta"
++            className="mt-8 w-full rounded-xl bg-primary px-4 py-3 text-center font-semibold text-primary-foreground"
++          >
++            Start onboarding
++          </Link>
++        </StatusShell>
++      );
++    }
++    if (status === 403) {
++      return (
++        <StatusShell>
++          <p
++            data-testid="application-status-forbidden"
++            className="text-sm text-muted-foreground"
++          >
++            You don&apos;t have access to a provider application on this account.
++          </p>
++          <Link
++            href={ROUTES.client.discover}
++            data-testid="application-status-continue-client-cta"
++            className="mt-6 text-sm font-medium text-muted-foreground hover:text-foreground"
++          >
++            Continue as a client
++          </Link>
++        </StatusShell>
++      );
++    }
++    return (
++      <StatusShell>
++        <p
++          data-testid="application-status-error"
++          className="text-sm text-destructive"
++        >
++          We couldn&apos;t load your application status. Please try again in a moment.
++        </p>
++        <button
++          data-testid="application-status-retry"
++          type="button"
++          onClick={() => statusQuery.refetch()}
++          className="mt-6 rounded-xl border border-border px-4 py-2 text-sm font-medium"
++        >
++          Try again
++        </button>
++      </StatusShell>
++    );
++  }
++
++  // ── Loaded — view is present ────────────────────────────────────────────
++  const copy = statusHeadline[view.status] ?? statusHeadline.under_review!;
++  const isRejected = view.status === 'rejected';
++  const historyCount = view.submissionCount ?? 0;
++  const latest = view.latestSubmission;
+ 
+   return (
+-    <main className="min-h-[100dvh] bg-background px-6 py-12">
+-      <div className="mx-auto flex w-full max-w-[520px] flex-col items-center text-center">
+-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-3xl font-bold text-primary-foreground shadow-lg">O</div>
+-        {query.isLoading ? (
+-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+-        ) : (
+-          <>
+-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">Application status</p>
+-            <h1 className="mt-3 font-serif text-3xl font-bold text-foreground">{copy.title}</h1>
+-            <p className="mt-4 text-sm leading-6 text-muted-foreground">{copy.body}</p>
+-            <div className="mt-8 w-full rounded-2xl border border-border bg-card p-5 text-left">
+-              <div className="flex items-center justify-between">
+-                <span className="font-semibold text-foreground">Current status</span>
+-                <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold capitalize text-secondary-foreground">{application?.status?.replace('_', ' ') ?? 'Loading'}</span>
+-              </div>
+-              <p className="mt-3 text-sm text-muted-foreground">You can still use your client account while provider review is in progress.</p>
++    <StatusShell>
++      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">
++        {copy.eyebrow}
++      </p>
++      <h1
++        data-testid="application-status-title"
++        className="mt-3 font-serif text-3xl font-bold text-foreground"
++      >
++        {copy.title}
++      </h1>
++      <p
++        data-testid="application-status-body"
++        className="mt-4 text-sm leading-6 text-muted-foreground"
++      >
++        {copy.body}
++      </p>
++
++      {/* Current status card */}
++      <div className="mt-8 w-full rounded-2xl border border-border bg-card p-5 text-left">
++        <div className="flex items-center justify-between">
++          <span className="font-semibold text-foreground">Current status</span>
++          <span
++            data-testid="application-status-pill"
++            className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold capitalize text-secondary-foreground"
++          >
++            {view.status.replace('_', ' ')}
++          </span>
++        </div>
++        {view.submittedAt && (
++          <p className="mt-3 text-xs text-muted-foreground">
++            <span className="font-semibold text-foreground">Submitted:</span>{' '}
++            <span data-testid="application-status-submitted-at">
++              {formatDateTime(view.submittedAt)}
++            </span>
++          </p>
++        )}
++        {view.reviewedAt && (
++          <p className="mt-1 text-xs text-muted-foreground">
++            <span className="font-semibold text-foreground">Reviewed:</span>{' '}
++            <span data-testid="application-status-reviewed-at">
++              {formatDateTime(view.reviewedAt)}
++            </span>
++          </p>
++        )}
++      </div>
++
++      {/* Rejection reason (owner-visible; reviewerNotes never appears) */}
++      {isRejected && view.rejectionReason && (
++        <div
++          data-testid="application-status-rejection-card"
++          className="mt-6 w-full rounded-2xl border border-destructive/40 bg-destructive/5 p-5 text-left"
++        >
++          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-destructive">
++            Reviewer feedback
++          </p>
++          <p
++            data-testid="application-status-rejection-reason"
++            className="mt-2 text-sm leading-6 text-foreground"
++          >
++            {view.rejectionReason}
++          </p>
++        </div>
++      )}
++
++      {/* Submission history summary (public snapshot fields only) */}
++      {historyCount > 0 && (
++        <div
++          data-testid="application-status-history-card"
++          className="mt-6 w-full rounded-2xl border border-border bg-card p-5 text-left"
++        >
++          <div className="flex items-center justify-between">
++            <span className="font-semibold text-foreground">Prior submissions</span>
++            <span
++              data-testid="application-status-history-count"
++              className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground"
++            >
++              {historyCount}
++            </span>
++          </div>
++          {latest && (
++            <div className="mt-3 space-y-1 text-xs text-muted-foreground">
++              <p>
++                <span className="font-semibold text-foreground">Latest outcome:</span>{' '}
++                <span
++                  data-testid="application-status-latest-outcome"
++                  className="capitalize"
++                >
++                  {latest.outcome}
++                </span>
++              </p>
++              {latest.submittedAt && (
++                <p>
++                  <span className="font-semibold text-foreground">Submitted:</span>{' '}
++                  <span data-testid="application-status-latest-submitted-at">
++                    {formatDateTime(latest.submittedAt)}
++                  </span>
++                </p>
++              )}
++              {latest.rejectionReason && (
++                <p data-testid="application-status-latest-rejection-reason">
++                  <span className="font-semibold text-foreground">Feedback:</span>{' '}
++                  {latest.rejectionReason}
++                </p>
++              )}
+             </div>
+-            {application?.status === 'rejected' && (
+-              <Link href={ROUTES.onboarding.provider} className="mt-6 w-full rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground">Update application</Link>
+-            )}
+-            <Link href={ROUTES.client.discover} className="mt-4 text-sm font-medium text-muted-foreground hover:text-foreground">Continue as a client</Link>
+-          </>
++          )}
++        </div>
++      )}
++
++      {/* Action row — every action is server-gated */}
++      <div className="mt-8 flex w-full flex-col gap-3">
++        {view.canReset && (
++          <button
++            data-testid="application-status-reset-cta"
++            type="button"
++            disabled={resetMutation.isPending}
++            onClick={() => resetMutation.mutate()}
++            className="w-full rounded-xl bg-primary px-4 py-3 text-center font-semibold text-primary-foreground disabled:opacity-60"
++          >
++            {resetMutation.isPending ? 'Resetting…' : 'Reset to draft'}
++          </button>
++        )}
++        {view.canResubmit && (
++          <button
++            data-testid="application-status-resubmit-cta"
++            type="button"
++            disabled={submitMutation.isPending}
++            onClick={() => submitMutation.mutate()}
++            className="w-full rounded-xl bg-primary px-4 py-3 text-center font-semibold text-primary-foreground disabled:opacity-60"
++          >
++            {submitMutation.isPending ? 'Sending…' : 'Submit for review'}
++          </button>
++        )}
++        {view.canEdit && (
++          <Link
++            href={ROUTES.onboarding.provider}
++            data-testid="application-status-edit-cta"
++            className="w-full rounded-xl border border-border px-4 py-3 text-center font-semibold text-foreground"
++          >
++            Continue editing
++          </Link>
+         )}
++        <Link
++          href={ROUTES.client.discover}
++          data-testid="application-status-continue-client-cta"
++          className="mt-2 text-center text-sm font-medium text-muted-foreground hover:text-foreground"
++        >
++          Continue as a client
++        </Link>
++      </div>
++
++      {(resetMutation.isError || submitMutation.isError) && (
++        <p
++          data-testid="application-status-mutation-error"
++          className="mt-4 text-xs text-destructive"
++        >
++          Something went wrong. Please try again in a moment.
++        </p>
++      )}
++    </StatusShell>
++  );
++}
++
++function StatusShell({ children }: { children: React.ReactNode }) {
++  return (
++    <main
++      data-testid="application-status-page"
++      className="min-h-[100dvh] bg-background px-6 py-12"
++    >
++      <div className="mx-auto flex w-full max-w-[520px] flex-col items-center text-center">
++        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-3xl font-bold text-primary-foreground shadow-lg">
++          O
++        </div>
++        {children}
+       </div>
+     </main>
+   );
+-}
+\ No newline at end of file
++}
+-- 
+2.39.5
+
