@@ -48,8 +48,16 @@ export const providerApplicationSubmissionsTable = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => [
-    index("provider_application_submissions_app_idx").on(
+    // Composite index tuned for the owner-scoped submission-history query
+    // (WHERE provider_application_id = ? ORDER BY created_at DESC, id DESC),
+    // matching the MC5 keyset pagination. The leading equality column also
+    // serves the ascending owner lookup in getOwnApplication, so the former
+    // single-column `provider_application_submissions_app_idx` is redundant
+    // and intentionally removed.
+    index("provider_application_submissions_app_created_id_idx").on(
       table.providerApplicationId,
+      table.createdAt.desc().nullsFirst(),
+      table.id.desc().nullsFirst(),
     ),
   ],
 );

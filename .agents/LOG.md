@@ -65,6 +65,28 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 045 — 2026-08-08
+**Agent:** E1 Agent (Emergent, Neo)
+**Scope:** `XS`
+**Triggered by:** Phase 2 MC8-lite **Commit 1 of 4** — standalone composite history-index migration (database only), authorized off the verified MC7 base.
+
+**What was done:**
+- Pre-coding gate passed: `origin/main == HEAD == 9a146351fb58bb1d1d7cd73ab406c8be6e76269a`, `0/0`, clean. Safety branch `phase2-mc8-notifications`.
+- Replaced the single-column index `provider_application_submissions_app_idx (provider_application_id)` with composite `provider_application_submissions_app_created_id_idx (provider_application_id, created_at DESC, id DESC)` in `lib/db/src/schema/provider-application-submissions.ts`. `.desc().nullsFirst()` aligns the index's NULLS ordering with the query's default `ORDER BY … DESC` so the planner needs no extra sort.
+- Verified the single-column index is truly redundant: the only two call sites (`getOwnApplication`, `fetchSubmissionPage`) both lead with a `provider_application_id` equality, which the composite index's leading column serves. No unrelated query depends on it.
+- **Database schema only — no application-code changes.** Migration model is `drizzle-kit push` (no SQL migration files); reverting = revert this schema edit and re-push, per repo convention.
+
+**Validation (local, Postgres 15 test DB):**
+- `drizzle-kit push` applied cleanly; `\d` confirms the composite index present and the single-column index dropped.
+- `EXPLAIN (ANALYZE, BUFFERS)` on the MC5 keyset query (first page and cursor page, with `provider_application_id` selective): **Index Scan using `…app_created_id_idx`, no Sort node** (Limit directly on the index scan).
+- `test:provider-history` **11/11**. `@workspace/db` typecheck ✅. Scope diff: only the schema file (+ these `.agents` docs).
+
+**Files changed:** `lib/db/src/schema/provider-application-submissions.ts`, `.agents/LOG.md`, `.agents/NEXT_TASK.md`.
+
+**Build state at end:** `phase2-mc8-notifications` is 1 commit ahead of `origin/main`, 0 behind; working tree clean; `pnpm-lock.yaml` restored to baseline. Not pushed. Commits 2–4 (event store, notifications, tests) remain gated pending separate review of Commit 1.
+
+---
+
 ### Session 044 — 2026-08-08
 **Agent:** E1 Agent (Emergent, Neo)
 **Scope:** `S`
