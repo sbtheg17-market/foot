@@ -1,0 +1,1123 @@
+From f4e18df41acff3ecf6ac43bdf61dd5fc58a91de6 Mon Sep 17 00:00:00 2001
+From: emergent-agent-e1 <github@emergent.sh>
+Date: Sun, 9 Aug 2026 11:02:10 +0000
+Subject: [PATCH] feat(api): reviewer approve/reject decisions on provider
+ applications (MC9 commit 1)
+
+Admin-only POST /admin/provider-applications/:id/approve|reject.
+under_review-only transitions persisted with reviewedAt/reviewedBy/
+reviewer-private reviewerNotes (+ provider-visible rejectionReason on
+reject); approved/rejected lifecycle-event enum extension and
+transactional emission; no self-review; invalid or repeated decisions
+fail 409 with no side effects; OpenAPI + regenerated clients.
+No notifications (commit 2), no web/mobile changes.
+---
+ .agents/LOG.md                                |  37 +++
+ .agents/NEXT_TASK.md                          |  89 +++----
+ artifacts/api-server/src/routes/admin.ts      | 220 ++++++++++++++++++
+ artifacts/api-server/src/routes/providers.ts  |   5 +-
+ .../src/generated/api.schemas.ts              |  39 ++++
+ lib/api-client-react/src/generated/api.ts     | 165 +++++++++++++
+ lib/api-spec/openapi.yaml                     | 178 ++++++++++++++
+ lib/api-zod/src/generated/api.ts              |  80 +++++++
+ .../types/adminProviderApplicationResponse.ts |  12 +
+ .../types/adminProviderApplicationView.ts     |  29 +++
+ .../approveProviderApplicationRequest.ts      |  12 +
+ lib/api-zod/src/generated/types/index.ts      |   4 +
+ .../types/rejectProviderApplicationRequest.ts |  17 ++
+ .../src/schema/provider-application-events.ts |  18 +-
+ 14 files changed, 855 insertions(+), 50 deletions(-)
+ create mode 100644 lib/api-zod/src/generated/types/adminProviderApplicationResponse.ts
+ create mode 100644 lib/api-zod/src/generated/types/adminProviderApplicationView.ts
+ create mode 100644 lib/api-zod/src/generated/types/approveProviderApplicationRequest.ts
+ create mode 100644 lib/api-zod/src/generated/types/rejectProviderApplicationRequest.ts
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index ab2de5d..f1ebf76 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -65,6 +65,43 @@ Since agent credit balances cannot be read programmatically, each session entry
+ 
+ ---
+ 
++### Session 049 — 2026-08-09
++**Agent:** E2 Agent (Emergent, Neo)
++**Scope:** `M`
++**Triggered by:** Phase 2 **MC9 Commit 1 of 3** — reviewer approve/reject decisions, off verified base `05292abac700c920364e5b80273377f61a1d5f65` (user-approved locked scope).
++
++**Traceability note (MC8-lite Commit 4):** Commit 4 was published to canonical `main` as `05292ab` with commit subject `files`; its content is byte-identical to the approved patch (SHA-256 `94ca21ae8dc385fcdede89e2665763c8aba98b3bcad278c8579255e0dce86fe4`). Per explicit user instruction, published history was not rewritten; the discrepancy is cosmetic and recorded here only.
++
++**What was done:**
++- Step-0 gate: base `05292ab`, `0/0`, clean (fresh clone; local Postgres 15 test DB re-provisioned).
++- Added admin-only reviewer decision endpoints in `artifacts/api-server/src/routes/admin.ts` (behind the existing `requireAuth` + `requireRole("admin")` router guard):
++  - `POST /admin/provider-applications/:applicationId/approve` — optional reviewer-private `reviewerNotes`.
++  - `POST /admin/provider-applications/:applicationId/reject` — required provider-visible `rejectionReason`, optional reviewer-private `reviewerNotes`.
++  - Both: single transaction with `SELECT … FOR UPDATE`; only `under_review` is decidable — any other state (including a repeated decision) returns `409` with **no side effects**; malformed id `400`; unknown id `404`; unauthenticated `401`; non-admin `403`; reviewers cannot decide their **own** application (`403`), closing the dual-role self-approval hole.
++  - Persists `status`, `reviewedAt`, `reviewedBy`, `reviewerNotes`, and (reject only) `rejectionReason`; emits the matching `approved`/`rejected` lifecycle event in the same transaction (`from_status: under_review`, event `userId` = application owner).
++- Extended `provider_application_event_type` enum with `approved` | `rejected` (`lib/db/src/schema/provider-application-events.ts`) and updated its honesty-boundary comment — all four recorded transitions now have server code paths.
++- OpenAPI: two new `/admin/provider-applications/{applicationId}/…` paths + `ApproveProviderApplicationRequest`, `RejectProviderApplicationRequest`, `AdminProviderApplicationView` (admin-scoped; documents that reviewer-private fields never appear on provider surfaces), `AdminProviderApplicationResponse`. Clients regenerated via `pnpm --filter @workspace/api-spec run codegen`; generated files not hand-edited.
++- **Not** included (later commits / out of scope): decision notifications (Commit 2), regression suite (Commit 3), provider-profile `verificationStatus` changes (separate existing verification-doc flow; provider-operations authorization boundary unchanged), web/mobile UI, push/email.
++
++**Validation (local, Postgres 15 test DB, server on 18123):**
++- Manual: `401` unauthenticated, `403` provider role, `400` malformed id / missing `rejectionReason`, `404` unknown id, approve persists `reviewedAt`/`reviewedBy`/`reviewerNotes`, repeated approve `409` (no side effects), reject persists `rejectionReason` + `reviewerNotes`, both lifecycle events recorded with owner `user_id` and correct from/to statuses, zero notifications created.
++- Existing suites all green post-change: `test:provider-notifications` 12/12, `test:provider-history` 11/11, `test:provider-resubmission` 11/11, `test:provider-status` 9/9, `test:onboarding` 23/23, `test:authorization` 7/7.
++- Full-workspace typecheck ✅; full build ✅. No `.patch`/`.bundle` tracked.
++
++**Files changed:**
++- `artifacts/api-server/src/routes/admin.ts`
++- `artifacts/api-server/src/routes/providers.ts` (read-path type decoupling only: `serializeNotification` now uses the table-inferred enum type; notification *creation* remains limited to `submitted`/`reset_to_draft` until Commit 2)
++- `lib/db/src/schema/provider-application-events.ts`
++- `lib/api-spec/openapi.yaml`
++- `lib/api-zod/src/generated/*`, `lib/api-client-react/src/generated/*` (codegen)
++- `.agents/LOG.md`, `.agents/NEXT_TASK.md`
++
++**Build state at end:** 1 focused commit on top of `origin/main` (`05292ab`). Ahead 1 / behind 0. Working tree clean. Not pushed — held for review.
++
++**Next best action:** After Commit 1 lands, MC9 Commit 2 — provider-facing `approved`/`rejected` in-app notifications created transactionally with the lifecycle event (one per event via the existing `UNIQUE(user_id, event_id)`), provider-safe content only.
++
++---
++
+ ### Session 048 — 2026-08-08
+ **Agent:** E1 Agent (Emergent, Neo)
+ **Scope:** `S`
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index d27cddc..c67ff07 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -1,54 +1,61 @@
+-# Next product task — Phase 2 complete; awaiting next checkpoint
++# Next product task — MC9 in progress (Commit 1 done, awaiting review)
+ 
+ ## Current gate
+ 
+-MC8-lite is **feature-complete** — four separately-reviewed commits off the
+-MC7 base. Commits 1–3 landed on canonical `main`; **Commit 4 is done** on
+-`phase2-mc8-notifications` (1 ahead / 0 behind `origin/main`), awaiting review.
+-
+-- **Commit 1 (landed, `0ab9964`):** composite submission-history index.
+-- **Commit 2 (landed, `971cf70`):** `provider_application_events`
+-  (`submitted` | `reset_to_draft`), transactional emission.
+-- **Commit 3 (landed, `7d8e8ff`):** `provider_notifications` +
+-  owner-scoped read APIs (list / unread-count / mark-read).
+-- **Commit 4 (done, awaiting review):** durable `node:test` suite
+-  `test:provider-notifications` (12 cases) covering emission, atomicity,
+-  idempotency, isolation, pagination, unread-count, mark-read, error/auth
+-  paths, and privacy. No app/API/web/mobile changes.
+-
+-After Commit 4 lands, MC8-lite is complete. Next candidate checkpoints are
+-all still gated (see Post-MC8 deferred): reviewer approve/reject + the
+-approved/rejected notification triggers (MC9), then push/email channels,
+-then web/mobile notification UI.
+-
+-## Post-MC8 deferred
+-
+-- Lifecycle event recording (submitted/under_review/approved outcomes) —
+-  the history remains closed-rejected-cycles only until a later checkpoint
+-  starts recording those events. Until then no surface may claim to show a
+-  complete persisted lifecycle event log.
+-- Notifications (`expo-notifications` is present but unused for this line).
++MC8-lite is **complete** — all four commits landed on canonical `main`
++(`0ab9964`, `971cf70`, `7d8e8ff`, `05292ab`). MC9 (reviewer approve/reject
++workflow + decision notifications) was **explicitly scope-approved** as three
++separately-reviewed commits:
++
++- **Commit 1 (done, awaiting review):** admin-only reviewer decision
++  endpoints `POST /admin/provider-applications/:id/approve|reject` —
++  `under_review`-only transitions, transactional persistence of
++  `reviewedAt`/`reviewedBy`/reviewer-private `reviewerNotes` (+
++  provider-visible `rejectionReason` on reject), `approved`/`rejected`
++  lifecycle-event enum extension + transactional emission, no self-review,
++  invalid/repeated decisions fail with 409 and no side effects, OpenAPI +
++  regenerated clients.
++- **Commit 2 (next, gated on Commit 1 landing):** provider-facing in-app
++  notifications for `approved`/`rejected`, created in the SAME transaction
++  as the lifecycle event, one per event via the existing
++  `UNIQUE(user_id, event_id)` constraint, provider-safe title/body/link,
++  never any reviewer-private data in notification responses.
++- **Commit 3 (gated):** durable `node:test` coverage — reviewer authn/authz,
++  provider self-approval rejection, valid approve/reject transitions,
++  invalid-state and repeated-decision behavior, event/notification
++  atomicity, notification privacy; existing suites + full typecheck + build.
++
++## Constraints (locked)
++
++- Step-0 gate before any work; one reviewed commit at a time; no push
++  before approval.
++- Web/mobile notification UI remains **out of scope**.
++- Email, outbox, retry, and external delivery remain **out of scope**.
++- No unrelated reviewer workflow or admin UI.
++- Published history is never rewritten (Commit 4 `files` subject is a
++  recorded cosmetic discrepancy — see Session 049 traceability note).
++
++## Post-MC9 deferred
++
++- Web and mobile in-app notification feed with unread badge.
++- Email alerts through a separately designed outbox/retry channel.
++- Push channel (`expo-notifications` present but unused for this line).
+ - Composite index `(provider_application_id, created_at DESC, id DESC)` on
+   `provider_application_submissions` — documented follow-up (D1 deferred).
+-- Web/mobile test infrastructure (vitest / RN testing-library) — the
+-  timelines are validated by typecheck + build/export today.
+-- Root `attached_assets/Pasted-*.txt` (pre-existing canonical content) —
+-  optional separate remote cleanup; not touched here.
++- Web/mobile test infrastructure (vitest / RN testing-library).
++- Root `attached_assets/Pasted-*.txt` cleanup; delete stale
++  `origin/conflict_070826_mc2` branch (hygiene actions).
+ 
+ ## Guardrails
+ 
+ - Never render `reviewerNotes` in any client. Only `rejectionReason` and
+   the public snapshot fields of `previousSubmissions` are safe to render.
++- Reviewer decisions do not touch provider-profile `verificationStatus`;
++  the approved-provider authorization boundary (application **and**
++  verification both approved) stays intact.
+ - Signup `roleIntent` remains an onboarding request, not an authorization
+-  claim. Approved-provider authorization boundary must stay intact.
++  claim.
+ - Do not duplicate server authorization rules in any client — render
+   actions strictly from `canEdit` / `canReset` / `canResubmit`.
+-- Do not add Stripe, payouts, admin verification, disputes, background
+-  checks, or any unrelated admin / care-history / review work.
+-
+-## Separately queued cleanup slices
+-
+-- `attached_assets/phase1-mc1_1786063790850.patch` remains committed on
+-  `origin/conflict_070826_mc2` — safe to leave; delete the branch
+-  entirely as a hygiene action.
+-- Web test infrastructure (vitest + testing-library) — separate slice.
++- Do not add Stripe, payouts, disputes, background checks, or any
++  unrelated admin / care-history / review work.
+diff --git a/artifacts/api-server/src/routes/admin.ts b/artifacts/api-server/src/routes/admin.ts
+index a2c55ff..1ff1146 100644
+--- a/artifacts/api-server/src/routes/admin.ts
++++ b/artifacts/api-server/src/routes/admin.ts
+@@ -3,6 +3,8 @@ import { eq, and, sql } from "drizzle-orm";
+ import {
+   db,
+   verificationDocsTable,
++  providerApplicationsTable,
++  providerApplicationEventsTable,
+   providerProfilesTable,
+   usersTable,
+ } from "@workspace/db";
+@@ -131,4 +133,222 @@ router.patch(
+   }
+ );
+ 
++// ── Reviewer decisions on provider applications (MC9 Commit 1) ───────────────
++//
++// Admin-only approve/reject of a provider application. The only valid source
++// state is `under_review`; any other state (including a repeated decision)
++// fails with 409 and produces no side effects. The decision, the reviewer
++// audit fields (`reviewedAt`, `reviewedBy`, reviewer-private `reviewerNotes`,
++// and — on reject — the provider-visible `rejectionReason`), and the matching
++// `approved`/`rejected` lifecycle event are persisted in a single
++// transaction: the event exists iff the transition committed.
++//
++// Boundaries kept intact:
++//   - Reviewers can never decide their own application (403), so a user who
++//     holds both provider and admin roles cannot self-approve.
++//   - Provider-operations authorization is unchanged — it still additionally
++//     requires an approved profile verification status (separate flow above).
++//   - No notifications are created here (MC9 Commit 2 adds them).
++
++// Drizzle transaction handle type, derived from db.transaction's callback.
++type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
++
++type DecisionOutcome =
++  | { kind: "not_found" }
++  | { kind: "self_review" }
++  | { kind: "conflict"; status: string }
++  | {
++      kind: "decided";
++      application: typeof providerApplicationsTable.$inferSelect;
++    };
++
++async function decideProviderApplication(
++  applicationId: number,
++  reviewerId: number,
++  decision: "approved" | "rejected",
++  reviewerNotes: string | null,
++  rejectionReason: string | null,
++): Promise<DecisionOutcome> {
++  return db.transaction(async (tx: Tx): Promise<DecisionOutcome> => {
++    const rows = await tx
++      .select({
++        id: providerApplicationsTable.id,
++        userId: providerApplicationsTable.userId,
++        status: providerApplicationsTable.status,
++      })
++      .from(providerApplicationsTable)
++      .where(eq(providerApplicationsTable.id, applicationId))
++      .limit(1)
++      .for("update");
++
++    const current = rows[0];
++    if (!current) return { kind: "not_found" };
++    if (current.userId === reviewerId) return { kind: "self_review" };
++    if (current.status !== "under_review") {
++      return { kind: "conflict", status: current.status };
++    }
++
++    const now = new Date();
++    const [updated] = await tx
++      .update(providerApplicationsTable)
++      .set({
++        status: decision,
++        reviewedAt: now,
++        reviewedBy: reviewerId,
++        reviewerNotes,
++        rejectionReason: decision === "rejected" ? rejectionReason : null,
++        updatedAt: now,
++      })
++      .where(eq(providerApplicationsTable.id, current.id))
++      .returning();
++
++    // Lifecycle event (MC9): under_review → approved|rejected. Same
++    // transaction; reachable only from `under_review` (other states conflict
++    // above), so exactly one event per real decision. `userId` is the
++    // application owner — the provider the event belongs to — not the
++    // reviewer.
++    await tx.insert(providerApplicationEventsTable).values({
++      providerApplicationId: current.id,
++      userId: current.userId,
++      type: decision,
++      fromStatus: "under_review",
++      toStatus: decision,
++    });
++
++    return { kind: "decided", application: updated! };
++  });
++}
++
++/** Admin-scoped response projection; includes reviewer-private fields. */
++function adminApplicationResponse(
++  application: typeof providerApplicationsTable.$inferSelect,
++) {
++  return {
++    application: {
++      id: application.id,
++      userId: application.userId,
++      providerProfileId: application.providerProfileId,
++      status: application.status,
++      currentStep: application.currentStep,
++      submittedAt: application.submittedAt,
++      reviewedAt: application.reviewedAt,
++      reviewedBy: application.reviewedBy,
++      reviewerNotes: application.reviewerNotes,
++      rejectionReason: application.rejectionReason,
++      createdAt: application.createdAt,
++      updatedAt: application.updatedAt,
++    },
++  };
++}
++
++function parseApplicationId(req: Request, res: Response): number | null {
++  const applicationId = Number(req.params["applicationId"]);
++  if (!Number.isInteger(applicationId) || applicationId <= 0) {
++    res.status(400).json({ error: "Invalid application ID." });
++    return null;
++  }
++  return applicationId;
++}
++
++/** Optional reviewer-private notes; trimmed, empty coerced to null. */
++function parseReviewerNotes(
++  value: unknown,
++  res: Response,
++): { ok: true; notes: string | null } | { ok: false } {
++  if (value === undefined || value === null) return { ok: true, notes: null };
++  if (typeof value !== "string") {
++    res.status(400).json({ error: "reviewerNotes must be a string." });
++    return { ok: false };
++  }
++  const trimmed = value.trim();
++  return { ok: true, notes: trimmed.length > 0 ? trimmed : null };
++}
++
++function sendDecisionError(
++  res: Response,
++  outcome: Exclude<DecisionOutcome, { kind: "decided" }>,
++): void {
++  if (outcome.kind === "not_found") {
++    res.status(404).json({ error: "Provider application not found." });
++    return;
++  }
++  if (outcome.kind === "self_review") {
++    res.status(403).json({ error: "You cannot review your own application." });
++    return;
++  }
++  res.status(409).json({
++    error: `Applications in status "${outcome.status}" cannot be decided; only "under_review" applications can be approved or rejected.`,
++  });
++}
++
++// ── POST /admin/provider-applications/:applicationId/approve ─────────────────
++
++router.post(
++  "/provider-applications/:applicationId/approve",
++  async (req: Request, res: Response): Promise<void> => {
++    const applicationId = parseApplicationId(req, res);
++    if (applicationId === null) return;
++
++    const body = (req.body ?? {}) as { reviewerNotes?: unknown };
++    const notes = parseReviewerNotes(body.reviewerNotes, res);
++    if (!notes.ok) return;
++
++    const outcome = await decideProviderApplication(
++      applicationId,
++      req.user!.sub,
++      "approved",
++      notes.notes,
++      null,
++    );
++
++    if (outcome.kind !== "decided") {
++      sendDecisionError(res, outcome);
++      return;
++    }
++    res.json(adminApplicationResponse(outcome.application));
++  },
++);
++
++// ── POST /admin/provider-applications/:applicationId/reject ──────────────────
++
++router.post(
++  "/provider-applications/:applicationId/reject",
++  async (req: Request, res: Response): Promise<void> => {
++    const applicationId = parseApplicationId(req, res);
++    if (applicationId === null) return;
++
++    const body = (req.body ?? {}) as {
++      rejectionReason?: unknown;
++      reviewerNotes?: unknown;
++    };
++
++    // Provider-visible reason is required for a rejection.
++    if (
++      typeof body.rejectionReason !== "string" ||
++      body.rejectionReason.trim().length === 0
++    ) {
++      res.status(400).json({
++        error: "rejectionReason is required and must be a non-empty string.",
++      });
++      return;
++    }
++    const notes = parseReviewerNotes(body.reviewerNotes, res);
++    if (!notes.ok) return;
++
++    const outcome = await decideProviderApplication(
++      applicationId,
++      req.user!.sub,
++      "rejected",
++      notes.notes,
++      body.rejectionReason.trim(),
++    );
++
++    if (outcome.kind !== "decided") {
++      sendDecisionError(res, outcome);
++      return;
++    }
++    res.json(adminApplicationResponse(outcome.application));
++  },
++);
++
+ export default router;
+diff --git a/artifacts/api-server/src/routes/providers.ts b/artifacts/api-server/src/routes/providers.ts
+index 042a1a0..31b2f9b 100644
+--- a/artifacts/api-server/src/routes/providers.ts
++++ b/artifacts/api-server/src/routes/providers.ts
+@@ -1195,7 +1195,10 @@ function decodeNotificationCursor(raw: string): NotificationCursor | null {
+ 
+ function serializeNotification(row: {
+   id: number;
+-  type: ApplicationEventType;
++  // Read path uses the table-inferred enum: rows may carry any recorded event
++  // type, while notification *creation* stays limited to ApplicationEventType
++  // until the corresponding content is added.
++  type: (typeof providerNotificationsTable.$inferSelect)["type"];
+   title: string;
+   body: string;
+   link: string;
+diff --git a/lib/api-client-react/src/generated/api.schemas.ts b/lib/api-client-react/src/generated/api.schemas.ts
+index dcc09cd..1ea0fce 100644
+--- a/lib/api-client-react/src/generated/api.schemas.ts
++++ b/lib/api-client-react/src/generated/api.schemas.ts
+@@ -834,6 +834,45 @@ export interface ReviewVerificationDocRequest {
+   updateProviderStatus?: ReviewVerificationDocRequestUpdateProviderStatus;
+ }
+ 
++export interface ApproveProviderApplicationRequest {
++  /** Optional reviewer-private notes. Never exposed to providers. */
++  reviewerNotes?: string;
++}
++
++export interface RejectProviderApplicationRequest {
++  /**
++     * Provider-visible reason surfaced to the applicant.
++     * @minLength 1
++     */
++  rejectionReason: string;
++  /** Optional reviewer-private notes. Never exposed to providers. */
++  reviewerNotes?: string;
++}
++
++/**
++ * Admin-scoped provider-application projection returned by reviewer
++ * decision endpoints. Includes reviewer-private fields (`reviewedBy`,
++ * `reviewerNotes`); it is never returned on provider-facing surfaces.
++ */
++export interface AdminProviderApplicationView {
++  id: number;
++  userId: number;
++  providerProfileId: number;
++  status: ProviderApplicationStatus;
++  currentStep: ProviderApplicationStep;
++  submittedAt: string | null;
++  reviewedAt: string | null;
++  reviewedBy: number | null;
++  reviewerNotes: string | null;
++  rejectionReason: string | null;
++  createdAt: string;
++  updatedAt: string;
++}
++
++export interface AdminProviderApplicationResponse {
++  application: AdminProviderApplicationView;
++}
++
+ /**
+  * Validation error
+  */
+diff --git a/lib/api-client-react/src/generated/api.ts b/lib/api-client-react/src/generated/api.ts
+index 427d218..43db69c 100644
+--- a/lib/api-client-react/src/generated/api.ts
++++ b/lib/api-client-react/src/generated/api.ts
+@@ -20,8 +20,10 @@ import type {
+ } from '@tanstack/react-query';
+ 
+ import type {
++  AdminProviderApplicationResponse,
+   AdminVerificationQueueResponse,
+   ApplicationCompletionResponse,
++  ApproveProviderApplicationRequest,
+   AuthResponse,
+   AvailabilityListResponse,
+   BadRequestResponse,
+@@ -60,6 +62,7 @@ import type {
+   ProviderNotificationUnreadCountResponse,
+   ProviderProfileResponse,
+   RegisterRequest,
++  RejectProviderApplicationRequest,
+   ReviewListResponse,
+   ReviewResponse,
+   ReviewVerificationDocRequest,
+@@ -3133,6 +3136,168 @@ export const useReviewVerificationDoc = <TError = ErrorType<BadRequestResponse |
+       return useMutation(getReviewVerificationDocMutationOptions(options));
+     }
+ 
++export const getApproveProviderApplicationUrl = (applicationId: number,) => {
++
++
++
++
++  return `/api/admin/provider-applications/${applicationId}/approve`
++}
++
++/**
++ * Reviewer decision endpoint. Valid only when the application is
++ * `under_review`; any other state — including a repeated decision —
++ * fails with `409` and produces no side effects. Approving persists
++ * `reviewedAt` / `reviewedBy` / optional reviewer-private
++ * `reviewerNotes`, transitions the application to `approved`, and
++ * records an `approved` lifecycle event in the same transaction.
++ * Reviewers cannot decide their own application (`403`).
++ * Provider-operations authorization is unchanged: it still additionally
++ * requires an approved profile verification status.
++ * @summary Approve a provider application under review (admin only)
++ */
++export const approveProviderApplication = async (applicationId: number,
++    approveProviderApplicationRequest?: ApproveProviderApplicationRequest, options?: Parameters<typeof customFetch>[1]): Promise<AdminProviderApplicationResponse> => {
++
++  return customFetch<AdminProviderApplicationResponse>(getApproveProviderApplicationUrl(applicationId),
++  {
++    ...options,
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json', ...options?.headers },
++    body: JSON.stringify(approveProviderApplicationRequest)
++  }
++);}
++
++
++
++
++
++export const getApproveProviderApplicationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
++    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveProviderApplication>>, TError,{applicationId: number;data?: BodyType<ApproveProviderApplicationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
++): UseMutationOptions<Awaited<ReturnType<typeof approveProviderApplication>>, TError,{applicationId: number;data?: BodyType<ApproveProviderApplicationRequest>}, TContext> => {
++
++const mutationKey = ['approveProviderApplication'];
++const {mutation: mutationOptions, request: requestOptions} = options ?
++      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
++      options
++      : {...options, mutation: {...options.mutation, mutationKey}}
++      : {mutation: { mutationKey, }, request: undefined};
++
++
++
++
++      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveProviderApplication>>, {applicationId: number;data?: BodyType<ApproveProviderApplicationRequest>}> = (props) => {
++          const {applicationId,data} = props ?? {};
++
++          return  approveProviderApplication(applicationId,data,requestOptions)
++        }
++
++
++
++
++
++
++  return  { mutationFn, ...mutationOptions }}
++
++    export type ApproveProviderApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof approveProviderApplication>>>
++    export type ApproveProviderApplicationMutationBody = BodyType<ApproveProviderApplicationRequest> | undefined
++    export type ApproveProviderApplicationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
++
++    /**
++ * @summary Approve a provider application under review (admin only)
++ */
++export const useApproveProviderApplication = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
++    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveProviderApplication>>, TError,{applicationId: number;data?: BodyType<ApproveProviderApplicationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
++ ): UseMutationResult<
++        Awaited<ReturnType<typeof approveProviderApplication>>,
++        TError,
++        {applicationId: number;data?: BodyType<ApproveProviderApplicationRequest>},
++        TContext
++      > => {
++      return useMutation(getApproveProviderApplicationMutationOptions(options));
++    }
++
++export const getRejectProviderApplicationUrl = (applicationId: number,) => {
++
++
++
++
++  return `/api/admin/provider-applications/${applicationId}/reject`
++}
++
++/**
++ * Reviewer decision endpoint. Valid only when the application is
++ * `under_review`; any other state — including a repeated decision —
++ * fails with `409` and produces no side effects. Rejecting requires a
++ * provider-visible `rejectionReason`, persists `reviewedAt` /
++ * `reviewedBy` / optional reviewer-private `reviewerNotes`, transitions
++ * the application to `rejected`, and records a `rejected` lifecycle
++ * event in the same transaction. Reviewers cannot decide their own
++ * application (`403`). The owner can later reset the rejected
++ * application to draft via `/providers/application/reset`.
++ * @summary Reject a provider application under review (admin only)
++ */
++export const rejectProviderApplication = async (applicationId: number,
++    rejectProviderApplicationRequest: RejectProviderApplicationRequest, options?: Parameters<typeof customFetch>[1]): Promise<AdminProviderApplicationResponse> => {
++
++  return customFetch<AdminProviderApplicationResponse>(getRejectProviderApplicationUrl(applicationId),
++  {
++    ...options,
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json', ...options?.headers },
++    body: JSON.stringify(rejectProviderApplicationRequest)
++  }
++);}
++
++
++
++
++
++export const getRejectProviderApplicationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
++    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectProviderApplication>>, TError,{applicationId: number;data: BodyType<RejectProviderApplicationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
++): UseMutationOptions<Awaited<ReturnType<typeof rejectProviderApplication>>, TError,{applicationId: number;data: BodyType<RejectProviderApplicationRequest>}, TContext> => {
++
++const mutationKey = ['rejectProviderApplication'];
++const {mutation: mutationOptions, request: requestOptions} = options ?
++      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
++      options
++      : {...options, mutation: {...options.mutation, mutationKey}}
++      : {mutation: { mutationKey, }, request: undefined};
++
++
++
++
++      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectProviderApplication>>, {applicationId: number;data: BodyType<RejectProviderApplicationRequest>}> = (props) => {
++          const {applicationId,data} = props ?? {};
++
++          return  rejectProviderApplication(applicationId,data,requestOptions)
++        }
++
++
++
++
++
++
++  return  { mutationFn, ...mutationOptions }}
++
++    export type RejectProviderApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof rejectProviderApplication>>>
++    export type RejectProviderApplicationMutationBody = BodyType<RejectProviderApplicationRequest>
++    export type RejectProviderApplicationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
++
++    /**
++ * @summary Reject a provider application under review (admin only)
++ */
++export const useRejectProviderApplication = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
++    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectProviderApplication>>, TError,{applicationId: number;data: BodyType<RejectProviderApplicationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
++ ): UseMutationResult<
++        Awaited<ReturnType<typeof rejectProviderApplication>>,
++        TError,
++        {applicationId: number;data: BodyType<RejectProviderApplicationRequest>},
++        TContext
++      > => {
++      return useMutation(getRejectProviderApplicationMutationOptions(options));
++    }
++
+ export const getGetProviderByIdUrl = (providerId: number,) => {
+ 
+ 
+diff --git a/lib/api-spec/openapi.yaml b/lib/api-spec/openapi.yaml
+index c899ec0..6deb9f9 100644
+--- a/lib/api-spec/openapi.yaml
++++ b/lib/api-spec/openapi.yaml
+@@ -1076,6 +1076,100 @@ paths:
+         "404":
+           $ref: "#/components/responses/NotFound"
+ 
++  /admin/provider-applications/{applicationId}/approve:
++    post:
++      operationId: approveProviderApplication
++      tags: [admin]
++      summary: Approve a provider application under review (admin only)
++      description: |
++        Reviewer decision endpoint. Valid only when the application is
++        `under_review`; any other state — including a repeated decision —
++        fails with `409` and produces no side effects. Approving persists
++        `reviewedAt` / `reviewedBy` / optional reviewer-private
++        `reviewerNotes`, transitions the application to `approved`, and
++        records an `approved` lifecycle event in the same transaction.
++        Reviewers cannot decide their own application (`403`).
++        Provider-operations authorization is unchanged: it still additionally
++        requires an approved profile verification status.
++      security:
++        - bearerAuth: []
++      parameters:
++        - name: applicationId
++          in: path
++          required: true
++          schema:
++            type: integer
++      requestBody:
++        required: false
++        content:
++          application/json:
++            schema:
++              $ref: "#/components/schemas/ApproveProviderApplicationRequest"
++      responses:
++        "200":
++          description: Application approved
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/AdminProviderApplicationResponse"
++        "400":
++          $ref: "#/components/responses/BadRequest"
++        "401":
++          $ref: "#/components/responses/Unauthorized"
++        "403":
++          $ref: "#/components/responses/Forbidden"
++        "404":
++          $ref: "#/components/responses/NotFound"
++        "409":
++          $ref: "#/components/responses/Conflict"
++
++  /admin/provider-applications/{applicationId}/reject:
++    post:
++      operationId: rejectProviderApplication
++      tags: [admin]
++      summary: Reject a provider application under review (admin only)
++      description: |
++        Reviewer decision endpoint. Valid only when the application is
++        `under_review`; any other state — including a repeated decision —
++        fails with `409` and produces no side effects. Rejecting requires a
++        provider-visible `rejectionReason`, persists `reviewedAt` /
++        `reviewedBy` / optional reviewer-private `reviewerNotes`, transitions
++        the application to `rejected`, and records a `rejected` lifecycle
++        event in the same transaction. Reviewers cannot decide their own
++        application (`403`). The owner can later reset the rejected
++        application to draft via `/providers/application/reset`.
++      security:
++        - bearerAuth: []
++      parameters:
++        - name: applicationId
++          in: path
++          required: true
++          schema:
++            type: integer
++      requestBody:
++        required: true
++        content:
++          application/json:
++            schema:
++              $ref: "#/components/schemas/RejectProviderApplicationRequest"
++      responses:
++        "200":
++          description: Application rejected
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/AdminProviderApplicationResponse"
++        "400":
++          $ref: "#/components/responses/BadRequest"
++        "401":
++          $ref: "#/components/responses/Unauthorized"
++        "403":
++          $ref: "#/components/responses/Forbidden"
++        "404":
++          $ref: "#/components/responses/NotFound"
++        "409":
++          $ref: "#/components/responses/Conflict"
++
+   /providers/{providerId}:
+     get:
+       operationId: getProviderById
+@@ -2995,3 +3089,87 @@ components:
+           description: Optionally update the provider's overall verification status
+       required:
+         - status
++
++    # ── Reviewer Decision Schemas (admin only) ─────────────────────────────────
++
++    ApproveProviderApplicationRequest:
++      type: object
++      properties:
++        reviewerNotes:
++          type: string
++          description: Optional reviewer-private notes. Never exposed to providers.
++
++    RejectProviderApplicationRequest:
++      type: object
++      properties:
++        rejectionReason:
++          type: string
++          minLength: 1
++          description: Provider-visible reason surfaced to the applicant.
++        reviewerNotes:
++          type: string
++          description: Optional reviewer-private notes. Never exposed to providers.
++      required:
++        - rejectionReason
++
++    AdminProviderApplicationView:
++      type: object
++      description: |
++        Admin-scoped provider-application projection returned by reviewer
++        decision endpoints. Includes reviewer-private fields (`reviewedBy`,
++        `reviewerNotes`); it is never returned on provider-facing surfaces.
++      properties:
++        id:
++          type: integer
++        userId:
++          type: integer
++        providerProfileId:
++          type: integer
++        status:
++          $ref: "#/components/schemas/ProviderApplicationStatus"
++        currentStep:
++          $ref: "#/components/schemas/ProviderApplicationStep"
++        submittedAt:
++          type: string
++          format: date-time
++          nullable: true
++        reviewedAt:
++          type: string
++          format: date-time
++          nullable: true
++        reviewedBy:
++          type: integer
++          nullable: true
++        reviewerNotes:
++          type: string
++          nullable: true
++        rejectionReason:
++          type: string
++          nullable: true
++        createdAt:
++          type: string
++          format: date-time
++        updatedAt:
++          type: string
++          format: date-time
++      required:
++        - id
++        - userId
++        - providerProfileId
++        - status
++        - currentStep
++        - submittedAt
++        - reviewedAt
++        - reviewedBy
++        - reviewerNotes
++        - rejectionReason
++        - createdAt
++        - updatedAt
++
++    AdminProviderApplicationResponse:
++      type: object
++      properties:
++        application:
++          $ref: "#/components/schemas/AdminProviderApplicationView"
++      required:
++        - application
+diff --git a/lib/api-zod/src/generated/api.ts b/lib/api-zod/src/generated/api.ts
+index 305e4b9..c85bc2b 100644
+--- a/lib/api-zod/src/generated/api.ts
++++ b/lib/api-zod/src/generated/api.ts
+@@ -1180,6 +1180,86 @@ export const ReviewVerificationDocResponse = zod.object({
+ })
+ 
+ 
++/**
++ * Reviewer decision endpoint. Valid only when the application is
++ * `under_review`; any other state — including a repeated decision —
++ * fails with `409` and produces no side effects. Approving persists
++ * `reviewedAt` / `reviewedBy` / optional reviewer-private
++ * `reviewerNotes`, transitions the application to `approved`, and
++ * records an `approved` lifecycle event in the same transaction.
++ * Reviewers cannot decide their own application (`403`).
++ * Provider-operations authorization is unchanged: it still additionally
++ * requires an approved profile verification status.
++ * @summary Approve a provider application under review (admin only)
++ */
++export const ApproveProviderApplicationParams = zod.object({
++  "applicationId": zod.coerce.number().int()
++})
++
++export const ApproveProviderApplicationBody = zod.object({
++  "reviewerNotes": zod.string().optional().describe('Optional reviewer-private notes. Never exposed to providers.')
++})
++
++export const ApproveProviderApplicationResponse = zod.object({
++  "application": zod.object({
++  "id": zod.int(),
++  "userId": zod.int(),
++  "providerProfileId": zod.int(),
++  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
++  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
++  "submittedAt": zod.coerce.date().nullable(),
++  "reviewedAt": zod.coerce.date().nullable(),
++  "reviewedBy": zod.int().nullable(),
++  "reviewerNotes": zod.string().nullable(),
++  "rejectionReason": zod.string().nullable(),
++  "createdAt": zod.coerce.date(),
++  "updatedAt": zod.coerce.date()
++}).describe('Admin-scoped provider-application projection returned by reviewer\ndecision endpoints. Includes reviewer-private fields (`reviewedBy`,\n`reviewerNotes`); it is never returned on provider-facing surfaces.\n')
++})
++
++
++/**
++ * Reviewer decision endpoint. Valid only when the application is
++ * `under_review`; any other state — including a repeated decision —
++ * fails with `409` and produces no side effects. Rejecting requires a
++ * provider-visible `rejectionReason`, persists `reviewedAt` /
++ * `reviewedBy` / optional reviewer-private `reviewerNotes`, transitions
++ * the application to `rejected`, and records a `rejected` lifecycle
++ * event in the same transaction. Reviewers cannot decide their own
++ * application (`403`). The owner can later reset the rejected
++ * application to draft via `/providers/application/reset`.
++ * @summary Reject a provider application under review (admin only)
++ */
++export const RejectProviderApplicationParams = zod.object({
++  "applicationId": zod.coerce.number().int()
++})
++
++
++
++
++export const RejectProviderApplicationBody = zod.object({
++  "rejectionReason": zod.string().min(1).describe('Provider-visible reason surfaced to the applicant.'),
++  "reviewerNotes": zod.string().optional().describe('Optional reviewer-private notes. Never exposed to providers.')
++})
++
++export const RejectProviderApplicationResponse = zod.object({
++  "application": zod.object({
++  "id": zod.int(),
++  "userId": zod.int(),
++  "providerProfileId": zod.int(),
++  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
++  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
++  "submittedAt": zod.coerce.date().nullable(),
++  "reviewedAt": zod.coerce.date().nullable(),
++  "reviewedBy": zod.int().nullable(),
++  "reviewerNotes": zod.string().nullable(),
++  "rejectionReason": zod.string().nullable(),
++  "createdAt": zod.coerce.date(),
++  "updatedAt": zod.coerce.date()
++}).describe('Admin-scoped provider-application projection returned by reviewer\ndecision endpoints. Includes reviewer-private fields (`reviewedBy`,\n`reviewerNotes`); it is never returned on provider-facing surfaces.\n')
++})
++
++
+ /**
+  * @summary Get a provider's public profile
+  */
+diff --git a/lib/api-zod/src/generated/types/adminProviderApplicationResponse.ts b/lib/api-zod/src/generated/types/adminProviderApplicationResponse.ts
+new file mode 100644
+index 0000000..fdea36d
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/adminProviderApplicationResponse.ts
+@@ -0,0 +1,12 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++import type { AdminProviderApplicationView } from './adminProviderApplicationView';
++
++export interface AdminProviderApplicationResponse {
++  application: AdminProviderApplicationView;
++}
+diff --git a/lib/api-zod/src/generated/types/adminProviderApplicationView.ts b/lib/api-zod/src/generated/types/adminProviderApplicationView.ts
+new file mode 100644
+index 0000000..b98d720
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/adminProviderApplicationView.ts
+@@ -0,0 +1,29 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++import type { ProviderApplicationStatus } from './providerApplicationStatus';
++import type { ProviderApplicationStep } from './providerApplicationStep';
++
++/**
++ * Admin-scoped provider-application projection returned by reviewer
++ * decision endpoints. Includes reviewer-private fields (`reviewedBy`,
++ * `reviewerNotes`); it is never returned on provider-facing surfaces.
++ */
++export interface AdminProviderApplicationView {
++  id: number;
++  userId: number;
++  providerProfileId: number;
++  status: ProviderApplicationStatus;
++  currentStep: ProviderApplicationStep;
++  submittedAt: Date | null;
++  reviewedAt: Date | null;
++  reviewedBy: number | null;
++  reviewerNotes: string | null;
++  rejectionReason: string | null;
++  createdAt: Date;
++  updatedAt: Date;
++}
+diff --git a/lib/api-zod/src/generated/types/approveProviderApplicationRequest.ts b/lib/api-zod/src/generated/types/approveProviderApplicationRequest.ts
+new file mode 100644
+index 0000000..9c69511
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/approveProviderApplicationRequest.ts
+@@ -0,0 +1,12 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++
++export interface ApproveProviderApplicationRequest {
++  /** Optional reviewer-private notes. Never exposed to providers. */
++  reviewerNotes?: string;
++}
+diff --git a/lib/api-zod/src/generated/types/index.ts b/lib/api-zod/src/generated/types/index.ts
+index 763d9f8..d5b973b 100644
+--- a/lib/api-zod/src/generated/types/index.ts
++++ b/lib/api-zod/src/generated/types/index.ts
+@@ -6,11 +6,14 @@
+  * OpenAPI spec version: 0.3.0
+  */
+ 
++export * from './adminProviderApplicationResponse';
++export * from './adminProviderApplicationView';
+ export * from './adminVerificationQueueItem';
+ export * from './adminVerificationQueueItemProvider';
+ export * from './adminVerificationQueueResponse';
+ export * from './applicationCompletion';
+ export * from './applicationCompletionResponse';
++export * from './approveProviderApplicationRequest';
+ export * from './authResponse';
+ export * from './availabilityListResponse';
+ export * from './availabilitySlot';
+@@ -83,6 +86,7 @@ export * from './providerSummary';
+ export * from './registerRequest';
+ export * from './registerRequestRole';
+ export * from './registerRequestRoleIntent';
++export * from './rejectProviderApplicationRequest';
+ export * from './review';
+ export * from './reviewListResponse';
+ export * from './reviewResponse';
+diff --git a/lib/api-zod/src/generated/types/rejectProviderApplicationRequest.ts b/lib/api-zod/src/generated/types/rejectProviderApplicationRequest.ts
+new file mode 100644
+index 0000000..0da86da
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/rejectProviderApplicationRequest.ts
+@@ -0,0 +1,17 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++
++export interface RejectProviderApplicationRequest {
++  /**
++     * Provider-visible reason surfaced to the applicant.
++     * @minLength 1
++     */
++  rejectionReason: string;
++  /** Optional reviewer-private notes. Never exposed to providers. */
++  reviewerNotes?: string;
++}
+diff --git a/lib/db/src/schema/provider-application-events.ts b/lib/db/src/schema/provider-application-events.ts
+index ad2e05d..6d6307f 100644
+--- a/lib/db/src/schema/provider-application-events.ts
++++ b/lib/db/src/schema/provider-application-events.ts
+@@ -19,17 +19,19 @@ import { usersTable } from "./users";
+  * happens, inside the same transaction as the state change. Rows are
+  * append-only: never updated or deleted by application code.
+  *
+- * Honesty boundary (MC8-lite): only the two owner-driven transitions that
+- * have a server code path today are recorded here —
+- *   - `submitted`      : draft → under_review (POST /application/submit)
+- *   - `reset_to_draft` : rejected → draft     (POST /application/reset)
+- * Reviewer-driven outcomes (approved/rejected) and other transitions are NOT
+- * recorded until a later checkpoint adds their code paths. Consumers must not
+- * present this as a complete lifecycle history beyond these events.
++ * Honesty boundary (MC9): the recorded transitions are exactly the ones with
++ * a server code path —
++ *   - `submitted`      : draft → under_review        (POST /providers/application/submit, owner)
++ *   - `reset_to_draft` : rejected → draft            (POST /providers/application/reset, owner)
++ *   - `approved`       : under_review → approved     (POST /admin/provider-applications/:id/approve, reviewer)
++ *   - `rejected`       : under_review → rejected     (POST /admin/provider-applications/:id/reject, reviewer)
++ * Other transitions (e.g. suspension) are NOT recorded until a later
++ * checkpoint adds their code paths. Consumers must not present this as a
++ * complete lifecycle history beyond these events.
+  */
+ export const providerApplicationEventTypeEnum = pgEnum(
+   "provider_application_event_type",
+-  ["submitted", "reset_to_draft"],
++  ["submitted", "reset_to_draft", "approved", "rejected"],
+ );
+ 
+ export const providerApplicationEventsTable = pgTable(
+-- 
+2.39.5
+
