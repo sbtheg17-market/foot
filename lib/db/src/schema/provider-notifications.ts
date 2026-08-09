@@ -22,10 +22,10 @@ import { usersTable } from "./users";
  * under at-least-once semantics — a retried transition never double-notifies.
  *
  * Content is server-rendered and event-keyed; `link` is a provider-safe
- * relative path. No reviewer-private material is ever stored here. Scope is
- * limited to the two locked event types (`submitted`, `reset_to_draft`); push
- * and email delivery, outbox/retry, and reviewer/admin notifications are out
- * of scope for MC8-lite.
+ * relative path. No reviewer-private material is ever stored here. Covered
+ * event types: `submitted`, `reset_to_draft`, `approved`, `rejected`. Push
+ * and email delivery, outbox/retry, and reviewer/admin notifications remain
+ * out of scope for this line.
  */
 export const providerNotificationsTable = pgTable(
   "provider_notifications",

@@ -528,7 +528,7 @@ export const getProviderNotificationsResponsePaginationLimitMax = 50;
 export const GetProviderNotificationsResponse = zod.object({
   "notifications": zod.array(zod.object({
   "id": zod.int(),
-  "type": zod.enum(['submitted', 'reset_to_draft']),
+  "type": zod.enum(['submitted', 'reset_to_draft', 'approved', 'rejected']),
   "title": zod.string(),
   "body": zod.string(),
   "link": zod.string().describe('Provider-safe relative in-app path.'),
@@ -563,7 +563,7 @@ export const MarkProviderNotificationReadParams = zod.object({
 export const MarkProviderNotificationReadResponse = zod.object({
   "notification": zod.object({
   "id": zod.int(),
-  "type": zod.enum(['submitted', 'reset_to_draft']),
+  "type": zod.enum(['submitted', 'reset_to_draft', 'approved', 'rejected']),
   "title": zod.string(),
   "body": zod.string(),
   "link": zod.string().describe('Provider-safe relative in-app path.'),

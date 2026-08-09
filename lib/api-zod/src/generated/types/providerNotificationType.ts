@@ -12,4 +12,6 @@ export type ProviderNotificationType = typeof ProviderNotificationType[keyof typ
 export const ProviderNotificationType = {
   submitted: 'submitted',
   reset_to_draft: 'reset_to_draft',
+  approved: 'approved',
+  rejected: 'rejected',
 } as const;

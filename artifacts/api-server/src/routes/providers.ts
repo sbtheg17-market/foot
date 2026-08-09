@@ -22,6 +22,7 @@ import {
   requireAuth,
   requireRole,
 } from "../middlewares/auth.js";
+import { createApplicationNotification } from "../lib/application-notifications.js";
 
 const router = Router();
 
@@ -32,59 +33,6 @@ const requireProviderOperation = [
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-// Drizzle transaction handle type, derived from db.transaction's callback.
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-type ApplicationEventType = "submitted" | "reset_to_draft";
-
-// Server-rendered, event-keyed, provider-safe notification content. No
-// reviewer-private material. `link` is a relative in-app path.
-const NOTIFICATION_CONTENT: Record<
-  ApplicationEventType,
-  { title: string; body: string; link: string }
-> = {
-  submitted: {
-    title: "Application submitted",
-    body: "Your provider application was submitted and is now under review.",
-    link: "/provider/application-status",
-  },
-  reset_to_draft: {
-    title: "Application reopened",
-    body: "Your application was reset to draft. You can update your details and resubmit when ready.",
-    link: "/provider/application-status",
-  },
-};
-
-/**
- * Create the in-app notification for a lifecycle event, inside the same
- * transaction as the event. Idempotent via UNIQUE(user_id, event_id):
- * onConflictDoNothing means a retried transition never double-notifies.
- */
-async function createApplicationNotification(
-  tx: Tx,
-  userId: number,
-  eventId: number,
-  type: ApplicationEventType,
-): Promise<void> {
-  const content = NOTIFICATION_CONTENT[type];
-  await tx
-    .insert(providerNotificationsTable)
-    .values({
-      userId,
-      eventId,
-      type,
-      title: content.title,
-      body: content.body,
-      link: content.link,
-    })
-    .onConflictDoNothing({
-      target: [
-        providerNotificationsTable.userId,
-        providerNotificationsTable.eventId,
-      ],
-    });
-}
 
 /** Fetch the provider profile row for the currently authenticated provider. */
 async function getOwnProfile(userId: number) {
@@ -1195,9 +1143,8 @@ function decodeNotificationCursor(raw: string): NotificationCursor | null {
 
 function serializeNotification(row: {
   id: number;
-  // Read path uses the table-inferred enum: rows may carry any recorded event
-  // type, while notification *creation* stays limited to ApplicationEventType
-  // until the corresponding content is added.
+  // Table-inferred enum: covers every recorded event type with notification
+  // content (submitted, reset_to_draft, approved, rejected).
   type: (typeof providerNotificationsTable.$inferSelect)["type"];
   title: string;
   body: string;

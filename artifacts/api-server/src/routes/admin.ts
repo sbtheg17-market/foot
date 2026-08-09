@@ -9,6 +9,7 @@ import {
   usersTable,
 } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
+import { createApplicationNotification } from "../lib/application-notifications.js";
 
 const router = Router();
 
@@ -207,13 +208,23 @@ async function decideProviderApplication(
     // above), so exactly one event per real decision. `userId` is the
     // application owner — the provider the event belongs to — not the
     // reviewer.
-    await tx.insert(providerApplicationEventsTable).values({
-      providerApplicationId: current.id,
-      userId: current.userId,
-      type: decision,
-      fromStatus: "under_review",
-      toStatus: decision,
-    });
+    const [event] = await tx
+      .insert(providerApplicationEventsTable)
+      .values({
+        providerApplicationId: current.id,
+        userId: current.userId,
+        type: decision,
+        fromStatus: "under_review",
+        toStatus: decision,
+      })
+      .returning({ id: providerApplicationEventsTable.id });
+
+    // Decision notification (MC9 Commit 2): created in the SAME transaction
+    // as the event — one per event via UNIQUE(user_id, event_id). Recipient
+    // is the application owner. Content is static and provider-safe; the
+    // provider-visible rejectionReason is surfaced on the status page, never
+    // stored in the notification.
+    await createApplicationNotification(tx, current.userId, event!.id, decision);
 
     return { kind: "decided", application: updated! };
   });

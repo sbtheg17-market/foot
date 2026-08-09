@@ -1822,6 +1822,8 @@ components:
           enum:
             - submitted
             - reset_to_draft
+            - approved
+            - rejected
         title:
           type: string
         body:

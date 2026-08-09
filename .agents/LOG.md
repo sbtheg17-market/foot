@@ -65,6 +65,42 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 050 — 2026-08-09
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Phase 2 **MC9 Commit 2 of 3** — transactional `approved`/`rejected` provider notifications, off canonical base `59068c805435437074ac31bc2b79a4b5ef59c191` (user-approved locked scope).
+
+**Traceability note (MC9 Commit 1 landing):** the reviewed Commit 1 (local `f4e18df`, patch SHA-256 `d998a97db4da0b74761c7978b475018218d5c541bfe494e3fd8ffb9ab8155fbf`) was published by the managed environment as **two split commits with terse subjects** — `0afb3ff` ("mc9", sources) + `92d001f` ("mc9", generated clients) — whose combined tree is **byte-identical** to the reviewed implementation; `59068c8` ("mc9 commit") on top changes only `.replit` (environment marker, added `python-base-3.13`). User accepted this as the de facto landing; published history is not rewritten. Publication protocol going forward: tree identity, scope, ancestry, and validation are authoritative — published commit hashes are not required to match locally prepared hashes.
+
+**What was done:**
+- Step-0 gate: base `59068c8` == `origin/main`, `0/0`, clean (in-progress work restored from stash and re-verified; container tooling re-provisioned after pod restart).
+- Extracted notification content + creation into `artifacts/api-server/src/lib/application-notifications.ts` (shared by both routes; behavior-preserving move of `NOTIFICATION_CONTENT` + `createApplicationNotification`) and extended it with static, provider-safe `approved`/`rejected` content. The rejected body deliberately contains **no per-decision text** — the status page remains the single surface for the provider-visible `rejectionReason`; `link` stays `/provider/application-status`.
+- Wired decision notifications into the reviewer transaction in `routes/admin.ts`: the event insert now returns its id and `createApplicationNotification` runs in the SAME transaction — a notification exists iff the decision committed; `UNIQUE(user_id, event_id)` + `onConflictDoNothing` keep it one-per-event under retries. Recipient is the application owner, never the reviewer.
+- `routes/providers.ts`: now imports the shared helper (local copies removed); notification read path keeps the table-inferred enum type.
+- `lib/db/src/schema/provider-notifications.ts`: scope comment updated to the four covered event types (no structural change).
+- OpenAPI: `ProviderNotification.type` enum extended with `approved`/`rejected`; clients regenerated via codegen (not hand-edited).
+- **Not** included (Commit 3 / out of scope): regression suite, web/mobile UI, push/email/outbox/retry.
+
+**Validation (local, Postgres 15 test DB, server on 18123):**
+- Manual: approve → one `approved` notification (provider-safe title/body/link); reject → one `rejected` notification whose body contains neither the `rejectionReason` text nor any reviewer-private phrase; privacy scan of both providers' notification responses CLEAN (`reviewerNotes`/`reviewedBy`/private phrase absent); exactly one notification per event in DB; owner isolation (each provider sees only their own); unread-count correct; repeated decision → `409` with **no additional notification** (count unchanged).
+- Existing suites all green post-change: `test:provider-notifications` 12/12, `test:provider-history` 11/11, `test:provider-resubmission` 11/11, `test:provider-status` 9/9, `test:onboarding` 23/23, `test:authorization` 7/7.
+- Full-workspace typecheck ✅; full build ✅. No `.patch`/`.bundle` tracked.
+
+**Files changed:**
+- `artifacts/api-server/src/lib/application-notifications.ts` (new)
+- `artifacts/api-server/src/routes/admin.ts`
+- `artifacts/api-server/src/routes/providers.ts`
+- `lib/db/src/schema/provider-notifications.ts` (comment only)
+- `lib/api-spec/openapi.yaml`
+- `lib/api-zod/src/generated/*`, `lib/api-client-react/src/generated/*` (codegen)
+- `.agents/LOG.md`, `.agents/NEXT_TASK.md`
+
+**Build state at end:** 1 focused commit on top of `origin/main` (`59068c8`). Ahead 1 / behind 0. Working tree clean. Not pushed — patch prepared for managed-environment publication, held for review.
+
+**Next best action:** After Commit 2 lands (verify tree identity, not hashes), MC9 Commit 3 — durable `node:test` regression suite for reviewer decisions + decision notifications (authn/authz, self-approval rejection, transitions, invalid/repeated behavior, atomicity, privacy).
+
+---
+
 ### Session 049 — 2026-08-09
 **Agent:** E2 Agent (Emergent, Neo)
 **Scope:** `M`

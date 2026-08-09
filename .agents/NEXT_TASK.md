@@ -1,29 +1,28 @@
-# Next product task — MC9 in progress (Commit 1 done, awaiting review)
+# Next product task — MC9 in progress (Commit 2 done, awaiting review)
 
 ## Current gate
 
-MC8-lite is **complete** — all four commits landed on canonical `main`
-(`0ab9964`, `971cf70`, `7d8e8ff`, `05292ab`). MC9 (reviewer approve/reject
-workflow + decision notifications) was **explicitly scope-approved** as three
+MC8-lite is **complete**. MC9 (reviewer approve/reject workflow + decision
+notifications) was **explicitly scope-approved** as three
 separately-reviewed commits:
 
-- **Commit 1 (done, awaiting review):** admin-only reviewer decision
-  endpoints `POST /admin/provider-applications/:id/approve|reject` —
-  `under_review`-only transitions, transactional persistence of
-  `reviewedAt`/`reviewedBy`/reviewer-private `reviewerNotes` (+
-  provider-visible `rejectionReason` on reject), `approved`/`rejected`
-  lifecycle-event enum extension + transactional emission, no self-review,
-  invalid/repeated decisions fail with 409 and no side effects, OpenAPI +
-  regenerated clients.
-- **Commit 2 (next, gated on Commit 1 landing):** provider-facing in-app
+- **Commit 1 (landed):** admin-only reviewer decision endpoints — published
+  by the managed environment as split commits `0afb3ff` + `92d001f`
+  (combined tree byte-identical to the reviewed implementation; `59068c8`
+  is an environment-only `.replit` marker on top). See Session 050
+  traceability note.
+- **Commit 2 (done, awaiting review):** provider-facing in-app
   notifications for `approved`/`rejected`, created in the SAME transaction
   as the lifecycle event, one per event via the existing
-  `UNIQUE(user_id, event_id)` constraint, provider-safe title/body/link,
-  never any reviewer-private data in notification responses.
-- **Commit 3 (gated):** durable `node:test` coverage — reviewer authn/authz,
-  provider self-approval rejection, valid approve/reject transitions,
-  invalid-state and repeated-decision behavior, event/notification
-  atomicity, notification privacy; existing suites + full typecheck + build.
+  `UNIQUE(user_id, event_id)` constraint, static provider-safe
+  title/body/link (`/provider/application-status`), never any
+  reviewer-private data in notification responses. Shared helper extracted
+  to `artifacts/api-server/src/lib/application-notifications.ts`.
+- **Commit 3 (next, gated on Commit 2 landing):** durable `node:test`
+  coverage — reviewer authn/authz, provider self-approval rejection, valid
+  approve/reject transitions, invalid-state and repeated-decision behavior,
+  event/notification atomicity, notification privacy; existing suites +
+  full typecheck + build.
 
 ## Constraints (locked)
 
@@ -32,8 +31,12 @@ separately-reviewed commits:
 - Web/mobile notification UI remains **out of scope**.
 - Email, outbox, retry, and external delivery remain **out of scope**.
 - No unrelated reviewer workflow or admin UI.
-- Published history is never rewritten (Commit 4 `files` subject is a
-  recorded cosmetic discrepancy — see Session 049 traceability note).
+- Published history is never rewritten (Commit 4 `files` subject and the
+  Commit 1 split-commit publication are recorded cosmetic discrepancies —
+  see Session 049/050 traceability notes).
+- Publication channel: patches applied by the managed environment, which
+  may split commits or alter subjects — verify **tree identity, scope,
+  ancestry, and validation**, not published commit hashes.
 
 ## Post-MC9 deferred
 
