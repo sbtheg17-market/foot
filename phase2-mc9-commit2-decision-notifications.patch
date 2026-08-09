@@ -1,0 +1,441 @@
+From ec07bc61c2ffe9d4a7eb47cbd10bc1f2acb0ff7e Mon Sep 17 00:00:00 2001
+From: emergent-agent-e1 <github@emergent.sh>
+Date: Sun, 9 Aug 2026 11:46:32 +0000
+Subject: [PATCH] feat(api): transactional approved/rejected provider
+ notifications (MC9 commit 2)
+
+Decision notifications are created in the SAME transaction as the
+approved/rejected lifecycle event, one per event via the existing
+UNIQUE(user_id, event_id) constraint (onConflictDoNothing). Shared
+helper extracted to lib/application-notifications.ts and extended with
+static provider-safe content; the rejected body carries no per-decision
+text - the status page remains the only surface for rejectionReason.
+No reviewerNotes/reviewedBy in any notification response. OpenAPI
+notification type enum + regenerated clients. No web/mobile UI, no
+push/email/outbox/retry. Tests land in commit 3.
+---
+ .agents/LOG.md                                | 36 ++++++++
+ .agents/NEXT_TASK.md                          | 45 +++++-----
+ .../src/lib/application-notifications.ts      | 84 +++++++++++++++++++
+ artifacts/api-server/src/routes/admin.ts      | 25 ++++--
+ artifacts/api-server/src/routes/providers.ts  | 59 +------------
+ .../src/generated/api.schemas.ts              |  2 +
+ lib/api-spec/openapi.yaml                     |  2 +
+ lib/api-zod/src/generated/api.ts              |  4 +-
+ .../types/providerNotificationType.ts         |  2 +
+ lib/db/src/schema/provider-notifications.ts   |  8 +-
+ 10 files changed, 177 insertions(+), 90 deletions(-)
+ create mode 100644 artifacts/api-server/src/lib/application-notifications.ts
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index f1ebf76..aa3763f 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -65,6 +65,42 @@ Since agent credit balances cannot be read programmatically, each session entry
+ 
+ ---
+ 
++### Session 050 — 2026-08-09
++**Agent:** E2 Agent (Emergent, Neo)
++**Scope:** `S`
++**Triggered by:** Phase 2 **MC9 Commit 2 of 3** — transactional `approved`/`rejected` provider notifications, off canonical base `59068c805435437074ac31bc2b79a4b5ef59c191` (user-approved locked scope).
++
++**Traceability note (MC9 Commit 1 landing):** the reviewed Commit 1 (local `f4e18df`, patch SHA-256 `d998a97db4da0b74761c7978b475018218d5c541bfe494e3fd8ffb9ab8155fbf`) was published by the managed environment as **two split commits with terse subjects** — `0afb3ff` ("mc9", sources) + `92d001f` ("mc9", generated clients) — whose combined tree is **byte-identical** to the reviewed implementation; `59068c8` ("mc9 commit") on top changes only `.replit` (environment marker, added `python-base-3.13`). User accepted this as the de facto landing; published history is not rewritten. Publication protocol going forward: tree identity, scope, ancestry, and validation are authoritative — published commit hashes are not required to match locally prepared hashes.
++
++**What was done:**
++- Step-0 gate: base `59068c8` == `origin/main`, `0/0`, clean (in-progress work restored from stash and re-verified; container tooling re-provisioned after pod restart).
++- Extracted notification content + creation into `artifacts/api-server/src/lib/application-notifications.ts` (shared by both routes; behavior-preserving move of `NOTIFICATION_CONTENT` + `createApplicationNotification`) and extended it with static, provider-safe `approved`/`rejected` content. The rejected body deliberately contains **no per-decision text** — the status page remains the single surface for the provider-visible `rejectionReason`; `link` stays `/provider/application-status`.
++- Wired decision notifications into the reviewer transaction in `routes/admin.ts`: the event insert now returns its id and `createApplicationNotification` runs in the SAME transaction — a notification exists iff the decision committed; `UNIQUE(user_id, event_id)` + `onConflictDoNothing` keep it one-per-event under retries. Recipient is the application owner, never the reviewer.
++- `routes/providers.ts`: now imports the shared helper (local copies removed); notification read path keeps the table-inferred enum type.
++- `lib/db/src/schema/provider-notifications.ts`: scope comment updated to the four covered event types (no structural change).
++- OpenAPI: `ProviderNotification.type` enum extended with `approved`/`rejected`; clients regenerated via codegen (not hand-edited).
++- **Not** included (Commit 3 / out of scope): regression suite, web/mobile UI, push/email/outbox/retry.
++
++**Validation (local, Postgres 15 test DB, server on 18123):**
++- Manual: approve → one `approved` notification (provider-safe title/body/link); reject → one `rejected` notification whose body contains neither the `rejectionReason` text nor any reviewer-private phrase; privacy scan of both providers' notification responses CLEAN (`reviewerNotes`/`reviewedBy`/private phrase absent); exactly one notification per event in DB; owner isolation (each provider sees only their own); unread-count correct; repeated decision → `409` with **no additional notification** (count unchanged).
++- Existing suites all green post-change: `test:provider-notifications` 12/12, `test:provider-history` 11/11, `test:provider-resubmission` 11/11, `test:provider-status` 9/9, `test:onboarding` 23/23, `test:authorization` 7/7.
++- Full-workspace typecheck ✅; full build ✅. No `.patch`/`.bundle` tracked.
++
++**Files changed:**
++- `artifacts/api-server/src/lib/application-notifications.ts` (new)
++- `artifacts/api-server/src/routes/admin.ts`
++- `artifacts/api-server/src/routes/providers.ts`
++- `lib/db/src/schema/provider-notifications.ts` (comment only)
++- `lib/api-spec/openapi.yaml`
++- `lib/api-zod/src/generated/*`, `lib/api-client-react/src/generated/*` (codegen)
++- `.agents/LOG.md`, `.agents/NEXT_TASK.md`
++
++**Build state at end:** 1 focused commit on top of `origin/main` (`59068c8`). Ahead 1 / behind 0. Working tree clean. Not pushed — patch prepared for managed-environment publication, held for review.
++
++**Next best action:** After Commit 2 lands (verify tree identity, not hashes), MC9 Commit 3 — durable `node:test` regression suite for reviewer decisions + decision notifications (authn/authz, self-approval rejection, transitions, invalid/repeated behavior, atomicity, privacy).
++
++---
++
+ ### Session 049 — 2026-08-09
+ **Agent:** E2 Agent (Emergent, Neo)
+ **Scope:** `M`
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index c67ff07..c7b988a 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -1,29 +1,28 @@
+-# Next product task — MC9 in progress (Commit 1 done, awaiting review)
++# Next product task — MC9 in progress (Commit 2 done, awaiting review)
+ 
+ ## Current gate
+ 
+-MC8-lite is **complete** — all four commits landed on canonical `main`
+-(`0ab9964`, `971cf70`, `7d8e8ff`, `05292ab`). MC9 (reviewer approve/reject
+-workflow + decision notifications) was **explicitly scope-approved** as three
++MC8-lite is **complete**. MC9 (reviewer approve/reject workflow + decision
++notifications) was **explicitly scope-approved** as three
+ separately-reviewed commits:
+ 
+-- **Commit 1 (done, awaiting review):** admin-only reviewer decision
+-  endpoints `POST /admin/provider-applications/:id/approve|reject` —
+-  `under_review`-only transitions, transactional persistence of
+-  `reviewedAt`/`reviewedBy`/reviewer-private `reviewerNotes` (+
+-  provider-visible `rejectionReason` on reject), `approved`/`rejected`
+-  lifecycle-event enum extension + transactional emission, no self-review,
+-  invalid/repeated decisions fail with 409 and no side effects, OpenAPI +
+-  regenerated clients.
+-- **Commit 2 (next, gated on Commit 1 landing):** provider-facing in-app
++- **Commit 1 (landed):** admin-only reviewer decision endpoints — published
++  by the managed environment as split commits `0afb3ff` + `92d001f`
++  (combined tree byte-identical to the reviewed implementation; `59068c8`
++  is an environment-only `.replit` marker on top). See Session 050
++  traceability note.
++- **Commit 2 (done, awaiting review):** provider-facing in-app
+   notifications for `approved`/`rejected`, created in the SAME transaction
+   as the lifecycle event, one per event via the existing
+-  `UNIQUE(user_id, event_id)` constraint, provider-safe title/body/link,
+-  never any reviewer-private data in notification responses.
+-- **Commit 3 (gated):** durable `node:test` coverage — reviewer authn/authz,
+-  provider self-approval rejection, valid approve/reject transitions,
+-  invalid-state and repeated-decision behavior, event/notification
+-  atomicity, notification privacy; existing suites + full typecheck + build.
++  `UNIQUE(user_id, event_id)` constraint, static provider-safe
++  title/body/link (`/provider/application-status`), never any
++  reviewer-private data in notification responses. Shared helper extracted
++  to `artifacts/api-server/src/lib/application-notifications.ts`.
++- **Commit 3 (next, gated on Commit 2 landing):** durable `node:test`
++  coverage — reviewer authn/authz, provider self-approval rejection, valid
++  approve/reject transitions, invalid-state and repeated-decision behavior,
++  event/notification atomicity, notification privacy; existing suites +
++  full typecheck + build.
+ 
+ ## Constraints (locked)
+ 
+@@ -32,8 +31,12 @@ separately-reviewed commits:
+ - Web/mobile notification UI remains **out of scope**.
+ - Email, outbox, retry, and external delivery remain **out of scope**.
+ - No unrelated reviewer workflow or admin UI.
+-- Published history is never rewritten (Commit 4 `files` subject is a
+-  recorded cosmetic discrepancy — see Session 049 traceability note).
++- Published history is never rewritten (Commit 4 `files` subject and the
++  Commit 1 split-commit publication are recorded cosmetic discrepancies —
++  see Session 049/050 traceability notes).
++- Publication channel: patches applied by the managed environment, which
++  may split commits or alter subjects — verify **tree identity, scope,
++  ancestry, and validation**, not published commit hashes.
+ 
+ ## Post-MC9 deferred
+ 
+diff --git a/artifacts/api-server/src/lib/application-notifications.ts b/artifacts/api-server/src/lib/application-notifications.ts
+new file mode 100644
+index 0000000..de6cf7f
+--- /dev/null
++++ b/artifacts/api-server/src/lib/application-notifications.ts
+@@ -0,0 +1,84 @@
++import { db, providerNotificationsTable } from "@workspace/db";
++
++/**
++ * In-app notification creation for provider-application lifecycle events
++ * (MC9 Commit 2 — extracted from routes/providers.ts and extended with the
++ * reviewer-driven decision events).
++ *
++ * A notification row is always created inside the SAME transaction as the
++ * lifecycle event it references, so a notification exists iff the transition
++ * committed. `UNIQUE(user_id, event_id)` + `onConflictDoNothing` make
++ * creation idempotent under at-least-once semantics — a retried transition
++ * never double-notifies.
++ *
++ * Content is server-rendered, static, and event-keyed; `link` is a
++ * provider-safe relative in-app path. No reviewer-private material
++ * (`reviewerNotes`, `reviewedBy`) and no per-decision free text is ever
++ * stored here — the status page is the single place that surfaces the
++ * provider-visible `rejectionReason`.
++ */
++
++// Drizzle transaction handle type, derived from db.transaction's callback.
++type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
++
++export type ApplicationEventType =
++  | "submitted"
++  | "reset_to_draft"
++  | "approved"
++  | "rejected";
++
++export const NOTIFICATION_CONTENT: Record<
++  ApplicationEventType,
++  { title: string; body: string; link: string }
++> = {
++  submitted: {
++    title: "Application submitted",
++    body: "Your provider application was submitted and is now under review.",
++    link: "/provider/application-status",
++  },
++  reset_to_draft: {
++    title: "Application reopened",
++    body: "Your application was reset to draft. You can update your details and resubmit when ready.",
++    link: "/provider/application-status",
++  },
++  approved: {
++    title: "Application approved",
++    body: "Congratulations — your provider application was approved. Check your application status for what happens next.",
++    link: "/provider/application-status",
++  },
++  rejected: {
++    title: "Application decision",
++    body: "Your provider application was reviewed and not approved. View your application status for the reason and next steps.",
++    link: "/provider/application-status",
++  },
++};
++
++/**
++ * Create the in-app notification for a lifecycle event, inside the same
++ * transaction as the event. Idempotent via UNIQUE(user_id, event_id):
++ * onConflictDoNothing means a retried transition never double-notifies.
++ */
++export async function createApplicationNotification(
++  tx: Tx,
++  userId: number,
++  eventId: number,
++  type: ApplicationEventType,
++): Promise<void> {
++  const content = NOTIFICATION_CONTENT[type];
++  await tx
++    .insert(providerNotificationsTable)
++    .values({
++      userId,
++      eventId,
++      type,
++      title: content.title,
++      body: content.body,
++      link: content.link,
++    })
++    .onConflictDoNothing({
++      target: [
++        providerNotificationsTable.userId,
++        providerNotificationsTable.eventId,
++      ],
++    });
++}
+diff --git a/artifacts/api-server/src/routes/admin.ts b/artifacts/api-server/src/routes/admin.ts
+index 1ff1146..1fc729c 100644
+--- a/artifacts/api-server/src/routes/admin.ts
++++ b/artifacts/api-server/src/routes/admin.ts
+@@ -9,6 +9,7 @@ import {
+   usersTable,
+ } from "@workspace/db";
+ import { requireAuth, requireRole } from "../middlewares/auth.js";
++import { createApplicationNotification } from "../lib/application-notifications.js";
+ 
+ const router = Router();
+ 
+@@ -207,13 +208,23 @@ async function decideProviderApplication(
+     // above), so exactly one event per real decision. `userId` is the
+     // application owner — the provider the event belongs to — not the
+     // reviewer.
+-    await tx.insert(providerApplicationEventsTable).values({
+-      providerApplicationId: current.id,
+-      userId: current.userId,
+-      type: decision,
+-      fromStatus: "under_review",
+-      toStatus: decision,
+-    });
++    const [event] = await tx
++      .insert(providerApplicationEventsTable)
++      .values({
++        providerApplicationId: current.id,
++        userId: current.userId,
++        type: decision,
++        fromStatus: "under_review",
++        toStatus: decision,
++      })
++      .returning({ id: providerApplicationEventsTable.id });
++
++    // Decision notification (MC9 Commit 2): created in the SAME transaction
++    // as the event — one per event via UNIQUE(user_id, event_id). Recipient
++    // is the application owner. Content is static and provider-safe; the
++    // provider-visible rejectionReason is surfaced on the status page, never
++    // stored in the notification.
++    await createApplicationNotification(tx, current.userId, event!.id, decision);
+ 
+     return { kind: "decided", application: updated! };
+   });
+diff --git a/artifacts/api-server/src/routes/providers.ts b/artifacts/api-server/src/routes/providers.ts
+index 31b2f9b..2d5f8a1 100644
+--- a/artifacts/api-server/src/routes/providers.ts
++++ b/artifacts/api-server/src/routes/providers.ts
+@@ -22,6 +22,7 @@ import {
+   requireAuth,
+   requireRole,
+ } from "../middlewares/auth.js";
++import { createApplicationNotification } from "../lib/application-notifications.js";
+ 
+ const router = Router();
+ 
+@@ -33,59 +34,6 @@ const requireProviderOperation = [
+ 
+ // ── Helpers ──────────────────────────────────────────────────────────────────
+ 
+-// Drizzle transaction handle type, derived from db.transaction's callback.
+-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+-
+-type ApplicationEventType = "submitted" | "reset_to_draft";
+-
+-// Server-rendered, event-keyed, provider-safe notification content. No
+-// reviewer-private material. `link` is a relative in-app path.
+-const NOTIFICATION_CONTENT: Record<
+-  ApplicationEventType,
+-  { title: string; body: string; link: string }
+-> = {
+-  submitted: {
+-    title: "Application submitted",
+-    body: "Your provider application was submitted and is now under review.",
+-    link: "/provider/application-status",
+-  },
+-  reset_to_draft: {
+-    title: "Application reopened",
+-    body: "Your application was reset to draft. You can update your details and resubmit when ready.",
+-    link: "/provider/application-status",
+-  },
+-};
+-
+-/**
+- * Create the in-app notification for a lifecycle event, inside the same
+- * transaction as the event. Idempotent via UNIQUE(user_id, event_id):
+- * onConflictDoNothing means a retried transition never double-notifies.
+- */
+-async function createApplicationNotification(
+-  tx: Tx,
+-  userId: number,
+-  eventId: number,
+-  type: ApplicationEventType,
+-): Promise<void> {
+-  const content = NOTIFICATION_CONTENT[type];
+-  await tx
+-    .insert(providerNotificationsTable)
+-    .values({
+-      userId,
+-      eventId,
+-      type,
+-      title: content.title,
+-      body: content.body,
+-      link: content.link,
+-    })
+-    .onConflictDoNothing({
+-      target: [
+-        providerNotificationsTable.userId,
+-        providerNotificationsTable.eventId,
+-      ],
+-    });
+-}
+-
+ /** Fetch the provider profile row for the currently authenticated provider. */
+ async function getOwnProfile(userId: number) {
+   const rows = await db
+@@ -1195,9 +1143,8 @@ function decodeNotificationCursor(raw: string): NotificationCursor | null {
+ 
+ function serializeNotification(row: {
+   id: number;
+-  // Read path uses the table-inferred enum: rows may carry any recorded event
+-  // type, while notification *creation* stays limited to ApplicationEventType
+-  // until the corresponding content is added.
++  // Table-inferred enum: covers every recorded event type with notification
++  // content (submitted, reset_to_draft, approved, rejected).
+   type: (typeof providerNotificationsTable.$inferSelect)["type"];
+   title: string;
+   body: string;
+diff --git a/lib/api-client-react/src/generated/api.schemas.ts b/lib/api-client-react/src/generated/api.schemas.ts
+index 1ea0fce..70039cc 100644
+--- a/lib/api-client-react/src/generated/api.schemas.ts
++++ b/lib/api-client-react/src/generated/api.schemas.ts
+@@ -157,6 +157,8 @@ export type ProviderNotificationType = typeof ProviderNotificationType[keyof typ
+ export const ProviderNotificationType = {
+   submitted: 'submitted',
+   reset_to_draft: 'reset_to_draft',
++  approved: 'approved',
++  rejected: 'rejected',
+ } as const;
+ 
+ /**
+diff --git a/lib/api-spec/openapi.yaml b/lib/api-spec/openapi.yaml
+index 6deb9f9..05ade06 100644
+--- a/lib/api-spec/openapi.yaml
++++ b/lib/api-spec/openapi.yaml
+@@ -1822,6 +1822,8 @@ components:
+           enum:
+             - submitted
+             - reset_to_draft
++            - approved
++            - rejected
+         title:
+           type: string
+         body:
+diff --git a/lib/api-zod/src/generated/api.ts b/lib/api-zod/src/generated/api.ts
+index c85bc2b..64fd75d 100644
+--- a/lib/api-zod/src/generated/api.ts
++++ b/lib/api-zod/src/generated/api.ts
+@@ -528,7 +528,7 @@ export const getProviderNotificationsResponsePaginationLimitMax = 50;
+ export const GetProviderNotificationsResponse = zod.object({
+   "notifications": zod.array(zod.object({
+   "id": zod.int(),
+-  "type": zod.enum(['submitted', 'reset_to_draft']),
++  "type": zod.enum(['submitted', 'reset_to_draft', 'approved', 'rejected']),
+   "title": zod.string(),
+   "body": zod.string(),
+   "link": zod.string().describe('Provider-safe relative in-app path.'),
+@@ -563,7 +563,7 @@ export const MarkProviderNotificationReadParams = zod.object({
+ export const MarkProviderNotificationReadResponse = zod.object({
+   "notification": zod.object({
+   "id": zod.int(),
+-  "type": zod.enum(['submitted', 'reset_to_draft']),
++  "type": zod.enum(['submitted', 'reset_to_draft', 'approved', 'rejected']),
+   "title": zod.string(),
+   "body": zod.string(),
+   "link": zod.string().describe('Provider-safe relative in-app path.'),
+diff --git a/lib/api-zod/src/generated/types/providerNotificationType.ts b/lib/api-zod/src/generated/types/providerNotificationType.ts
+index 7cb4545..ce0e60e 100644
+--- a/lib/api-zod/src/generated/types/providerNotificationType.ts
++++ b/lib/api-zod/src/generated/types/providerNotificationType.ts
+@@ -12,4 +12,6 @@ export type ProviderNotificationType = typeof ProviderNotificationType[keyof typ
+ export const ProviderNotificationType = {
+   submitted: 'submitted',
+   reset_to_draft: 'reset_to_draft',
++  approved: 'approved',
++  rejected: 'rejected',
+ } as const;
+diff --git a/lib/db/src/schema/provider-notifications.ts b/lib/db/src/schema/provider-notifications.ts
+index 88cf7b8..a640736 100644
+--- a/lib/db/src/schema/provider-notifications.ts
++++ b/lib/db/src/schema/provider-notifications.ts
+@@ -22,10 +22,10 @@ import { usersTable } from "./users";
+  * under at-least-once semantics — a retried transition never double-notifies.
+  *
+  * Content is server-rendered and event-keyed; `link` is a provider-safe
+- * relative path. No reviewer-private material is ever stored here. Scope is
+- * limited to the two locked event types (`submitted`, `reset_to_draft`); push
+- * and email delivery, outbox/retry, and reviewer/admin notifications are out
+- * of scope for MC8-lite.
++ * relative path. No reviewer-private material is ever stored here. Covered
++ * event types: `submitted`, `reset_to_draft`, `approved`, `rejected`. Push
++ * and email delivery, outbox/retry, and reviewer/admin notifications remain
++ * out of scope for this line.
+  */
+ export const providerNotificationsTable = pgTable(
+   "provider_notifications",
+-- 
+2.39.5
+
