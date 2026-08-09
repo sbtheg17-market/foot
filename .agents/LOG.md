@@ -65,6 +65,35 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 051 — 2026-08-09
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Phase 2 **MC9 Commit 3 of 3** — durable reviewer-decision regression coverage, off canonical base `917361d3e0607f7af0dc690bc0aa4e9a598affb2` (user-approved locked scope).
+
+**Traceability note (MC9 Commit 2 landing):** the reviewed Commit 2 (local `ec07bc6`, patch SHA-256 `cbbfbec2e031d1b463ed16cf746239eb7aecd4bfefea010127fc5caad0ed2117`) was published as `917361d` with a byte-identical tree (verified: tree hash `a281167…` matches; subject preserved with a cosmetic `[PATCH]` prefix from the import).
+
+**What was done:**
+- Step-0 gate: base `917361d` == `origin/main`, `0/0`, clean.
+- Added `artifacts/api-server/src/__tests__/reviewer-decisions.integration.test.ts` (14 cases) using the existing `node:test` + `tsx` harness — no new framework. Added `test:reviewer-decisions` script to `artifacts/api-server/package.json`.
+- Coverage: 401 unauthenticated; 403 provider/client roles; malformed-id 400 / unknown-id 404; missing/blank/non-string `rejectionReason` 400 with no side effects; dual-role admin/provider **self-review blocked** (403, no side effects — reviewer promoted via DB since the product has no self-serve admin signup); valid `under_review → approved` and `under_review → rejected` with persisted `reviewedAt`/`reviewedBy`/`reviewerNotes`/`rejectionReason`; `approved`/`rejected` lifecycle events with owner `userId` and correct from/to; one decision notification per event created transactionally (provider-safe title/link asserted exactly; rejected body proven free of both the rejection reason and reviewer-private text); repeated decisions 409 with unchanged event/notification counts; invalid-state (draft, already-rejected) 409 with zero side effects; owner isolation + unread-count; privacy sweep across notifications list, application status, and application detail (no `reviewerNotes`/`reviewedBy`/private phrase) while the provider-visible `rejectionReason` remains on the status surface. Tests are self-provisioning and clean up via user cascade deletes.
+- No app/API/schema contract changes; no web/mobile; no push/email/outbox; no new event types.
+
+**Validation (local, Postgres 15 test DB, server on 18123):**
+- `test:reviewer-decisions` **14/14**.
+- Existing suites all green: `test:provider-notifications` 12/12, `test:provider-history` 11/11, `test:provider-resubmission` 11/11, `test:provider-status` 9/9, `test:onboarding` 23/23, `test:authorization` 7/7.
+- Full-workspace typecheck ✅; full build ✅. No `.patch`/`.bundle` tracked.
+
+**Files changed:**
+- `artifacts/api-server/src/__tests__/reviewer-decisions.integration.test.ts` (new)
+- `artifacts/api-server/package.json`
+- `.agents/LOG.md`, `.agents/NEXT_TASK.md`
+
+**Build state at end:** 1 focused commit on top of `origin/main` (`917361d`). Ahead 1 / behind 0. Working tree clean. Not pushed — patch prepared for managed-environment publication, held for review. **MC9 is feature-complete (Commits 1–3) once this lands.**
+
+**Next best action:** After Commit 3 lands (verify tree identity, not hashes), MC9 is complete. Next candidate checkpoints (each needs separate scope approval): web/mobile in-app notification feed with unread badge, then email via a separately designed outbox/retry channel, then push.
+
+---
+
 ### Session 050 — 2026-08-09
 **Agent:** E2 Agent (Emergent, Neo)
 **Scope:** `S`

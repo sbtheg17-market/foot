@@ -1,28 +1,27 @@
-# Next product task — MC9 in progress (Commit 2 done, awaiting review)
+# Next product task — MC9 Commit 3 done, awaiting review; MC9 completes when it lands
 
 ## Current gate
 
-MC8-lite is **complete**. MC9 (reviewer approve/reject workflow + decision
-notifications) was **explicitly scope-approved** as three
-separately-reviewed commits:
+MC9 (reviewer approve/reject workflow + decision notifications) — locked
+three-commit scope:
 
 - **Commit 1 (landed):** admin-only reviewer decision endpoints — published
-  by the managed environment as split commits `0afb3ff` + `92d001f`
-  (combined tree byte-identical to the reviewed implementation; `59068c8`
-  is an environment-only `.replit` marker on top). See Session 050
-  traceability note.
-- **Commit 2 (done, awaiting review):** provider-facing in-app
-  notifications for `approved`/`rejected`, created in the SAME transaction
-  as the lifecycle event, one per event via the existing
-  `UNIQUE(user_id, event_id)` constraint, static provider-safe
-  title/body/link (`/provider/application-status`), never any
-  reviewer-private data in notification responses. Shared helper extracted
-  to `artifacts/api-server/src/lib/application-notifications.ts`.
-- **Commit 3 (next, gated on Commit 2 landing):** durable `node:test`
-  coverage — reviewer authn/authz, provider self-approval rejection, valid
-  approve/reject transitions, invalid-state and repeated-decision behavior,
-  event/notification atomicity, notification privacy; existing suites +
-  full typecheck + build.
+  as split commits `0afb3ff` + `92d001f` (tree byte-identical to the
+  reviewed implementation; `59068c8` is an environment-only `.replit`
+  marker). See Session 050 traceability note.
+- **Commit 2 (landed, `917361d`):** transactional `approved`/`rejected`
+  provider notifications — tree byte-identical to the reviewed
+  implementation (Session 051 traceability note).
+- **Commit 3 (done, awaiting review):** durable `node:test` suite
+  `test:reviewer-decisions` (14 cases) — reviewer authn/authz, self-review
+  prevention, valid/invalid/repeated decisions with no-side-effect
+  assertions, event + notification atomicity, ownership isolation, privacy.
+  No app/API/schema changes.
+
+Once Commit 3 lands, **MC9 is complete**. Next candidate checkpoints remain
+gated pending separate scope approval: web/mobile in-app notification feed
+with unread badge → email alerts via a separately designed outbox/retry
+channel → push delivery.
 
 ## Constraints (locked)
 
