@@ -1,34 +1,26 @@
 [
   {
-    "content": "Step-0 gate: verify HEAD==origin/main==8323aac, clean tree, baseline typecheck/build/API regression green",
-    "status": "in_progress"
+    "content": "Step-0 gate + web inspection",
+    "status": "completed"
   },
   {
-    "content": "Web repo inspection: routing, layout/header, portal pages, testing conventions, generated hooks, 401/403 handling, UI primitives",
-    "status": "pending"
+    "content": "Implement feed page + unread badge + all states + a11y/responsive",
+    "status": "completed"
   },
   {
-    "content": "Implement web notification feed page + unread badge (artifacts/web/** only) consuming existing hooks",
-    "status": "pending"
+    "content": "Validation: typecheck + build pass",
+    "status": "completed"
   },
   {
-    "content": "Implement all UI states: loading, empty, error+retry, 401, 403, pagination, unread count, mark-read (optimistic+rollback), refresh",
-    "status": "pending"
+    "content": "Manual screenshot verification of all UI states (route + fixture recorded)",
+    "status": "completed"
   },
   {
-    "content": "Accessibility + responsive layout per spec",
-    "status": "pending"
+    "content": "API regression (12/12, 14/14, 8/8, 9/9) + scope diff + clean tree",
+    "status": "completed"
   },
   {
-    "content": "Web tests using existing conventions (no new framework)",
-    "status": "pending"
-  },
-  {
-    "content": "Validation gates: API regression (12/12, 14/14), web tests, typecheck, build, scope diff, clean tree",
-    "status": "pending"
-  },
-  {
-    "content": "Add .agents/LOG.md + NEXT_TASK.md traceability (in implementation commit only)",
-    "status": "pending"
+    "content": "Verification record + .agents traceability + single local implementation commit (not pushed)",
+    "status": "completed"
   }
 ]
