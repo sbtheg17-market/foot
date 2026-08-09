@@ -42,6 +42,23 @@
   enhancements, funnel-report implementation, UI work, database operations, or
   validation work is authorized.
 
+## Session 057 traceability correction (local draft — awaiting review)
+
+- The "Session 056 local draft" section above was in fact **published to
+  `origin/main` at `6a5cf35`** without the required separate review gate; its
+  "not committed or published" wording became inaccurate at publication. The
+  published text is preserved verbatim — this correction is additive (see
+  Session 057 in `.agents/LOG.md`).
+- Session 055 landed correctly at `4734990` (parent `cf689b5`, tree
+  `4002cbed57f5e9ea436d153d49ecaa3ba02f506b`, byte-identical to the reviewed
+  patch, docs-only two-file scope). Phase 3 remains unchanged at tree
+  `e30feca1251f250a7126e987c9379ca3e42e1056`.
+- Canonical history `cf689b5 → 4734990 → 6a5cf35` is preserved — no rewrite,
+  no force-push, no amend/revert, no `conflict_*` involvement.
+- Managed DB remains **UNVERIFIED**. Phase 3 enhancements, funnel reporting,
+  flagged discovery gating, booking enforcement, readiness UI, and any
+  database/schema operations remain **gated**.
+
 ## Canonical handoff policy (permanent)
 
 - `origin/main` of `https://github.com/sbtheg17-market/foot` is the ONLY

@@ -60,7 +60,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Provider application rejected-state web UI | ✅ Phase 1 checkpoint 3 verified | `/provider/application-status` now consumes `GET /providers/application/status` via the generated `useGetProviderApplicationStatus` hook, renders the provider-visible `rejectionReason` and `previousSubmissions` summary, and gates the reset/resubmit/edit CTAs on server-provided `canReset`/`canResubmit`/`canEdit`. Loading, unauthorized, 404 (no application yet), 403 (non-provider member), and mutation-error states are handled without duplicating server authorization logic. `reviewerNotes` is never rendered because it never enters the status response. Full workspace typecheck and web build both pass; 26 `data-testid` attributes cover every state and action. |
 | Web in-app notification feed + unread badge | ✅ Phase 2 MC10 (web) verified | `/provider/notifications` renders an owner-scoped, newest-first feed consuming only the existing MC8-lite APIs (`GET /providers/notifications` keyset-paginated, `GET /providers/notifications/unread-count`, idempotent `POST /providers/notifications/:id/read`) via the generated client (`useGetProviderNotificationUnreadCount`, `useMarkProviderNotificationRead`, and the generated fetcher through TanStack `useInfiniteQuery`). ProviderLayout gains an "Alerts" tab with an unread badge (accessible label, hidden at 0, `99+` cap). Handles loading/empty/error+retry/401(sign-in redirect)/403/pagination/mark-read(optimistic+rollback+failure toast)/focus+interval refresh. No email/SMTP/push/SSE/notification-bus/vendor coupling; no backend, schema, OpenAPI, generated-client, or notification-semantics changes. Web + full typecheck + production build pass; API regression green (reviewer-decisions 14/14, provider-notifications 12/12). Scope: `artifacts/web/` only. Verified via manual browser screenshots (no web test framework introduced — deferred item unchanged). |
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
-| GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are aligned at the managed-published Session 055 traceability checkpoint `4734990`; the local Session 056 traceability draft is intentionally uncommitted and remains pending review. |
+| GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are aligned at `6a5cf35` (canonical history `cf689b5 → 4734990 → 6a5cf35`, fast-forward only). Session 055 landed at `4734990` (tree byte-identical to the reviewed patch); Session 056 was published prematurely at `6a5cf35` (see Session 057 correction). The local Session 057 docs-only draft is prepared as a patch + SHA-256 and held for review — not pushed. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
 
@@ -119,6 +119,37 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** Canonical `origin/main` and local `HEAD` were synchronized at the managed Session 055 publication before this draft. The Session 056 entry is intentionally uncommitted and must stop for review; it has not been published.
 
 **Next best action:** Review this Session 056 traceability draft. Do not begin Phase 3 enhancements, funnel reporting, UI work, database operations, or any other implementation until separately approved.
+
+---
+
+### Session 057 — 2026-08-09
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `XS`
+**Triggered by:** Traceability follow-up recording the verified Session 055 publication outcome and the premature Session 056 publication discrepancy. Docs-only; approved for local drafting only, held for review. No implementation.
+
+**What was done (remote-verified facts only):**
+- **Session 055 correctly published** at `4734990df76b65735c12b62f88cbda2d327738fd` (parent exactly `cf689b5bb0f6bbc2f01a63a101cf6bc4e32a9421`), tree `4002cbed57f5e9ea436d153d49ecaa3ba02f506b` — byte-identical to the reviewed docs-only patch (patch SHA-256 `d42fe79e2c7fe5da8419943d9a30d2475440d92104fe46450f76fd5e37d223de`). The published commit hash differs from the locally prepared `19fcaf4` as anticipated; per the locked publication protocol (Session 050), tree identity/scope/ancestry are authoritative.
+- **Phase 3 remains unchanged** at tree `e30feca1251f250a7126e987c9379ca3e42e1056` (`cf689b5`); the Session 055 publication changed only `.agents/LOG.md` and `.agents/NEXT_TASK.md`.
+- **Discrepancy recorded:** Session 056 was **published prematurely** at `6a5cf35fb05c00eed8485800796d9380685669b4` ("tracibility") without the required separate review gate.
+- The factual hashes, scope, and publication details inside the published Session 056 entry are **accurate** (patch checksum, commit `4734990`, trees `4002cbed…`/`e30feca…`, two-file docs scope, fast-forward publication).
+- The statements in that entry describing Session 056 as "intentionally uncommitted," "not committed or published," and "awaiting review" **became inaccurate at the moment the entry was committed and pushed to `origin/main`**. This correction is recorded additively; the published Session 056 text above is preserved verbatim.
+- **No history rewrite occurred.** Canonical history is preserved: `cf689b5 → 4734990 → 6a5cf35` (fast-forward only; no force-push, no amend/revert/delete, no `conflict_*` involvement).
+- **Managed database status: UNVERIFIED.** No database checks, migrations, or test suites were run this session.
+- **No new implementation was performed.** Docs-only change: `.agents/LOG.md` and `.agents/NEXT_TASK.md`.
+
+**Explicitly gated (NOT started, each needs separate scope approval):** Phase 3 enhancements, funnel-report implementation (Phase 6 API reporting), flagged discovery gating (Phase 5), booking enforcement (Phase 4), provider readiness UI (web/mobile), Phase 7 validation, any database operations or schema work, mobile notification feed, email outbox, push.
+
+**Validation:** docs-only scope check — `git diff --name-only origin/main..HEAD` lists only `.agents/LOG.md` and `.agents/NEXT_TASK.md`; `git diff --check` clean; working tree clean before the edit; base equals `origin/main` (`6a5cf35`), ahead 1 / behind 0.
+
+**Cross-reference:** Session 055 (recreated entry, published at `4734990`); Session 056 (published at `6a5cf35`; this entry corrects its status wording additively); Sessions 049/050 precedent for recording publication discrepancies without rewriting published history.
+
+**Files changed:**
+- `.agents/LOG.md`
+- `.agents/NEXT_TASK.md`
+
+**Build state at end:** One local docs-only commit on top of `origin/main` (`6a5cf35`); clean tree; **NOT pushed** — patch + SHA-256 prepared as the handoff artifact, held for review. Publication, if approved, must be a fast-forward from `6a5cf35` through the managed channel; no force-push, no history rewrite, no `conflict_*` merges.
+
+**Next best action:** After this Session 057 docs patch is separately reviewed, publish it as a fast-forward from `6a5cf35` and post-verify (entry present on `origin/main`, only the two `.agents` files changed, Phase 3 tree unchanged at `e30feca…`, clean tree, managed DB still UNVERIFIED). All implementation work remains gated pending separate approval.
 
 ---
 
