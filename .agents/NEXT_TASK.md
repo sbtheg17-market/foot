@@ -2,29 +2,24 @@
 
 ## Current gate
 
-MC8-lite is in progress as four separately-reviewed commits off the MC7
-base. **Commits 1–3 of 4 are done** on `phase2-mc8-notifications`:
+MC8-lite is **feature-complete** — four separately-reviewed commits off the
+MC7 base. Commits 1–3 landed on canonical `main`; **Commit 4 is done** on
+`phase2-mc8-notifications` (1 ahead / 0 behind `origin/main`), awaiting review.
 
-- **Commit 1 (landed, `0ab9964`):** composite index on
-  `provider_application_submissions`; redundant single-column index retired.
-- **Commit 2 (landed, `971cf70`):** append-only `provider_application_events`
-  (`submitted` | `reset_to_draft`), emitted inside the submit/reset
-  transactions — exactly-once, atomic.
-- **Commit 3 (done, awaiting review):** `provider_notifications`
-  (`UNIQUE(user_id, event_id)`) created in the same transaction as each
-  event via `onConflictDoNothing`; owner-scoped read APIs
-  `GET /providers/notifications` (keyset paginated),
-  `GET /providers/notifications/unread-count`,
-  `POST /providers/notifications/:id/read` (non-enumerating, idempotent).
-  OpenAPI + generated clients regenerated. No push/email, outbox,
-  reviewer/admin notifications, reviewer endpoint, new event types, or UI.
+- **Commit 1 (landed, `0ab9964`):** composite submission-history index.
+- **Commit 2 (landed, `971cf70`):** `provider_application_events`
+  (`submitted` | `reset_to_draft`), transactional emission.
+- **Commit 3 (landed, `7d8e8ff`):** `provider_notifications` +
+  owner-scoped read APIs (list / unread-count / mark-read).
+- **Commit 4 (done, awaiting review):** durable `node:test` suite
+  `test:provider-notifications` (12 cases) covering emission, atomicity,
+  idempotency, isolation, pagination, unread-count, mark-read, error/auth
+  paths, and privacy. No app/API/web/mobile changes.
 
-**Commit 4 remains gated pending separate approval of Commit 3:**
-4. Durable API regression coverage (extend the `node:test` harness):
-   event emission, notification atomicity, ownership isolation, pagination,
-   unread-count, mark-read idempotency, and privacy assertions.
-
-Do not start Commit 4 until Commit 3 is reviewed and approved.
+After Commit 4 lands, MC8-lite is complete. Next candidate checkpoints are
+all still gated (see Post-MC8 deferred): reviewer approve/reject + the
+approved/rejected notification triggers (MC9), then push/email channels,
+then web/mobile notification UI.
 
 ## Post-MC8 deferred
 

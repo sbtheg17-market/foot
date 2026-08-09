@@ -65,6 +65,29 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 048 — 2026-08-08
+**Agent:** E1 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Phase 2 MC8-lite **Commit 4 of 4** — durable API regression coverage, off verified base `7d8e8ff85502a9632bd7bd66eafcbd96da8f65b9`.
+
+**What was done:**
+- Step-0 gate re-run: base `7d8e8ff`, `0/0`, clean. Branch `phase2-mc8-notifications`.
+- Added `artifacts/api-server/src/__tests__/provider-notifications.integration.test.ts` (12 cases) using the existing `node:test` + `tsx` harness — no new test framework. Added `test:provider-notifications` script to `artifacts/api-server/package.json`.
+- Coverage: `submitted`/`reset_to_draft` event emission (with from/to statuses), one-notification-per-event transactional atomicity, invalid submit creates neither, repeated submit + reset-on-draft idempotency, owner isolation, non-enumerating 404 on mark-read, keyset pagination + newest-first, unread-count, mark-read idempotency (readAt set), auth 401 / role 403 / malformed-id 400 / unknown-id 404, and a privacy assertion (no `reviewerNotes`/`reviewedBy`/reviewer-private phrase in any response). Tests are self-provisioning and clean up by deleting their users (cascade), so they are isolated/deterministic against the test DB.
+- No app/API contract changes; no web/mobile; no push/email/outbox/reviewer/new event types.
+
+**Validation (local, Postgres 15 test DB, server on 8099):**
+- `test:provider-notifications` **12/12**.
+- Existing suites all green: `test:provider-history` 11/11, `test:provider-resubmission` 11/11, `test:provider-status` 9/9, `test:onboarding` 23/23, `test:authorization` 7/7.
+- Full-workspace typecheck ✅ (api-server, web, mobile, scripts); full build ✅.
+- Scope: test file + `package.json` + `.agents`. No `.patch`/`.bundle` tracked.
+
+**Testing-agent note:** the Emergent `testing_agent` targets the standard `/app` React+FastAPI+Mongo template served via supervisor/ingress; it cannot drive this external pnpm/Express/Postgres monorepo (`/app/external/foot`) or its `node:test` suite against the local test DB. Commit 4 *is itself* the durable automated verification for this checkpoint, and all suites pass locally.
+
+**Build state at end:** `phase2-mc8-notifications` 1 ahead / 0 behind `origin/main`; clean; lockfile restored; not pushed. **MC8-lite is now feature-complete (Commits 1–4).**
+
+---
+
 ### Session 047 — 2026-08-08
 **Agent:** E1 Agent (Emergent, Neo)
 **Scope:** `M`

@@ -22,7 +22,8 @@
     "test:availability": "node --import tsx/esm --test src/__tests__/availability-preset.test.ts",
     "test:pressure": "node --import tsx/esm --test src/__tests__/booking-pressure.test.ts",
     "test:onboarding": "node --import tsx/esm --test src/__tests__/provider-application-completion.integration.test.ts",
-    "test:provider-history": "node --import tsx/esm --test src/__tests__/provider-application-history.integration.test.ts"
+    "test:provider-history": "node --import tsx/esm --test src/__tests__/provider-application-history.integration.test.ts",
+    "test:provider-notifications": "node --import tsx/esm --test src/__tests__/provider-notifications.integration.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",
