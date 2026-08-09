@@ -1,12 +1,45 @@
-# Next product task — Web notification feed PUBLISHED (`a98e1a3`); Provider Activation & First Booking Conversion IN PROGRESS (Phase 1 applied); Mobile feed sequenced after
+# Next product task — Web notification feed PUBLISHED (`a98e1a3`); Provider Activation & First Booking Conversion IN PROGRESS (Phases 1–3 done; Phase 3 PUBLISHED at `cf689b5`); Mobile feed sequenced after
 
 > **Active checkpoint: Provider Activation & First Booking Conversion** (approved to sequence
 > BEFORE the mobile feed). Product/measurement spec:
 > `/workspace/CHECKPOINT_PROVIDER_ACTIVATION_FIRST_BOOKING_SPEC.md`. Phased, each phase
 > separately sign-off-gated. **Phase 1 (additive `marketplace_events` migration) applied to the
-> test DB** (Session 053). Phases 2–7 (readiness view → events → booking enforcement → flagged
-> discovery → API reporting → validation) NOT started. Mobile feed, email outbox, and push remain
-> gated and sequenced after this checkpoint.
+> test DB** (Session 053). **Phase 2 (owner-scoped readiness API) PUBLISHED** as `4bb0e00`
+> (Session 054). **Phase 3 (event emission) PUBLISHED** at `cf689b5`, tree
+> `e30feca1251f250a7126e987c9379ca3e42e1056`, exactly the six approved files (Session 055
+> remote verification). Managed database status: **UNVERIFIED**. Phases 4–7 (booking
+> enforcement → flagged discovery gating → funnel-report API → validation) and readiness UI
+> NOT started and remain gated. Mobile feed, email outbox, and push remain gated and
+> sequenced after this checkpoint.
+
+## Publication state (Session 055 remote verification)
+
+- Canonical `origin/main` tip: `cf689b5` ("uploaded Phase 3 patch"), tree
+  `e30feca1251f250a7126e987c9379ca3e42e1056`, parent `d7a01e8`.
+- Ancestry: `d7a5999` (Phase 1 base) → `4bb0e00` (Phase 2 readiness patch) →
+  `d7a01e8` (readiness docs) → `cf689b5` (Phase 3, six-file scope confirmed).
+- The originally approved Session 055 documentation publication (target tree
+  `9a30663a…`) never landed on any remote ref; it is recreated as a docs-only
+  commit (this change). See Session 055 in `.agents/LOG.md`.
+- All `origin/conflict_*` branches are unrelated Emergent workspace lineages
+  (no common ancestor with `main`) — forensic archive only; never merge or
+  base work on them.
+
+## Canonical handoff policy (permanent)
+
+- `origin/main` of `https://github.com/sbtheg17-market/foot` is the ONLY
+  canonical source of truth.
+- Every new account/agent must clone that repository, then fetch and verify
+  `origin/main` (commit + tree) BEFORE editing anything.
+- Never continue from an Emergent-generated `conflict_*` branch unless it is
+  proven to descend from foot `main`.
+- Use a unique local branch per task; push only reviewed commits through the
+  authenticated managed publication channel, as a fast-forward — no
+  force-push, no history rewrite, no `conflict_*` merges.
+- End every session with either a pushed commit or an explicit local artifact
+  (patch) plus SHA-256 checksum recorded in `.agents/LOG.md`.
+- The next account must verify the remote commit/tree before doing any work.
+- Archive `conflict_*` branches for forensics; do not merge or force-push them.
 
 ## Current gate
 

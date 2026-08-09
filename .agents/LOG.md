@@ -67,6 +67,37 @@ Since agent credit balances cannot be read programmatically, each session entry 
 ---
 
 | Provider Activation & First Booking — Phase 1 (marketplace_events schema) | ✅ Applied to test DB (additive) | New append-only `marketplace_events` table + typed `marketplace_event_type`/`marketplace_event_reason_code`/`marketplace_event_source` enums, 5 indexes (type/provider/client/correlation/occurred), and 5 erasure-friendly FKs (`ON DELETE SET NULL`). Schema-as-migration via `drizzle-kit push`. Strictly additive: exactly 1 table + 3 enums created, zero existing objects altered/dropped. No readiness/event-emission/booking/discovery/reporting/UI behavior yet (later phases). Rollback: DROP TABLE then DROP the 3 dependent enum types. Typecheck green; existing API suites green (14/14, 12/12, 8/8, 9/9). |
+| Provider Activation & First Booking — Phase 3 (event emission) | ✅ Published at `cf689b5` (managed DB UNVERIFIED) | Remote-verified publication: `origin/main` tip is `cf689b5` ("uploaded Phase 3 patch"), tree `e30feca1251f250a7126e987c9379ca3e42e1056`, parent `d7a01e8`. Diff vs parent contains exactly the six approved files: `artifacts/api-server/package.json`, `artifacts/api-server/src/__tests__/marketplace-events.integration.test.ts`, `artifacts/api-server/src/lib/marketplace-events.ts`, `artifacts/api-server/src/lib/provider-readiness.ts`, `artifacts/api-server/src/routes/admin.ts`, `artifacts/api-server/src/routes/providers.ts`. No validation suites were re-run during Session 055 (docs-only); managed database status **UNVERIFIED**. Phases 4–7 (booking enforcement, flagged discovery gating, funnel-report API, validation) and readiness UI remain gated. |
+
+### Session 055 — 2026-08-09
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `XS`
+**Triggered by:** Recreation of the approved Session 055 traceability entry. The originally approved Session 055 documentation publication never landed on the remote; this docs-only commit recreates it from the verified `origin/main` tip `cf689b5`. Approved for drafting/recreation only — no implementation.
+
+**What was done (remote-verified facts only):**
+- **Phase 3 (event emission) publication verified:** `origin/main` tip is `cf689b5` ("uploaded Phase 3 patch"). Published commit identity: `cf689b5bb0f6bbc2f01a63a101cf6bc4e32a9421`; published tree identity: `e30feca1251f250a7126e987c9379ca3e42e1056`; parent `d7a01e8` ("provider readiness: document published API checkpoint").
+- **Six-file Phase 3 scope confirmed** — the diff vs parent contains exactly the six approved files: `artifacts/api-server/package.json`, `artifacts/api-server/src/__tests__/marketplace-events.integration.test.ts`, `artifacts/api-server/src/lib/marketplace-events.ts`, `artifacts/api-server/src/lib/provider-readiness.ts`, `artifacts/api-server/src/routes/admin.ts`, `artifacts/api-server/src/routes/providers.ts`. Per the locked publication protocol (Session 050), tree identity/scope/ancestry are authoritative — the published tree is the reviewed Phase 3 content.
+- **Publication ancestry confirmed:** `d7a5999` (Phase 1 base) → `4bb0e00` (Phase 2 readiness patch, Session 054) → `d7a01e8` (readiness docs) → `cf689b5` (Phase 3).
+- **Discrepancy recorded:** the original Session 055 documentation publication (approved target tree `9a30663a37aa979797509c064d59c7f6a3a5ef65`) is absent from every remote ref — no commit on any ref carries that tree, the tree object does not exist in the repository, and no "Session 055" entry existed in `.agents/LOG.md` on any ref prior to this recreation.
+- **conflict_* branches audited (all 10):** every `origin/conflict_*` ref was verified as an unrelated Emergent workspace lineage with **no common ancestor** with foot `main` (boilerplate template roots carrying uploaded patch artifacts). None contain Session 055 or the target tree. They are archived for forensics only — never merged, never used as a base.
+- **Managed database status: UNVERIFIED.** No database checks, migrations, or test suites were run this session.
+- **No new implementation was performed.** Docs-only change: `.agents/LOG.md` and `.agents/NEXT_TASK.md`.
+
+**Explicitly gated (NOT started, each needs separate scope approval):** funnel-report implementation (Phase 6 API reporting), flagged discovery gating (Phase 5), booking enforcement (Phase 4), provider readiness UI (web/mobile), Phase 7 validation, any further schema work, mobile notification feed, email outbox, push.
+
+**Validation:** docs-only scope check — `git diff --name-only cf689b5..HEAD` lists only `.agents/LOG.md` and `.agents/NEXT_TASK.md`; working tree clean; base equals `origin/main` (`cf689b5`), ahead 1 / behind 0.
+
+**Cross-reference:** Session 054 (appended at the bottom of this log) documents the Phase 2 readiness-patch landing (`4bb0e00`) that this publication chain continues; Session 053 documents the Phase 1 `marketplace_events` migration this Phase 3 emission builds on.
+
+**Files changed:**
+- `.agents/LOG.md`
+- `.agents/NEXT_TASK.md`
+
+**Build state at end:** One local docs-only commit on top of `origin/main` (`cf689b5`); clean tree; **NOT pushed** — patch + SHA-256 prepared as the handoff artifact and held for review. Publication must be a fast-forward from `cf689b5` through the authenticated managed channel; no force-push, no history rewrite, no `conflict_*` merges.
+
+**Next best action:** After this recreated documentation patch is reviewed, publish it to `main` (fast-forward from `cf689b5`) and post-push verify: Session 055 docs present on `origin/main`, Phase 3 tree unchanged (`e30feca1251f250a7126e987c9379ca3e42e1056`), only the two `.agents` files changed, clean tree. Only then draft Session 056 from the real canonical history.
+
+---
 
 ### Session 053 — 2026-08-09
 **Agent:** E2 Agent (Emergent, Neo)
