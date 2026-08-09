@@ -60,7 +60,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Provider application rejected-state web UI | ✅ Phase 1 checkpoint 3 verified | `/provider/application-status` now consumes `GET /providers/application/status` via the generated `useGetProviderApplicationStatus` hook, renders the provider-visible `rejectionReason` and `previousSubmissions` summary, and gates the reset/resubmit/edit CTAs on server-provided `canReset`/`canResubmit`/`canEdit`. Loading, unauthorized, 404 (no application yet), 403 (non-provider member), and mutation-error states are handled without duplicating server authorization logic. `reviewerNotes` is never rendered because it never enters the status response. Full workspace typecheck and web build both pass; 26 `data-testid` attributes cover every state and action. |
 | Web in-app notification feed + unread badge | ✅ Phase 2 MC10 (web) verified | `/provider/notifications` renders an owner-scoped, newest-first feed consuming only the existing MC8-lite APIs (`GET /providers/notifications` keyset-paginated, `GET /providers/notifications/unread-count`, idempotent `POST /providers/notifications/:id/read`) via the generated client (`useGetProviderNotificationUnreadCount`, `useMarkProviderNotificationRead`, and the generated fetcher through TanStack `useInfiniteQuery`). ProviderLayout gains an "Alerts" tab with an unread badge (accessible label, hidden at 0, `99+` cap). Handles loading/empty/error+retry/401(sign-in redirect)/403/pagination/mark-read(optimistic+rollback+failure toast)/focus+interval refresh. No email/SMTP/push/SSE/notification-bus/vendor coupling; no backend, schema, OpenAPI, generated-client, or notification-semantics changes. Web + full typecheck + production build pass; API regression green (reviewer-decisions 14/14, provider-notifications 12/12). Scope: `artifacts/web/` only. Verified via manual browser screenshots (no web test framework introduced — deferred item unchanged). |
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
-| GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are aligned at `6a5cf35` (canonical history `cf689b5 → 4734990 → 6a5cf35`, fast-forward only). Session 055 landed at `4734990` (tree byte-identical to the reviewed patch); Session 056 was published prematurely at `6a5cf35` (see Session 057 correction). The local Session 057 docs-only draft is prepared as a patch + SHA-256 and held for review — not pushed. |
+| GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are aligned at `5853768` (canonical history `cf689b5 → 4734990 → 6a5cf35 → 5e031e5 → 5853768`, fast-forward only). Sessions 054–057 are published exactly once each; the publication review gate (`publish:gate`) is live on `main`. This Session 058 docs commit is the remaining reviewed candidate, rebased onto `5853768` and `publish:gate`-verified, prepared for managed-channel publication. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
 
@@ -150,6 +150,36 @@ Since agent credit balances cannot be read programmatically, each session entry 
 **Build state at end:** One local docs-only commit on top of `origin/main` (`6a5cf35`); clean tree; **NOT pushed** — patch + SHA-256 prepared as the handoff artifact, held for review. Publication, if approved, must be a fast-forward from `6a5cf35` through the managed channel; no force-push, no history rewrite, no `conflict_*` merges.
 
 **Next best action:** After this Session 057 docs patch is separately reviewed, publish it as a fast-forward from `6a5cf35` and post-verify (entry present on `origin/main`, only the two `.agents` files changed, Phase 3 tree unchanged at `e30feca…`, clean tree, managed DB still UNVERIFIED). All implementation work remains gated pending separate approval.
+
+---
+
+### Session 058 — 2026-08-09
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `XS`
+**Triggered by:** Post-settlement follow-ups approved after the Session 057 publication: this traceability entry (local drafting only), the publication review-gate automation as its own reviewed commit, and final confirmation of the inventory-based conflict-branch cleanup plan.
+
+**What was done (remote-verified facts only):**
+- **Session 057 landed** at `5e031e5eb8257450295cf9c83396b3cefc809e72` (parent exactly `6a5cf35`), published tree `cdaa7cb9cf7e0fe2ba8540c913749f47756f4346` — byte-identical to the reviewed patch (SHA-256 `87666619b5c6568fc9357f614bc212d42fa6d3cd2b04a374034d07446c0e4a27`). Canonical fast-forward history: `cf689b5 → 4734990 → 6a5cf35 → 5e031e5`; exactly one commit added, two-file docs scope, no new refs, no force-push.
+- **Sessions 054–057 are present exactly once each** on `origin/main`; the previously published 054/055/056 entry text is byte-intact; Phase 3 remains unchanged at tree `e30feca1251f250a7126e987c9379ca3e42e1056`.
+- **Conflict-branch inventory completed and accepted as read-only evidence** (no branch was modified). Findings: **nine** `conflict_*` branches are unrelated Emergent workspace lineages with no common ancestor with foot `main` (four distinct roots) and are approved cleanup candidates; **`conflict_070826_mc2` is real foot history** (merge-base `54534b0`, 5 unique commits) **but superseded** — its MC2 status-API content was published on `main` as `1f4c018`, leaving only pre-publication drafts, a handoff doc, and MC1/MC2 patch attachments. Every patch artifact found on any conflict branch corresponds to work already published on `main` (MC1–MC4, MC9 commits 1–3, web feed `a98e1a3`, Phase 1 events `d7a5999`); no unique unrecovered artifacts exist.
+- **Cleanup plan (final confirmation granted, execution is a separate managed-channel operation):** first tag `archive/conflict_070826_mc2` at `bed2e06` and verify the tag, then delete only the nine unrelated lineages, then confirm `main` is unchanged. No history rewrite, no branch merges.
+- **Publication review-gate automation published:** prepared as its own reviewed commit (separate from this entry) — `scripts/verify-publication.sh` + root `publish:gate` script, reviewed as local commit `f957caf` (patch SHA-256 `a23522ef…`) and, after separate approval, **published at `5853768` (parent exactly `5e031e5`) with byte-identical tree `3e6b7b32b173f51474cc7c6f8e0a71e9740b129d`** — fast-forward, exactly one commit, scope limited to `package.json` + `scripts/verify-publication.sh`. Validates clean tree, fresh base, parent identity, fast-forward-only single non-merge commit, allow-list file scope, forbidden-path exclusion (`.emergent`/lockfiles/schema/generated/UI/assets/patches), draft-status wording, unique+ordered session numbers, tree identity, and patch checksum. Verified against 8 scenarios (1 passing, 6 failing as designed, 1 acknowledged-quotation path). It is a safety check, not a substitute for human publication approval.
+- **Managed database status: UNVERIFIED.** No database checks, migrations, or test suites were run.
+- **No product implementation was started.** This entry's diff is docs-only: `.agents/LOG.md` and `.agents/NEXT_TASK.md`.
+
+**Explicitly gated (unchanged):** funnel-report implementation (Phase 6), flagged discovery gating (Phase 5), booking enforcement (Phase 4), provider readiness UI, Phase 7 validation, any database/schema operations, mobile feed, email outbox, push. The traceability dashboard is deferred until the review gate and this entry settle.
+
+**Validation:** review-gate script run on this candidate — parent equals `origin/main` (`5e031e5`), fast-forward single commit, two-file `.agents` scope, no forbidden paths, session number 058 unique and ordered, clean tree.
+
+**Cross-reference:** Session 057 (published `5e031e5`) for the Session 055/056 publication record; conflict-branch inventory artifact retained outside Git history with SHA-256 evidence.
+
+**Files changed:**
+- `.agents/LOG.md`
+- `.agents/NEXT_TASK.md`
+
+**Build state at end:** The review-gate commit landed first at `5853768`; this entry was then rebased onto it (parent `5853768`), re-passed `publish:gate` (12/12), and is prepared as a recalculated patch + SHA-256 for the managed channel, pending its separate review-approved publication as the next fast-forward.
+
+**Next best action:** Publish this Session 058 entry via the managed channel (`publish:gate` verified), then execute the separately authorized conflict-branch cleanup (tag `archive/conflict_070826_mc2` at `bed2e06`, verify, delete only the nine pinned unrelated lineages, confirm `main` unchanged). Product work remains gated; the traceability dashboard stays deferred until these settle.
 
 ---
 

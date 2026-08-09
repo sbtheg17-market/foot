@@ -12,52 +12,49 @@
 > NOT started and remain gated. Mobile feed, email outbox, and push remain gated and
 > sequenced after this checkpoint.
 
-## Publication state (Session 055 remote verification)
+## Publication state (Session 058 remote verification)
 
-- Canonical `origin/main` tip: `cf689b5` ("uploaded Phase 3 patch"), tree
-  `e30feca1251f250a7126e987c9379ca3e42e1056`, parent `d7a01e8`.
-- Ancestry: `d7a5999` (Phase 1 base) → `4bb0e00` (Phase 2 readiness patch) →
-  `d7a01e8` (readiness docs) → `cf689b5` (Phase 3, six-file scope confirmed).
-- The originally approved Session 055 documentation publication (target tree
-  `9a30663a…`) never landed on any remote ref; it is recreated as a docs-only
-  commit (this change). See Session 055 in `.agents/LOG.md`.
+- Canonical `origin/main` tip: `5853768` (publication review gate), tree
+  `3e6b7b32b173f51474cc7c6f8e0a71e9740b129d`, parent `5e031e5`.
+- Canonical fast-forward history: `cf689b5` (Phase 3, tree `e30feca…`) →
+  `4734990` (Session 055 recreation, tree `4002cbed…`) → `6a5cf35`
+  (premature Session 056 publication — recorded and corrected by Session
+  057) → `5e031e5` (Session 057, tree `cdaa7cb9…`) → `5853768` (review
+  gate). No force-push, rewrite, or `conflict_*` merge at any step.
+- Sessions 054–057 are present exactly once each in `.agents/LOG.md`;
+  Phase 3 remains unchanged at tree `e30feca1251f250a7126e987c9379ca3e42e1056`.
+- Full ancestry: `d7a5999` (Phase 1 base) → `4bb0e00` (Phase 2 readiness
+  patch) → `d7a01e8` (readiness docs) → `cf689b5` (Phase 3, six-file scope
+  confirmed) → traceability chain above.
 - All `origin/conflict_*` branches are unrelated Emergent workspace lineages
-  (no common ancestor with `main`) — forensic archive only; never merge or
-  base work on them.
+  EXCEPT `conflict_070826_mc2` (real foot history, superseded — see the
+  accepted inventory, Session 058). Never merge or base work on any of them.
 
-## Session 056 local draft — awaiting review
+## Pending reviewed candidate (base `5853768`)
 
-- Managed publication succeeded without force-push, history rewrite,
-  `conflict_*` merge, or Emergent “Save to GitHub” flow.
-- Verified canonical `origin/main` is
-  `4734990df76b65735c12b62f88cbda2d327738fd`, parent
-  `cf689b5bb0f6bbc2f01a63a101cf6bc4e32a9421`, tree
-  `4002cbed57f5e9ea436d153d49ecaa3ba02f506b`.
-- Session 055 is present on `origin/main`; the Phase 3 tree remains
-  `e30feca1251f250a7126e987c9379ca3e42e1056`; the published diff contains
-  only `.agents/LOG.md` and `.agents/NEXT_TASK.md`.
-- The working tree was clean before this intentional local draft. Managed DB
-  remains **UNVERIFIED**.
-- **STOP FOR REVIEW:** this draft is not committed or published. No Phase 3
-  enhancements, funnel-report implementation, UI work, database operations, or
-  validation work is authorized.
+- **Publication review gate — PUBLISHED** at `5853768` (parent `5e031e5`,
+  tree byte-identical to the reviewed commit `f957caf`):
+  `scripts/verify-publication.sh` + root `publish:gate`. Pre-push safety
+  checks for parent identity, fast-forward-only, allow-list scope,
+  forbidden paths, draft-status wording, unique+ordered session numbers,
+  tree identity, and patch checksum. A safety check — human publication
+  approval remains required.
+- **Session 058 traceability entry** (this change, `.agents` files only):
+  rebased onto `5853768`, `publish:gate` re-verified, prepared for
+  managed-channel publication as the next fast-forward.
 
-## Session 057 traceability correction (local draft — awaiting review)
+## Authorized conflict-branch cleanup (separate managed-channel operation)
 
-- The "Session 056 local draft" section above was in fact **published to
-  `origin/main` at `6a5cf35`** without the required separate review gate; its
-  "not committed or published" wording became inaccurate at publication. The
-  published text is preserved verbatim — this correction is additive (see
-  Session 057 in `.agents/LOG.md`).
-- Session 055 landed correctly at `4734990` (parent `cf689b5`, tree
-  `4002cbed57f5e9ea436d153d49ecaa3ba02f506b`, byte-identical to the reviewed
-  patch, docs-only two-file scope). Phase 3 remains unchanged at tree
-  `e30feca1251f250a7126e987c9379ca3e42e1056`.
-- Canonical history `cf689b5 → 4734990 → 6a5cf35` is preserved — no rewrite,
-  no force-push, no amend/revert, no `conflict_*` involvement.
-- Managed DB remains **UNVERIFIED**. Phase 3 enhancements, funnel reporting,
-  flagged discovery gating, booking enforcement, readiness UI, and any
-  database/schema operations remain **gated**.
+- Order: (1) tag `archive/conflict_070826_mc2` at `bed2e06` and verify the
+  tag; (2) delete ONLY the nine unrelated Emergent lineages
+  (`conflict_010826_0008`, `conflict_010826_0036`, `conflict_060826_2025`,
+  `conflict_080826_1307`, `conflict_090826_0856`, `conflict_090826_1405`,
+  `conflict_090826_1718`, `conflict_310726_1942`, `conflict_310726_2216`);
+  (3) confirm `main` is unchanged and report results.
+- Basis: accepted read-only inventory (Session 058) — no unique
+  unrecovered artifacts exist on any conflict branch; all patch artifacts
+  correspond to published `main` work.
+- Never delete `main`, rewrite history, or merge any conflict branch.
 
 ## Canonical handoff policy (permanent)
 
