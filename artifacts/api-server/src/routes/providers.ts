@@ -23,6 +23,11 @@ import {
   requireRole,
 } from "../middlewares/auth.js";
 import { createApplicationNotification } from "../lib/application-notifications.js";
+import {
+  computeReadiness,
+  loadReadinessSourceByUserId,
+} from "../lib/provider-readiness.js";
+import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
 
 const router = Router();
 
@@ -309,6 +314,13 @@ router.patch(
           updatedAt: new Date(),
         })
         .where(eq(providerApplicationsTable.id, application.id));
+      // Phase 3: profile fields changed — funnel milestone + flip check in
+      // the same transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: application.providerProfileId,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkProfileCompleted: true },
+      });
     });
 
     const updated = await getOwnApplication(req.user!.sub);
@@ -860,19 +872,30 @@ router.post(
       return;
     }
 
-    const [service] = await db
-      .insert(servicesTable)
-      .values({
-        providerId: application.providerProfileId,
-        title: titleStr,
-        description: description !== undefined ? String(description).trim() : null,
-        durationMinutes: dur,
-        priceCents: price,
-        category: category !== undefined ? String(category) : "foot_care",
-        eligibilityNotes: eligibilityNotes !== undefined ? String(eligibilityNotes).trim() : null,
-        isActive: true,
-      })
-      .returning();
+    const service = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(servicesTable)
+        .values({
+          providerId: application.providerProfileId,
+          title: titleStr,
+          description: description !== undefined ? String(description).trim() : null,
+          durationMinutes: dur,
+          priceCents: price,
+          category: category !== undefined ? String(category) : "foot_care",
+          eligibilityNotes: eligibilityNotes !== undefined ? String(eligibilityNotes).trim() : null,
+          isActive: true,
+        })
+        .returning();
+      // Phase 3: services changed — funnel milestone + flip check in the
+      // same transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: application.providerProfileId,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkFirstServicePublished: true },
+        serviceId: created!.id,
+      });
+      return created;
+    });
 
     res.status(201).json({ service });
   },
@@ -940,11 +963,22 @@ router.patch(
     if (body.category !== undefined) updates.category = String(body.category);
     if (body.eligibilityNotes !== undefined) updates.eligibilityNotes = String(body.eligibilityNotes).trim();
 
-    const [service] = await db
-      .update(servicesTable)
-      .set(updates)
-      .where(eq(servicesTable.id, serviceId))
-      .returning();
+    const service = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(servicesTable)
+        .set(updates)
+        .where(eq(servicesTable.id, serviceId))
+        .returning();
+      // Phase 3: services changed — funnel milestone + flip check in the
+      // same transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: application.providerProfileId,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkFirstServicePublished: true },
+        serviceId,
+      });
+      return updated;
+    });
 
     res.json({ service });
   },
@@ -982,7 +1016,16 @@ router.delete(
       return;
     }
 
-    await db.delete(servicesTable).where(eq(servicesTable.id, serviceId));
+    await db.transaction(async (tx) => {
+      await tx.delete(servicesTable).where(eq(servicesTable.id, serviceId));
+      // Phase 3: services changed — flip check (deactivation) in the same
+      // transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: application.providerProfileId,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkFirstServicePublished: true },
+      });
+    });
     res.json({ message: "Service removed." });
   },
 );
@@ -1055,22 +1098,31 @@ router.put(
     }
 
     const profileId = application.providerProfileId;
-    await db.delete(availabilityTable).where(eq(availabilityTable.providerId, profileId));
 
     let inserted: typeof availabilityTable.$inferSelect[] = [];
-    if (slots.length > 0) {
-      inserted = await db
-        .insert(availabilityTable)
-        .values(
-          slots.map((s) => ({
-            providerId: profileId,
-            dayOfWeek: Number(s.dayOfWeek),
-            startTime: s.startTime,
-            endTime: s.endTime,
-          })),
-        )
-        .returning();
-    }
+    await db.transaction(async (tx) => {
+      await tx.delete(availabilityTable).where(eq(availabilityTable.providerId, profileId));
+      if (slots.length > 0) {
+        inserted = await tx
+          .insert(availabilityTable)
+          .values(
+            slots.map((s) => ({
+              providerId: profileId,
+              dayOfWeek: Number(s.dayOfWeek),
+              startTime: s.startTime,
+              endTime: s.endTime,
+            })),
+          )
+          .returning();
+      }
+      // Phase 3: availability changed — funnel milestone + flip check in
+      // the same transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: profileId,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkAvailabilitySet: true },
+      });
+    });
 
     res.json({ slots: inserted });
   },
@@ -1418,148 +1470,14 @@ router.get(
 
 // ── Activation readiness (owner-scoped; unapproved providers may read) ────────
 //
-// Provider Activation & First Booking Conversion — Phase 2 (readiness view
-// ONLY). Read-only: nothing is persisted, no marketplace event is emitted,
-// no discovery gating and no booking enforcement (those are later,
-// separately-approved phases). The C1–C7 criteria are computed live from raw
-// source fields on every request; stored roll-up flags (profileComplete) are
-// never trusted. Reason codes are the stable readiness subset of
-// `marketplace_event_reason_code` and are reported in deterministic C1→C7
-// order.
-
-/**
- * Platform-mandated verification document types. Empty today — the product
- * does not currently mandate any document type, so C7 is auto-satisfied.
- * When a document type becomes mandated (a later, separately-approved
- * change), C7 requires an approved verification document for every listed
- * type and reports `DOCS_PENDING` otherwise.
- */
-const MANDATED_DOC_TYPES: readonly string[] = [];
-
-type ReadinessMissingCode =
-  | "NOT_APPROVED"
-  | "PROFILE_INCOMPLETE"
-  | "NO_ACTIVE_SERVICE"
-  | "NO_AVAILABILITY"
-  | "NO_SERVICE_AREA"
-  | "NOT_ACCEPTING_CLIENTS"
-  | "DOCS_PENDING";
-
-type ReadinessSource = {
-  providerProfileId: number;
-  title: string;
-  bio: string | null;
-  city: string;
-  acceptsNewClients: boolean;
-  verificationStatus: "pending" | "under_review" | "approved" | "rejected";
-  applicationStatus:
-    | "draft"
-    | "under_review"
-    | "approved"
-    | "rejected"
-    | "suspended"
-    | null;
-};
-
-/**
- * Compute the C1–C7 activation criteria live from raw source fields.
- *
- *  C1 approved         — application approved AND profile verification
- *                        approved (same boundary as requireApprovedProvider)
- *  C2 profileComplete  — non-empty title, city, and bio ONLY (trimmed;
- *                        the stored profileComplete flag is never read)
- *  C3 activeService    — at least one active service
- *  C4 availability     — at least one availability slot
- *  C5 serviceArea      — at least one travel zone
- *  C6 acceptingClients — acceptsNewClients is true
- *  C7 documents        — every mandated doc type has an approved
- *                        verification document; auto-satisfied while no
- *                        document type is mandated
- */
-async function computeReadiness(source: ReadinessSource) {
-  const profileId = source.providerProfileId;
-
-  const [serviceRows, slotRows, zoneRows, approvedDocRows] = await Promise.all([
-    db
-      .select({ id: servicesTable.id })
-      .from(servicesTable)
-      .where(
-        and(
-          eq(servicesTable.providerId, profileId),
-          eq(servicesTable.isActive, true),
-        ),
-      )
-      .limit(1),
-    db
-      .select({ id: availabilityTable.id })
-      .from(availabilityTable)
-      .where(eq(availabilityTable.providerId, profileId))
-      .limit(1),
-    db
-      .select({ id: travelZonesTable.id })
-      .from(travelZonesTable)
-      .where(eq(travelZonesTable.providerId, profileId))
-      .limit(1),
-    MANDATED_DOC_TYPES.length > 0
-      ? db
-          .select({ docType: verificationDocsTable.docType })
-          .from(verificationDocsTable)
-          .where(
-            and(
-              eq(verificationDocsTable.providerId, profileId),
-              eq(verificationDocsTable.status, "approved"),
-            ),
-          )
-      : Promise.resolve([] as Array<{ docType: string }>),
-  ]);
-
-  const approvedDocTypes = new Set(approvedDocRows.map((row) => row.docType));
-
-  const criteria = {
-    // C1
-    approved:
-      source.applicationStatus === "approved" &&
-      source.verificationStatus === "approved",
-    // C2 — ONLY title, city, and bio; computed live from the raw columns.
-    profileComplete:
-      source.title.trim().length > 0 &&
-      source.city.trim().length > 0 &&
-      (source.bio ?? "").trim().length > 0,
-    // C3
-    activeService: serviceRows.length > 0,
-    // C4
-    availability: slotRows.length > 0,
-    // C5
-    serviceArea: zoneRows.length > 0,
-    // C6
-    acceptingClients: source.acceptsNewClients === true,
-    // C7 — auto-satisfied while MANDATED_DOC_TYPES is empty.
-    documents: MANDATED_DOC_TYPES.every((docType) =>
-      approvedDocTypes.has(docType),
-    ),
-  };
-
-  // Deterministic C1→C7 order — matches the stable reason-code enum order.
-  const missing: ReadinessMissingCode[] = [];
-  if (!criteria.approved) missing.push("NOT_APPROVED");
-  if (!criteria.profileComplete) missing.push("PROFILE_INCOMPLETE");
-  if (!criteria.activeService) missing.push("NO_ACTIVE_SERVICE");
-  if (!criteria.availability) missing.push("NO_AVAILABILITY");
-  if (!criteria.serviceArea) missing.push("NO_SERVICE_AREA");
-  if (!criteria.acceptingClients) missing.push("NOT_ACCEPTING_CLIENTS");
-  if (!criteria.documents) missing.push("DOCS_PENDING");
-
-  const activated =
-    criteria.approved &&
-    criteria.profileComplete &&
-    criteria.activeService &&
-    criteria.availability &&
-    criteria.serviceArea &&
-    criteria.acceptingClients &&
-    criteria.documents;
-
-  return { activated, missing, criteria };
-}
+// Provider Activation & First Booking Conversion — Phase 2 (readiness view).
+// Read-only: nothing is persisted and no marketplace event is emitted by
+// reads. The C1–C7 computation lives in ../lib/provider-readiness.ts (moved
+// there in Phase 3 so event emission can reuse it inside transactions);
+// behavior is unchanged: criteria are computed live from raw source fields
+// on every request and stored roll-up flags (profileComplete) are never
+// trusted. Reason codes are the stable readiness subset of
+// `marketplace_event_reason_code` in deterministic C1→C7 order.
 
 /**
  * GET /providers/me/readiness — Own activation readiness.
@@ -1575,34 +1493,13 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     if (!assertProviderMember(req, res)) return;
 
-    const rows = await db
-      .select({
-        providerProfileId: providerProfilesTable.id,
-        title: providerProfilesTable.title,
-        bio: providerProfilesTable.bio,
-        city: providerProfilesTable.city,
-        acceptsNewClients: providerProfilesTable.acceptsNewClients,
-        verificationStatus: providerProfilesTable.verificationStatus,
-        applicationStatus: providerApplicationsTable.status,
-      })
-      .from(providerProfilesTable)
-      .leftJoin(
-        providerApplicationsTable,
-        eq(
-          providerApplicationsTable.providerProfileId,
-          providerProfilesTable.id,
-        ),
-      )
-      .where(eq(providerProfilesTable.userId, req.user!.sub))
-      .limit(1);
-
-    const source = rows[0];
+    const source = await loadReadinessSourceByUserId(db, req.user!.sub);
     if (!source) {
       res.status(404).json({ error: "Provider profile not found." });
       return;
     }
 
-    const readiness = await computeReadiness(source);
+    const readiness = await computeReadiness(db, source);
     res.json({ readiness });
   },
 );
@@ -1636,10 +1533,19 @@ router.put(
     updates.profileComplete =
       !!merged.title && !!merged.city && !!merged.bio;
 
-    await db
-      .update(providerProfilesTable)
-      .set(updates)
-      .where(eq(providerProfilesTable.id, profile.id));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(providerProfilesTable)
+        .set(updates)
+        .where(eq(providerProfilesTable.id, profile.id));
+      // Phase 3: profile fields (C2) and/or acceptsNewClients (C6) changed —
+      // funnel milestone + flip check in the same transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: profile.id,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkProfileCompleted: true },
+      });
+    });
 
     const full = await buildProviderPublic(profile.id);
     res.json({ provider: full });
@@ -1685,19 +1591,30 @@ router.post(
       return;
     }
 
-    const [service] = await db
-      .insert(servicesTable)
-      .values({
-        providerId: profile.id,
-        title: String(title),
-        description: description !== undefined ? String(description) : null,
-        durationMinutes: Number(durationMinutes),
-        priceCents: Number(priceCents),
-        category: category !== undefined ? String(category) : "foot_care",
-        eligibilityNotes: eligibilityNotes !== undefined ? String(eligibilityNotes) : null,
-        isActive: isActive !== undefined ? Boolean(isActive) : true,
-      })
-      .returning();
+    const service = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(servicesTable)
+        .values({
+          providerId: profile.id,
+          title: String(title),
+          description: description !== undefined ? String(description) : null,
+          durationMinutes: Number(durationMinutes),
+          priceCents: Number(priceCents),
+          category: category !== undefined ? String(category) : "foot_care",
+          eligibilityNotes: eligibilityNotes !== undefined ? String(eligibilityNotes) : null,
+          isActive: isActive !== undefined ? Boolean(isActive) : true,
+        })
+        .returning();
+      // Phase 3: services changed — funnel milestone + flip check in the
+      // same transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: profile.id,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkFirstServicePublished: true },
+        serviceId: created!.id,
+      });
+      return created;
+    });
 
     res.status(201).json({ service });
   }
@@ -1738,11 +1655,22 @@ router.put(
     if (eligibilityNotes !== undefined) updates.eligibilityNotes = String(eligibilityNotes);
     if (isActive !== undefined) updates.isActive = Boolean(isActive);
 
-    const [service] = await db
-      .update(servicesTable)
-      .set(updates)
-      .where(eq(servicesTable.id, serviceId))
-      .returning();
+    const service = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(servicesTable)
+        .set(updates)
+        .where(eq(servicesTable.id, serviceId))
+        .returning();
+      // Phase 3: services changed (including isActive) — funnel milestone +
+      // flip check in the same transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: profile.id,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkFirstServicePublished: true },
+        serviceId,
+      });
+      return updated;
+    });
 
     res.json({ service });
   }
@@ -1771,10 +1699,19 @@ router.delete(
       return;
     }
 
-    await db
-      .update(servicesTable)
-      .set({ isActive: false })
-      .where(eq(servicesTable.id, serviceId));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(servicesTable)
+        .set({ isActive: false })
+        .where(eq(servicesTable.id, serviceId));
+      // Phase 3: last active service may have been deactivated — flip check
+      // in the same transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: profile.id,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkFirstServicePublished: true },
+      });
+    });
 
     res.json({ message: "Service deactivated." });
   }
@@ -1822,24 +1759,33 @@ router.put(
     }
 
     // Replace all slots atomically
-    await db
-      .delete(availabilityTable)
-      .where(eq(availabilityTable.providerId, profile.id));
-
     let inserted: typeof availabilityTable.$inferSelect[] = [];
-    if (slots.length > 0) {
-      inserted = await db
-        .insert(availabilityTable)
-        .values(
-          slots.map((s) => ({
-            providerId: profile.id,
-            dayOfWeek: Number(s.dayOfWeek),
-            startTime: s.startTime,
-            endTime: s.endTime,
-          }))
-        )
-        .returning();
-    }
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(availabilityTable)
+        .where(eq(availabilityTable.providerId, profile.id));
+
+      if (slots.length > 0) {
+        inserted = await tx
+          .insert(availabilityTable)
+          .values(
+            slots.map((s) => ({
+              providerId: profile.id,
+              dayOfWeek: Number(s.dayOfWeek),
+              startTime: s.startTime,
+              endTime: s.endTime,
+            }))
+          )
+          .returning();
+      }
+      // Phase 3: availability changed — funnel milestone + flip check in
+      // the same transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: profile.id,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkAvailabilitySet: true },
+      });
+    });
 
     res.json({ slots: inserted });
   }
@@ -1883,15 +1829,25 @@ router.post(
       return;
     }
 
-    const [zone] = await db
-      .insert(travelZonesTable)
-      .values({
-        providerId: profile.id,
-        zoneName: String(zoneName),
-        city: String(city),
-        notes: notes !== undefined ? String(notes) : null,
-      })
-      .returning();
+    const zone = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(travelZonesTable)
+        .values({
+          providerId: profile.id,
+          zoneName: String(zoneName),
+          city: String(city),
+          notes: notes !== undefined ? String(notes) : null,
+        })
+        .returning();
+      // Phase 3: travel zones changed — funnel milestone + flip check in
+      // the same transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: profile.id,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkServiceAreaSet: true },
+      });
+      return created;
+    });
 
     res.status(201).json({ zone });
   }
@@ -1922,7 +1878,16 @@ router.delete(
       return;
     }
 
-    await db.delete(travelZonesTable).where(eq(travelZonesTable.id, zoneId));
+    await db.transaction(async (tx) => {
+      await tx.delete(travelZonesTable).where(eq(travelZonesTable.id, zoneId));
+      // Phase 3: last travel zone may have been removed — flip check in the
+      // same transaction as the write.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: profile.id,
+        actor: { userId: req.user!.sub, role: req.authz!.activeRole },
+        context: { checkServiceAreaSet: true },
+      });
+    });
     res.json({ message: "Travel zone removed." });
   }
 );

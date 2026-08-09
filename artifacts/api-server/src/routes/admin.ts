@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 import { createApplicationNotification } from "../lib/application-notifications.js";
+import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
 
 const router = Router();
 
@@ -104,31 +105,47 @@ router.patch(
       return;
     }
 
-    const [updated] = await db
-      .update(verificationDocsTable)
-      .set({
-        status: status as "approved" | "rejected",
-        reviewerNotes: reviewerNotes?.trim() ?? null,
-        reviewedAt: new Date(),
-      })
-      .where(eq(verificationDocsTable.id, docId))
-      .returning();
-
-    // Optionally update provider's overall verification status
     if (updateProviderStatus) {
       const ALLOWED_PROVIDER_STATUSES = ["pending", "under_review", "approved", "rejected"];
       if (!ALLOWED_PROVIDER_STATUSES.includes(updateProviderStatus)) {
         res.status(400).json({ error: "Invalid updateProviderStatus value." });
         return;
       }
-      await db
-        .update(providerProfilesTable)
-        .set({
-          verificationStatus: updateProviderStatus as "pending" | "under_review" | "approved" | "rejected",
-          updatedAt: new Date(),
-        })
-        .where(eq(providerProfilesTable.id, existing[0].providerId));
     }
+
+    const [updated] = await db.transaction(async (tx) => {
+      const updatedRows = await tx
+        .update(verificationDocsTable)
+        .set({
+          status: status as "approved" | "rejected",
+          reviewerNotes: reviewerNotes?.trim() ?? null,
+          reviewedAt: new Date(),
+        })
+        .where(eq(verificationDocsTable.id, docId))
+        .returning();
+
+      // Optionally update provider's overall verification status
+      if (updateProviderStatus) {
+        await tx
+          .update(providerProfilesTable)
+          .set({
+            verificationStatus: updateProviderStatus as "pending" | "under_review" | "approved" | "rejected",
+            updatedAt: new Date(),
+          })
+          .where(eq(providerProfilesTable.id, existing[0]!.providerId));
+      }
+
+      // Phase 3: verification status (C1) and/or doc status (C7, dormant
+      // while no document type is mandated) may have changed — activation
+      // flip check in the SAME transaction as the review.
+      await emitProviderActivationEvents(tx, {
+        providerProfileId: existing[0]!.providerId,
+        actor: { userId: req.user!.sub, role: "admin" },
+        context: {},
+      });
+
+      return updatedRows;
+    });
 
     res.json({ doc: updated });
   }
@@ -175,6 +192,7 @@ async function decideProviderApplication(
       .select({
         id: providerApplicationsTable.id,
         userId: providerApplicationsTable.userId,
+        providerProfileId: providerApplicationsTable.providerProfileId,
         status: providerApplicationsTable.status,
       })
       .from(providerApplicationsTable)
@@ -225,6 +243,16 @@ async function decideProviderApplication(
     // provider-visible rejectionReason is surfaced on the status page, never
     // stored in the notification.
     await createApplicationNotification(tx, current.userId, event!.id, decision);
+
+    // Phase 3: application status (C1) changed — emit `provider_approved` on
+    // approval plus the activation flip check, in the SAME transaction as
+    // the decision. Reachable only from `under_review`, so exactly one
+    // `provider_approved` per real approval decision.
+    await emitProviderActivationEvents(tx, {
+      providerProfileId: current.providerProfileId,
+      actor: { userId: reviewerId, role: "admin" },
+      context: { providerApproved: decision === "approved" },
+    });
 
     return { kind: "decided", application: updated! };
   });
