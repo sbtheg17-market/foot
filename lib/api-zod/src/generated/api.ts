@@ -825,6 +825,27 @@ export const UpdateMyProviderProfileResponse = zod.object({
 
 
 /**
+ * Owner-scoped activation readiness for the authenticated provider member. The server computes the C1–C7 activation criteria live from raw source fields on every request — stored roll-up flags such as profileComplete are never trusted. Unapproved providers can read their own readiness. `missing` lists stable reason codes for unmet criteria in deterministic C1→C7 order; `activated` is the logical AND of all seven criteria. Read-only — nothing is persisted and no event is emitted.
+ * @summary Get own provider activation readiness
+ */
+export const GetMyProviderReadinessResponse = zod.object({
+  "readiness": zod.object({
+  "activated": zod.boolean().describe('Logical AND of criteria C1–C7'),
+  "missing": zod.array(zod.enum(['NOT_APPROVED', 'PROFILE_INCOMPLETE', 'NO_ACTIVE_SERVICE', 'NO_AVAILABILITY', 'NO_SERVICE_AREA', 'NOT_ACCEPTING_CLIENTS', 'DOCS_PENDING']).describe('Stable activation-readiness reason codes. Mirrors the readiness subset of the marketplace_event_reason_code enum; values are additive-only and never renamed or removed.')).describe('Reason codes for unmet criteria, in deterministic C1→C7 order'),
+  "criteria": zod.object({
+  "approved": zod.boolean().describe('C1 — provider application approved and profile verification approved'),
+  "profileComplete": zod.boolean().describe('C2 — non-empty title, city, and bio, computed live (the stored profileComplete flag is never trusted)'),
+  "activeService": zod.boolean().describe('C3 — at least one active service'),
+  "availability": zod.boolean().describe('C4 — at least one availability slot'),
+  "serviceArea": zod.boolean().describe('C5 — at least one travel zone (service area)'),
+  "acceptingClients": zod.boolean().describe('C6 — provider is accepting new clients'),
+  "documents": zod.boolean().describe('C7 — every platform-mandated document type has an approved verification document; auto-satisfied when no document type is mandated')
+}).describe('Per-criterion activation booleans (C1–C7), each computed live from raw source fields.')
+})
+})
+
+
+/**
  * @summary List own services
  */
 export const ListMyServicesResponse = zod.object({

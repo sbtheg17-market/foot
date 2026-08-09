@@ -61,6 +61,7 @@ import type {
   ProviderNotificationReadResponse,
   ProviderNotificationUnreadCountResponse,
   ProviderProfileResponse,
+  ProviderReadinessResponse,
   RegisterRequest,
   RejectProviderApplicationRequest,
   ReviewListResponse,
@@ -2019,6 +2020,84 @@ export const useUpdateMyProviderProfile = <TError = ErrorType<BadRequestResponse
       > => {
       return useMutation(getUpdateMyProviderProfileMutationOptions(options));
     }
+
+export const getGetMyProviderReadinessUrl = () => {
+
+
+
+
+  return `/api/providers/me/readiness`
+}
+
+/**
+ * Owner-scoped activation readiness for the authenticated provider member. The server computes the C1–C7 activation criteria live from raw source fields on every request — stored roll-up flags such as profileComplete are never trusted. Unapproved providers can read their own readiness. `missing` lists stable reason codes for unmet criteria in deterministic C1→C7 order; `activated` is the logical AND of all seven criteria. Read-only — nothing is persisted and no event is emitted.
+ * @summary Get own provider activation readiness
+ */
+export const getMyProviderReadiness = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderReadinessResponse> => {
+
+  return customFetch<ProviderReadinessResponse>(getGetMyProviderReadinessUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyProviderReadinessQueryKey = () => {
+    return [
+    `/api/providers/me/readiness`
+    ] as const;
+    }
+
+
+export const getGetMyProviderReadinessQueryOptions = <TData = Awaited<ReturnType<typeof getMyProviderReadiness>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderReadiness>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyProviderReadinessQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyProviderReadiness>>> = ({ signal }) => getMyProviderReadiness({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyProviderReadiness>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyProviderReadinessQueryResult = NonNullable<Awaited<ReturnType<typeof getMyProviderReadiness>>>
+export type GetMyProviderReadinessQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Get own provider activation readiness
+ */
+
+export function useGetMyProviderReadiness<TData = Awaited<ReturnType<typeof getMyProviderReadiness>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderReadiness>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyProviderReadinessQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListMyServicesUrl = () => {
 

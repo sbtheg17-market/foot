@@ -252,6 +252,54 @@ export interface ApplicationCompletionResponse {
   completion: ApplicationCompletion;
 }
 
+/**
+ * Stable activation-readiness reason codes. Mirrors the readiness subset of the marketplace_event_reason_code enum; values are additive-only and never renamed or removed.
+ */
+export type ProviderReadinessMissingCode = typeof ProviderReadinessMissingCode[keyof typeof ProviderReadinessMissingCode];
+
+
+export const ProviderReadinessMissingCode = {
+  NOT_APPROVED: 'NOT_APPROVED',
+  PROFILE_INCOMPLETE: 'PROFILE_INCOMPLETE',
+  NO_ACTIVE_SERVICE: 'NO_ACTIVE_SERVICE',
+  NO_AVAILABILITY: 'NO_AVAILABILITY',
+  NO_SERVICE_AREA: 'NO_SERVICE_AREA',
+  NOT_ACCEPTING_CLIENTS: 'NOT_ACCEPTING_CLIENTS',
+  DOCS_PENDING: 'DOCS_PENDING',
+} as const;
+
+/**
+ * Per-criterion activation booleans (C1–C7), each computed live from raw source fields.
+ */
+export interface ProviderReadinessCriteria {
+  /** C1 — provider application approved and profile verification approved */
+  approved: boolean;
+  /** C2 — non-empty title, city, and bio, computed live (the stored profileComplete flag is never trusted) */
+  profileComplete: boolean;
+  /** C3 — at least one active service */
+  activeService: boolean;
+  /** C4 — at least one availability slot */
+  availability: boolean;
+  /** C5 — at least one travel zone (service area) */
+  serviceArea: boolean;
+  /** C6 — provider is accepting new clients */
+  acceptingClients: boolean;
+  /** C7 — every platform-mandated document type has an approved verification document; auto-satisfied when no document type is mandated */
+  documents: boolean;
+}
+
+export interface ProviderReadiness {
+  /** Logical AND of criteria C1–C7 */
+  activated: boolean;
+  /** Reason codes for unmet criteria, in deterministic C1→C7 order */
+  missing: ProviderReadinessMissingCode[];
+  criteria: ProviderReadinessCriteria;
+}
+
+export interface ProviderReadinessResponse {
+  readiness: ProviderReadiness;
+}
+
 export type OnboardingStateClient = typeof OnboardingStateClient[keyof typeof OnboardingStateClient] | null;
 
 

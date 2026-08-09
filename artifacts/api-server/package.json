@@ -24,7 +24,8 @@
     "test:onboarding": "node --import tsx/esm --test src/__tests__/provider-application-completion.integration.test.ts",
     "test:provider-history": "node --import tsx/esm --test src/__tests__/provider-application-history.integration.test.ts",
     "test:provider-notifications": "node --import tsx/esm --test src/__tests__/provider-notifications.integration.test.ts",
-    "test:reviewer-decisions": "node --import tsx/esm --test src/__tests__/reviewer-decisions.integration.test.ts"
+    "test:reviewer-decisions": "node --import tsx/esm --test src/__tests__/reviewer-decisions.integration.test.ts",
+    "test:provider-readiness": "node --import tsx/esm --test src/__tests__/provider-readiness.integration.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",
