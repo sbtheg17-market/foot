@@ -37,12 +37,12 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Layer | Status | Notes |
 |---|---|---|
 | DB schema | ✅ Phase 3 authorization state verified in development | Existing schema remains intact; `account_roles` and `provider_applications` are now read by authorization middleware. `users.role` and provider verification state remain compatibility fields. |
-| API server workflow | ✅ Running with Phase 4 onboarding API | `artifacts/api-server: API Server` builds and serves on port 8080; database-backed role guards, approved-provider gates, owner-scoped provider applications, public discovery, and admin routes are verified. |
+| API server workflow | ✅ Running with Phase 2 readiness API | `artifacts/api-server: API Server` builds and serves on port 8080; database-backed role guards, approved-provider gates, owner-scoped provider applications, public discovery, admin routes, and owner-scoped provider readiness are verified. |
 | Auth routes | ✅ Shared role-intent flow added | Registration accepts additive `roleIntent`, creates provider membership/profile/application transactionally for provider intent, and preserves database-backed authorization. Login/signup routing uses server-confirmed application state. |
 | JWT middleware | ✅ Database-backed | `requireAuth` confirms active user/context from PostgreSQL; `requireRole` checks `account_roles`; approved-provider middleware checks application/profile ownership and approval. JWT claims remain unchanged. |
 | JWT_SECRET | ✅ Available to managed workflow | Added by the user through the development/shared Secrets panel; value was never inspected, printed, logged, committed, or exposed. |
 | Seed script | ✅ Self-contained role state | `pnpm run seed` creates 5 demo accounts, `account_roles` memberships, approved `provider_applications` for both demo providers, and full sample data on a fresh database; a second run skips every existing record without duplicates. `test:authorization` passes on a freshly seeded database without manual inserts or the legacy backfill script. |
-| Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
+| Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/me/readiness, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
 | Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/history, GET /bookings/:id, PATCH /bookings/:id/status — client-safe bounded history, strict state machine, auto-invoice on confirm |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, booking-scoped client review lookup, GET /invoices, GET /invoices/:id — role-scoped; completed-booking review validation and duplicate races return safe conflicts |
 | React frontend | ✅ Phase 4 onboarding surfaces running | Provider portal plus client discovery, public profiles, booking lifecycle, shared `/signup`, `/register` compatibility redirect, server-confirmed role-aware redirects, provider onboarding/application-status routes, and owner-scoped application form; 390px preview verified. |
@@ -50,7 +50,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; client list/detail refresh on mount/focus/reconnect and server-status feedback are live. |
 | Expo mobile app | ✅ Phase 4 onboarding surfaces running | Discover, Bookings, Account, Provider Profile, Login, shared role-intent Register, mobile booking detail, bounded client care history, provider onboarding/application-status routes, client "Become a provider" entry point, and existing booking/review flows; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
-| OpenAPI spec | ✅ Phase 4 application contract generated | Auth role intent plus owner-scoped provider application get/create/update/submit contracts are generated into the React and Zod clients; generated files were not edited manually. |
+| OpenAPI spec | ✅ Phase 2 readiness contract generated | Auth role intent, owner-scoped provider application, and owner-scoped provider readiness contracts are generated into the React and Zod clients; generated files were not edited manually. |
 | Provider application coverage | ✅ Baseline drift resolved | `test:provider-application` passes all 8 focused integration tests covering ownership, concurrent idempotency, draft validation, submission states, approval gates, role intent, existing-client enrollment, credential submission, and privacy boundaries. `test:onboarding` passes 23/23. Public `GET /providers/:providerId/services` now gates on `verificationStatus === "approved"` so draft services of unapproved providers are never publicly discoverable. |
 | Provider application resubmission | ✅ Phase 1 checkpoint 1 verified | `POST /providers/application/reset` transitions `rejected → draft` with an immutable `provider_application_submissions` history snapshot, owner-only access, idempotent no-op on `draft`, 409 on non-resettable states, and preserved `rejectionReason` in history. `PATCH` and direct `submit` are blocked while `rejected`; approved-provider authorization is unchanged. `test:provider-resubmission` passes all 11 focused integration tests. |
 | Provider application status API | ✅ Phase 1 checkpoint 2 verified | `GET /providers/application/status` returns a compact owner-scoped view: `status`, current-cycle `submittedAt`/`reviewedAt`, provider-visible `rejectionReason`, `submissionCount`, `latestSubmission` snapshot, server-derived `nextAction` (`resume_draft`/`wait_for_review`/`provider_operations_available`/`reset_to_draft`/`contact_support`), and `canEdit`/`canReset`/`canResubmit` capability flags. Reviewer-private `reviewerNotes` never appears. `test:provider-status` passes all 9 focused tests; approved-provider authorization and `careNotes` privacy regressions remain green. |
@@ -60,7 +60,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Provider application rejected-state web UI | ✅ Phase 1 checkpoint 3 verified | `/provider/application-status` now consumes `GET /providers/application/status` via the generated `useGetProviderApplicationStatus` hook, renders the provider-visible `rejectionReason` and `previousSubmissions` summary, and gates the reset/resubmit/edit CTAs on server-provided `canReset`/`canResubmit`/`canEdit`. Loading, unauthorized, 404 (no application yet), 403 (non-provider member), and mutation-error states are handled without duplicating server authorization logic. `reviewerNotes` is never rendered because it never enters the status response. Full workspace typecheck and web build both pass; 26 `data-testid` attributes cover every state and action. |
 | Web in-app notification feed + unread badge | ✅ Phase 2 MC10 (web) verified | `/provider/notifications` renders an owner-scoped, newest-first feed consuming only the existing MC8-lite APIs (`GET /providers/notifications` keyset-paginated, `GET /providers/notifications/unread-count`, idempotent `POST /providers/notifications/:id/read`) via the generated client (`useGetProviderNotificationUnreadCount`, `useMarkProviderNotificationRead`, and the generated fetcher through TanStack `useInfiniteQuery`). ProviderLayout gains an "Alerts" tab with an unread badge (accessible label, hidden at 0, `99+` cap). Handles loading/empty/error+retry/401(sign-in redirect)/403/pagination/mark-read(optimistic+rollback+failure toast)/focus+interval refresh. No email/SMTP/push/SSE/notification-bus/vendor coupling; no backend, schema, OpenAPI, generated-client, or notification-semantics changes. Web + full typecheck + production build pass; API regression green (reviewer-decisions 14/14, provider-notifications 12/12). Scope: `artifacts/web/` only. Verified via manual browser screenshots (no web test framework introduced — deferred item unchanged). |
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
-| GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
+| GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are aligned at the published provider-readiness checkpoint. Uploaded handoff files remain outside Git history. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
 
@@ -1890,6 +1890,28 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 ---
 
 
+
+### Session 054 — 2026-08-09
+**Agent:** Replit Main Agent  
+**Scope:** `S`  
+**Triggered by:** User uploaded the Phase 2 provider-readiness patch and asked for it to be published to the repository.
+
+**What was done:**
+- Applied the uploaded `phase2-provider-readiness` patch. It adds the owner-scoped `GET /providers/me/readiness` API, OpenAPI contract, regenerated Zod/React clients, and 14 focused integration cases.
+- Confirmed the patch was already published as `4bb0e00` (`readiness patch`) and that local `HEAD` equals `origin/main`; the uploaded patch file remains outside Git history.
+- Installed dependencies from the committed lockfile, built shared declarations, pushed the existing database schema to the development database, and confirmed API typecheck plus `git diff --check` are clean.
+- Ran the readiness suite against a temporary local API process with an ephemeral JWT secret: **14/14 passing**. No secret was printed, saved, or committed.
+- The managed web, mobile, and mockup workflows remain unavailable until their dependencies are started for those previews; this does not block the published API patch.
+
+**Files changed:**
+- `.agents/LOG.md`
+- Published patch contents are recorded in commit `4bb0e00`.
+
+**Build state at end:** Local `HEAD` and `origin/main` are synchronized at the provider-readiness checkpoint; working tree is clean after the log update is published.
+
+**Next best action:** If approved, add provider-facing readiness progress presentation in the existing web and mobile provider surfaces; the published Phase 2 patch intentionally contains no UI.
+
+---
 
 ## New Session Template
 
