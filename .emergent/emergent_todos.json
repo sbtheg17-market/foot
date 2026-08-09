@@ -1,0 +1,34 @@
+[
+  {
+    "content": "Step-0 gate: verify HEAD==origin/main==8323aac, clean tree, baseline typecheck/build/API regression green",
+    "status": "in_progress"
+  },
+  {
+    "content": "Web repo inspection: routing, layout/header, portal pages, testing conventions, generated hooks, 401/403 handling, UI primitives",
+    "status": "pending"
+  },
+  {
+    "content": "Implement web notification feed page + unread badge (artifacts/web/** only) consuming existing hooks",
+    "status": "pending"
+  },
+  {
+    "content": "Implement all UI states: loading, empty, error+retry, 401, 403, pagination, unread count, mark-read (optimistic+rollback), refresh",
+    "status": "pending"
+  },
+  {
+    "content": "Accessibility + responsive layout per spec",
+    "status": "pending"
+  },
+  {
+    "content": "Web tests using existing conventions (no new framework)",
+    "status": "pending"
+  },
+  {
+    "content": "Validation gates: API regression (12/12, 14/14), web tests, typecheck, build, scope diff, clean tree",
+    "status": "pending"
+  },
+  {
+    "content": "Add .agents/LOG.md + NEXT_TASK.md traceability (in implementation commit only)",
+    "status": "pending"
+  }
+]
