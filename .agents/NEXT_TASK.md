@@ -1,4 +1,12 @@
-# Next product task — MC9 complete (landed at `917361d`/`8323aac`); Web notification feed done (awaiting publication); Mobile feed is next, gated
+# Next product task — Web notification feed PUBLISHED (`a98e1a3`); Provider Activation & First Booking Conversion IN PROGRESS (Phase 1 applied); Mobile feed sequenced after
+
+> **Active checkpoint: Provider Activation & First Booking Conversion** (approved to sequence
+> BEFORE the mobile feed). Product/measurement spec:
+> `/workspace/CHECKPOINT_PROVIDER_ACTIVATION_FIRST_BOOKING_SPEC.md`. Phased, each phase
+> separately sign-off-gated. **Phase 1 (additive `marketplace_events` migration) applied to the
+> test DB** (Session 053). Phases 2–7 (readiness view → events → booking enforcement → flagged
+> discovery → API reporting → validation) NOT started. Mobile feed, email outbox, and push remain
+> gated and sequenced after this checkpoint.
 
 ## Current gate
 

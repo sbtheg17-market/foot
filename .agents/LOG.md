@@ -66,6 +66,24 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+| Provider Activation & First Booking — Phase 1 (marketplace_events schema) | ✅ Applied to test DB (additive) | New append-only `marketplace_events` table + typed `marketplace_event_type`/`marketplace_event_reason_code`/`marketplace_event_source` enums, 5 indexes (type/provider/client/correlation/occurred), and 5 erasure-friendly FKs (`ON DELETE SET NULL`). Schema-as-migration via `drizzle-kit push`. Strictly additive: exactly 1 table + 3 enums created, zero existing objects altered/dropped. No readiness/event-emission/booking/discovery/reporting/UI behavior yet (later phases). Rollback: DROP TABLE then DROP the 3 dependent enum types. Typecheck green; existing API suites green (14/14, 12/12, 8/8, 9/9). |
+
+### Session 053 — 2026-08-09
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Provider Activation & First Booking Conversion — **Phase 1 (additive migration only)**, approved for DB application from the reviewed phased sub-plan. Off base `a98e1a3`.
+
+**What was done:**
+- Added `lib/db/src/schema/marketplace-events.ts` (generic append-only event log; envelope: event_type, occurred_at/recorded_at, actor_user_id/actor_role, provider_profile_id [business key], client_user_id, service_id, booking_id, correlation_id, source, metadata jsonb, reason_code) + export in `lib/db/src/schema/index.ts`.
+- Typed enums (stable, additive-only): `marketplace_event_type` (16), `marketplace_event_reason_code` (14), `marketplace_event_source` (web/mobile/system). FKs `ON DELETE SET NULL` (erasure-friendly). Indexes for type/provider/client funnels + correlation + time-range.
+- Applied via `drizzle-kit push` to the **test** DB. Pre/post object diff: **+1 table, +3 enums, 0 removed, 0 existing objects altered**.
+
+**Boundary (explicitly NOT done):** no readiness logic, no event emission, no booking enforcement, no discovery-flag change, no reporting API, no UI. Phase 2 not started.
+
+**Validation:** full typecheck PASS; existing regression green (reviewer-decisions 14/14, provider-notifications 12/12, provider-application 8/8, provider-status 9/9). Rollback documented: `DROP TABLE "marketplace_events"` then `DROP TYPE` the 3 enums.
+
+---
+
 ### Session 052 — 2026-08-09
 **Agent:** E2 Agent (Emergent, Neo)
 **Scope:** `M`

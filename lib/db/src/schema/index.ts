@@ -14,3 +14,4 @@ export * from "./reviews";
 export * from "./invoices";
 export * from "./support";
 export * from "./push-tokens";
+export * from "./marketplace-events";
