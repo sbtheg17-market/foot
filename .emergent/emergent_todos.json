@@ -1,26 +1,30 @@
 [
   {
-    "content": "Explore openapi.yaml, codegen script, test harness pattern, and travel_zones/verification_docs schema",
+    "content": "Recovery gate: clone repo to /tmp/foot, verify base d7a5999, clean tree, markers, branch",
     "status": "completed"
   },
   {
-    "content": "Implement GET /providers/me/readiness in providers.ts (requireAuth + provider member, owner-scoped)",
+    "content": "DB gate: provision fresh local Postgres, db:push, verify marketplace_events + 3 enums from catalog",
     "status": "completed"
   },
   {
-    "content": "Update openapi.yaml (API-spec-first) and regenerate client via pnpm run codegen",
+    "content": "Implement GET /providers/me/readiness in providers.ts",
     "status": "completed"
   },
   {
-    "content": "Add provider-readiness.integration.test.ts using node:test harness",
+    "content": "Update openapi.yaml (API-spec-first) + run codegen",
     "status": "completed"
   },
   {
-    "content": "Typecheck/build + run full regression test suites",
+    "content": "Add provider-readiness.integration.test.ts (15 cases) — 15/15 pass",
+    "status": "completed"
+  },
+  {
+    "content": "Validate: full regression suites, typechecks, codegen consistency, build, scope scans",
     "status": "in_progress"
   },
   {
-    "content": "Create one local commit + patch (no push); report scope, commit hash, checksum",
+    "content": "One local Phase 2 commit; generate patch + SHA-256; report; stop (no push, no Phase 3)",
     "status": "pending"
   }
 ]
