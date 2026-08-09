@@ -65,6 +65,43 @@ Since agent credit balances cannot be read programmatically, each session entry 
 
 ---
 
+### Session 049 — 2026-08-09
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `M`
+**Triggered by:** Phase 2 **MC9 Commit 1 of 3** — reviewer approve/reject decisions, off verified base `05292abac700c920364e5b80273377f61a1d5f65` (user-approved locked scope).
+
+**Traceability note (MC8-lite Commit 4):** Commit 4 was published to canonical `main` as `05292ab` with commit subject `files`; its content is byte-identical to the approved patch (SHA-256 `94ca21ae8dc385fcdede89e2665763c8aba98b3bcad278c8579255e0dce86fe4`). Per explicit user instruction, published history was not rewritten; the discrepancy is cosmetic and recorded here only.
+
+**What was done:**
+- Step-0 gate: base `05292ab`, `0/0`, clean (fresh clone; local Postgres 15 test DB re-provisioned).
+- Added admin-only reviewer decision endpoints in `artifacts/api-server/src/routes/admin.ts` (behind the existing `requireAuth` + `requireRole("admin")` router guard):
+  - `POST /admin/provider-applications/:applicationId/approve` — optional reviewer-private `reviewerNotes`.
+  - `POST /admin/provider-applications/:applicationId/reject` — required provider-visible `rejectionReason`, optional reviewer-private `reviewerNotes`.
+  - Both: single transaction with `SELECT … FOR UPDATE`; only `under_review` is decidable — any other state (including a repeated decision) returns `409` with **no side effects**; malformed id `400`; unknown id `404`; unauthenticated `401`; non-admin `403`; reviewers cannot decide their **own** application (`403`), closing the dual-role self-approval hole.
+  - Persists `status`, `reviewedAt`, `reviewedBy`, `reviewerNotes`, and (reject only) `rejectionReason`; emits the matching `approved`/`rejected` lifecycle event in the same transaction (`from_status: under_review`, event `userId` = application owner).
+- Extended `provider_application_event_type` enum with `approved` | `rejected` (`lib/db/src/schema/provider-application-events.ts`) and updated its honesty-boundary comment — all four recorded transitions now have server code paths.
+- OpenAPI: two new `/admin/provider-applications/{applicationId}/…` paths + `ApproveProviderApplicationRequest`, `RejectProviderApplicationRequest`, `AdminProviderApplicationView` (admin-scoped; documents that reviewer-private fields never appear on provider surfaces), `AdminProviderApplicationResponse`. Clients regenerated via `pnpm --filter @workspace/api-spec run codegen`; generated files not hand-edited.
+- **Not** included (later commits / out of scope): decision notifications (Commit 2), regression suite (Commit 3), provider-profile `verificationStatus` changes (separate existing verification-doc flow; provider-operations authorization boundary unchanged), web/mobile UI, push/email.
+
+**Validation (local, Postgres 15 test DB, server on 18123):**
+- Manual: `401` unauthenticated, `403` provider role, `400` malformed id / missing `rejectionReason`, `404` unknown id, approve persists `reviewedAt`/`reviewedBy`/`reviewerNotes`, repeated approve `409` (no side effects), reject persists `rejectionReason` + `reviewerNotes`, both lifecycle events recorded with owner `user_id` and correct from/to statuses, zero notifications created.
+- Existing suites all green post-change: `test:provider-notifications` 12/12, `test:provider-history` 11/11, `test:provider-resubmission` 11/11, `test:provider-status` 9/9, `test:onboarding` 23/23, `test:authorization` 7/7.
+- Full-workspace typecheck ✅; full build ✅. No `.patch`/`.bundle` tracked.
+
+**Files changed:**
+- `artifacts/api-server/src/routes/admin.ts`
+- `artifacts/api-server/src/routes/providers.ts` (read-path type decoupling only: `serializeNotification` now uses the table-inferred enum type; notification *creation* remains limited to `submitted`/`reset_to_draft` until Commit 2)
+- `lib/db/src/schema/provider-application-events.ts`
+- `lib/api-spec/openapi.yaml`
+- `lib/api-zod/src/generated/*`, `lib/api-client-react/src/generated/*` (codegen)
+- `.agents/LOG.md`, `.agents/NEXT_TASK.md`
+
+**Build state at end:** 1 focused commit on top of `origin/main` (`05292ab`). Ahead 1 / behind 0. Working tree clean. Not pushed — held for review.
+
+**Next best action:** After Commit 1 lands, MC9 Commit 2 — provider-facing `approved`/`rejected` in-app notifications created transactionally with the lifecycle event (one per event via the existing `UNIQUE(user_id, event_id)`), provider-safe content only.
+
+---
+
 ### Session 048 — 2026-08-08
 **Agent:** E1 Agent (Emergent, Neo)
 **Scope:** `S`

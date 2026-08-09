@@ -1076,6 +1076,100 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /admin/provider-applications/{applicationId}/approve:
+    post:
+      operationId: approveProviderApplication
+      tags: [admin]
+      summary: Approve a provider application under review (admin only)
+      description: |
+        Reviewer decision endpoint. Valid only when the application is
+        `under_review`; any other state — including a repeated decision —
+        fails with `409` and produces no side effects. Approving persists
+        `reviewedAt` / `reviewedBy` / optional reviewer-private
+        `reviewerNotes`, transitions the application to `approved`, and
+        records an `approved` lifecycle event in the same transaction.
+        Reviewers cannot decide their own application (`403`).
+        Provider-operations authorization is unchanged: it still additionally
+        requires an approved profile verification status.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveProviderApplicationRequest"
+      responses:
+        "200":
+          description: Application approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProviderApplicationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /admin/provider-applications/{applicationId}/reject:
+    post:
+      operationId: rejectProviderApplication
+      tags: [admin]
+      summary: Reject a provider application under review (admin only)
+      description: |
+        Reviewer decision endpoint. Valid only when the application is
+        `under_review`; any other state — including a repeated decision —
+        fails with `409` and produces no side effects. Rejecting requires a
+        provider-visible `rejectionReason`, persists `reviewedAt` /
+        `reviewedBy` / optional reviewer-private `reviewerNotes`, transitions
+        the application to `rejected`, and records a `rejected` lifecycle
+        event in the same transaction. Reviewers cannot decide their own
+        application (`403`). The owner can later reset the rejected
+        application to draft via `/providers/application/reset`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectProviderApplicationRequest"
+      responses:
+        "200":
+          description: Application rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProviderApplicationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
   /providers/{providerId}:
     get:
       operationId: getProviderById
@@ -2995,3 +3089,87 @@ components:
           description: Optionally update the provider's overall verification status
       required:
         - status
+
+    # ── Reviewer Decision Schemas (admin only) ─────────────────────────────────
+
+    ApproveProviderApplicationRequest:
+      type: object
+      properties:
+        reviewerNotes:
+          type: string
+          description: Optional reviewer-private notes. Never exposed to providers.
+
+    RejectProviderApplicationRequest:
+      type: object
+      properties:
+        rejectionReason:
+          type: string
+          minLength: 1
+          description: Provider-visible reason surfaced to the applicant.
+        reviewerNotes:
+          type: string
+          description: Optional reviewer-private notes. Never exposed to providers.
+      required:
+        - rejectionReason
+
+    AdminProviderApplicationView:
+      type: object
+      description: |
+        Admin-scoped provider-application projection returned by reviewer
+        decision endpoints. Includes reviewer-private fields (`reviewedBy`,
+        `reviewerNotes`); it is never returned on provider-facing surfaces.
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        providerProfileId:
+          type: integer
+        status:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+        currentStep:
+          $ref: "#/components/schemas/ProviderApplicationStep"
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedBy:
+          type: integer
+          nullable: true
+        reviewerNotes:
+          type: string
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - providerProfileId
+        - status
+        - currentStep
+        - submittedAt
+        - reviewedAt
+        - reviewedBy
+        - reviewerNotes
+        - rejectionReason
+        - createdAt
+        - updatedAt
+
+    AdminProviderApplicationResponse:
+      type: object
+      properties:
+        application:
+          $ref: "#/components/schemas/AdminProviderApplicationView"
+      required:
+        - application

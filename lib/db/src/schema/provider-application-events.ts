@@ -19,17 +19,19 @@ import { usersTable } from "./users";
  * happens, inside the same transaction as the state change. Rows are
  * append-only: never updated or deleted by application code.
  *
- * Honesty boundary (MC8-lite): only the two owner-driven transitions that
- * have a server code path today are recorded here —
- *   - `submitted`      : draft → under_review (POST /application/submit)
- *   - `reset_to_draft` : rejected → draft     (POST /application/reset)
- * Reviewer-driven outcomes (approved/rejected) and other transitions are NOT
- * recorded until a later checkpoint adds their code paths. Consumers must not
- * present this as a complete lifecycle history beyond these events.
+ * Honesty boundary (MC9): the recorded transitions are exactly the ones with
+ * a server code path —
+ *   - `submitted`      : draft → under_review        (POST /providers/application/submit, owner)
+ *   - `reset_to_draft` : rejected → draft            (POST /providers/application/reset, owner)
+ *   - `approved`       : under_review → approved     (POST /admin/provider-applications/:id/approve, reviewer)
+ *   - `rejected`       : under_review → rejected     (POST /admin/provider-applications/:id/reject, reviewer)
+ * Other transitions (e.g. suspension) are NOT recorded until a later
+ * checkpoint adds their code paths. Consumers must not present this as a
+ * complete lifecycle history beyond these events.
  */
 export const providerApplicationEventTypeEnum = pgEnum(
   "provider_application_event_type",
-  ["submitted", "reset_to_draft"],
+  ["submitted", "reset_to_draft", "approved", "rejected"],
 );
 
 export const providerApplicationEventsTable = pgTable(

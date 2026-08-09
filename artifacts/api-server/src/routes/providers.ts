@@ -1195,7 +1195,10 @@ function decodeNotificationCursor(raw: string): NotificationCursor | null {
 
 function serializeNotification(row: {
   id: number;
-  type: ApplicationEventType;
+  // Read path uses the table-inferred enum: rows may carry any recorded event
+  // type, while notification *creation* stays limited to ApplicationEventType
+  // until the corresponding content is added.
+  type: (typeof providerNotificationsTable.$inferSelect)["type"];
   title: string;
   body: string;
   link: string;
