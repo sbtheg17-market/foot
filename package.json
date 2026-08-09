@@ -8,6 +8,7 @@
     "build:deploy": "pnpm -r --filter @workspace/web run build && pnpm --filter @workspace/api-server run build",
     "db:push": "pnpm --filter @workspace/db run push",
     "git:check": "bash scripts/check-github-sync.sh",
+    "publish:gate": "bash scripts/verify-publication.sh",
     "seed": "pnpm --filter @workspace/api-server run seed",
     "start": "node --enable-source-maps artifacts/api-server/dist/index.mjs",
     "typecheck:libs": "tsc --build",

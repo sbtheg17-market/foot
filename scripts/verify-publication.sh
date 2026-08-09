@@ -1,0 +1,221 @@
+#!/usr/bin/env bash
+# Publication review gate — pre-push safety checks for reviewed commits.
+#
+# This is a SAFETY CHECK, not a replacement for human publication approval.
+# Run it on the candidate branch (HEAD = the single commit to publish) before
+# handing the patch to the managed publication channel, and again in the
+# managed environment immediately before `git push origin HEAD:main`.
+#
+# Usage:
+#   bash scripts/verify-publication.sh \
+#     [--allow <path>]...        permitted changed files (repeatable;
+#                                default: .agents/LOG.md .agents/NEXT_TASK.md)
+#     [--expected-tree <hash>]   HEAD tree must equal this hash
+#     [--patch <file>]           patch file to checksum-verify
+#     [--sha256 <hash>]          expected SHA-256 of --patch
+#     [--base <ref>]             verified base ref (default: origin/main)
+#     [--ack-draft-wording]      explicit human override when added lines
+#                                legitimately QUOTE draft-status phrases
+#                                (e.g. a correction entry); never use it to
+#                                publish an entry that DESCRIBES ITSELF as a
+#                                draft
+#
+# Checks (all must pass; exit 1 on any failure):
+#   1. Working tree is clean.
+#   2. Base ref is freshly fetched; HEAD parent equals the verified base.
+#   3. Update is fast-forward-only: base is an ancestor of HEAD, HEAD is
+#      0 behind, exactly 1 commit ahead, and the commit is not a merge.
+#   4. Changed-file scope is a subset of the allow-list.
+#   5. No forbidden paths changed (.emergent/, lockfiles, DB schema,
+#      generated clients, web/mobile UI, attached_assets, .patch/.bundle).
+#   6. No draft-status wording is being published as final (added lines).
+#   7. New session numbers in .agents/LOG.md are unique (not reusing any
+#      previously published number) and ordered (greater than the maximum
+#      previously published number). Historical duplicates are grandfathered.
+#   8. Tree identity matches --expected-tree (when provided).
+#   9. Patch checksum matches --sha256 (when provided).
+
+set -uo pipefail
+
+ALLOW=()
+EXPECTED_TREE=""
+PATCH_FILE=""
+PATCH_SHA=""
+BASE_REF="origin/main"
+ACK_DRAFT=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --allow) ALLOW+=("$2"); shift 2 ;;
+    --expected-tree) EXPECTED_TREE="$2"; shift 2 ;;
+    --patch) PATCH_FILE="$2"; shift 2 ;;
+    --sha256) PATCH_SHA="$2"; shift 2 ;;
+    --base) BASE_REF="$2"; shift 2 ;;
+    --ack-draft-wording) ACK_DRAFT=1; shift ;;
+    *) echo "Unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+
+if [[ ${#ALLOW[@]} -eq 0 ]]; then
+  ALLOW=(".agents/LOG.md" ".agents/NEXT_TASK.md")
+fi
+
+FAIL=0
+pass() { echo "  [PASS] $1"; }
+fail() { echo "  [FAIL] $1" >&2; FAIL=1; }
+
+echo "Publication review gate — candidate $(git rev-parse --short HEAD) vs ${BASE_REF}"
+echo
+
+# --- 1. Clean working tree -------------------------------------------------
+if [[ -z "$(git status --porcelain)" ]]; then
+  pass "working tree is clean"
+else
+  fail "working tree is dirty — commit or stash everything first"
+fi
+
+# --- 2. Fresh base + parent identity ---------------------------------------
+if git fetch origin --prune --quiet 2>/dev/null; then
+  pass "fetched origin (base is current)"
+else
+  fail "could not fetch origin — base freshness is unverified"
+fi
+
+BASE="$(git rev-parse "${BASE_REF}" 2>/dev/null || true)"
+if [[ -z "$BASE" ]]; then
+  fail "base ref ${BASE_REF} not found"
+  echo; echo "RESULT: FAIL"; exit 1
+fi
+
+PARENTS="$(git rev-list --parents -n 1 HEAD | cut -d' ' -f2-)"
+if [[ "$PARENTS" == "$BASE" ]]; then
+  pass "HEAD parent equals verified ${BASE_REF} ($(git rev-parse --short "$BASE"))"
+else
+  fail "HEAD parent(s) [$PARENTS] != verified ${BASE_REF} ($BASE) — rebase onto the current base and re-review"
+fi
+
+# --- 3. Fast-forward-only, single non-merge commit --------------------------
+if git merge-base --is-ancestor "$BASE" HEAD; then
+  pass "update is fast-forward from ${BASE_REF}"
+else
+  fail "update is NOT fast-forward from ${BASE_REF}"
+fi
+read -r BEHIND AHEAD <<<"$(git rev-list --left-right --count "${BASE_REF}"...HEAD)"
+if [[ "$BEHIND" == "0" && "$AHEAD" == "1" ]]; then
+  pass "exactly 1 commit ahead, 0 behind"
+else
+  fail "expected exactly 1 commit ahead / 0 behind, got ${AHEAD} ahead / ${BEHIND} behind"
+fi
+if [[ "$(git rev-list --merges -n 1 "${BASE_REF}"..HEAD)" == "" ]]; then
+  pass "no merge commits in the range"
+else
+  fail "range contains a merge commit — conflict_*/merge publication is forbidden"
+fi
+
+# --- 4. Allow-list scope -----------------------------------------------------
+CHANGED="$(git diff --name-only "${BASE_REF}"..HEAD)"
+SCOPE_OK=1
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  found=0
+  for a in "${ALLOW[@]}"; do [[ "$f" == "$a" ]] && found=1; done
+  if [[ $found -eq 0 ]]; then
+    fail "changed file outside permitted scope: $f"
+    SCOPE_OK=0
+  fi
+done <<<"$CHANGED"
+[[ $SCOPE_OK -eq 1 ]] && pass "changed-file scope is within the allow-list (${ALLOW[*]})"
+if [[ -z "$CHANGED" ]]; then
+  fail "no files changed — nothing to publish"
+fi
+
+# --- 5. Forbidden paths ------------------------------------------------------
+FORBIDDEN='^\.emergent/|(^|/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock)$|^lib/db/src/schema/|/generated/|^artifacts/web/|^artifacts/mobile/|^attached_assets/|\.patch$|\.bundle$'
+if echo "$CHANGED" | grep -qE "$FORBIDDEN"; then
+  fail "forbidden paths changed: $(echo "$CHANGED" | grep -E "$FORBIDDEN" | tr '\n' ' ')"
+else
+  pass "no .emergent/lockfile/schema/generated/UI/asset/patch files changed"
+fi
+
+# --- 6. Draft-status wording -------------------------------------------------
+DRAFT_PATTERNS='LOCAL DRAFT|AWAITING REVIEW|awaiting review|not committed or published|intentionally uncommitted|NOT PUBLISHED|STOP FOR REVIEW|held for review|unpublished draft'
+ADDED_LINES="$(git diff "${BASE_REF}"..HEAD -- .agents/ | grep -E '^\+' | grep -vE '^\+\+\+' || true)"
+DRAFT_HITS="$(echo "$ADDED_LINES" | grep -nE "$DRAFT_PATTERNS" || true)"
+if [[ -z "$DRAFT_HITS" ]]; then
+  pass "no draft-status wording in the published additions"
+elif [[ $ACK_DRAFT -eq 1 ]]; then
+  pass "draft-status wording present but explicitly acknowledged by a human (--ack-draft-wording); verify these are quotations, not self-descriptions:"
+  echo "$DRAFT_HITS" | sed 's/^/         /'
+else
+  fail "draft-status wording would be published as final (use --ack-draft-wording ONLY for legitimate quotations):"
+  echo "$DRAFT_HITS" | sed 's/^/         /' >&2
+fi
+
+# --- 7. Session numbers: unique + ordered ------------------------------------
+if echo "$CHANGED" | grep -q '^\.agents/LOG\.md$'; then
+  base_nums="$(git show "${BASE_REF}:.agents/LOG.md" 2>/dev/null | grep -oE '^### Session [0-9]+' | grep -oE '[0-9]+' | sort -n | uniq)"
+  head_nums="$(git show HEAD:.agents/LOG.md | grep -oE '^### Session [0-9]+' | grep -oE '[0-9]+')"
+  max_base="$(echo "$base_nums" | tail -1)"
+  # sessions counted per number in base and head
+  NUM_OK=1
+  for n in $(echo "$head_nums" | sort -n | uniq); do
+    c_head="$(echo "$head_nums" | grep -cx "$n")"
+    c_base="$(git show "${BASE_REF}:.agents/LOG.md" 2>/dev/null | grep -cE "^### Session $n\b" || true)"
+    if (( c_head > c_base )); then
+      # new occurrence(s) of session number n
+      if (( c_base > 0 )); then
+        fail "new entry reuses already-published session number $n"
+        NUM_OK=0
+      elif (( c_head > 1 )); then
+        fail "new session number $n appears $c_head times in one publication"
+        NUM_OK=0
+      elif (( 10#$n <= 10#$max_base )); then
+        fail "new session number $n is not greater than the last published session $max_base"
+        NUM_OK=0
+      fi
+    fi
+  done
+  [[ $NUM_OK -eq 1 ]] && pass "new session numbers are unique and ordered (last published: $max_base)"
+else
+  pass "LOG.md unchanged — session numbering not affected"
+fi
+
+# --- 8. Tree identity ----------------------------------------------------------
+if [[ -n "$EXPECTED_TREE" ]]; then
+  ACTUAL_TREE="$(git rev-parse 'HEAD^{tree}')"
+  if [[ "$ACTUAL_TREE" == "$EXPECTED_TREE" ]]; then
+    pass "tree identity matches expected ($EXPECTED_TREE)"
+  else
+    fail "tree identity mismatch: HEAD tree $ACTUAL_TREE != expected $EXPECTED_TREE"
+  fi
+else
+  pass "tree identity check skipped (no --expected-tree provided)"
+fi
+
+# --- 9. Patch checksum ----------------------------------------------------------
+if [[ -n "$PATCH_FILE" ]]; then
+  if [[ ! -f "$PATCH_FILE" ]]; then
+    fail "patch file not found: $PATCH_FILE"
+  elif [[ -z "$PATCH_SHA" ]]; then
+    fail "--patch provided without --sha256 — checksum evidence is mandatory"
+  else
+    ACTUAL_SHA="$(sha256sum "$PATCH_FILE" | cut -d' ' -f1)"
+    if [[ "$ACTUAL_SHA" == "$PATCH_SHA" ]]; then
+      pass "patch checksum matches ($ACTUAL_SHA)"
+    else
+      fail "patch checksum mismatch: $ACTUAL_SHA != $PATCH_SHA"
+    fi
+  fi
+else
+  pass "patch checksum check skipped (no --patch provided)"
+fi
+
+echo
+if [[ $FAIL -eq 0 ]]; then
+  echo "RESULT: PASS — candidate is safe to hand to the managed publication channel."
+  echo "Human review approval is still required before any push."
+  exit 0
+else
+  echo "RESULT: FAIL — do NOT publish. Fix the reported issues and re-run." >&2
+  exit 1
+fi
