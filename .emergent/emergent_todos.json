@@ -1,34 +1,26 @@
 [
   {
-    "content": "Step-0 gate against d7a5999 (HEAD synced, clean, baseline typecheck/build/regression green)",
+    "content": "Explore openapi.yaml, codegen script, test harness pattern, and travel_zones/verification_docs schema",
+    "status": "completed"
+  },
+  {
+    "content": "Implement GET /providers/me/readiness in providers.ts (requireAuth + provider member, owner-scoped)",
+    "status": "completed"
+  },
+  {
+    "content": "Update openapi.yaml (API-spec-first) and regenerate client via pnpm run codegen",
+    "status": "completed"
+  },
+  {
+    "content": "Add provider-readiness.integration.test.ts using node:test harness",
+    "status": "completed"
+  },
+  {
+    "content": "Typecheck/build + run full regression test suites",
     "status": "in_progress"
   },
   {
-    "content": "Inspect API-spec-first tooling (openapi.yaml + codegen) and readiness data sources (services, availability, travel_zones, verification_docs, profile fields)",
-    "status": "pending"
-  },
-  {
-    "content": "API-spec-first: add GET /providers/me/readiness path + schemas to openapi.yaml; regenerate clients if required",
-    "status": "pending"
-  },
-  {
-    "content": "Implement read-only readiness service (pure compute over existing fields; C1-C7; missing[] reason codes; ignore stored profileComplete)",
-    "status": "pending"
-  },
-  {
-    "content": "Wire owner-scoped GET /providers/me/readiness handler",
-    "status": "pending"
-  },
-  {
-    "content": "Add focused API coverage using existing node:test harness",
-    "status": "pending"
-  },
-  {
-    "content": "Validate: typecheck + build + regression suites green",
-    "status": "pending"
-  },
-  {
-    "content": "One focused local Phase 2 commit + patch; do not push; stop for review",
+    "content": "Create one local commit + patch (no push); report scope, commit hash, checksum",
     "status": "pending"
   }
 ]
