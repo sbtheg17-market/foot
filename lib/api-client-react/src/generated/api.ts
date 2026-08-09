@@ -20,8 +20,10 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminProviderApplicationResponse,
   AdminVerificationQueueResponse,
   ApplicationCompletionResponse,
+  ApproveProviderApplicationRequest,
   AuthResponse,
   AvailabilityListResponse,
   BadRequestResponse,
@@ -60,6 +62,7 @@ import type {
   ProviderNotificationUnreadCountResponse,
   ProviderProfileResponse,
   RegisterRequest,
+  RejectProviderApplicationRequest,
   ReviewListResponse,
   ReviewResponse,
   ReviewVerificationDocRequest,
@@ -3131,6 +3134,168 @@ export const useReviewVerificationDoc = <TError = ErrorType<BadRequestResponse |
         TContext
       > => {
       return useMutation(getReviewVerificationDocMutationOptions(options));
+    }
+
+export const getApproveProviderApplicationUrl = (applicationId: number,) => {
+
+
+
+
+  return `/api/admin/provider-applications/${applicationId}/approve`
+}
+
+/**
+ * Reviewer decision endpoint. Valid only when the application is
+ * `under_review`; any other state — including a repeated decision —
+ * fails with `409` and produces no side effects. Approving persists
+ * `reviewedAt` / `reviewedBy` / optional reviewer-private
+ * `reviewerNotes`, transitions the application to `approved`, and
+ * records an `approved` lifecycle event in the same transaction.
+ * Reviewers cannot decide their own application (`403`).
+ * Provider-operations authorization is unchanged: it still additionally
+ * requires an approved profile verification status.
+ * @summary Approve a provider application under review (admin only)
+ */
+export const approveProviderApplication = async (applicationId: number,
+    approveProviderApplicationRequest?: ApproveProviderApplicationRequest, options?: Parameters<typeof customFetch>[1]): Promise<AdminProviderApplicationResponse> => {
+
+  return customFetch<AdminProviderApplicationResponse>(getApproveProviderApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(approveProviderApplicationRequest)
+  }
+);}
+
+
+
+
+
+export const getApproveProviderApplicationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveProviderApplication>>, TError,{applicationId: number;data?: BodyType<ApproveProviderApplicationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveProviderApplication>>, TError,{applicationId: number;data?: BodyType<ApproveProviderApplicationRequest>}, TContext> => {
+
+const mutationKey = ['approveProviderApplication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveProviderApplication>>, {applicationId: number;data?: BodyType<ApproveProviderApplicationRequest>}> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  approveProviderApplication(applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveProviderApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof approveProviderApplication>>>
+    export type ApproveProviderApplicationMutationBody = BodyType<ApproveProviderApplicationRequest> | undefined
+    export type ApproveProviderApplicationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Approve a provider application under review (admin only)
+ */
+export const useApproveProviderApplication = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveProviderApplication>>, TError,{applicationId: number;data?: BodyType<ApproveProviderApplicationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveProviderApplication>>,
+        TError,
+        {applicationId: number;data?: BodyType<ApproveProviderApplicationRequest>},
+        TContext
+      > => {
+      return useMutation(getApproveProviderApplicationMutationOptions(options));
+    }
+
+export const getRejectProviderApplicationUrl = (applicationId: number,) => {
+
+
+
+
+  return `/api/admin/provider-applications/${applicationId}/reject`
+}
+
+/**
+ * Reviewer decision endpoint. Valid only when the application is
+ * `under_review`; any other state — including a repeated decision —
+ * fails with `409` and produces no side effects. Rejecting requires a
+ * provider-visible `rejectionReason`, persists `reviewedAt` /
+ * `reviewedBy` / optional reviewer-private `reviewerNotes`, transitions
+ * the application to `rejected`, and records a `rejected` lifecycle
+ * event in the same transaction. Reviewers cannot decide their own
+ * application (`403`). The owner can later reset the rejected
+ * application to draft via `/providers/application/reset`.
+ * @summary Reject a provider application under review (admin only)
+ */
+export const rejectProviderApplication = async (applicationId: number,
+    rejectProviderApplicationRequest: RejectProviderApplicationRequest, options?: Parameters<typeof customFetch>[1]): Promise<AdminProviderApplicationResponse> => {
+
+  return customFetch<AdminProviderApplicationResponse>(getRejectProviderApplicationUrl(applicationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(rejectProviderApplicationRequest)
+  }
+);}
+
+
+
+
+
+export const getRejectProviderApplicationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectProviderApplication>>, TError,{applicationId: number;data: BodyType<RejectProviderApplicationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectProviderApplication>>, TError,{applicationId: number;data: BodyType<RejectProviderApplicationRequest>}, TContext> => {
+
+const mutationKey = ['rejectProviderApplication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectProviderApplication>>, {applicationId: number;data: BodyType<RejectProviderApplicationRequest>}> = (props) => {
+          const {applicationId,data} = props ?? {};
+
+          return  rejectProviderApplication(applicationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectProviderApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof rejectProviderApplication>>>
+    export type RejectProviderApplicationMutationBody = BodyType<RejectProviderApplicationRequest>
+    export type RejectProviderApplicationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Reject a provider application under review (admin only)
+ */
+export const useRejectProviderApplication = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectProviderApplication>>, TError,{applicationId: number;data: BodyType<RejectProviderApplicationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectProviderApplication>>,
+        TError,
+        {applicationId: number;data: BodyType<RejectProviderApplicationRequest>},
+        TContext
+      > => {
+      return useMutation(getRejectProviderApplicationMutationOptions(options));
     }
 
 export const getGetProviderByIdUrl = (providerId: number,) => {

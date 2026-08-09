@@ -834,6 +834,45 @@ export interface ReviewVerificationDocRequest {
   updateProviderStatus?: ReviewVerificationDocRequestUpdateProviderStatus;
 }
 
+export interface ApproveProviderApplicationRequest {
+  /** Optional reviewer-private notes. Never exposed to providers. */
+  reviewerNotes?: string;
+}
+
+export interface RejectProviderApplicationRequest {
+  /**
+     * Provider-visible reason surfaced to the applicant.
+     * @minLength 1
+     */
+  rejectionReason: string;
+  /** Optional reviewer-private notes. Never exposed to providers. */
+  reviewerNotes?: string;
+}
+
+/**
+ * Admin-scoped provider-application projection returned by reviewer
+ * decision endpoints. Includes reviewer-private fields (`reviewedBy`,
+ * `reviewerNotes`); it is never returned on provider-facing surfaces.
+ */
+export interface AdminProviderApplicationView {
+  id: number;
+  userId: number;
+  providerProfileId: number;
+  status: ProviderApplicationStatus;
+  currentStep: ProviderApplicationStep;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  reviewedBy: number | null;
+  reviewerNotes: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminProviderApplicationResponse {
+  application: AdminProviderApplicationView;
+}
+
 /**
  * Validation error
  */

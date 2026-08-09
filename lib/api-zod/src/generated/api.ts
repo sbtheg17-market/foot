@@ -1181,6 +1181,86 @@ export const ReviewVerificationDocResponse = zod.object({
 
 
 /**
+ * Reviewer decision endpoint. Valid only when the application is
+ * `under_review`; any other state — including a repeated decision —
+ * fails with `409` and produces no side effects. Approving persists
+ * `reviewedAt` / `reviewedBy` / optional reviewer-private
+ * `reviewerNotes`, transitions the application to `approved`, and
+ * records an `approved` lifecycle event in the same transaction.
+ * Reviewers cannot decide their own application (`403`).
+ * Provider-operations authorization is unchanged: it still additionally
+ * requires an approved profile verification status.
+ * @summary Approve a provider application under review (admin only)
+ */
+export const ApproveProviderApplicationParams = zod.object({
+  "applicationId": zod.coerce.number().int()
+})
+
+export const ApproveProviderApplicationBody = zod.object({
+  "reviewerNotes": zod.string().optional().describe('Optional reviewer-private notes. Never exposed to providers.')
+})
+
+export const ApproveProviderApplicationResponse = zod.object({
+  "application": zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "providerProfileId": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewedBy": zod.int().nullable(),
+  "reviewerNotes": zod.string().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('Admin-scoped provider-application projection returned by reviewer\ndecision endpoints. Includes reviewer-private fields (`reviewedBy`,\n`reviewerNotes`); it is never returned on provider-facing surfaces.\n')
+})
+
+
+/**
+ * Reviewer decision endpoint. Valid only when the application is
+ * `under_review`; any other state — including a repeated decision —
+ * fails with `409` and produces no side effects. Rejecting requires a
+ * provider-visible `rejectionReason`, persists `reviewedAt` /
+ * `reviewedBy` / optional reviewer-private `reviewerNotes`, transitions
+ * the application to `rejected`, and records a `rejected` lifecycle
+ * event in the same transaction. Reviewers cannot decide their own
+ * application (`403`). The owner can later reset the rejected
+ * application to draft via `/providers/application/reset`.
+ * @summary Reject a provider application under review (admin only)
+ */
+export const RejectProviderApplicationParams = zod.object({
+  "applicationId": zod.coerce.number().int()
+})
+
+
+
+
+export const RejectProviderApplicationBody = zod.object({
+  "rejectionReason": zod.string().min(1).describe('Provider-visible reason surfaced to the applicant.'),
+  "reviewerNotes": zod.string().optional().describe('Optional reviewer-private notes. Never exposed to providers.')
+})
+
+export const RejectProviderApplicationResponse = zod.object({
+  "application": zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "providerProfileId": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.enum(['profile', 'services', 'availability', 'verification', 'submitted']),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "reviewedBy": zod.int().nullable(),
+  "reviewerNotes": zod.string().nullable(),
+  "rejectionReason": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('Admin-scoped provider-application projection returned by reviewer\ndecision endpoints. Includes reviewer-private fields (`reviewedBy`,\n`reviewerNotes`); it is never returned on provider-facing surfaces.\n')
+})
+
+
+/**
  * @summary Get a provider's public profile
  */
 export const GetProviderByIdParams = zod.object({
