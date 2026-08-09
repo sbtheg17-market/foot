@@ -2,6 +2,7 @@ import React from 'react';
 import { useGetMyProviderProfile, useListBookings, useGetMyEarnings } from '@workspace/api-client-react';
 import { Calendar, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { Link } from 'wouter';
+import ReadinessSummaryCard from '@/components/readiness-summary-card';
 
 export default function PortalDashboard() {
   const { data: profileRes, isLoading: loadingProfile } = useGetMyProviderProfile({
@@ -38,6 +39,9 @@ export default function PortalDashboard() {
         </h1>
         <p className="text-muted-foreground mt-1">Here's your business at a glance.</p>
       </header>
+
+      {/* Activation readiness summary (server-computed; links to canonical page) */}
+      <ReadinessSummaryCard />
 
       {/* Action required alerts */}
       {requestedCount > 0 && (

@@ -30,6 +30,8 @@ export const ROUTES = {
     profile: '/provider/profile',
     credentials: '/provider/credentials',
     notifications: '/provider/notifications',
+    readiness: '/provider/readiness',
+    travelZones: '/provider/travel-zones',
     applicationStatus: '/provider/application-status',
   },
 

@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
 import { LayoutDashboard, CalendarDays, ClipboardList, Wallet, User as UserIcon, ShieldCheck, Bell } from 'lucide-react';
-import { useGetMe, useListBookings, ListBookingsStatus } from '@workspace/api-client-react';
+import { useGetMe, useListBookings, ListBookingsStatus, useGetMyProviderReadiness } from '@workspace/api-client-react';
 import { useProviderNotifications } from '@/hooks/use-provider-notifications';
 import { useUnreadCount } from '@/hooks/use-notification-center';
+import { unresolvedCount } from '@/lib/readiness';
 import { ROUTES } from '@/lib/routes';
 
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,13 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   const { data: unreadData } = useUnreadCount();
   const unreadCount = unreadData?.unreadCount ?? 0;
 
+  // Navigation progress badge: unresolved activation-readiness items, taken
+  // verbatim from the server's owner-scoped readiness response (never
+  // recomputed client-side). Shown on the Dashboard tab, which hosts the
+  // readiness summary card linking to /provider/readiness.
+  const { data: readinessData } = useGetMyProviderReadiness();
+  const readinessGaps = readinessData?.readiness ? unresolvedCount(readinessData.readiness) : 0;
+
   useEffect(() => {
     if (!isLoading && (error || !me)) {
       setLocation(ROUTES.login);
@@ -39,13 +47,19 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   }
 
   const tabs = [
-    { name: 'Dashboard', path: ROUTES.provider.dashboard, icon: LayoutDashboard, badge: 0 },
+    { name: 'Dashboard', path: ROUTES.provider.dashboard, icon: LayoutDashboard, badge: readinessGaps, badgeVariant: 'progress' as const, badgeTestId: 'readiness-nav-badge' },
     { name: 'Bookings', path: ROUTES.provider.bookings, icon: CalendarDays, badge: pendingCount },
     { name: 'Alerts', path: ROUTES.provider.notifications, icon: Bell, badge: unreadCount },
     { name: 'Services', path: ROUTES.provider.services, icon: ClipboardList, badge: 0 },
     { name: 'Credentials', path: ROUTES.provider.credentials, icon: ShieldCheck, badge: 0 },
     { name: 'Profile', path: ROUTES.provider.profile, icon: UserIcon, badge: 0 },
   ];
+
+  /** Badge tone: setup-progress badges are amber; action badges stay destructive. */
+  const badgeClass = (variant?: 'progress') =>
+    variant === 'progress'
+      ? 'bg-amber-500 text-white'
+      : 'bg-destructive text-destructive-foreground';
 
   return (
     <div className="min-h-[100dvh] bg-background pb-20 md:pb-0 md:pl-20 relative mx-auto max-w-[500px] md:max-w-none shadow-2xl md:shadow-none bg-white print:pb-0 print:pl-0 print:shadow-none print:max-w-none">
@@ -59,7 +73,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
               <div className="relative">
                 <Icon className={`w-6 h-6 ${isActive ? 'fill-primary/20 stroke-primary' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
                 {tab.badge > 0 && (
-                  <span role="status" aria-label={`${tab.name}: ${tab.badge > 99 ? '99+' : tab.badge}`} className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center leading-none">
+                  <span role="status" aria-label={`${tab.name}: ${tab.badge > 99 ? '99+' : tab.badge}${'badgeVariant' in tab && tab.badgeVariant === 'progress' ? ' setup steps remaining' : ''}`} data-testid={'badgeTestId' in tab ? tab.badgeTestId : undefined} className={`absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full ${badgeClass('badgeVariant' in tab ? tab.badgeVariant : undefined)} text-[10px] font-bold flex items-center justify-center leading-none`}>
                     {tab.badge > 99 ? '99+' : tab.badge}
                   </span>
                 )}
@@ -84,7 +98,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
                 <div className="relative">
                   <Icon className={`w-6 h-6 ${isActive ? 'fill-primary/20 stroke-primary' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
                   {tab.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center leading-none">
+                    <span data-testid={'badgeTestId' in tab ? `${tab.badgeTestId}-desktop` : undefined} className={`absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full ${badgeClass('badgeVariant' in tab ? tab.badgeVariant : undefined)} text-[10px] font-bold flex items-center justify-center leading-none`}>
                       {tab.badge > 99 ? '99+' : tab.badge}
                     </span>
                   )}
