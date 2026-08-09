@@ -29,6 +29,7 @@ export const ROUTES = {
     earningsStatement: '/provider/earnings/statement',
     profile: '/provider/profile',
     credentials: '/provider/credentials',
+    notifications: '/provider/notifications',
     applicationStatus: '/provider/application-status',
   },
 

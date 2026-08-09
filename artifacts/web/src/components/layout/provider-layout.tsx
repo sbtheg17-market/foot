@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
-import { LayoutDashboard, CalendarDays, ClipboardList, Wallet, User as UserIcon, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, ClipboardList, Wallet, User as UserIcon, ShieldCheck, Bell } from 'lucide-react';
 import { useGetMe, useListBookings, ListBookingsStatus } from '@workspace/api-client-react';
 import { useProviderNotifications } from '@/hooks/use-provider-notifications';
+import { useUnreadCount } from '@/hooks/use-notification-center';
 import { ROUTES } from '@/lib/routes';
 
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
@@ -18,6 +19,10 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     { query: { queryKey: ['bookings', 'requested', 'badge'], refetchInterval: 30_000 } }
   );
   const pendingCount = pendingData?.total ?? 0;
+
+  // In-app notification unread count (existing owner-scoped API)
+  const { data: unreadData } = useUnreadCount();
+  const unreadCount = unreadData?.unreadCount ?? 0;
 
   useEffect(() => {
     if (!isLoading && (error || !me)) {
@@ -36,6 +41,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   const tabs = [
     { name: 'Dashboard', path: ROUTES.provider.dashboard, icon: LayoutDashboard, badge: 0 },
     { name: 'Bookings', path: ROUTES.provider.bookings, icon: CalendarDays, badge: pendingCount },
+    { name: 'Alerts', path: ROUTES.provider.notifications, icon: Bell, badge: unreadCount },
     { name: 'Services', path: ROUTES.provider.services, icon: ClipboardList, badge: 0 },
     { name: 'Credentials', path: ROUTES.provider.credentials, icon: ShieldCheck, badge: 0 },
     { name: 'Profile', path: ROUTES.provider.profile, icon: UserIcon, badge: 0 },
@@ -53,7 +59,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
               <div className="relative">
                 <Icon className={`w-6 h-6 ${isActive ? 'fill-primary/20 stroke-primary' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
                 {tab.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center leading-none">
+                  <span role="status" aria-label={`${tab.name}: ${tab.badge > 99 ? '99+' : tab.badge}`} className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center leading-none">
                     {tab.badge > 99 ? '99+' : tab.badge}
                   </span>
                 )}

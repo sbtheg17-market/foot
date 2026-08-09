@@ -1,9 +1,25 @@
-# Next product task — MC9 Commit 3 done, awaiting review; MC9 completes when it lands
+# Next product task — MC9 complete (landed at `917361d`/`8323aac`); Web notification feed done (awaiting publication); Mobile feed is next, gated
 
 ## Current gate
 
-MC9 (reviewer approve/reject workflow + decision notifications) — locked
-three-commit scope:
+**MC9 complete** and validated on canonical `main` (`8323aac`): reviewer approve/reject
+workflow, transactional approved/rejected decision notifications, and the
+durable `test:reviewer-decisions` suite (14/14) are all present.
+
+**Web in-app notification feed + unread badge — DONE (frontend-only, awaiting
+managed-environment publication).** `/provider/notifications` consumes only the
+existing MC8-lite APIs via the generated client; ProviderLayout gained an
+"Alerts" unread badge. No backend/schema/OpenAPI/generated-client/notification
+-semantics changes; no email/SMTP/push/SSE/notification-bus/vendor coupling
+(complies with `NOTIFICATION_ARCHITECTURE_CONSTRAINTS.md`). Validated:
+typecheck + build pass; regression green (`test:reviewer-decisions` 14/14,
+`test:provider-notifications` 12/12, provider-application 8/8, provider-status
+9/9); all UI states verified by manual browser screenshots (no web test
+framework introduced — that infra remains deferred). Scope: `artifacts/web/`
+only. See Session 052 in `.agents/LOG.md`.
+
+### Superseded reference — MC9 locked three-commit scope
+
 
 - **Commit 1 (landed):** admin-only reviewer decision endpoints — published
   as split commits `0afb3ff` + `92d001f` (tree byte-identical to the
@@ -37,14 +53,24 @@ channel → push delivery.
   may split commits or alter subjects — verify **tree identity, scope,
   ancestry, and validation**, not published commit hashes.
 
+## Next gated candidate
+
+**Mobile in-app notification feed + unread badge (Expo)** — parity with the web
+feed, consuming the SAME existing MC8-lite APIs via the generated client. Still
+**gated**: requires its own scope, acceptance criteria, and explicit approval
+before any work. Then: vendor-neutral email outbox + delivery-adapter design →
+push through the same channel abstraction. Each is separately approved.
+
 ## Post-MC9 deferred
 
-- Web and mobile in-app notification feed with unread badge.
-- Email alerts through a separately designed outbox/retry channel.
+- Web in-app notification feed with unread badge — **DONE** (Session 052; awaiting publication).
+- Mobile in-app notification feed with unread badge — next gated candidate (see above).
+- Email alerts through a separately designed, vendor-neutral outbox/retry channel.
 - Push channel (`expo-notifications` present but unused for this line).
 - Composite index `(provider_application_id, created_at DESC, id DESC)` on
   `provider_application_submissions` — documented follow-up (D1 deferred).
-- Web/mobile test infrastructure (vitest / RN testing-library).
+- Web/mobile test infrastructure (vitest / RN testing-library) — still deferred; the web
+  feed (Session 052) was verified via manual browser screenshots, not automated tests.
 - Root `attached_assets/Pasted-*.txt` cleanup; delete stale
   `origin/conflict_070826_mc2` branch (hygiene actions).
 

@@ -19,6 +19,7 @@ import PortalEarnings from '@/pages/portal/earnings';
 import PortalEarningsStatement from '@/pages/portal/earnings-statement';
 import PortalProfile from '@/pages/portal/profile';
 import PortalCredentials from '@/pages/portal/credentials';
+import PortalNotifications from '@/pages/portal/notifications';
 import AdminVerification from '@/pages/admin/verification';
 import ProviderLayout from '@/components/layout/provider-layout';
 import ClientLayout from '@/components/layout/client-layout';
@@ -81,6 +82,7 @@ function Router() {
       <Route path={ROUTES.provider.earnings}>{providerRoute(PortalEarnings)}</Route>
       <Route path={ROUTES.provider.profile}>{providerRoute(PortalProfile)}</Route>
       <Route path={ROUTES.provider.credentials}>{providerRoute(PortalCredentials)}</Route>
+      <Route path={ROUTES.provider.notifications}>{providerRoute(PortalNotifications)}</Route>
 
       {/* ── Legacy /portal/* → /provider/* redirects (backward compat) ──── */}
       {LEGACY_PORTAL_REDIRECTS.map(({ from, to }) => (
