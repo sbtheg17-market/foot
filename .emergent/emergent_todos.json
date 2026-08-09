@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Implement review-gate automation (scripts/verify-publication.sh + publish:gate wiring) as its own local reviewed commit from 5e031e5",
+    "status": "completed"
+  },
+  {
+    "content": "Test the gate script: passing case + failure modes (draft wording, scope violation, session numbering)",
+    "status": "completed"
+  },
+  {
+    "content": "Draft Session 058 (.agents docs only) as local commit from 5e031e5, validate with the gate, patch + SHA-256, stop",
+    "status": "completed"
+  },
+  {
+    "content": "Prepare pinned-hash branch-cleanup handoff script for the managed channel (tag archive, delete 9, verify main unchanged)",
+    "status": "completed"
+  },
+  {
+    "content": "Final report: stop for review — no publication, no product work",
+    "status": "completed"
+  }
+]
