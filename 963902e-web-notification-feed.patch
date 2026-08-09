@@ -1,0 +1,692 @@
+From 963902ea24e6cd456d435d2d39c97ab23c55e34c Mon Sep 17 00:00:00 2001
+From: emergent-agent-e1 <github@emergent.sh>
+Date: Sun, 9 Aug 2026 14:02:44 +0000
+Subject: [PATCH] feat(web): provider in-app notification feed with unread
+ badge
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Adds /provider/notifications — an owner-scoped, newest-first in-app feed and
+an 'Alerts' unread badge in the provider nav, so providers see application
+decision updates in the product without depending on any email/vendor setup.
+
+Frontend-only: consumes the existing MC8-lite APIs (GET /providers/notifications
+keyset-paginated, GET .../unread-count, idempotent POST .../:id/read) via the
+generated client. Handles loading/empty/error+retry/401/403/pagination and
+mark-read (optimistic + rollback + failure toast); read-state stays server-owned.
+
+No backend, schema, OpenAPI, generated-client, lifecycle-event, or notification
+-semantics changes. No email/SMTP/push/SSE/notification-bus/vendor coupling
+(complies with the notification channel-abstraction constraint).
+
+Scope: artifacts/web/ + .agents traceability. Verified via typecheck, build,
+API regression (reviewer-decisions 14/14, provider-notifications 12/12), and
+manual browser screenshots (no web test framework introduced).
+---
+ .agents/LOG.md                                |  24 ++
+ .agents/NEXT_TASK.md                          |  38 ++-
+ artifacts/web/src/App.tsx                     |   2 +
+ .../src/components/layout/provider-layout.tsx |  10 +-
+ .../web/src/hooks/use-notification-center.ts  | 154 +++++++++
+ artifacts/web/src/lib/routes.ts               |   1 +
+ .../web/src/pages/portal/notifications.tsx    | 308 ++++++++++++++++++
+ 7 files changed, 529 insertions(+), 8 deletions(-)
+ create mode 100644 artifacts/web/src/hooks/use-notification-center.ts
+ create mode 100644 artifacts/web/src/pages/portal/notifications.tsx
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index 185675f..2fdb70f 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -58,6 +58,7 @@ Since agent credit balances cannot be read programmatically, each session entry
+ | Provider application submission-history web timeline | ✅ Phase 2 MC6 verified | `/provider/application-status` now renders `SubmissionHistoryTimeline`, consuming `GET /providers/application/submissions` (newest-first) with opaque keyset cursor paging (`nextCursor`/`hasMore`, "Load older cycles"). Displays prior closed rejected cycles chronologically (oldest→newest) with a final current-cycle node from the server `summary`, rejection reasons, and loading / empty / error+retry / unauthorized / paging states. CTAs stay gated on `canEdit`/`canReset`/`canResubmit`; `reviewerNotes`/`reviewedBy` never referenced. A caption states the history is current status + prior rejected cycles only, not a full lifecycle log. Web + full-workspace typecheck and web production build pass; scope limited to `artifacts/web/`. |
+ | Provider application submission-history mobile timeline | ✅ Phase 2 MC7 verified | Expo/React Native parity for MC6. `artifacts/mobile/app/provider/application-status.tsx` now renders `SubmissionHistoryTimeline`, consuming `GET /providers/application/submissions` (newest-first) with opaque keyset cursor paging (`nextCursor`/`hasMore`, "Load older cycles"). Shows prior closed rejected cycles chronologically (oldest→newest) with a final current-cycle node from the server `summary`, rejection reasons, and loading / empty / error+retry / unauthorized / paging states, using native `View`/`Text`/`TouchableOpacity`/`ActivityIndicator` + `useColors` tokens. CTAs stay gated on `canEdit`/`canReset`/`canResubmit`; `reviewerNotes`/`reviewedBy` never referenced; same honesty caption as MC6. Mobile + full-workspace typecheck pass; `expo export --platform web` bundles the whole module graph with no errors. Native Hermes/device preview not runnable in this headless container (no Android SDK/Xcode). Scope limited to `artifacts/mobile/`. |
+ | Provider application rejected-state web UI | ✅ Phase 1 checkpoint 3 verified | `/provider/application-status` now consumes `GET /providers/application/status` via the generated `useGetProviderApplicationStatus` hook, renders the provider-visible `rejectionReason` and `previousSubmissions` summary, and gates the reset/resubmit/edit CTAs on server-provided `canReset`/`canResubmit`/`canEdit`. Loading, unauthorized, 404 (no application yet), 403 (non-provider member), and mutation-error states are handled without duplicating server authorization logic. `reviewerNotes` is never rendered because it never enters the status response. Full workspace typecheck and web build both pass; 26 `data-testid` attributes cover every state and action. |
++| Web in-app notification feed + unread badge | ✅ Phase 2 MC10 (web) verified | `/provider/notifications` renders an owner-scoped, newest-first feed consuming only the existing MC8-lite APIs (`GET /providers/notifications` keyset-paginated, `GET /providers/notifications/unread-count`, idempotent `POST /providers/notifications/:id/read`) via the generated client (`useGetProviderNotificationUnreadCount`, `useMarkProviderNotificationRead`, and the generated fetcher through TanStack `useInfiniteQuery`). ProviderLayout gains an "Alerts" tab with an unread badge (accessible label, hidden at 0, `99+` cap). Handles loading/empty/error+retry/401(sign-in redirect)/403/pagination/mark-read(optimistic+rollback+failure toast)/focus+interval refresh. No email/SMTP/push/SSE/notification-bus/vendor coupling; no backend, schema, OpenAPI, generated-client, or notification-semantics changes. Web + full typecheck + production build pass; API regression green (reviewer-decisions 14/14, provider-notifications 12/12). Scope: `artifacts/web/` only. Verified via manual browser screenshots (no web test framework introduced — deferred item unchanged). |
+ | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
+ | GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are kept aligned after the Phase 4 implementation and regression-coverage checkpoint. Uploaded handoff files remain outside Git history. |
+ 
+@@ -65,6 +66,29 @@ Since agent credit balances cannot be read programmatically, each session entry
+ 
+ ---
+ 
++### Session 052 — 2026-08-09
++**Agent:** E2 Agent (Emergent, Neo)
++**Scope:** `M`
++**Triggered by:** First post-MC9 notification-surface checkpoint — **Web in-app notification feed + unread badge** — approved from a reviewed scope/acceptance spec, off canonical base `8323aac` (frontend-only; locked scope `artifacts/web/**` + `.agents` traceability).
++
++**What was done:**
++- Added `/provider/notifications` (`artifacts/web/src/pages/portal/notifications.tsx`): owner-scoped, newest-first feed with per-type iconography (submitted/reset_to_draft/approved/rejected + safe fallback), unread styling, relative timestamps, and per-item + "mark all visible" read actions. Server order is rendered verbatim (no client sort); provider-safe `title`/`body` shown exactly as supplied.
++- Added `artifacts/web/src/hooks/use-notification-center.ts`: consumes ONLY the existing MC8-lite APIs via the generated client — `useGetProviderNotificationUnreadCount` (badge), `useMarkProviderNotificationRead` (idempotent, optimistic with cache rollback + failure toast), and the generated `getProviderNotifications` fetcher through TanStack `useInfiniteQuery` for correct opaque keyset pagination. Read-state stays server-owned; on settle both feed and unread-count keys are invalidated.
++- Wired a "Alerts" tab with unread badge into `provider-layout.tsx` (accessible `aria-label`, hidden at 0, existing `99+` cap), registered the route in `App.tsx`, and added `ROUTES.provider.notifications`.
++- **No** backend, schema, OpenAPI, generated-client, lifecycle-event, or notification-semantics changes. No email/SMTP/push/SSE/notification-bus/vendor coupling (complies with `NOTIFICATION_ARCHITECTURE_CONSTRAINTS.md`).
++
++**Validation:**
++- Full `pnpm run typecheck` ✅ and full `pnpm run build` ✅ (web vite build clean).
++- API regression green: `test:reviewer-decisions` 14/14, `test:provider-notifications` 12/12, `test:provider-application` 8/8, `test:provider-status` 9/9.
++- Manual browser verification (no web test framework introduced — the vitest/RN-testing-library infra remains the documented deferred item). Screenshots captured for: desktop list (newest-first, unread, load-more), mobile list + nav badge (`Alerts: 16`), empty (`mike@oncallfoot.com`), 403 (`jane@oncallfoot.com`), error+retry (list forced 500), loading skeletons (delayed response), 401→login redirect (invalid token), mutation failure+rollback (`POST /:id/read` forced 500 — row stays unread, badge unchanged, failure toast), and pagination (20→24 on Load more, then button hidden). Fixtures: `sarah@oncallfoot.com` seeded with 24 events+notifications (16 unread) in the local test DB.
++- Scope confirmed: only 5 files under `artifacts/web/` changed (+ this `.agents` traceability); nothing outside; working tree otherwise clean.
++
++**Build state at end:** Prepared changeset on top of `origin/main` (`8323aac`); not pushed — held for managed-environment publication/review. Publication protocol: verify tree identity, scope (`artifacts/web/**` + `.agents`), ancestry, and validation — not commit hashes.
++
++**Next best action:** Mobile parity — Expo notification feed + unread badge (MC10 mobile), consuming the same existing APIs; then vendor-neutral email outbox + adapter design; then push. Each requires its own scope + acceptance approval.
++
++---
++
+ ### Session 051 — 2026-08-09
+ **Agent:** E2 Agent (Emergent, Neo)
+ **Scope:** `S`
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index 40b53b4..a11175d 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -1,9 +1,25 @@
+-# Next product task — MC9 Commit 3 done, awaiting review; MC9 completes when it lands
++# Next product task — MC9 complete (landed at `917361d`/`8323aac`); Web notification feed done (awaiting publication); Mobile feed is next, gated
+ 
+ ## Current gate
+ 
+-MC9 (reviewer approve/reject workflow + decision notifications) — locked
+-three-commit scope:
++**MC9 complete** and validated on canonical `main` (`8323aac`): reviewer approve/reject
++workflow, transactional approved/rejected decision notifications, and the
++durable `test:reviewer-decisions` suite (14/14) are all present.
++
++**Web in-app notification feed + unread badge — DONE (frontend-only, awaiting
++managed-environment publication).** `/provider/notifications` consumes only the
++existing MC8-lite APIs via the generated client; ProviderLayout gained an
++"Alerts" unread badge. No backend/schema/OpenAPI/generated-client/notification
++-semantics changes; no email/SMTP/push/SSE/notification-bus/vendor coupling
++(complies with `NOTIFICATION_ARCHITECTURE_CONSTRAINTS.md`). Validated:
++typecheck + build pass; regression green (`test:reviewer-decisions` 14/14,
++`test:provider-notifications` 12/12, provider-application 8/8, provider-status
++9/9); all UI states verified by manual browser screenshots (no web test
++framework introduced — that infra remains deferred). Scope: `artifacts/web/`
++only. See Session 052 in `.agents/LOG.md`.
++
++### Superseded reference — MC9 locked three-commit scope
++
+ 
+ - **Commit 1 (landed):** admin-only reviewer decision endpoints — published
+   as split commits `0afb3ff` + `92d001f` (tree byte-identical to the
+@@ -37,14 +53,24 @@ channel → push delivery.
+   may split commits or alter subjects — verify **tree identity, scope,
+   ancestry, and validation**, not published commit hashes.
+ 
++## Next gated candidate
++
++**Mobile in-app notification feed + unread badge (Expo)** — parity with the web
++feed, consuming the SAME existing MC8-lite APIs via the generated client. Still
++**gated**: requires its own scope, acceptance criteria, and explicit approval
++before any work. Then: vendor-neutral email outbox + delivery-adapter design →
++push through the same channel abstraction. Each is separately approved.
++
+ ## Post-MC9 deferred
+ 
+-- Web and mobile in-app notification feed with unread badge.
+-- Email alerts through a separately designed outbox/retry channel.
++- Web in-app notification feed with unread badge — **DONE** (Session 052; awaiting publication).
++- Mobile in-app notification feed with unread badge — next gated candidate (see above).
++- Email alerts through a separately designed, vendor-neutral outbox/retry channel.
+ - Push channel (`expo-notifications` present but unused for this line).
+ - Composite index `(provider_application_id, created_at DESC, id DESC)` on
+   `provider_application_submissions` — documented follow-up (D1 deferred).
+-- Web/mobile test infrastructure (vitest / RN testing-library).
++- Web/mobile test infrastructure (vitest / RN testing-library) — still deferred; the web
++  feed (Session 052) was verified via manual browser screenshots, not automated tests.
+ - Root `attached_assets/Pasted-*.txt` cleanup; delete stale
+   `origin/conflict_070826_mc2` branch (hygiene actions).
+ 
+diff --git a/artifacts/web/src/App.tsx b/artifacts/web/src/App.tsx
+index 3ab920d..e71c92c 100644
+--- a/artifacts/web/src/App.tsx
++++ b/artifacts/web/src/App.tsx
+@@ -19,6 +19,7 @@ import PortalEarnings from '@/pages/portal/earnings';
+ import PortalEarningsStatement from '@/pages/portal/earnings-statement';
+ import PortalProfile from '@/pages/portal/profile';
+ import PortalCredentials from '@/pages/portal/credentials';
++import PortalNotifications from '@/pages/portal/notifications';
+ import AdminVerification from '@/pages/admin/verification';
+ import ProviderLayout from '@/components/layout/provider-layout';
+ import ClientLayout from '@/components/layout/client-layout';
+@@ -81,6 +82,7 @@ function Router() {
+       <Route path={ROUTES.provider.earnings}>{providerRoute(PortalEarnings)}</Route>
+       <Route path={ROUTES.provider.profile}>{providerRoute(PortalProfile)}</Route>
+       <Route path={ROUTES.provider.credentials}>{providerRoute(PortalCredentials)}</Route>
++      <Route path={ROUTES.provider.notifications}>{providerRoute(PortalNotifications)}</Route>
+ 
+       {/* ── Legacy /portal/* → /provider/* redirects (backward compat) ──── */}
+       {LEGACY_PORTAL_REDIRECTS.map(({ from, to }) => (
+diff --git a/artifacts/web/src/components/layout/provider-layout.tsx b/artifacts/web/src/components/layout/provider-layout.tsx
+index 868084c..c149889 100644
+--- a/artifacts/web/src/components/layout/provider-layout.tsx
++++ b/artifacts/web/src/components/layout/provider-layout.tsx
+@@ -1,8 +1,9 @@
+ import React, { useEffect } from 'react';
+ import { useLocation, Link } from 'wouter';
+-import { LayoutDashboard, CalendarDays, ClipboardList, Wallet, User as UserIcon, ShieldCheck } from 'lucide-react';
++import { LayoutDashboard, CalendarDays, ClipboardList, Wallet, User as UserIcon, ShieldCheck, Bell } from 'lucide-react';
+ import { useGetMe, useListBookings, ListBookingsStatus } from '@workspace/api-client-react';
+ import { useProviderNotifications } from '@/hooks/use-provider-notifications';
++import { useUnreadCount } from '@/hooks/use-notification-center';
+ import { ROUTES } from '@/lib/routes';
+ 
+ export default function ProviderLayout({ children }: { children: React.ReactNode }) {
+@@ -19,6 +20,10 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
+   );
+   const pendingCount = pendingData?.total ?? 0;
+ 
++  // In-app notification unread count (existing owner-scoped API)
++  const { data: unreadData } = useUnreadCount();
++  const unreadCount = unreadData?.unreadCount ?? 0;
++
+   useEffect(() => {
+     if (!isLoading && (error || !me)) {
+       setLocation(ROUTES.login);
+@@ -36,6 +41,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
+   const tabs = [
+     { name: 'Dashboard', path: ROUTES.provider.dashboard, icon: LayoutDashboard, badge: 0 },
+     { name: 'Bookings', path: ROUTES.provider.bookings, icon: CalendarDays, badge: pendingCount },
++    { name: 'Alerts', path: ROUTES.provider.notifications, icon: Bell, badge: unreadCount },
+     { name: 'Services', path: ROUTES.provider.services, icon: ClipboardList, badge: 0 },
+     { name: 'Credentials', path: ROUTES.provider.credentials, icon: ShieldCheck, badge: 0 },
+     { name: 'Profile', path: ROUTES.provider.profile, icon: UserIcon, badge: 0 },
+@@ -53,7 +59,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
+               <div className="relative">
+                 <Icon className={`w-6 h-6 ${isActive ? 'fill-primary/20 stroke-primary' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
+                 {tab.badge > 0 && (
+-                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center leading-none">
++                  <span role="status" aria-label={`${tab.name}: ${tab.badge > 99 ? '99+' : tab.badge}`} className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center leading-none">
+                     {tab.badge > 99 ? '99+' : tab.badge}
+                   </span>
+                 )}
+diff --git a/artifacts/web/src/hooks/use-notification-center.ts b/artifacts/web/src/hooks/use-notification-center.ts
+new file mode 100644
+index 0000000..1b4de82
+--- /dev/null
++++ b/artifacts/web/src/hooks/use-notification-center.ts
+@@ -0,0 +1,154 @@
++import {
++  useInfiniteQuery,
++  useQueryClient,
++  type InfiniteData,
++} from '@tanstack/react-query';
++import { toast } from 'sonner';
++import {
++  getProviderNotifications,
++  getGetProviderNotificationUnreadCountQueryKey,
++  useGetProviderNotificationUnreadCount,
++  useMarkProviderNotificationRead,
++  type ProviderNotificationListResponse,
++  type ProviderNotificationUnreadCountResponse,
++} from '@workspace/api-client-react';
++
++/**
++ * Notification Center — web client hooks.
++ *
++ * Frontend-only consumers of the EXISTING owner-scoped provider notification
++ * APIs (MC8-lite). No new endpoints, schema, or notification semantics.
++ *
++ *   GET  /providers/notifications              (keyset, newest-first)
++ *   GET  /providers/notifications/unread-count
++ *   POST /providers/notifications/:id/read      (idempotent)
++ *
++ * This module deliberately touches ONLY in-app notification records. It has no
++ * dependency on email, SMTP, push, SSE, or the notification-bus — preserving
++ * the provider-agnostic channel abstraction (see
++ * NOTIFICATION_ARCHITECTURE_CONSTRAINTS.md).
++ */
++
++export const DEFAULT_PAGE_LIMIT = 20;
++
++/** Shared cache key for the paginated feed (infinite query). */
++export const NOTIFICATION_FEED_KEY = ['provider', 'notifications', 'feed'] as const;
++
++/** Reuse the generated client's unread-count key so every surface stays in sync. */
++export const UNREAD_COUNT_KEY = getGetProviderNotificationUnreadCountQueryKey();
++
++/** Extract an HTTP status from an unknown error (ApiError carries `.status`). */
++export function httpStatusOf(err: unknown): number | undefined {
++  if (err && typeof err === 'object' && 'status' in err) {
++    const s = (err as { status?: unknown }).status;
++    return typeof s === 'number' ? s : undefined;
++  }
++  return undefined;
++}
++
++/**
++ * Newest-first, keyset-paginated feed. Server order is preserved verbatim —
++ * the client never re-sorts. Uses the generated fetcher via TanStack Query's
++ * infinite query for correct opaque-cursor pagination.
++ */
++export function useNotificationFeed() {
++  return useInfiniteQuery({
++    queryKey: NOTIFICATION_FEED_KEY,
++    queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
++      getProviderNotifications(
++        pageParam
++          ? { limit: DEFAULT_PAGE_LIMIT, cursor: pageParam }
++          : { limit: DEFAULT_PAGE_LIMIT },
++      ),
++    initialPageParam: undefined as string | undefined,
++    getNextPageParam: (lastPage: ProviderNotificationListResponse) =>
++      lastPage.pagination.hasMore
++        ? lastPage.pagination.nextCursor ?? undefined
++        : undefined,
++    retry: false,
++    refetchOnWindowFocus: false,
++  });
++}
++
++/**
++ * Owner-scoped unread total for the nav badge. Refreshes on window focus and
++ * on a bounded interval — no realtime transport (SSE/push) in this checkpoint.
++ */
++export function useUnreadCount() {
++  return useGetProviderNotificationUnreadCount({
++    query: {
++      queryKey: UNREAD_COUNT_KEY,
++      refetchInterval: 30_000,
++      refetchOnWindowFocus: true,
++      staleTime: 10_000,
++      retry: false,
++    },
++  });
++}
++
++type MarkCtx = {
++  prevFeed?: InfiniteData<ProviderNotificationListResponse>;
++  prevUnread?: ProviderNotificationUnreadCountResponse;
++};
++
++/**
++ * Mark a single notification read — optimistic with rollback on failure.
++ * Idempotent (re-marking an already-read item is a server no-op). On settle,
++ * both the feed and the unread count are invalidated so the server stays the
++ * source of truth for read-state.
++ */
++export function useMarkRead() {
++  const qc = useQueryClient();
++
++  return useMarkProviderNotificationRead<unknown, MarkCtx>({
++    mutation: {
++      onMutate: async ({ id }): Promise<MarkCtx> => {
++        await qc.cancelQueries({ queryKey: NOTIFICATION_FEED_KEY });
++        await qc.cancelQueries({ queryKey: UNREAD_COUNT_KEY });
++
++        const prevFeed = qc.getQueryData<
++          InfiniteData<ProviderNotificationListResponse>
++        >(NOTIFICATION_FEED_KEY);
++        const prevUnread = qc.getQueryData<ProviderNotificationUnreadCountResponse>(
++          UNREAD_COUNT_KEY,
++        );
++
++        let wasUnread = false;
++        if (prevFeed) {
++          const nowIso = new Date().toISOString();
++          const nextFeed: InfiniteData<ProviderNotificationListResponse> = {
++            ...prevFeed,
++            pages: prevFeed.pages.map((page) => ({
++              ...page,
++              notifications: page.notifications.map((n) => {
++                if (n.id === id && n.readAt === null) {
++                  wasUnread = true;
++                  return { ...n, readAt: nowIso };
++                }
++                return n;
++              }),
++            })),
++          };
++          qc.setQueryData(NOTIFICATION_FEED_KEY, nextFeed);
++        }
++
++        if (wasUnread && prevUnread) {
++          qc.setQueryData<ProviderNotificationUnreadCountResponse>(UNREAD_COUNT_KEY, {
++            unreadCount: Math.max(0, prevUnread.unreadCount - 1),
++          });
++        }
++
++        return { prevFeed, prevUnread };
++      },
++      onError: (_err, _vars, ctx) => {
++        if (ctx?.prevFeed) qc.setQueryData(NOTIFICATION_FEED_KEY, ctx.prevFeed);
++        if (ctx?.prevUnread) qc.setQueryData(UNREAD_COUNT_KEY, ctx.prevUnread);
++        toast.error("Couldn't mark as read. Please try again.");
++      },
++      onSettled: () => {
++        void qc.invalidateQueries({ queryKey: NOTIFICATION_FEED_KEY });
++        void qc.invalidateQueries({ queryKey: UNREAD_COUNT_KEY });
++      },
++    },
++  });
++}
+diff --git a/artifacts/web/src/lib/routes.ts b/artifacts/web/src/lib/routes.ts
+index ccd5426..b967ec1 100644
+--- a/artifacts/web/src/lib/routes.ts
++++ b/artifacts/web/src/lib/routes.ts
+@@ -29,6 +29,7 @@ export const ROUTES = {
+     earningsStatement: '/provider/earnings/statement',
+     profile: '/provider/profile',
+     credentials: '/provider/credentials',
++    notifications: '/provider/notifications',
+     applicationStatus: '/provider/application-status',
+   },
+ 
+diff --git a/artifacts/web/src/pages/portal/notifications.tsx b/artifacts/web/src/pages/portal/notifications.tsx
+new file mode 100644
+index 0000000..424f0de
+--- /dev/null
++++ b/artifacts/web/src/pages/portal/notifications.tsx
+@@ -0,0 +1,308 @@
++import React from 'react';
++import { useLocation } from 'wouter';
++import {
++  Bell,
++  CheckCheck,
++  CheckCircle2,
++  XCircle,
++  Send,
++  RotateCcw,
++  AlertCircle,
++  LogIn,
++} from 'lucide-react';
++import type {
++  ProviderNotification,
++  ProviderNotificationType,
++} from '@workspace/api-client-react';
++import { Button } from '@/components/ui/button';
++import { Skeleton } from '@/components/ui/skeleton';
++import {
++  Empty,
++  EmptyHeader,
++  EmptyMedia,
++  EmptyTitle,
++  EmptyDescription,
++  EmptyContent,
++} from '@/components/ui/empty';
++import { ROUTES } from '@/lib/routes';
++import {
++  useNotificationFeed,
++  useUnreadCount,
++  useMarkRead,
++  httpStatusOf,
++} from '@/hooks/use-notification-center';
++
++/** Icon + tone per notification type. Unknown/future types fall back safely. */
++const TYPE_META: Record<
++  ProviderNotificationType,
++  { Icon: React.ComponentType<{ className?: string }>; tone: string }
++> = {
++  submitted: { Icon: Send, tone: 'bg-primary/10 text-primary' },
++  reset_to_draft: { Icon: RotateCcw, tone: 'bg-accent/15 text-accent' },
++  approved: { Icon: CheckCircle2, tone: 'bg-emerald-100 text-emerald-700' },
++  rejected: { Icon: XCircle, tone: 'bg-destructive/10 text-destructive' },
++};
++
++function metaFor(type: ProviderNotificationType) {
++  return TYPE_META[type] ?? { Icon: Bell, tone: 'bg-secondary text-secondary-foreground' };
++}
++
++function relativeTime(iso: string): string {
++  const then = new Date(iso).getTime();
++  if (Number.isNaN(then)) return '';
++  const diffSec = Math.round((Date.now() - then) / 1000);
++  if (diffSec < 45) return 'just now';
++  const min = Math.round(diffSec / 60);
++  if (min < 60) return `${min}m ago`;
++  const hr = Math.round(min / 60);
++  if (hr < 24) return `${hr}h ago`;
++  const day = Math.round(hr / 24);
++  if (day < 7) return `${day}d ago`;
++  return new Date(iso).toLocaleDateString('en-US', {
++    month: 'short',
++    day: 'numeric',
++    year: 'numeric',
++  });
++}
++
++function Shell({ children }: { children: React.ReactNode }) {
++  return (
++    <div className="p-6 pt-10 pb-32 max-w-2xl mx-auto space-y-6" data-testid="notifications-page">
++      {children}
++    </div>
++  );
++}
++
++export default function PortalNotifications() {
++  const [, setLocation] = useLocation();
++  const feed = useNotificationFeed();
++  const unread = useUnreadCount();
++  const markRead = useMarkRead();
++
++  const notifications: ProviderNotification[] =
++    feed.data?.pages.flatMap((p) => p.notifications) ?? [];
++  const unreadCount = unread.data?.unreadCount ?? 0;
++  const hasUnreadVisible = notifications.some((n) => n.readAt === null);
++  const errorStatus = httpStatusOf(feed.error);
++
++  const openNotification = (n: ProviderNotification) => {
++    if (n.readAt === null) markRead.mutate({ id: n.id });
++    if (n.link) setLocation(n.link);
++  };
++
++  const markOne = (e: React.MouseEvent, n: ProviderNotification) => {
++    e.stopPropagation();
++    if (n.readAt === null) markRead.mutate({ id: n.id });
++  };
++
++  const markAllVisible = () => {
++    notifications
++      .filter((n) => n.readAt === null)
++      .forEach((n) => markRead.mutate({ id: n.id }));
++  };
++
++  const Header = (
++    <header className="flex items-start justify-between gap-4">
++      <div>
++        <h1 className="text-3xl font-serif font-bold text-foreground flex items-center gap-2">
++          Notifications
++        </h1>
++        <p className="text-muted-foreground mt-1" data-testid="notifications-unread-summary">
++          {unreadCount > 0
++            ? `${unreadCount} unread`
++            : 'You are all caught up'}
++        </p>
++      </div>
++      {hasUnreadVisible && (
++        <Button
++          variant="outline"
++          size="sm"
++          onClick={markAllVisible}
++          disabled={markRead.isPending}
++          data-testid="notifications-mark-all"
++          className="shrink-0 min-h-11"
++        >
++          <CheckCheck className="w-4 h-4 mr-1.5" />
++          Mark all read
++        </Button>
++      )}
++    </header>
++  );
++
++  // ── Loading (initial) ──────────────────────────────────────────────────────
++  if (feed.isLoading) {
++    return (
++      <Shell>
++        {Header}
++        <ul className="space-y-3" aria-hidden="true" data-testid="notifications-loading">
++          {Array.from({ length: 5 }).map((_, i) => (
++            <li key={i} className="bg-card border border-border rounded-2xl p-4 flex gap-4">
++              <Skeleton className="w-10 h-10 rounded-full shrink-0" />
++              <div className="flex-1 space-y-2">
++                <Skeleton className="h-4 w-1/3" />
++                <Skeleton className="h-3 w-2/3" />
++              </div>
++            </li>
++          ))}
++        </ul>
++      </Shell>
++    );
++  }
++
++  // ── Error states ───────────────────────────────────────────────────────────
++  if (feed.isError) {
++    if (errorStatus === 401) {
++      return (
++        <Shell>
++          {Header}
++          <Empty className="border" data-testid="notifications-unauthorized">
++            <EmptyHeader>
++              <EmptyMedia variant="icon"><LogIn /></EmptyMedia>
++              <EmptyTitle>Please sign in</EmptyTitle>
++              <EmptyDescription>Your session has expired. Sign in again to view your notifications.</EmptyDescription>
++            </EmptyHeader>
++            <EmptyContent>
++              <Button onClick={() => setLocation(ROUTES.login)} data-testid="notifications-signin">Go to sign in</Button>
++            </EmptyContent>
++          </Empty>
++        </Shell>
++      );
++    }
++    if (errorStatus === 403) {
++      return (
++        <Shell>
++          {Header}
++          <Empty className="border" data-testid="notifications-forbidden">
++            <EmptyHeader>
++              <EmptyMedia variant="icon"><Bell /></EmptyMedia>
++              <EmptyTitle>Not available for this account</EmptyTitle>
++              <EmptyDescription>Notifications are available to provider accounts.</EmptyDescription>
++            </EmptyHeader>
++          </Empty>
++        </Shell>
++      );
++    }
++    return (
++      <Shell>
++        {Header}
++        <Empty className="border" data-testid="notifications-error">
++          <EmptyHeader>
++            <EmptyMedia variant="icon"><AlertCircle /></EmptyMedia>
++            <EmptyTitle>Couldn't load notifications</EmptyTitle>
++            <EmptyDescription>Something went wrong. Please try again.</EmptyDescription>
++          </EmptyHeader>
++          <EmptyContent>
++            <Button
++              variant="outline"
++              onClick={() => feed.refetch()}
++              disabled={feed.isFetching}
++              data-testid="notifications-retry"
++            >
++              {feed.isFetching ? 'Retrying…' : 'Try again'}
++            </Button>
++          </EmptyContent>
++        </Empty>
++      </Shell>
++    );
++  }
++
++  // ── Empty ──────────────────────────────────────────────────────────────────
++  if (notifications.length === 0) {
++    return (
++      <Shell>
++        {Header}
++        <Empty className="border" data-testid="notifications-empty">
++          <EmptyHeader>
++            <EmptyMedia variant="icon"><Bell /></EmptyMedia>
++            <EmptyTitle>No notifications yet</EmptyTitle>
++            <EmptyDescription>Updates about your provider application will appear here.</EmptyDescription>
++          </EmptyHeader>
++        </Empty>
++      </Shell>
++    );
++  }
++
++  // ── List ───────────────────────────────────────────────────────────────────
++  return (
++    <Shell>
++      {Header}
++      <ul className="space-y-3" data-testid="notifications-list">
++        {notifications.map((n) => {
++          const { Icon, tone } = metaFor(n.type);
++          const isUnread = n.readAt === null;
++          return (
++            <li key={n.id}>
++              <button
++                type="button"
++                onClick={() => openNotification(n)}
++                data-testid={`notification-${n.id}`}
++                data-unread={isUnread}
++                className={`w-full text-left flex gap-4 items-start rounded-2xl border p-4 transition-colors min-h-[64px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
++                  isUnread
++                    ? 'bg-primary/5 border-primary/20 hover:bg-primary/10'
++                    : 'bg-card border-border hover:bg-secondary/50'
++                }`}
++              >
++                <span className={`relative shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${tone}`}>
++                  <Icon className="w-5 h-5" />
++                  {isUnread && (
++                    <span
++                      className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-white"
++                      aria-hidden="true"
++                    />
++                  )}
++                </span>
++                <span className="flex-1 min-w-0">
++                  <span className="flex items-center justify-between gap-2">
++                    <span className={`truncate ${isUnread ? 'font-semibold text-foreground' : 'font-medium text-foreground'}`}>
++                      {n.title}
++                    </span>
++                    <time
++                      className="text-xs text-muted-foreground shrink-0"
++                      dateTime={n.createdAt}
++                    >
++                      {relativeTime(n.createdAt)}
++                    </time>
++                  </span>
++                  <span className="block text-sm text-muted-foreground mt-0.5 line-clamp-2">
++                    {n.body}
++                  </span>
++                  {isUnread && (
++                    <span
++                      role="button"
++                      tabIndex={0}
++                      onClick={(e) => markOne(e, n)}
++                      onKeyDown={(e) => {
++                        if (e.key === 'Enter' || e.key === ' ') {
++                          markOne(e as unknown as React.MouseEvent, n);
++                        }
++                      }}
++                      className="inline-flex items-center mt-2 text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 rounded"
++                      data-testid={`notification-mark-${n.id}`}
++                    >
++                      Mark as read
++                    </span>
++                  )}
++                </span>
++              </button>
++            </li>
++          );
++        })}
++      </ul>
++
++      {feed.hasNextPage && (
++        <div className="flex justify-center pt-2">
++          <Button
++            variant="outline"
++            onClick={() => feed.fetchNextPage()}
++            disabled={feed.isFetchingNextPage}
++            data-testid="notifications-load-more"
++            className="min-h-11"
++          >
++            {feed.isFetchingNextPage ? 'Loading…' : 'Load more'}
++          </Button>
++        </div>
++      )}
++    </Shell>
++  );
++}
+-- 
+2.39.5
+
