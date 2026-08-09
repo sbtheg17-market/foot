@@ -1,35 +1,37 @@
-From 7da69d27d13aa3afce235d378f315e55f080088d Mon Sep 17 00:00:00 2001
+From c396adb5bc6107fe6ee790d390f5fe9ac1fd39d8 Mon Sep 17 00:00:00 2001
 From: emergent-agent-e1 <github@emergent.sh>
 Date: Sun, 9 Aug 2026 22:15:11 +0000
 Subject: [PATCH] =?UTF-8?q?docs(traceability):=20Session=20058=20=E2=80=94?=
- =?UTF-8?q?=20Session=20057=20landing=20verified=20(5e031e5);=20inventory?=
- =?UTF-8?q?=20accepted;=20cleanup=20and=20review=20gate=20prepared?=
+ =?UTF-8?q?=20Session=20057=20landing=20verified=20(5e031e5);=20review=20g?=
+ =?UTF-8?q?ate=20published=20(5853768);=20inventory=20accepted;=20cleanup?=
+ =?UTF-8?q?=20authorized?=
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
-Docs-only entry from origin/main tip 5e031e5. Records:
+Docs-only entry, rebased onto origin/main tip 5853768. Records:
 - Session 057 landed at 5e031e5, published tree
   cdaa7cb9cf7e0fe2ba8540c913749f47756f4346 (byte-identical to reviewed
   patch); canonical fast-forward chain cf689b5 -> 4734990 -> 6a5cf35 ->
-  5e031e5.
+  5e031e5 -> 5853768.
 - Sessions 054-057 present exactly once each; Phase 3 tree unchanged.
+- Publication review gate (publish:gate) reviewed as f957caf and published
+  at 5853768 with byte-identical tree 3e6b7b32...
 - Conflict-branch inventory completed and accepted as read-only evidence:
   nine unrelated Emergent lineages are cleanup candidates;
   conflict_070826_mc2 is real foot history but superseded (MC2 content
-  published as 1f4c018).
-- Review-gate automation prepared as its own reviewed commit (f957caf),
-  separate from this entry.
+  published as 1f4c018). Cleanup authorized as a separate managed-channel
+  operation.
 - Managed database status: UNVERIFIED. No product implementation started.
 Refreshes NEXT_TASK.md publication state and replaces stale draft-status
 sections with the current candidate/cleanup status.
 ---
  .agents/LOG.md       | 32 +++++++++++++++-
- .agents/NEXT_TASK.md | 88 ++++++++++++++++++++++----------------------
- 2 files changed, 74 insertions(+), 46 deletions(-)
+ .agents/NEXT_TASK.md | 87 +++++++++++++++++++++-----------------------
+ 2 files changed, 73 insertions(+), 46 deletions(-)
 
 diff --git a/.agents/LOG.md b/.agents/LOG.md
-index a153e15..13c7431 100644
+index a153e15..cfaba5a 100644
 --- a/.agents/LOG.md
 +++ b/.agents/LOG.md
 @@ -60,7 +60,7 @@ Since agent credit balances cannot be read programmatically, each session entry
@@ -37,7 +39,7 @@ index a153e15..13c7431 100644
  | Web in-app notification feed + unread badge | ✅ Phase 2 MC10 (web) verified | `/provider/notifications` renders an owner-scoped, newest-first feed consuming only the existing MC8-lite APIs (`GET /providers/notifications` keyset-paginated, `GET /providers/notifications/unread-count`, idempotent `POST /providers/notifications/:id/read`) via the generated client (`useGetProviderNotificationUnreadCount`, `useMarkProviderNotificationRead`, and the generated fetcher through TanStack `useInfiniteQuery`). ProviderLayout gains an "Alerts" tab with an unread badge (accessible label, hidden at 0, `99+` cap). Handles loading/empty/error+retry/401(sign-in redirect)/403/pagination/mark-read(optimistic+rollback+failure toast)/focus+interval refresh. No email/SMTP/push/SSE/notification-bus/vendor coupling; no backend, schema, OpenAPI, generated-client, or notification-semantics changes. Web + full typecheck + production build pass; API regression green (reviewer-decisions 14/14, provider-notifications 12/12). Scope: `artifacts/web/` only. Verified via manual browser screenshots (no web test framework introduced — deferred item unchanged). |
  | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
 -| GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are aligned at `6a5cf35` (canonical history `cf689b5 → 4734990 → 6a5cf35`, fast-forward only). Session 055 landed at `4734990` (tree byte-identical to the reviewed patch); Session 056 was published prematurely at `6a5cf35` (see Session 057 correction). The local Session 057 docs-only draft is prepared as a patch + SHA-256 and held for review — not pushed. |
-+| GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are aligned at `5e031e5` (canonical history `cf689b5 → 4734990 → 6a5cf35 → 5e031e5`, fast-forward only). Sessions 054–057 are published exactly once each. Two reviewed candidates are prepared locally on base `5e031e5` for managed-channel publication pending separate review approval: the publication review-gate commit `f957caf` and the Session 058 docs commit (this change). |
++| GitHub sync | ✅ Synchronized | Local `HEAD` and `origin/main` are aligned at `5853768` (canonical history `cf689b5 → 4734990 → 6a5cf35 → 5e031e5 → 5853768`, fast-forward only). Sessions 054–057 are published exactly once each; the publication review gate (`publish:gate`) is live on `main`. This Session 058 docs commit is the remaining reviewed candidate, rebased onto `5853768` and `publish:gate`-verified, prepared for managed-channel publication. |
  
  **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
  
@@ -55,7 +57,7 @@ index a153e15..13c7431 100644
 +- **Sessions 054–057 are present exactly once each** on `origin/main`; the previously published 054/055/056 entry text is byte-intact; Phase 3 remains unchanged at tree `e30feca1251f250a7126e987c9379ca3e42e1056`.
 +- **Conflict-branch inventory completed and accepted as read-only evidence** (no branch was modified). Findings: **nine** `conflict_*` branches are unrelated Emergent workspace lineages with no common ancestor with foot `main` (four distinct roots) and are approved cleanup candidates; **`conflict_070826_mc2` is real foot history** (merge-base `54534b0`, 5 unique commits) **but superseded** — its MC2 status-API content was published on `main` as `1f4c018`, leaving only pre-publication drafts, a handoff doc, and MC1/MC2 patch attachments. Every patch artifact found on any conflict branch corresponds to work already published on `main` (MC1–MC4, MC9 commits 1–3, web feed `a98e1a3`, Phase 1 events `d7a5999`); no unique unrecovered artifacts exist.
 +- **Cleanup plan (final confirmation granted, execution is a separate managed-channel operation):** first tag `archive/conflict_070826_mc2` at `bed2e06` and verify the tag, then delete only the nine unrelated lineages, then confirm `main` is unchanged. No history rewrite, no branch merges.
-+- **Publication review-gate automation prepared as its own reviewed commit** (separate from this entry): `scripts/verify-publication.sh` + root `publish:gate` script, local commit `f957caf` (tree `3e6b7b32…`, patch SHA-256 `a23522ef…`) based on `5e031e5`. Validates clean tree, fresh base, parent identity, fast-forward-only single non-merge commit, allow-list file scope, forbidden-path exclusion (`.emergent`/lockfiles/schema/generated/UI/assets/patches), draft-status wording, unique+ordered session numbers, tree identity, and patch checksum. Verified against 8 scenarios (1 passing, 6 failing as designed, 1 acknowledged-quotation path). It is a safety check, not a substitute for human publication approval. Pending separate review; not yet on `origin/main`.
++- **Publication review-gate automation published:** prepared as its own reviewed commit (separate from this entry) — `scripts/verify-publication.sh` + root `publish:gate` script, reviewed as local commit `f957caf` (patch SHA-256 `a23522ef…`) and, after separate approval, **published at `5853768` (parent exactly `5e031e5`) with byte-identical tree `3e6b7b32b173f51474cc7c6f8e0a71e9740b129d`** — fast-forward, exactly one commit, scope limited to `package.json` + `scripts/verify-publication.sh`. Validates clean tree, fresh base, parent identity, fast-forward-only single non-merge commit, allow-list file scope, forbidden-path exclusion (`.emergent`/lockfiles/schema/generated/UI/assets/patches), draft-status wording, unique+ordered session numbers, tree identity, and patch checksum. Verified against 8 scenarios (1 passing, 6 failing as designed, 1 acknowledged-quotation path). It is a safety check, not a substitute for human publication approval.
 +- **Managed database status: UNVERIFIED.** No database checks, migrations, or test suites were run.
 +- **No product implementation was started.** This entry's diff is docs-only: `.agents/LOG.md` and `.agents/NEXT_TASK.md`.
 +
@@ -69,9 +71,9 @@ index a153e15..13c7431 100644
 +- `.agents/LOG.md`
 +- `.agents/NEXT_TASK.md`
 +
-+**Build state at end:** One local docs-only commit on top of `origin/main` (`5e031e5`), prepared as a patch + SHA-256 for the managed channel, pending separate review approval; not yet on `origin/main`. The review-gate commit `f957caf` is prepared independently on the same base; both candidates touch disjoint files and each publishes as a fast-forward in either order (the second requires rebase + gate re-run after the first lands).
++**Build state at end:** The review-gate commit landed first at `5853768`; this entry was then rebased onto it (parent `5853768`), re-passed `publish:gate` (12/12), and is prepared as a recalculated patch + SHA-256 for the managed channel, pending its separate review-approved publication as the next fast-forward.
 +
-+**Next best action:** Review and publish, in either order via the managed channel: (1) the review-gate commit `f957caf`, (2) this Session 058 entry — each verified with `publish:gate` before push. Then execute the separately authorized conflict-branch cleanup (tag archive first, then delete the nine). Product work remains gated.
++**Next best action:** Publish this Session 058 entry via the managed channel (`publish:gate` verified), then execute the separately authorized conflict-branch cleanup (tag `archive/conflict_070826_mc2` at `bed2e06`, verify, delete only the nine pinned unrelated lineages, confirm `main` unchanged). Product work remains gated; the traceability dashboard stays deferred until these settle.
 +
 +---
 +
@@ -79,10 +81,10 @@ index a153e15..13c7431 100644
  **Agent:** E2 Agent (Emergent, Neo)
  **Scope:** `S`
 diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
-index e07ca1c..5ace0da 100644
+index e07ca1c..5b56366 100644
 --- a/.agents/NEXT_TASK.md
 +++ b/.agents/NEXT_TASK.md
-@@ -12,52 +12,50 @@
+@@ -12,52 +12,49 @@
  > NOT started and remain gated. Mobile feed, email outbox, and push remain gated and
  > sequenced after this checkpoint.
  
@@ -97,13 +99,13 @@ index e07ca1c..5ace0da 100644
 -  commit (this change). See Session 055 in `.agents/LOG.md`.
 +## Publication state (Session 058 remote verification)
 +
-+- Canonical `origin/main` tip: `5e031e5` (Session 057 traceability), tree
-+  `cdaa7cb9cf7e0fe2ba8540c913749f47756f4346`.
++- Canonical `origin/main` tip: `5853768` (publication review gate), tree
++  `3e6b7b32b173f51474cc7c6f8e0a71e9740b129d`, parent `5e031e5`.
 +- Canonical fast-forward history: `cf689b5` (Phase 3, tree `e30feca…`) →
 +  `4734990` (Session 055 recreation, tree `4002cbed…`) → `6a5cf35`
 +  (premature Session 056 publication — recorded and corrected by Session
-+  057) → `5e031e5` (Session 057). No force-push, rewrite, or `conflict_*`
-+  merge at any step.
++  057) → `5e031e5` (Session 057, tree `cdaa7cb9…`) → `5853768` (review
++  gate). No force-push, rewrite, or `conflict_*` merge at any step.
 +- Sessions 054–057 are present exactly once each in `.agents/LOG.md`;
 +  Phase 3 remains unchanged at tree `e30feca1251f250a7126e987c9379ca3e42e1056`.
 +- Full ancestry: `d7a5999` (Phase 1 base) → `4bb0e00` (Phase 2 readiness
@@ -149,19 +151,18 @@ index e07ca1c..5ace0da 100644
 +  EXCEPT `conflict_070826_mc2` (real foot history, superseded — see the
 +  accepted inventory, Session 058). Never merge or base work on any of them.
 +
-+## Pending reviewed candidates (base `5e031e5`, disjoint file scopes)
++## Pending reviewed candidate (base `5853768`)
 +
-+- **Publication review gate** — commit `f957caf`
-+  (`scripts/verify-publication.sh` + root `publish:gate`): pre-push safety
++- **Publication review gate — PUBLISHED** at `5853768` (parent `5e031e5`,
++  tree byte-identical to the reviewed commit `f957caf`):
++  `scripts/verify-publication.sh` + root `publish:gate`. Pre-push safety
 +  checks for parent identity, fast-forward-only, allow-list scope,
 +  forbidden paths, draft-status wording, unique+ordered session numbers,
 +  tree identity, and patch checksum. A safety check — human publication
-+  approval remains required. Pending separate review approval.
-+- **Session 058 traceability entry** (this change, `.agents` files only).
-+  Pending separate review approval.
-+- Either candidate may publish first via the managed channel
-+  (fast-forward); the second must be rebased onto the new tip and re-pass
-+  `publish:gate` before its own publication.
++  approval remains required.
++- **Session 058 traceability entry** (this change, `.agents` files only):
++  rebased onto `5853768`, `publish:gate` re-verified, prepared for
++  managed-channel publication as the next fast-forward.
 +
 +## Authorized conflict-branch cleanup (separate managed-channel operation)
 +
