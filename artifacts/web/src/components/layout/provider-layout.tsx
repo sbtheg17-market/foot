@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
-import { LayoutDashboard, CalendarDays, ClipboardList, Wallet, User as UserIcon, ShieldCheck, Bell } from 'lucide-react';
-import { useGetMe, useListBookings, ListBookingsStatus, useGetMyProviderReadiness } from '@workspace/api-client-react';
+import { LayoutDashboard, CalendarDays, ClipboardList, Wallet, User as UserIcon, ShieldCheck, Bell, LogOut } from 'lucide-react';
+import { useGetMe, useListBookings, ListBookingsStatus, useGetMyProviderReadiness, useLogout } from '@workspace/api-client-react';
 import { useProviderNotifications } from '@/hooks/use-provider-notifications';
 import { useUnreadCount } from '@/hooks/use-notification-center';
 import { unresolvedCount } from '@/lib/readiness';
@@ -10,6 +10,7 @@ import { ROUTES } from '@/lib/routes';
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const { data: me, isLoading, error } = useGetMe();
+  const logout = useLogout();
 
   // Opens SSE stream and shows toast when a new booking arrives
   useProviderNotifications();
@@ -38,6 +39,18 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     }
   }, [me, isLoading, error, setLocation]);
 
+  // Mirrors the established client-layout sign-out: server logout mutation,
+  // then clear the stored token and return to the login screen. No second
+  // authentication mechanism is introduced.
+  const handleLogout = () => {
+    logout.mutate(undefined, {
+      onSuccess: () => {
+        localStorage.removeItem('oncallfoot_token');
+        setLocation(ROUTES.login);
+      },
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center bg-background">
@@ -63,6 +76,18 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
 
   return (
     <div className="min-h-[100dvh] bg-background pb-20 md:pb-0 md:pl-20 relative mx-auto max-w-[500px] md:max-w-none shadow-2xl md:shadow-none bg-white print:pb-0 print:pl-0 print:shadow-none print:max-w-none">
+      {/* Mobile sign-out (fixed top-right; desktop uses the sidebar button) */}
+      <button
+        onClick={handleLogout}
+        disabled={logout.isPending}
+        aria-label="Sign out"
+        title="Sign out"
+        data-testid="provider-signout-button"
+        className="md:hidden print:hidden fixed top-3 right-3 z-50 w-8 h-8 rounded-full bg-secondary/80 backdrop-blur-sm border border-border/60 flex items-center justify-center text-secondary-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+      >
+        <LogOut className="w-4 h-4" />
+      </button>
+
       {/* Mobile Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 h-20 bg-card border-t border-border flex items-center justify-around px-2 z-50 md:hidden max-w-[500px] mx-auto shadow-[0_-4px_20px_rgba(0,0,0,0.05)] print:hidden">
         {tabs.map((tab) => {
@@ -107,6 +132,19 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
               </Link>
             );
           })}
+        </div>
+        <div className="mt-auto w-full px-2">
+          <button
+            onClick={handleLogout}
+            disabled={logout.isPending}
+            aria-label="Sign out"
+            title="Sign out"
+            data-testid="provider-signout-button-desktop"
+            className="flex flex-col items-center justify-center w-full aspect-square rounded-2xl gap-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-all disabled:opacity-50"
+          >
+            <LogOut className="w-6 h-6" strokeWidth={2} />
+            <span className="text-[10px] font-medium">Sign out</span>
+          </button>
         </div>
       </div>
 
