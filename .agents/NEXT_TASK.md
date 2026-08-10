@@ -1,5 +1,32 @@
 # Next product task — Web notification feed PUBLISHED (`a98e1a3`); Provider Activation & First Booking Conversion IN PROGRESS (Phases 1–3 done; Phase 3 PUBLISHED at `cf689b5`); Mobile feed sequenced after
 
+## Current state — Session 063 (2026-08-10, takeover workspace)
+
+- **Baseline:** canonical `origin/main` = `3e76114` (verified anonymous clone; tree `bc67dd6…`).
+  **18** `conflict_*` branches exist (inventory v5) — all archival snapshots, never merged,
+  based on, or modified; the two newest are platform auto-snapshots of the prior continuation
+  workspaces (attribution recorded; owner audit-log confirmation open). **All conflict-branch
+  cleanup is PAUSED** — the 16-branch cleanup plan and any deletion approval tied to it are
+  invalidated.
+- **Baseline independently re-verified green** from `3e76114`: typecheck + build PASS and all
+  API suites reproduce recorded numbers (63/63, 8/8, 9/9, 23/23, 7/7, 14/14, 12/12, 14/14,
+  11/11, 12/12) on an ephemeral local database. Gate B remains **NOT passed** (managed DB
+  still UNVERIFIED).
+- **Lost-candidate recovery:** the prior local candidates' patch artifacts and both v3
+  contract documents were recovered read-only from archival snapshot `conflict_100826_1543`
+  with exact checksum matches. The retired identities (`eec0147…`, `0c216d6…`) are not
+  reused; new candidates are derived from exactly `3e76114`, each separate.
+- **New local candidates (each requires its own review and publication approval):**
+  1. this Session 063 traceability entry (docs-only);
+  2. provider sign-out (one file, `artifacts/web/**` — publication additionally requires
+     `--approve-web-ui`);
+  3. lockfile-reproducibility fix (frozen install currently fails at the canonical tip;
+     cause documented; no blind lockfile regeneration).
+- **Standing approvals:** Phase 4C comfort-profile v3 (`339a03e6…`) — non-schema preparation
+  only; provider economics v3 (`2172f6cf…`) — contract only. Blocked: schema, migrations,
+  storage wiring, production event writes, economics implementation, marketplace expansion,
+  conflict-branch cleanup, remote ledger edits, any push or merge without named approval.
+
 > **Active checkpoint: Provider Activation & First Booking Conversion** (approved to sequence
 > BEFORE the mobile feed). Product/measurement spec:
 > `/workspace/CHECKPOINT_PROVIDER_ACTIVATION_FIRST_BOOKING_SPEC.md`. Phased, each phase
