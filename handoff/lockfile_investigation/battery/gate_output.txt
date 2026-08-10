@@ -1,0 +1,17 @@
+Publication review gate — candidate 2c6d024 vs origin/main
+
+  [PASS] working tree is clean
+  [PASS] fetched origin (base is current)
+  [PASS] HEAD parent equals verified origin/main (3e76114)
+  [PASS] update is fast-forward from origin/main
+  [PASS] exactly 1 commit ahead, 0 behind
+  [PASS] no merge commits in the range
+  [PASS] changed-file scope is within the allow-list (package.json .agents/SETUP.md)
+  [PASS] no .emergent/lockfile/schema/generated/UI/asset/patch files changed
+  [PASS] no draft-status wording in the published additions
+  [PASS] LOG.md unchanged — session numbering not affected
+  [PASS] tree identity matches expected (093a2c22856ba93e31a002e79486bdb9751fbdd4)
+  [PASS] patch checksum matches (1dfbfb13c932b240a8caaa8aa82a7691f700b1ab567e055c43dbed1b881b6e31)
+
+RESULT: PASS — candidate is safe to hand to the managed publication channel.
+Human review approval is still required before any push.

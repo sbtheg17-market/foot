@@ -1,0 +1,3 @@
+battery start 2026-08-10T21:29:08Z branch=rederive/lockfile-repro-100826 head=3e76114ce8ff8908a955d4beac38d6b3cde5dd6a
+pnpm=10.18.3 node=v24.4.1
+battery end 2026-08-10T21:31:11Z

@@ -1,5 +1,7 @@
 # Publication Draft B — Provider sign-out (`0c216d6`)
 
+**SUPERSEDED 2026-08-10 by `DRAFT_B_prime_provider_signout.md`. The identity `0c216d6…` is retired (artifact recovered as evidence). Do not execute this draft.**
+
 **STATUS: PREPARED, NOT EXECUTED. NOT APPROVED. CONTINGENT ON ARTIFACT RECOVERY. MUTUALLY SEQUENCED WITH DRAFT A.**
 
 | Field | Value |

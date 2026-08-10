@@ -1,5 +1,7 @@
 # Publication Draft A — Session 063 traceability (`eec0147`)
 
+**SUPERSEDED 2026-08-10 by `DRAFT_A_prime_session063.md`. The identity `eec0147…` is retired (artifact recovered as evidence). Do not execute this draft.**
+
 **STATUS: PREPARED, NOT EXECUTED. NOT APPROVED. CONTINGENT ON ARTIFACT RECOVERY.**
 This draft authorizes nothing. Execution requires: recovered artifact → re-verification → explicit human approval naming this draft → operator-approved publication window → fresh bounded write credential.
 
