@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Reconstruct A′/C′/B′ — ALL EXACT SHAs REPRODUCED (f4a5dfec / 2c6d0248 / e6380bf7)",
+    "status": "completed"
+  },
+  {
+    "content": "Gates re-run: frozen install PASS, battery 13/13 (205/0), B′ typecheck+build PASS, publish:gate PASS ×3",
+    "status": "completed"
+  },
+  {
+    "content": "Publication drafts A′ → C′ → B′ written (local, unpushed)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 4C non-schema prep: OpenAPI draft, contract module, fixtures, 38/38 contract tests, UI shells — committed 2dc23539",
+    "status": "completed"
+  },
+  {
+    "content": "State matrix v2 produced + persisted; remote re-verified unmutated (main=3e76114)",
+    "status": "completed"
+  }
+]

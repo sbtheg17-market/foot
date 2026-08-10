@@ -1,0 +1,3 @@
+typecheck EXIT=0
+webbuild EXIT=0
+DONE
