@@ -83,3 +83,16 @@ the /app auto-push. Recorded as UNAVAILABLE. Nothing re-derived (not authorized)
    candidate identities with fresh reviews (objects unrecoverable).
 4. Then: bounded S063 publication window → close/verify → managed Gate B → C-1 schema →
    C-2 storage connection → economics implementation (sequence of record unchanged).
+
+## 8. Addendum (entry 13) — disposition + cleanup plan
+
+- Candidate disposition and the bounded S063 publication procedure are pinned in
+  the working ledger (entry 13). S063 9c3c7170… is the sole immediate publication
+  candidate; C-2/economics stay local, blocked on Gate B; never bundle them.
+- Fresh 16-branch cleanup PLAN (deletion NOT authorized) recorded at
+  /app/memory/CONFLICT_CLEANUP_PLAN_V1_16BRANCH.md (sha256 89b67d0d…); Session 058
+  nine-branch list retired. Exclusions: main, tags (none), PR refs (none),
+  conflict_070826_mc2, conflict_090826_2326, conflict_100826_1234.
+- Transcription note: the operator's disposition table rendered the C-2 SHA
+  truncated ("…5303513"); the correct full identity is
+  9740fbce5d2b058d4e7fa14846dd0215303514e0 (verified twice in /root/foot).
