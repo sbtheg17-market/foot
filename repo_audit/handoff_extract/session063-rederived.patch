@@ -1,0 +1,114 @@
+From f4a5dfeca5af222aeb9dcb1a6da822415397f902 Mon Sep 17 00:00:00 2001
+From: "E2 Agent (Emergent)" <github@emergent.sh>
+Date: Mon, 10 Aug 2026 20:30:57 +0000
+Subject: [PATCH] =?UTF-8?q?docs(traceability):=20Session=20063=20=E2=80=94?=
+ =?UTF-8?q?=20new-account=20takeover=20verified=20canonical=20baseline=203?=
+ =?UTF-8?q?e76114=20with=20independently=20green=20test=20battery;=20read-?=
+ =?UTF-8?q?only=2018-branch=20inventory=20v5=20recorded=20(two=20new=20pla?=
+ =?UTF-8?q?tform=20snapshots=20attributed,=20cleanup=20paused);=20lost=20c?=
+ =?UTF-8?q?andidate=20artifacts=20and=20both=20v3=20contracts=20recovered?=
+ =?UTF-8?q?=20from=20archival=20snapshot=20with=20exact=20checksum=20match?=
+ =?UTF-8?q?es=20(retired=20identities=20not=20reused);=20frozen-lockfile?=
+ =?UTF-8?q?=20reproducibility=20defect=20recorded=20for=20its=20own=20cand?=
+ =?UTF-8?q?idate;=20Gate=20B=20unchanged=20(UNVERIFIED)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .agents/LOG.md       | 34 +++++++++++++++++++++++++++++++++-
+ .agents/NEXT_TASK.md | 27 +++++++++++++++++++++++++++
+ 2 files changed, 60 insertions(+), 1 deletion(-)
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index 34511a8..a594385 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -62,7 +62,7 @@ Since agent credit balances cannot be read programmatically, each session entry
+ | Provider readiness web UI (Phase 4B) | ✅ PUBLISHED at `b3937a7` | Canonical `/provider/readiness` page + `ReadinessChecklist` consuming the existing generated `GET /providers/me/readiness` hook; server C1–C7 values and reason codes rendered verbatim (never re-derived); centralized plain-language reason-code labels with button-styled fix actions aligned to the approved C1–C7 action table; progress summary + "Ready for clients" state; loading/error/401/403/empty states (403 is actionable: "Become a provider" → existing onboarding flow); compact dashboard card; amber nav progress badge showing server-reported `missing.length`; stable `data-testid`s. Nine files, all `artifacts/web/src/**`; patch SHA-256 `31cbfcf1…`. Validation: full typecheck, web+api builds, readiness 14/14 + marketplace-events 12/12 (local DB) + booking unit 63/63, provider/client/admin role behavior, forced-500 (recoverable, no raw error leaked), forced-empty (fail-safe, never marked ready), forced-401, fix-link navigation, desktop+mobile-width screenshots. Review correction included: new `/provider/travel-zones` management surface over the existing contract (list/add/remove; no update endpoint exists) is C5's direct fix destination, verified end-to-end in both directions (add → C5 done, remove → C5 missing; server-reported). Published fast-forward with the recorded one-time human UI-scope approval covering the gate's intentional `artifacts/web/**` rule (no gate changes). Post-publication verification re-confirmed the C5 travel-zone flow in both directions from the published tree. See Sessions 059–060. |
+ | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
+ | Publication review-gate UI-approval flag | ✅ PUBLISHED at `47df77e` | `scripts/verify-publication.sh` check 5 split into two tiers: hard-forbidden paths (`.emergent/`, lockfiles, `lib/db/src/schema/`, generated clients, `artifacts/mobile/`, `attached_assets/`, `.patch`/`.bundle`) are never overridable; `artifacts/web/**` alone may be explicitly authorized for a reviewed UI publication via `--approve-web-ui "<approver>: <reason>"`, with the approval text and each authorized web file printed as the audit record. All other checks (parent identity, fast-forward-only ancestry, single non-merge commit, allow-list scope, tree identity, patch checksum, session numbering, wording) are unchanged. Functionally re-verified from the published tree in Session 061. |
+-| GitHub sync | ✅ Synchronized | Local `main` and `origin/main` are aligned at `c02a308` (canonical history `… → b3937a7 → 83cf335 → 6aa4863 → 47df77e → c02a308`, fast-forward only; no force-push). Sessions 054–061 are published exactly once each; Session 061 (`c02a308`) landed as a verified fast-forward through the dedicated MCP publication channel with full gate PASS, post-push tree/scope/patch-checksum verification, and an independent HTTPS cross-check. This Session 062 docs commit is the next reviewed candidate for managed-channel publication. |
++| GitHub sync | ✅ Synchronized (read-only takeover baseline) | New-account takeover verified `origin/main` = `3e76114` (Session 062 live; tree `bc67dd6…`) via anonymous read-only clone; full ref inventory (18 `conflict_*` snapshots) and `.agents` checksums recorded in the local takeover packet. This workspace holds NO GitHub credential and never pushes; Session 063 exists as a local traceability commit with a recorded patch checksum, handed off for separately approved publication. |
+ 
+ **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
+ 
+@@ -351,6 +351,38 @@ Both are review documents only — no schema, code, migration, event, mobile, an
+ 
+ ---
+ 
++### Session 063 — 2026-08-10 (new lineage; the prior local "Session 063" candidate identity `eec0147…` is retired — no continuity or byte identity is claimed with it)
++**Agent:** E2 Agent (Emergent) — new takeover account
++**Scope:** `S` (traceability only)
++**Triggered by:** Operator-approved takeover decisions: accept the local takeover packet as a review artifact; re-derive the two lost local candidates as NEW candidates from exactly `3e76114`; run a read-only inventory of all 18 `conflict_*` branches; investigate the frozen-lockfile reproducibility defect as a separate candidate; pause ALL conflict-branch cleanup (the 16-branch cleanup plan and any deletion approval tied to it are invalidated by the 18-branch discovery).
++
++**Independent baseline verification (anonymous read-only; no credential in this workspace):**
++- `origin/main` = `3e76114ce8ff8908a955d4beac38d6b3cde5dd6a` (tree `bc67dd6e281d3521d679c411fc70cdde6ab24a34`), clean clone; canonical chain endpoints re-confirmed.
++- Full verification battery independently re-run green from the canonical tip (Node 24.4.1, ephemeral local PostgreSQL 15 only — Gate B remains NOT passed; managed DB remains UNVERIFIED): typecheck PASS; build PASS; booking 63/63, provider-application 8/8, provider-status 9/9, onboarding 23/23, authorization 7/7 (fresh seed, zero manual inserts), provider-readiness 14/14, provider-notifications 12/12, reviewer-decisions 14/14, provider-resubmission 11/11, marketplace-events 12/12.
++
++**Read-only 18-branch inventory (v5; supersedes the 12-branch Session 062 pass and the recovered 16-branch v4):**
++- 18 `conflict_*` branches enumerated with full tips, authors, timestamps, ancestry, unique-commit counts, classifications, and attribution status; zero mutations. 17 share no ancestor with `main`; only `conflict_070826_mc2` is real superseded foot history (merge-base `54534b0`).
++- The two newest branches are Emergent platform auto-snapshots of the two prior continuation workspaces, pushed 2026-08-10T18:15:29Z (`conflict_100826_1415`, `27a5ada`) and 19:44:06Z (`conflict_100826_1543`, `9e9a3ee`) — attributed by content self-identification; owner audit-log confirmation remains open. All cleanup work is PAUSED.
++
++**Evidence recovery (read-only extraction from archival snapshots; no branch modified):**
++- `conflict_100826_1543` preserves the two prior local candidate patch artifacts with EXACT full-checksum matches to the handoff record: `session-063-traceability.patch` SHA-256 `290fa5099d46bc9f536561e77fca8c7750eae668aa52f4df1a242ab1e550dcbe` (embeds retired commit id `eec0147cd54fe20f02113e1b6aff39b25e1aa6d8`) and `provider-signout.patch` SHA-256 `2b4ee109aa295f3f387c74bc8f1f9a70b2ec18e316df87f4b24c0939978817bb` (embeds retired commit id `0c216d6f9f6bf2bccb34cc5b34878c0aaa46f47d`, tree `c6e8c1f2…`, exactly one file `artifacts/web/src/components/layout/provider-layout.tsx` +40/−2). Per operator instruction the retired identities are NOT reused; recovered artifacts serve as review evidence and content source for the new candidates only.
++- Both v3 contract documents recovered with EXACT checksum matches: Phase 4C comfort-profile `339a03e6bb2c7aab6cee7306bb1daff43003a46c6edbbf16f2ed77c2d5fe4a4f`; provider economics `2172f6cf08bd1a86a15c6d140ff8f591941a80311ef496fd62f98f2a68ceec61`. Standing approvals: Phase 4C v3 non-schema preparation only; economics v3 contract-only.
++- GitHub security-log export recovered (306 events, hashed token fingerprints only, coverage through 2026-08-10T13:15:16Z, includes deploy-key create/delete events); the post-16:35Z export request remains open. One chain-of-custody mismatch flagged: `DELETION_REQUEST_DRAFT_V1.md` differs from its own recorded checksum (moot while cleanup is paused).
++
++**Reproducibility defect recorded (separate candidate; canonical dependency graph unchanged):** `pnpm install --frozen-lockfile` FAILS at `3e76114` with `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH` (overrides) under both the pinned `pnpm@9.15.0` and `pnpm@10.18.3`; `pnpm-workspace.yaml` uses v10-only fields (`overrides`, `minimumReleaseAge`) while `packageManager` pins 9.15.0. Root-cause diagnosis and a minimal documented fix proceed as their own reviewed candidate; the lockfile was NOT regenerated.
++
++**Gate status:** Gate A cleanup PAUSED (inventory v5 pending owner audit confirmation for the two new snapshots). Gate B unchanged — managed database remains UNVERIFIED; no migrations, no storage wiring, no production event writes.
++
++**Files changed (this candidate):**
++- `.agents/LOG.md`
++- `.agents/NEXT_TASK.md`
++
++**Build state at end:** `origin/main` unchanged at `3e76114` (nothing pushed from this workspace). This Session 063 entry exists as a local commit on branch `rederive/session063-100826` with a recorded patch checksum, handed off for separately approved publication.
++
++**Next best action:** operator reviews the three new local candidates (this traceability entry; the re-derived provider sign-out; the lockfile-reproducibility fix) and approves publications individually; owner supplies the post-16:35Z audit export and branch-protection export; then Phase 4C non-schema preparation (spec draft, UI shells, fixtures, contract tests) against the checksum-verified v3 contract.
++
++---
++
+ ### Session 053 — 2026-08-09
+ **Agent:** E2 Agent (Emergent, Neo)
+ **Scope:** `S`
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index 4359053..7550f34 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -1,5 +1,32 @@
+ # Next product task — Web notification feed PUBLISHED (`a98e1a3`); Provider Activation & First Booking Conversion IN PROGRESS (Phases 1–3 done; Phase 3 PUBLISHED at `cf689b5`); Mobile feed sequenced after
+ 
++## Current state — Session 063 (2026-08-10, takeover workspace)
++
++- **Baseline:** canonical `origin/main` = `3e76114` (verified anonymous clone; tree `bc67dd6…`).
++  **18** `conflict_*` branches exist (inventory v5) — all archival snapshots, never merged,
++  based on, or modified; the two newest are platform auto-snapshots of the prior continuation
++  workspaces (attribution recorded; owner audit-log confirmation open). **All conflict-branch
++  cleanup is PAUSED** — the 16-branch cleanup plan and any deletion approval tied to it are
++  invalidated.
++- **Baseline independently re-verified green** from `3e76114`: typecheck + build PASS and all
++  API suites reproduce recorded numbers (63/63, 8/8, 9/9, 23/23, 7/7, 14/14, 12/12, 14/14,
++  11/11, 12/12) on an ephemeral local database. Gate B remains **NOT passed** (managed DB
++  still UNVERIFIED).
++- **Lost-candidate recovery:** the prior local candidates' patch artifacts and both v3
++  contract documents were recovered read-only from archival snapshot `conflict_100826_1543`
++  with exact checksum matches. The retired identities (`eec0147…`, `0c216d6…`) are not
++  reused; new candidates are derived from exactly `3e76114`, each separate.
++- **New local candidates (each requires its own review and publication approval):**
++  1. this Session 063 traceability entry (docs-only);
++  2. provider sign-out (one file, `artifacts/web/**` — publication additionally requires
++     `--approve-web-ui`);
++  3. lockfile-reproducibility fix (frozen install currently fails at the canonical tip;
++     cause documented; no blind lockfile regeneration).
++- **Standing approvals:** Phase 4C comfort-profile v3 (`339a03e6…`) — non-schema preparation
++  only; provider economics v3 (`2172f6cf…`) — contract only. Blocked: schema, migrations,
++  storage wiring, production event writes, economics implementation, marketplace expansion,
++  conflict-branch cleanup, remote ledger edits, any push or merge without named approval.
++
+ > **Active checkpoint: Provider Activation & First Booking Conversion** (approved to sequence
+ > BEFORE the mobile feed). Product/measurement spec:
+ > `/workspace/CHECKPOINT_PROVIDER_ACTIVATION_FIRST_BOOKING_SPEC.md`. Phased, each phase
+-- 
+2.39.5
+
