@@ -1,0 +1,561 @@
+From 7009ce66d7c6c888592279ce0f0ff3d9af023d11 Mon Sep 17 00:00:00 2001
+From: "E2 Agent (Emergent)" <github@emergent.sh>
+Date: Mon, 10 Aug 2026 22:35:32 +0000
+Subject: [PATCH] =?UTF-8?q?feat(comfort-demo):=20wire=20Phase=204C=20shell?=
+ =?UTF-8?q?s=20locally=20against=20fixture=20data=20only=20=E2=80=94=20/co?=
+ =?UTF-8?q?mfort-demo=20harness=20pairs=20the=20client=20consent-first=20e?=
+ =?UTF-8?q?ditor=20with=20a=20provider=20booking=20simulation=20driven=20b?=
+ =?UTF-8?q?y=20a=20pure=20demo=20mirror=20of=20the=20projection=20filter?=
+ =?UTF-8?q?=20(active=20statuses,=20ownership,=20consent,=20per-category?=
+ =?UTF-8?q?=20visibility,=20darkness=20explained=20as=20server=20404-never?=
+ =?UTF-8?q?-403);=20shell=20gains=20optional=20initial=20values;=20copy=20?=
+ =?UTF-8?q?audit=20extended=20to=20the=20demo=20files;=20OpenAPI=20stays?=
+ =?UTF-8?q?=20x-status:=20draft=20with=20no=20codegen;=20no=20schema/stora?=
+ =?UTF-8?q?ge/persistence/events;=20contract=20tests=2038/38=20and=20regre?=
+ =?UTF-8?q?ssion=2063/63=20green;=20pnpm-lock.yaml=20untouched?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../comfort-profile.contract.test.ts          |   2 +
+ artifacts/web/src/App.tsx                     |   4 +
+ .../src/pages/comfort/comfort-demo-data.ts    | 180 +++++++++++++++
+ .../web/src/pages/comfort/comfort-demo.tsx    | 218 ++++++++++++++++++
+ .../comfort/comfort-preferences-shell.tsx     |  38 ++-
+ docs/comfort-profile/WIRING_NOTES.md          |   5 +-
+ 6 files changed, 440 insertions(+), 7 deletions(-)
+ create mode 100644 artifacts/web/src/pages/comfort/comfort-demo-data.ts
+ create mode 100644 artifacts/web/src/pages/comfort/comfort-demo.tsx
+
+diff --git a/artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts b/artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts
+index 72effbc..f2f02a1 100644
+--- a/artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts
++++ b/artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts
+@@ -248,6 +248,8 @@ test('Language rule — copy audit', async (t) => {
+     const shellFiles = [
+       join(REPO_ROOT, 'artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx'),
+       join(REPO_ROOT, 'artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx'),
++      join(REPO_ROOT, 'artifacts/web/src/pages/comfort/comfort-demo.tsx'),
++      join(REPO_ROOT, 'artifacts/web/src/pages/comfort/comfort-demo-data.ts'),
+     ];
+     for (const file of shellFiles) {
+       const source = readFileSync(file, 'utf8');
+diff --git a/artifacts/web/src/App.tsx b/artifacts/web/src/App.tsx
+index 7486a07..0fb0057 100644
+--- a/artifacts/web/src/App.tsx
++++ b/artifacts/web/src/App.tsx
+@@ -23,6 +23,7 @@ import PortalNotifications from '@/pages/portal/notifications';
+ import PortalReadiness from '@/pages/portal/readiness';
+ import PortalTravelZones from '@/pages/portal/travel-zones';
+ import AdminVerification from '@/pages/admin/verification';
++import ComfortDemo from '@/pages/comfort/comfort-demo';
+ import ProviderLayout from '@/components/layout/provider-layout';
+ import ClientLayout from '@/components/layout/client-layout';
+ import { ROUTES, LEGACY_PORTAL_REDIRECTS } from '@/lib/routes';
+@@ -104,6 +105,9 @@ function Router() {
+       {/* ── Admin ────────────────────────────────────────────────────────── */}
+       <Route path={ROUTES.admin.verification} component={AdminVerification} />
+ 
++      {/* ── Phase 4C demo harness — fixture data only, nothing persists ──── */}
++      <Route path="/comfort-demo" component={ComfortDemo} />
++
+       <Route component={NotFound} />
+     </Switch>
+   );
+diff --git a/artifacts/web/src/pages/comfort/comfort-demo-data.ts b/artifacts/web/src/pages/comfort/comfort-demo-data.ts
+new file mode 100644
+index 0000000..b0e49c7
+--- /dev/null
++++ b/artifacts/web/src/pages/comfort/comfort-demo-data.ts
+@@ -0,0 +1,180 @@
++/**
++ * Phase 4C — Comfort demo harness — FIXTURE DATA ONLY.
++ *
++ * Frontend mirror of the canonical fixtures and the pure projection filter in
++ * artifacts/api-server/src/contracts/comfort-profile.contract.ts. The mirror
++ * exists only so the demo can visualize contract behavior without any API,
++ * storage, or codegen. At implementation step C-2/C-3 the server projection
++ * becomes the single authority and this file is deleted.
++ *
++ * Nothing here persists: state lives in React memory and resets on reload.
++ */
++
++export const VISIBILITY_CATEGORIES = [
++  'bookingReason',
++  'comfort',
++  'sensitivities',
++  'accessibility',
++  'setting',
++  'appointmentShape',
++  'communication',
++  'visitNote',
++] as const;
++export type CategoryKey = (typeof VISIBILITY_CATEGORIES)[number];
++export type VisibilityFlags = Record<CategoryKey, boolean>;
++
++export function defaultVisibility(): VisibilityFlags {
++  return {
++    bookingReason: false,
++    comfort: false,
++    sensitivities: false,
++    accessibility: false,
++    setting: false,
++    appointmentShape: false,
++    communication: false,
++    visitNote: false,
++  };
++}
++
++export interface DemoPreferences {
++  bookingReason?: string;
++  pressurePreference?: string;
++  touchSensitivity?: string;
++  temperaturePreference?: string;
++  fragrancePreference?: string;
++  sensitivityFlags?: string[];
++  accessibilityNeeds?: string[];
++  settingPreference?: string;
++  preferredDurationBucket?: string;
++  preferredTimeWindows?: string[];
++  communicationPreference?: string;
++  languagePreference?: string;
++  visitNote?: string;
++}
++
++/** Mirrors fullValidPreferences in the API fixtures. */
++export const SAMPLE_PREFERENCES: DemoPreferences = {
++  bookingReason: 'recurring_care',
++  pressurePreference: 'light',
++  touchSensitivity: 'high',
++  temperaturePreference: 'warmer',
++  fragrancePreference: 'fragrance_free_required',
++  sensitivityFlags: ['sensitive_skin', 'allergy_latex'],
++  accessibilityNeeds: ['limited_mobility', 'stairs_at_entrance'],
++  settingPreference: 'at_home_only',
++  preferredDurationBucket: 'standard_60',
++  preferredTimeWindows: ['weekday_morning', 'weekend_afternoon'],
++  communicationPreference: 'quiet_visit',
++  languagePreference: 'en',
++  visitNote: 'Please ring the bell twice; the front door sticks a little.',
++};
++
++/** Mirrors comfortAndAccessibilityVisible in the API fixtures. */
++export const SAMPLE_VISIBILITY: VisibilityFlags = {
++  ...defaultVisibility(),
++  comfort: true,
++  accessibility: true,
++};
++
++/** Exact active-status set (contract §2.6). */
++export const ACTIVE_BOOKING_STATUSES = ['confirmed', 'en_route', 'in_progress'] as const;
++export const ALL_DEMO_BOOKING_STATUSES = [
++  'requested',
++  'confirmed',
++  'en_route',
++  'in_progress',
++  'completed',
++  'cancelled',
++] as const;
++export type DemoBookingStatus = (typeof ALL_DEMO_BOOKING_STATUSES)[number];
++
++export interface DemoProjection {
++  bookingReason?: string;
++  comfort?: {
++    pressurePreference?: string;
++    touchSensitivity?: string;
++    temperaturePreference?: string;
++    fragrancePreference?: string;
++  };
++  sensitivities?: string[];
++  accessibility?: string[];
++  setting?: string;
++  appointmentShape?: {
++    preferredDurationBucket?: string;
++    preferredTimeWindows?: string[];
++  };
++  communication?: {
++    communicationPreference?: string;
++    languagePreference?: string;
++  };
++  visitNote?: string;
++}
++
++export interface DemoProjectionContext {
++  providerOwnsBooking: boolean;
++  bookingStatus: string;
++  consentActive: boolean;
++  preferences: DemoPreferences | null;
++  visibility: VisibilityFlags | null;
++}
++
++/**
++ * Pure mirror of buildProviderProjection (contract module). A null result is
++ * what the server surfaces as HTTP 404 — never 403 — so profile existence is
++ * never confirmed to an unauthorized caller.
++ */
++export function buildDemoProjection(ctx: DemoProjectionContext): DemoProjection | null {
++  if (!ctx.providerOwnsBooking) return null;
++  if (!(ACTIVE_BOOKING_STATUSES as readonly string[]).includes(ctx.bookingStatus)) return null;
++  if (!ctx.consentActive) return null;
++  if (ctx.preferences === null || ctx.visibility === null) return null;
++
++  const p = ctx.preferences;
++  const v = ctx.visibility;
++  const projection: DemoProjection = {};
++
++  if (v.bookingReason && p.bookingReason && p.bookingReason !== 'unspecified') {
++    projection.bookingReason = p.bookingReason;
++  }
++  if (v.comfort) {
++    const comfort: NonNullable<DemoProjection['comfort']> = {};
++    if (p.pressurePreference && p.pressurePreference !== 'unspecified') comfort.pressurePreference = p.pressurePreference;
++    if (p.touchSensitivity && p.touchSensitivity !== 'unspecified') comfort.touchSensitivity = p.touchSensitivity;
++    if (p.temperaturePreference && p.temperaturePreference !== 'unspecified') comfort.temperaturePreference = p.temperaturePreference;
++    if (p.fragrancePreference && p.fragrancePreference !== 'unspecified') comfort.fragrancePreference = p.fragrancePreference;
++    if (Object.keys(comfort).length > 0) projection.comfort = comfort;
++  }
++  if (v.sensitivities && p.sensitivityFlags && p.sensitivityFlags.length > 0) {
++    projection.sensitivities = [...p.sensitivityFlags];
++  }
++  if (v.accessibility && p.accessibilityNeeds && p.accessibilityNeeds.length > 0) {
++    projection.accessibility = [...p.accessibilityNeeds];
++  }
++  if (v.setting && p.settingPreference && p.settingPreference !== 'unspecified') {
++    projection.setting = p.settingPreference;
++  }
++  if (v.appointmentShape) {
++    const shape: NonNullable<DemoProjection['appointmentShape']> = {};
++    if (p.preferredDurationBucket && p.preferredDurationBucket !== 'unspecified') {
++      shape.preferredDurationBucket = p.preferredDurationBucket;
++    }
++    if (p.preferredTimeWindows && p.preferredTimeWindows.length > 0) {
++      shape.preferredTimeWindows = [...p.preferredTimeWindows];
++    }
++    if (Object.keys(shape).length > 0) projection.appointmentShape = shape;
++  }
++  if (v.communication) {
++    const comm: NonNullable<DemoProjection['communication']> = {};
++    if (p.communicationPreference && p.communicationPreference !== 'unspecified') {
++      comm.communicationPreference = p.communicationPreference;
++    }
++    if (p.languagePreference) comm.languagePreference = p.languagePreference;
++    if (Object.keys(comm).length > 0) projection.communication = comm;
++  }
++  if (v.visitNote && p.visitNote && p.visitNote.length > 0) {
++    projection.visitNote = p.visitNote;
++  }
++
++  if (Object.keys(projection).length === 0) return null;
++  return projection;
++}
+diff --git a/artifacts/web/src/pages/comfort/comfort-demo.tsx b/artifacts/web/src/pages/comfort/comfort-demo.tsx
+new file mode 100644
+index 0000000..494668e
+--- /dev/null
++++ b/artifacts/web/src/pages/comfort/comfort-demo.tsx
+@@ -0,0 +1,218 @@
++/**
++ * Phase 4C — Comfort profile DEMO HARNESS — fixture data only, nothing persists.
++ *
++ * Local wiring of the two Phase 4C shells so the consent-first flow and the
++ * booking-scoped provider projection can be exercised end to end WITHOUT any
++ * API, storage, schema, codegen, or event work:
++ *
++ *   Client pane   → ComfortPreferencesShell (grant/withdraw consent, edit,
++ *                   save, delete — all in React memory)
++ *   Provider pane → ProviderComfortCardShell fed by the pure projection
++ *                   mirror over the SAVED (not draft) profile
++ *
++ * Demo-only route (/comfort-demo); removed/replaced at step C-3 when the
++ * server projection becomes the single authority.
++ */
++import React, { useMemo, useState } from 'react';
++import ComfortPreferencesShell from './comfort-preferences-shell';
++import ProviderComfortCardShell from '@/components/comfort/provider-comfort-card-shell';
++import {
++  ALL_DEMO_BOOKING_STATUSES,
++  ACTIVE_BOOKING_STATUSES,
++  SAMPLE_PREFERENCES,
++  SAMPLE_VISIBILITY,
++  buildDemoProjection,
++  type DemoBookingStatus,
++  type DemoPreferences,
++  type VisibilityFlags,
++} from './comfort-demo-data';
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
++import { Badge } from '@/components/ui/badge';
++import { Button } from '@/components/ui/button';
++import { Label } from '@/components/ui/label';
++import { Switch } from '@/components/ui/switch';
++import {
++  Select,
++  SelectContent,
++  SelectItem,
++  SelectTrigger,
++  SelectValue,
++} from '@/components/ui/select';
++import { FlaskConical, MoonStar, UserRound, Sparkles } from 'lucide-react';
++import { toast } from 'sonner';
++
++type ConsentStatus = 'none' | 'active' | 'withdrawn';
++
++export default function ComfortDemo() {
++  // ── client-side demo state (in-memory only) ────────────────────────
++  const [consentStatus, setConsentStatus] = useState<ConsentStatus>('none');
++  const [savedPreferences, setSavedPreferences] = useState<DemoPreferences | null>(null);
++  const [savedVisibility, setSavedVisibility] = useState<VisibilityFlags | null>(null);
++  const [seed, setSeed] = useState(0); // remount key for "Load sample profile"
++  const [seeded, setSeeded] = useState(false);
++
++  // ── provider-side booking simulation ──────────────────────────────
++  const [bookingStatus, setBookingStatus] = useState<DemoBookingStatus>('confirmed');
++  const [providerOwnsBooking, setProviderOwnsBooking] = useState(true);
++
++  const projection = useMemo(
++    () =>
++      buildDemoProjection({
++        providerOwnsBooking,
++        bookingStatus,
++        consentActive: consentStatus === 'active',
++        preferences: savedPreferences,
++        visibility: savedVisibility,
++      }),
++    [providerOwnsBooking, bookingStatus, consentStatus, savedPreferences, savedVisibility],
++  );
++
++  const handleGrant = () => {
++    setConsentStatus('active');
++    toast.success('Consent granted — your preferences are now editable.');
++  };
++  const handleWithdraw = () => {
++    setConsentStatus('withdrawn');
++    toast.info('Consent withdrawn — providers can no longer see any preferences.');
++  };
++  const handleSave = (draft: { preferences: Record<string, unknown>; visibility: VisibilityFlags }) => {
++    setSavedPreferences(draft.preferences as DemoPreferences);
++    setSavedVisibility(draft.visibility);
++    toast.success('Preferences saved (demo memory only — nothing persists).');
++  };
++  const handleDelete = () => {
++    setSavedPreferences(null);
++    setSavedVisibility(null);
++    setSeeded(false);
++    setSeed((s) => s + 1); // clear the editor too
++    toast.info('Comfort profile deleted. Consent history is kept.');
++  };
++  const loadSample = () => {
++    setSeeded(true);
++    setSeed((s) => s + 1);
++    setSavedPreferences(SAMPLE_PREFERENCES);
++    setSavedVisibility(SAMPLE_VISIBILITY);
++    if (consentStatus !== 'active') setConsentStatus('active');
++    toast.success('Sample fixture profile loaded (comfort + accessibility visible).');
++  };
++
++  const isActiveStatus = (ACTIVE_BOOKING_STATUSES as readonly string[]).includes(bookingStatus);
++
++  return (
++    <div className="min-h-screen bg-background text-foreground">
++      <div className="mx-auto w-full max-w-6xl space-y-4 p-4">
++        {/* Demo banner */}
++        <Card className="border-dashed" data-testid="comfort-demo-banner">
++          <CardHeader>
++            <CardTitle className="flex flex-wrap items-center gap-2 text-base">
++              <FlaskConical className="h-4 w-4" aria-hidden />
++              Phase 4C comfort profile — local demo harness
++              <Badge variant="outline">fixture data only</Badge>
++              <Badge variant="outline">nothing persists</Badge>
++            </CardTitle>
++            <CardDescription>
++              Everything on this page lives in memory: no API, no database, no analytics. The
++              provider pane applies the same filtering rules the server will enforce — a provider
++              only ever sees what matches your preferences, and only during an active booking.
++            </CardDescription>
++          </CardHeader>
++          <CardContent>
++            <Button size="sm" variant="secondary" onClick={loadSample} data-testid="load-sample-button">
++              <Sparkles className="mr-1 h-4 w-4" aria-hidden />
++              Load sample fixture profile
++            </Button>
++          </CardContent>
++        </Card>
++
++        <div className="grid gap-4 lg:grid-cols-2">
++          {/* ── Client pane ── */}
++          <section aria-label="Client view" className="rounded-lg border">
++            <div className="flex items-center gap-2 border-b px-4 py-2 text-sm font-medium">
++              <UserRound className="h-4 w-4" aria-hidden /> Client view
++            </div>
++            <ComfortPreferencesShell
++              key={seed}
++              consentStatus={consentStatus}
++              onGrantConsent={handleGrant}
++              onWithdrawConsent={handleWithdraw}
++              onSave={handleSave}
++              onDeleteProfile={handleDelete}
++              initialPreferences={seeded ? (SAMPLE_PREFERENCES as Record<string, unknown>) : undefined}
++              initialVisibility={seeded ? SAMPLE_VISIBILITY : undefined}
++            />
++          </section>
++
++          {/* ── Provider pane ── */}
++          <section aria-label="Provider view" className="space-y-4">
++            <Card>
++              <CardHeader>
++                <CardTitle className="text-base">Provider view — booking simulation</CardTitle>
++                <CardDescription>
++                  The card below appears only while the booking is active (confirmed, en route or
++                  in progress), the provider owns the booking, consent is active, and at least one
++                  category is visible. Otherwise the server answers 404 — never 403 — and nothing
++                  renders at all.
++                </CardDescription>
++              </CardHeader>
++              <CardContent className="space-y-3">
++                <div className="space-y-1">
++                  <Label htmlFor="demo-booking-status">Booking status</Label>
++                  <Select
++                    value={bookingStatus}
++                    onValueChange={(value) => setBookingStatus(value as DemoBookingStatus)}
++                  >
++                    <SelectTrigger id="demo-booking-status" data-testid="booking-status-select">
++                      <SelectValue />
++                    </SelectTrigger>
++                    <SelectContent>
++                      {ALL_DEMO_BOOKING_STATUSES.map((status) => (
++                        <SelectItem key={status} value={status}>
++                          {status.replace(/_/g, ' ')}
++                          {(ACTIVE_BOOKING_STATUSES as readonly string[]).includes(status)
++                            ? ' (active)'
++                            : ''}
++                        </SelectItem>
++                      ))}
++                    </SelectContent>
++                  </Select>
++                </div>
++                <div className="flex items-center justify-between gap-3">
++                  <Label htmlFor="demo-owns-booking" className="text-sm font-normal">
++                    Requesting provider owns this booking
++                  </Label>
++                  <Switch
++                    id="demo-owns-booking"
++                    data-testid="owns-booking-switch"
++                    checked={providerOwnsBooking}
++                    onCheckedChange={setProviderOwnsBooking}
++                  />
++                </div>
++              </CardContent>
++            </Card>
++
++            {projection ? (
++              <ProviderComfortCardShell projection={projection} />
++            ) : (
++              <div
++                className="flex items-center gap-2 rounded-lg border border-dashed p-4 text-sm text-muted-foreground"
++                data-testid="projection-dark-note"
++              >
++                <MoonStar className="h-4 w-4" aria-hidden />
++                <span>
++                  Nothing is shared right now
++                  {!providerOwnsBooking
++                    ? ' — this provider does not own the booking (server: 404).'
++                    : !isActiveStatus
++                      ? ' — the booking is not active (server: 404).'
++                      : consentStatus !== 'active'
++                        ? ' — the client has not granted (or has withdrawn) consent (server: 404).'
++                        : ' — the client has not made any category visible, or nothing is saved yet (server: 404).'}
++                </span>
++              </div>
++            )}
++          </section>
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx b/artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx
+index 0b41c85..fd44343 100644
+--- a/artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx
++++ b/artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx
+@@ -86,6 +86,9 @@ export interface ComfortPreferencesShellProps {
+   onSave?: (draft: { preferences: Record<string, unknown>; visibility: Record<CategoryKey, boolean> }) => void;
+   onDeleteProfile?: () => void;
+   saving?: boolean;
++  /** Optional initial values (e.g. a previously saved profile or demo fixture). */
++  initialPreferences?: Record<string, unknown>;
++  initialVisibility?: Partial<Record<CategoryKey, boolean>>;
+ }
+ 
+ export default function ComfortPreferencesShell({
+@@ -97,14 +100,38 @@ export default function ComfortPreferencesShell({
+   onSave,
+   onDeleteProfile,
+   saving = false,
++  initialPreferences,
++  initialVisibility,
+ }: ComfortPreferencesShellProps) {
+   const consentActive = consentStatus === 'active';
+ 
+-  const [single, setSingle] = useState<Record<string, string>>({});
+-  const [multi, setMulti] = useState<Record<string, string[]>>({});
+-  const [visitNote, setVisitNote] = useState('');
++  const [single, setSingle] = useState<Record<string, string>>(() => {
++    if (!initialPreferences) return {};
++    const out: Record<string, string> = {};
++    for (const field of SINGLE_SELECTS) {
++      const value = initialPreferences[field.key];
++      if (typeof value === 'string') out[field.key] = value;
++    }
++    return out;
++  });
++  const [multi, setMulti] = useState<Record<string, string[]>>(() => {
++    if (!initialPreferences) return {};
++    const out: Record<string, string[]> = {};
++    for (const field of MULTI_SELECTS) {
++      const value = initialPreferences[field.key];
++      if (Array.isArray(value)) {
++        out[field.key] = value.filter((v): v is string => typeof v === 'string');
++      }
++    }
++    return out;
++  });
++  const [visitNote, setVisitNote] = useState(() =>
++    typeof initialPreferences?.['visitNote'] === 'string'
++      ? (initialPreferences['visitNote'] as string).slice(0, VISIT_NOTE_MAX)
++      : '',
++  );
+   // Privacy by default — every category hidden until the client turns it on.
+-  const [visibility, setVisibility] = useState<Record<CategoryKey, boolean>>({
++  const [visibility, setVisibility] = useState<Record<CategoryKey, boolean>>(() => ({
+     bookingReason: false,
+     comfort: false,
+     sensitivities: false,
+@@ -113,7 +140,8 @@ export default function ComfortPreferencesShell({
+     appointmentShape: false,
+     communication: false,
+     visitNote: false,
+-  });
++    ...(initialVisibility ?? {}),
++  }));
+ 
+   const toggleMulti = (key: string, option: string) => {
+     setMulti((prev) => {
+diff --git a/docs/comfort-profile/WIRING_NOTES.md b/docs/comfort-profile/WIRING_NOTES.md
+index 70dd679..ae32460 100644
+--- a/docs/comfort-profile/WIRING_NOTES.md
++++ b/docs/comfort-profile/WIRING_NOTES.md
+@@ -14,8 +14,9 @@ requires its own review.
+ | Contract module | `artifacts/api-server/src/contracts/comfort-profile.contract.ts` | imported by contract tests only; dependency-free |
+ | Fixtures | `artifacts/api-server/src/__tests__/fixtures/comfort-profile.fixtures.ts` | test-only |
+ | Contract tests | `artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts` | `pnpm --filter @workspace/api-server run test:comfort-contract` |
+-| Client editor shell | `artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx` | NOT routed |
+-| Provider card shell | `artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx` | NOT rendered anywhere |
++| Client editor shell | `artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx` | wired ONLY into the local demo harness below |
++| Provider card shell | `artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx` | wired ONLY into the local demo harness below |
++| Demo harness (fixture data only) | `artifacts/web/src/pages/comfort/comfort-demo.tsx` + `comfort-demo-data.ts`, route `/comfort-demo` in `App.tsx` | in-memory only; NO API/storage/persistence; the projection mirror in `comfort-demo-data.ts` is demo-only and is deleted at C-2/C-3 when the server becomes the single authority |
+ 
+ ## C-1 (schema + codegen) — BLOCKED until Gate B + implementation review
+ 
+-- 
+2.39.5
+

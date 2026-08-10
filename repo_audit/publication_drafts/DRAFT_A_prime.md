@@ -1,6 +1,12 @@
 # Publication Draft — A′ (Session 063 traceability) — FIRST IN SEQUENCE
 Prepared 2026-08-10 (new workspace). LOCAL ONLY — NOT PUSHED.
 
+> STATUS 2026-08-10 (owner instruction): **INTENDED FIRST PUBLICATION CANDIDATE.**
+> Publication remains BLOCKED until BOTH administrator evidence exports are
+> recorded: (1) detailed main branch-protection export, and (2) audit coverage
+> 16:35Z → ≥21:40Z incl. attribution for conflict_100826_1415 / _1543 / _1738.
+> No push and no bounded write window are to be created until then.
+
 ## Identity (reconstructed and verified byte-identical to the recorded candidate)
 - commit  f4a5dfeca5af222aeb9dcb1a6da822415397f902
 - parent  3e76114ce8ff8908a955d4beac38d6b3cde5dd6a (canonical main)
