@@ -76,15 +76,30 @@ Scope rule: this ledger tracks **authoritative status only** — it must not dup
 | Field | Value |
 |---|---|
 | Branch | `c2-consent-api` (local clone at /root/foot) |
-| Commit | `573e40f02ae02d4c87939a24c373237344c33c4a` |
+| Commit | **`a7a1ba2f2e01c4dec67f58d5a54e4aeacad09fc2` (corrected — supersedes 573e40f)** |
 | Parent | `3e76114ce8ff8908a955d4beac38d6b3cde5dd6a` (exactly origin/main) |
-| Tree | `083f2b431949723819aaf64ae77a8e6fd636af6e` |
-| Patch SHA-256 | `f7dc3667be561ce26a148ad3677747c36727fc145290a00d8740e9f66ea85fb8` |
-| Scope | 10 files: new `lib/comfort-profile/**` (8 files) + root `tsconfig.json` reference + `pnpm-lock.yaml` |
-| Tests | 20/20 contract tests PASS (node:test); package typecheck PASS; root `typecheck:libs` (tsc --build) PASS |
-| Contract source | In-repo reviewed summary (.agents/LOG.md Sessions 059–062); original contract doc (sha 1fa0eecb…) not in repo — noted for review |
+| Tree | `44cb1f59f1a726fac0c4ef6cbb863cb9cb66f7ec` |
+| Patch SHA-256 | `736253ced2e359faa66a6bc0021f5e10affd2a2299d5b97958bc51938ff9ea4e` |
+| Scope | **8 files: `lib/comfort-profile/**` ONLY** (pnpm-lock.yaml removed — hard-forbidden by gate; root tsconfig reference reverted — not strictly required) |
+| Tests | **31/31** contract tests PASS (reconciliation vs prior 29-test report documented in test header — prior candidate unrecoverable; coverage re-derived and exceeded; nothing intentionally removed); package typecheck PASS; root `typecheck:libs` PASS |
+| option_id compatibility | Documented in vocabulary.ts: options addressed by stable `(categoryId, key)` only — swappable to DB-backed store with surrogate option_id without contract changes |
+| Contract source | In-repo reviewed summary (.agents/LOG.md Sessions 059–062); original contract doc (sha 1fa0eecb…) absent from clone, independently reviewed in prior conversation — NOT claimed recovered |
 | Boundaries honored | No schema, no migrations, no DB access, no event emission, no OpenAPI regen, no booking/ranking/discovery changes, no comfort data in errors/events |
 | Status | AWAITING REVIEW — do not publish; not a traceability entry yet |
+
+## 4b. Session 063 — RE-DERIVED candidate (this session, LOCAL ONLY — not pushed)
+
+| Field | Value |
+|---|---|
+| Branch | `session-063-rederived` (local clone at /root/foot) |
+| Commit | `63b6b2c180ec7f4a1e2672646a1784335390575a` |
+| Parent | `3e76114ce8ff8908a955d4beac38d6b3cde5dd6a` (exactly origin/main) |
+| Tree | `87dcba65d8e1083f546aa7b840e43592efe69b71` |
+| Patch SHA-256 | `573e806cad841514c9ee44fc4cfe8dacfb0f4f77d6df4b2acf4805c6f09bcc39` |
+| Scope | Exactly 2 files: `.agents/LOG.md` + `.agents/NEXT_TASK.md` |
+| Supersession | Explicitly supersedes unrecoverable `e6809e7`; **no byte-identity claim** |
+| Publication gate | **FULL PASS** (all checks incl. tree identity + patch checksum; draft-wording fixed and re-passed) |
+| Status | AWAITING HUMAN REVIEW — publication requires a new bounded write window (read-only key cannot push) |
 
 ## 5. Approvals register
 
@@ -121,6 +136,7 @@ Verified canonical clone
 | 1 | Environment-mismatch session (fresh template) | Ledger created. Recorded: Gate A pending (15-branch inventory v3), Gate B blocked, deploy-key deletion pending, S063 publication blocked, approvals register, sequence of record. No repository, GitHub, or app work performed. |
 | 2 | Environment-mismatch session (ledger review) | Ledger structure APPROVED as local status source of truth. Update protocol (section 0) embedded per review. Workspace declared CLOSED — no further work here beyond preserving the four documentation artifacts. Next: verified canonical clone → Gate A audit → deploy-key deletion + verification → update ledger with both results → only then open bounded S063 publication window → Gate B → C-2 → Phase 4C → economics → discovery/SEO. |
 | 3 | 2026-08-10 canonical-access session (read-only deploy key; operator = repo admin) | **Gate A PASS**: 15/15 conflict_* branches, zero discrepancies, report checksum 9e30d5fb…; origin/main verified 3e76114 (tree bc67dd6e…). Deploy-key deletion CONFIRMED (doc ID dBCe3Oevk8h46xWacXhjSA; zero publication keys remain). New read-only audit key added by operator (cannot publish). Containment steps 1–3 (app removal, main protection) remain UNVERIFIED — awaiting admin evidence. S063 candidate e6809e7 found NOT RECOVERABLE from remote (local to a prior workspace) — publication blocked on candidate recovery/re-derivation. C-2 preparation candidate built per operator authorization: local branch c2-consent-api @ 573e40f, parent 3e76114, patch sha f7dc3667…, 20/20 contract tests + typecheck PASS, storage-agnostic, NOT pushed, awaiting review. Gate B still blocked (no managed environment). Approval changes: none beyond standing authorization. |
+| 4 | 2026-08-10 same session (review corrections applied) | **C-2 corrected per review**: new commit a7a1ba2 (supersedes 573e40f) — lockfile removed (hard-forbidden by gate), root tsconfig reverted (not strictly required), scope now exactly lib/comfort-profile/** (8 files), patch sha 736253ce…, tests expanded 20→31 with documented reconciliation vs the unrecoverable 29-test report, option_id compatibility documented, missing-contract-file status recorded (NOT claimed recovered). **Session 063 RE-DERIVED per authorization**: new candidate 63b6b2c (branch session-063-rederived), parent 3e76114, tree 87dcba65…, patch sha 573e806c…, exact two-file scope, explicit supersession of e6809e7 with no byte-identity claim; repository publication gate FULL PASS (incl. tree identity + patch checksum). Both candidates LOCAL ONLY, stopped for review. main and all 15 conflict branches re-verified untouched. |
 
 ---
 *Companion documents in this directory: `HANDOFF_ENVIRONMENT_MISMATCH.md`, `GATE_A_READONLY_AUDIT_PROCEDURE.md`, `GATE_A_DISCREPANCY_REPORT_TEMPLATE.md`.*
