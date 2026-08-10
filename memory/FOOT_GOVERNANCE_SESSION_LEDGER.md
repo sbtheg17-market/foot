@@ -101,6 +101,21 @@ Scope rule: this ledger tracks **authoritative status only** — it must not dup
 | Publication gate | **FULL PASS** (all checks incl. tree identity + patch checksum; draft-wording fixed and re-passed) |
 | Status | AWAITING HUMAN REVIEW — publication requires a new bounded write window (read-only key cannot push) |
 
+## 4c. Provider-economics preparation candidate (LOCAL ONLY — not pushed)
+
+| Field | Value |
+|---|---|
+| Branch | `provider-economics-prep` (local clone at /root/foot) |
+| Commit | `a9d769c5c65faed7a8901c658730422e64f73d1a` |
+| Parent | `3e76114ce8ff8908a955d4beac38d6b3cde5dd6a` (exactly origin/main) |
+| Tree | `46291584066e1bf650595daf3c3fb3a58ad93bc9` |
+| Patch SHA-256 | `b025444a8ab28c241141d7e3ba32edd9f5e6d01844b7c33f853a2176a845b3bd` |
+| Scope | 7 files: `lib/provider-economics/**` ONLY (lockfile excluded/restored) |
+| Tests | 22/22 contract tests PASS; package typecheck PASS |
+| Contents | Boundary types + validation (buffers, min booking value, preferred blocks w/ overlap detection); read-only TravelZoneReader over the EXISTING travel-zone contract (unchanged); pure advisory economics with visible assumptions + advisory-null reasons; deal state machine with MANDATORY pre-publish previews (terms-fingerprint pinned); no-stacking, cap, and window enforcement; in-memory mocks; structural absence checks for ranking/auto-discount/forced-acceptance/guarantee fields |
+| Boundaries honored | No schema, migrations, DB access, production writes, ranking logic, automatic discounts, forced acceptance, SEO, booking behavior; separate from C-2 and Session 063 |
+| Status | AWAITING REVIEW |
+
 ## 5. Approvals register
 
 | Item | Status |
@@ -137,6 +152,7 @@ Verified canonical clone
 | 2 | Environment-mismatch session (ledger review) | Ledger structure APPROVED as local status source of truth. Update protocol (section 0) embedded per review. Workspace declared CLOSED — no further work here beyond preserving the four documentation artifacts. Next: verified canonical clone → Gate A audit → deploy-key deletion + verification → update ledger with both results → only then open bounded S063 publication window → Gate B → C-2 → Phase 4C → economics → discovery/SEO. |
 | 3 | 2026-08-10 canonical-access session (read-only deploy key; operator = repo admin) | **Gate A PASS**: 15/15 conflict_* branches, zero discrepancies, report checksum 9e30d5fb…; origin/main verified 3e76114 (tree bc67dd6e…). Deploy-key deletion CONFIRMED (doc ID dBCe3Oevk8h46xWacXhjSA; zero publication keys remain). New read-only audit key added by operator (cannot publish). Containment steps 1–3 (app removal, main protection) remain UNVERIFIED — awaiting admin evidence. S063 candidate e6809e7 found NOT RECOVERABLE from remote (local to a prior workspace) — publication blocked on candidate recovery/re-derivation. C-2 preparation candidate built per operator authorization: local branch c2-consent-api @ 573e40f, parent 3e76114, patch sha f7dc3667…, 20/20 contract tests + typecheck PASS, storage-agnostic, NOT pushed, awaiting review. Gate B still blocked (no managed environment). Approval changes: none beyond standing authorization. |
 | 4 | 2026-08-10 same session (review corrections applied) | **C-2 corrected per review**: new commit a7a1ba2 (supersedes 573e40f) — lockfile removed (hard-forbidden by gate), root tsconfig reverted (not strictly required), scope now exactly lib/comfort-profile/** (8 files), patch sha 736253ce…, tests expanded 20→31 with documented reconciliation vs the unrecoverable 29-test report, option_id compatibility documented, missing-contract-file status recorded (NOT claimed recovered). **Session 063 RE-DERIVED per authorization**: new candidate 63b6b2c (branch session-063-rederived), parent 3e76114, tree 87dcba65…, patch sha 573e806c…, exact two-file scope, explicit supersession of e6809e7 with no byte-identity claim; repository publication gate FULL PASS (incl. tree identity + patch checksum). Both candidates LOCAL ONLY, stopped for review. main and all 15 conflict branches re-verified untouched. |
+| 5 | 2026-08-10 same session (dual review received) | **C-2 a7a1ba2 APPROVED** as reviewed local preparation base (stays local until post-Gate-B authorization). **Session 063 63b6b2c APPROVED FOR PUBLICATION, conditional**: write window may open ONLY after admin evidence of Emergent.sh access removal + active main protection is recorded; then publish exactly 63b6b2c fast-forward from 3e76114, close and verify. **Economics preparation APPROVED and BUILT**: local branch provider-economics-prep @ a9d769c (parent 3e76114, tree 46291584…, patch sha b025444a…, scope lib/provider-economics/** 7 files), 22/22 contract tests + typecheck PASS; boundaries/advisory-economics/deal-preview models with no-stacking + cap enforcement; travel-zone contract integrated read-only, unchanged; separate from C-2 and S063. All three branches local-only; main + 15 conflict branches re-verified untouched. |
 
 ---
 *Companion documents in this directory: `HANDOFF_ENVIRONMENT_MISMATCH.md`, `GATE_A_READONLY_AUDIT_PROCEDURE.md`, `GATE_A_DISCREPANCY_REPORT_TEMPLATE.md`.*
