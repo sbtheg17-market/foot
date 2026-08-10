@@ -12,13 +12,12 @@
 > NOT started and remain gated. Mobile feed, email outbox, and push remain gated and
 > sequenced after this checkpoint.
 
-## Publication state (Session 061 remote verification)
+## Publication state (Session 062 remote verification)
 
-- Canonical `origin/main` tip: `47df77e` (auditable review-gate
-  `--approve-web-ui` flag), tree
-  `1ef7d452b24e8807cfd72966d06713a053b59347`, parent `6aa4863`
-  (Session 060 traceability, tree `4cf87b0552…`). Chain:
-  `… → 7c33672 → b3937a7 → 83cf335 → 6aa4863 → 47df77e`,
+- Canonical `origin/main` tip: `c02a308` (Session 061 traceability), tree
+  `41c244286bda90be9b8a5c764e1d73722c39eec3`, parent `47df77e`
+  (review-gate `--approve-web-ui` flag). Chain:
+  `… → b3937a7 → 83cf335 → 6aa4863 → 47df77e → c02a308`,
   fast-forward only.
 - Canonical fast-forward history: `cf689b5` (Phase 3, tree `e30feca…`) →
   `4734990` (Session 055 recreation, tree `4002cbed…`) → `6a5cf35`
@@ -26,7 +25,7 @@
   057) → `5e031e5` (Session 057, tree `cdaa7cb9…`) → `5853768` (review
   gate) → `7c33672` (Session 058). No force-push, rewrite, or `conflict_*`
   merge at any step.
-- Sessions 054–060 are present exactly once each in `.agents/LOG.md`;
+- Sessions 054–061 are present exactly once each in `.agents/LOG.md`;
   Phase 3 remains unchanged at tree `e30feca1251f250a7126e987c9379ca3e42e1056`.
 - Full ancestry: `d7a5999` (Phase 1 base) → `4bb0e00` (Phase 2 readiness
   patch) → `d7a01e8` (readiness docs) → `cf689b5` (Phase 3, six-file scope
@@ -69,7 +68,13 @@
   unchanged. Functionally re-verified from the published tree (web change
   fails unflagged, passes flagged with audit record; schema changes still
   fail even when flagged; docs-only behavior unchanged).
-  `origin/main` = `47df77e`. Next reviewed candidate: the Session 061
+- **Session 061 traceability — PUBLISHED (Session 062):** `c02a308`
+  (parent `47df77e`, tree `41c2442…`), fast-forward via the new dedicated
+  MCP publication channel (repo-scoped deploy key, full gate PASS, post-push
+  tree/scope/patch-checksum verification, independent HTTPS cross-check;
+  deploy-key write access revoked after the window; channel now requires an
+  explicit operator-approved publication window and fails closed outside
+  it). `origin/main` = `c02a308`. Next reviewed candidate: the Session 062
   docs commit.
 
 ## Settled candidates from Session 058 (now on `main`)
@@ -87,16 +92,22 @@
 ## Queued after publication (approved order — recorded, not started)
 
 1. **Phase 4C — client comfort/preferences intake** (next approved
-   checkpoint; scope drafting authorized once Phase 4B + Session 059 land).
-   Optional, consent-first client comfort/care profile powering
-   preference-based matching ("matches your preferences," never medical
-   suitability). Sensitive fields optional; provider visibility limited to
-   safe-service-delivery needs. The consent-first comfort-profile contract
-   requires its own review before any implementation (Session 061).
-2. **Provider economics contract review** (before any provider economics
-   code): the `provider_appointment_economics` and `provider_deal_type`
-   vocabularies recorded in Session 060 require a separately reviewed
-   contract before implementation.
+   checkpoint). Contract prepared for review — SHA-256
+   `1fa0eecba58c4cd5c0b8a31cbd56f934ba47067e9af4dddf8a461d0e7269bb14`:
+   consent-first structured preferences, owner-scoped access, booking-only
+   filtered provider projection, per-category client visibility toggles,
+   consent versioning + withdrawal, no sensitive free text or medical
+   inference. After contract approval: convert into its own API/schema and
+   test plan; implement as its own slice (own tests, review, publication
+   gate, traceability entry). No migration before Gate B clears.
+2. **Provider economics** (after Phase 4C). Contract prepared for review —
+   SHA-256 `5a7a20290d0e99eb73f418e09eebb346f6778b0900e73dcf6cfeef2a49342bcc`:
+   provider boundary settings (buffers, travel boundaries via the existing
+   travel-zone contract, minimum booking value, preferred blocks), capped
+   time-bounded deals, mandatory pre-publish earnings preview,
+   advisory-only worthwhile-ness estimates; no forced acceptance, automatic
+   discounting, or ranking changes. After contract approval: separate
+   API/schema and test plan; separate slice from Phase 4C.
 3. Phase 4D provider opportunity cards (one action + one measurable
    outcome per card; never pressure providers past availability,
    boundaries, or comfort).
@@ -109,6 +120,11 @@
    data, or document contents; masked replay; flag-gated experiments.
 7. Phase 5 mobile readiness parity; later: white-label/admin platform
    phase (tenant isolation first, not a visual skin).
+
+Approved immediate sequence (Session 062): revoke key (done) → Session 062
+candidate → review both contracts → MCP key-expiry safeguard (done, channel
+infrastructure) → verify managed DB (Gate B still blocking) → implement
+Phase 4C → implement provider economics.
 
 ## Authorized conflict-branch cleanup (separate managed-channel operation)
 
