@@ -1,7 +1,7 @@
 # Evidence Ledger — Human Summary
-Generated 2026-08-10T23:10:30Z from LEDGER.jsonl (append-only; 45 records).
+Generated 2026-08-10T23:30:32Z from LEDGER.jsonl (append-only; 54 records).
 
-Status totals: BLOCKED=5, FAIL=2, PASS=38
+Status totals: BLOCKED=5, FAIL=2, NOT_RUN=1, PASS=46
 
 | # | UTC time | Type | Action | Status | Exit | Tests | Key artifact |
 |---|---|---|---|---|---|---|---|
@@ -50,6 +50,15 @@ Status totals: BLOCKED=5, FAIL=2, PASS=38
 | LV-006 | 2026-08-10T23:03:46Z | handoff | durable handoff bundle creation | PASS | 0 | — | handoff/candidates/local-branches-2026-08-10.bundle |
 | LV-007 | 2026-08-10T23:04:34Z | verification | correction: BF-030 artifact was a live-appended log | PASS | 0 | — | repo_audit/battery/vite_demo.frozen-20260810T2315Z.log |
 | LV-008 | 2026-08-10T23:10:30Z | verification | independent verification round 2 (testing agent): wrapper + supersedes + provenance candidate + handoff bundle | PASS | 0 | 23/23 | test_reports/iteration_3.json |
+| AC-001 | 2026-08-10T23:18:05Z | verification | transport validation A_prime | PASS | 0 | 6/6 | memory/evidence/logs/AC-001_transport_validation_a_prime.log |
+| AC-002 | 2026-08-10T23:18:05Z | verification | transport validation C_prime | PASS | 0 | 6/6 | memory/evidence/logs/AC-002_transport_validation_c_prime.log |
+| AC-003 | 2026-08-10T23:18:05Z | verification | transport validation B_prime | PASS | 0 | 6/6 | memory/evidence/logs/AC-003_transport_validation_b_prime.log |
+| AC-004 | 2026-08-10T23:18:05Z | verification | transport validation phase4c_prep | PASS | 0 | 6/6 | memory/evidence/logs/AC-004_transport_validation_phase4c_prep.log |
+| AC-005 | 2026-08-10T23:18:06Z | verification | transport validation rule12_provenance | PASS | 0 | 6/6 | memory/evidence/logs/AC-005_transport_validation_rule12_provenance.log |
+| AC-006 | 2026-08-10T23:18:40Z | test | B-prime browser verification (this workspace) | NOT_RUN | — | — | — |
+| AC-007 | 2026-08-10T23:18:40Z | test | phase4c contract tests (fresh capture for transport evidence) | PASS | 0 | 38/38 | memory/evidence/logs/AC-007_phase4c_contract_tests__fresh_capture_fo.log |
+| LV-009 | 2026-08-10T23:21:48Z | handoff | transport-only patch package assembly (5 candidates) | PASS | 0 | — | handoff/patch_package/MANIFEST.json |
+| LV-010 | 2026-08-10T23:30:32Z | verification | independent verification round 3 (testing agent): transport patch package | PASS | 0 | 74/74 | test_reports/iteration_4.json |
 
 Classification key: PASS = captured and reproducible · FAIL = captured with diagnosis · BLOCKED = external prerequisite missing · UNRECORDED = output lost, must rerun · NOT_RUN = deliberately not executed.
 
