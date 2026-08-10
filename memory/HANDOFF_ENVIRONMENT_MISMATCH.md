@@ -136,6 +136,11 @@ Verified canonical clone
 1. `HANDOFF_ENVIRONMENT_MISMATCH.md` — this record
 2. `GATE_A_READONLY_AUDIT_PROCEDURE.md` — approved read-only audit procedure
 3. `GATE_A_DISCREPANCY_REPORT_TEMPLATE.md` — approved fill-in discrepancy report form
+4. `FOOT_GOVERNANCE_SESSION_LEDGER.md` — approved one-page cross-session status ledger (keep local until reviewed; never add to Session 063 or auto-publish)
+
+### Session closure
+
+Handoff package accepted by operator. This fresh-template workspace has completed its role. No further app, repository, database, SEO, or authentication work is to occur here. All subsequent work belongs to the next Neo in a verified clone of `sbtheg17-market/foot`.
 
 ---
 *Recorded by session agent. This file is documentation only; the app template itself was not modified.*
