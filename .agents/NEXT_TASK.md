@@ -12,16 +12,17 @@
 > NOT started and remain gated. Mobile feed, email outbox, and push remain gated and
 > sequenced after this checkpoint.
 
-## Publication state (Session 058 remote verification)
+## Publication state (Session 059 remote verification)
 
-- Canonical `origin/main` tip: `5853768` (publication review gate), tree
-  `3e6b7b32b173f51474cc7c6f8e0a71e9740b129d`, parent `5e031e5`.
+- Canonical `origin/main` tip: `7c33672` (Session 058 traceability), tree
+  `a1987963426b19ffe75f6d5aa68596b343b76631`, parent `5853768`.
 - Canonical fast-forward history: `cf689b5` (Phase 3, tree `e30feca…`) →
   `4734990` (Session 055 recreation, tree `4002cbed…`) → `6a5cf35`
   (premature Session 056 publication — recorded and corrected by Session
   057) → `5e031e5` (Session 057, tree `cdaa7cb9…`) → `5853768` (review
-  gate). No force-push, rewrite, or `conflict_*` merge at any step.
-- Sessions 054–057 are present exactly once each in `.agents/LOG.md`;
+  gate) → `7c33672` (Session 058). No force-push, rewrite, or `conflict_*`
+  merge at any step.
+- Sessions 054–058 are present exactly once each in `.agents/LOG.md`;
   Phase 3 remains unchanged at tree `e30feca1251f250a7126e987c9379ca3e42e1056`.
 - Full ancestry: `d7a5999` (Phase 1 base) → `4bb0e00` (Phase 2 readiness
   patch) → `d7a01e8` (readiness docs) → `cf689b5` (Phase 3, six-file scope
@@ -29,8 +30,33 @@
 - All `origin/conflict_*` branches are unrelated Emergent workspace lineages
   EXCEPT `conflict_070826_mc2` (real foot history, superseded — see the
   accepted inventory, Session 058). Never merge or base work on any of them.
+- **Gate status (Session 059):** conflict-branch cleanup BLOCKED (no
+  authenticated GitHub channel in the working container; pinned cleanup
+  script artifact unrestored; zero side effects — all refs verified
+  untouched). Managed-database catalog check environment-unavailable (no
+  managed `DATABASE_URL`); managed DB remains **UNVERIFIED**; production
+  event-writing gate stays blocked.
 
-## Pending reviewed candidate (base `5853768`)
+## Pending reviewed candidates (stacked on `7c33672`)
+
+- **Phase 4B provider readiness web UI (publish first):** branch
+  `phase4b-readiness-ui`, single commit `b3937a7` (parent `7c33672`,
+  tree `10ce4b66…`), patch SHA-256
+  `31cbfcf1f8af7042d81b916664eea0e218aa9b0f7d73285fea6701aa1cb15b3d`.
+  Nine files, all `artifacts/web/src/**`, including the review-required
+  `/provider/travel-zones` fix destination for C5 (existing contract
+  only: list/add/remove; no update endpoint exists). `publish:gate`
+  passes every check (incl. tree identity + patch checksum) except the
+  single intentional `artifacts/web/**` forbidden-path rule, for which
+  the gate documents no approval flag — publication requires an explicit
+  managed-channel human decision or a separately reviewed gate amendment
+  adding a documented UI-approval flag. See Session 059.
+- **Session 059 traceability entry (publish second):** `.agents` files
+  only, parented on `b3937a7`; `publish:gate` verified against that base.
+  Publish each candidate as its own fast-forward and verify trees and
+  changed-file scopes after each push.
+
+## Settled candidates from Session 058 (now on `main`)
 
 - **Publication review gate — PUBLISHED** at `5853768` (parent `5e031e5`,
   tree byte-identical to the reviewed commit `f957caf`):
@@ -39,9 +65,29 @@
   forbidden paths, draft-status wording, unique+ordered session numbers,
   tree identity, and patch checksum. A safety check — human publication
   approval remains required.
-- **Session 058 traceability entry** (this change, `.agents` files only):
-  rebased onto `5853768`, `publish:gate` re-verified, prepared for
-  managed-channel publication as the next fast-forward.
+- **Session 058 traceability entry:** PUBLISHED at `7c33672` (parent
+  `5853768`), the current canonical tip.
+
+## Queued after publication (approved order — recorded, not started)
+
+1. **Phase 4C — client comfort/preferences intake** (next approved
+   checkpoint; scope drafting authorized once Phase 4B + Session 059 land).
+   Optional, consent-first client comfort/care profile powering
+   preference-based matching ("matches your preferences," never medical
+   suitability). Sensitive fields optional; provider visibility limited to
+   safe-service-delivery needs.
+2. Phase 4D provider opportunity cards (one action + one measurable
+   outcome per card; never pressure providers past availability,
+   boundaries, or comfort).
+3. Phase 4E discovery eligibility (separately authorized gating).
+4. Phase 4F booking reliability.
+5. Phase 4G funnel reporting + product analytics (PostHog candidate)
+   using the approved 14-event taxonomy recorded in Session 059 —
+   supplements, never replaces, canonical `marketplace_events`; binding
+   privacy rules: no health details, care notes, exact addresses, payment
+   data, or document contents; masked replay; flag-gated experiments.
+6. Phase 5 mobile readiness parity; later: white-label/admin platform
+   phase (tenant isolation first, not a visual skin).
 
 ## Authorized conflict-branch cleanup (separate managed-channel operation)
 
