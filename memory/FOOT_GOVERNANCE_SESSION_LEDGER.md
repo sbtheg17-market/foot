@@ -99,7 +99,9 @@ Scope rule: this ledger tracks **authoritative status only** — it must not dup
 | Scope | Exactly 2 files: `.agents/LOG.md` + `.agents/NEXT_TASK.md` |
 | Supersession | Explicitly supersedes unrecoverable `e6809e7`; **no byte-identity claim** |
 | Publication gate | **FULL PASS** (all checks incl. tree identity + patch checksum; draft-wording fixed and re-passed) |
-| Status | AWAITING HUMAN REVIEW — publication requires a new bounded write window (read-only key cannot push) |
+| Publication approval | **CONDITIONALLY APPROVED (2026-08-10)** — push authorized only after BOTH: (1) GitHub-side deletion of the temporary audit key verified absent; (2) documentary main-protection evidence recorded (no force-push, no deletion, restricted writes, PR/approved path, no Emergent.sh bypass) |
+| Approved push procedure | approve → create SEPARATE bounded write key (audit identity never reused) → confirm remote main = 3e76114 → verify 63b6b2c parent = 3e76114 → run publish:gate → fast-forward ONLY to exactly 63b6b2c → verify remote commit/tree/scope/patch checksum → close window → delete/disable write key |
+| Status | LOCAL, UNPUSHED — write window CLOSED pending the two preconditions |
 
 ## 4c. Provider-economics preparation candidate (LOCAL ONLY — not pushed)
 
