@@ -53,7 +53,16 @@ Repo → Settings → Branches (or Rules → Rulesets) → protection for `main`
 ## Next canonical session (after containment)
 
 1. Provision the verified Foot clone.
-2. Import + checksum the five artifacts (four frozen handoff documents + `DEPLOY_KEY_DELETION_EVIDENCE.md`; expected hashes recorded in prior session reports and inside the evidence record).
+2. Import + checksum all SEVEN artifacts of the handoff set:
+   1. `HANDOFF_ENVIRONMENT_MISMATCH.md` (frozen)
+   2. `GATE_A_READONLY_AUDIT_PROCEDURE.md` (frozen)
+   3. `GATE_A_DISCREPANCY_REPORT_TEMPLATE.md` (frozen)
+   4. `FOOT_GOVERNANCE_SESSION_LEDGER.md` (frozen)
+   5. `DEPLOY_KEY_DELETION_EVIDENCE.md`
+   6. `evidence/export-sbtheg17-market.json.gz` (raw audit export)
+   7. `CONTAINMENT_ADMIN_RUNBOOK.md` (this document)
+   Expected hashes are recorded in the session reports and inside the evidence record.
+2a. Record the post-containment `conflict_*` branch count as evidence. Do NOT assume it is still 15; do NOT delete any newly appearing or existing conflict branch.
 3. Run Gate A read-only across the **current** branch inventory; compare against the 15-branch pinned inventory; record any post-containment changes as audit findings.
 4. Update the ledger with deploy-key evidence (doc ID `dBCe3Oevk8h46xWacXhjSA`) and app-containment evidence.
 5. Only then consider the bounded Session 063 publication path (parent exactly `3e76114`, candidate exactly `e6809e7`, gate-checked, fast-forward-only, window closed immediately after).
