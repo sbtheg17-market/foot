@@ -93,5 +93,49 @@ Strategic sequence: preserve trust and history → verify infrastructure → pro
 - Canonical repo for the next Neo: verified clone of `sbtheg17-market/foot`; canonical remote remains `main @ 3e76114` with 15 preserved `conflict_*` branches (12 original + `conflict_090826_2326 @ 73bdad6` + post-S063 addenda `conflict_100826_0813 @ 8cc0028`, `conflict_100826_0906 @ 018e69b`).
 - This workspace remains an **environment-mismatch workspace**: no audit or build work here.
 
+## 7. Final decisions and next-Neo instruction (end of session)
+
+- Canonical workspace handoff: **required**. Next Neo starts from a verified clone of `sbtheg17-market/foot`, never another fresh /app template. No private keys or secrets in chat.
+- Deploy-key confirmation: **still pending**. A GitHub administrator must delete `foot-publication-window-s062` and verify its absence before any Session 063 publication window opens.
+- Discrepancy report template: **approved and drafted** — see `GATE_A_DISCREPANCY_REPORT_TEMPLATE.md` (same directory). Local documentation only; contacts nothing.
+
+### Instruction for the next Neo (verbatim)
+
+```
+Start only from a verified clone of sbtheg17-market/foot.
+
+Before any work:
+- Confirm the repository remote.
+- Confirm origin/main and its tree.
+- Do not use /app or "Save to GitHub."
+- Do not request private keys, tokens, or DATABASE_URL in chat.
+- Run the approved Gate A read-only audit against all 15 conflict_* branches.
+- Preserve every branch unchanged.
+- Stop on any count, SHA, ancestry, or inventory discrepancy.
+- Produce a checksummed, content-free report.
+```
+
+The 15-branch state (including the two post-Session-063 additions) is confirmed inventory; the addenda are NOT cleanup targets.
+
+### Sequence (final)
+
+```
+Verified canonical clone
+→ Gate A read-only audit
+→ deploy-key deletion confirmation
+→ Session 063 publication
+→ Gate B managed-environment run
+→ C-2 implementation
+→ Phase 4C
+→ provider economics
+→ discovery and SEO
+```
+
+### Documentation artifacts in /app/memory (only changes made in this workspace)
+
+1. `HANDOFF_ENVIRONMENT_MISMATCH.md` — this record
+2. `GATE_A_READONLY_AUDIT_PROCEDURE.md` — approved read-only audit procedure
+3. `GATE_A_DISCREPANCY_REPORT_TEMPLATE.md` — approved fill-in discrepancy report form
+
 ---
 *Recorded by session agent. This file is documentation only; the app template itself was not modified.*
