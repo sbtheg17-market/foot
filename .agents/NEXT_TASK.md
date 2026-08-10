@@ -12,17 +12,21 @@
 > NOT started and remain gated. Mobile feed, email outbox, and push remain gated and
 > sequenced after this checkpoint.
 
-## Publication state (Session 059 remote verification)
+## Publication state (Session 061 remote verification)
 
-- Canonical `origin/main` tip: `7c33672` (Session 058 traceability), tree
-  `a1987963426b19ffe75f6d5aa68596b343b76631`, parent `5853768`.
+- Canonical `origin/main` tip: `47df77e` (auditable review-gate
+  `--approve-web-ui` flag), tree
+  `1ef7d452b24e8807cfd72966d06713a053b59347`, parent `6aa4863`
+  (Session 060 traceability, tree `4cf87b0552…`). Chain:
+  `… → 7c33672 → b3937a7 → 83cf335 → 6aa4863 → 47df77e`,
+  fast-forward only.
 - Canonical fast-forward history: `cf689b5` (Phase 3, tree `e30feca…`) →
   `4734990` (Session 055 recreation, tree `4002cbed…`) → `6a5cf35`
   (premature Session 056 publication — recorded and corrected by Session
   057) → `5e031e5` (Session 057, tree `cdaa7cb9…`) → `5853768` (review
   gate) → `7c33672` (Session 058). No force-push, rewrite, or `conflict_*`
   merge at any step.
-- Sessions 054–058 are present exactly once each in `.agents/LOG.md`;
+- Sessions 054–060 are present exactly once each in `.agents/LOG.md`;
   Phase 3 remains unchanged at tree `e30feca1251f250a7126e987c9379ca3e42e1056`.
 - Full ancestry: `d7a5999` (Phase 1 base) → `4bb0e00` (Phase 2 readiness
   patch) → `d7a01e8` (readiness docs) → `cf689b5` (Phase 3, six-file scope
@@ -54,8 +58,19 @@
 - **Session 059 traceability entry — PUBLISHED second:** `.agents` files
   only, parented on `b3937a7`; full gate PASS. Both pushes were
   fast-forward with post-push tree and changed-file scope verification
-  (see Session 060). `origin/main` = `83cf335`. Next reviewed candidate:
-  the Session 060 docs commit.
+  (see Session 060). Session 060 subsequently landed at `6aa4863`
+  (tree `4cf87b0552…`, parent `83cf335`).
+- **Review-gate UI-approval flag — PUBLISHED (verified in Session 061):**
+  `47df77e` (parent `6aa4863`, tree `1ef7d452…`), exactly one changed file
+  (`scripts/verify-publication.sh`, +40/−3). `--approve-web-ui
+  "<approver>: <reason>"` authorizes ONLY `artifacts/web/**` and prints an
+  audit record (approval text + each authorized web file); every other
+  forbidden category stays hard-forbidden and all other checks are
+  unchanged. Functionally re-verified from the published tree (web change
+  fails unflagged, passes flagged with audit record; schema changes still
+  fail even when flagged; docs-only behavior unchanged).
+  `origin/main` = `47df77e`. Next reviewed candidate: the Session 061
+  docs commit.
 
 ## Settled candidates from Session 058 (now on `main`)
 
@@ -76,18 +91,23 @@
    Optional, consent-first client comfort/care profile powering
    preference-based matching ("matches your preferences," never medical
    suitability). Sensitive fields optional; provider visibility limited to
-   safe-service-delivery needs.
-2. Phase 4D provider opportunity cards (one action + one measurable
+   safe-service-delivery needs. The consent-first comfort-profile contract
+   requires its own review before any implementation (Session 061).
+2. **Provider economics contract review** (before any provider economics
+   code): the `provider_appointment_economics` and `provider_deal_type`
+   vocabularies recorded in Session 060 require a separately reviewed
+   contract before implementation.
+3. Phase 4D provider opportunity cards (one action + one measurable
    outcome per card; never pressure providers past availability,
    boundaries, or comfort).
-3. Phase 4E discovery eligibility (separately authorized gating).
-4. Phase 4F booking reliability.
-5. Phase 4G funnel reporting + product analytics (PostHog candidate)
+4. Phase 4E discovery eligibility (separately authorized gating).
+5. Phase 4F booking reliability.
+6. Phase 4G funnel reporting + product analytics (PostHog candidate)
    using the approved 14-event taxonomy recorded in Session 059 —
    supplements, never replaces, canonical `marketplace_events`; binding
    privacy rules: no health details, care notes, exact addresses, payment
    data, or document contents; masked replay; flag-gated experiments.
-6. Phase 5 mobile readiness parity; later: white-label/admin platform
+7. Phase 5 mobile readiness parity; later: white-label/admin platform
    phase (tenant isolation first, not a visual skin).
 
 ## Authorized conflict-branch cleanup (separate managed-channel operation)
