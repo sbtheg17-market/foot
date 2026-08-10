@@ -14,6 +14,20 @@
 #     [--patch <file>]           patch file to checksum-verify
 #     [--sha256 <hash>]          expected SHA-256 of --patch
 #     [--base <ref>]             verified base ref (default: origin/main)
+#     [--approve-web-ui <text>]  explicit, auditable human authorization for
+#                                an intentional artifacts/web/** publication.
+#                                <text> must be "<approver>: <reason>" and is
+#                                printed into the gate output as the audit
+#                                record. The flag authorizes ONLY the
+#                                artifacts/web/** portion of the forbidden-path
+#                                check; every other forbidden category
+#                                (.emergent, lockfiles, DB schema, generated
+#                                clients, mobile, attached_assets,
+#                                .patch/.bundle) remains hard-forbidden, and
+#                                every other check (parent, fast-forward-only
+#                                ancestry, allow-list scope, tree identity,
+#                                patch checksum, session numbering, draft
+#                                wording) is still fully enforced
 #     [--ack-draft-wording]      explicit human override when added lines
 #                                legitimately QUOTE draft-status phrases
 #                                (e.g. a correction entry); never use it to
@@ -28,6 +42,8 @@
 #   4. Changed-file scope is a subset of the allow-list.
 #   5. No forbidden paths changed (.emergent/, lockfiles, DB schema,
 #      generated clients, web/mobile UI, attached_assets, .patch/.bundle).
+#      artifacts/web/** alone may be explicitly authorized for a reviewed
+#      UI publication via --approve-web-ui (audited); nothing else can be.
 #   6. No draft-status wording is being published as final (added lines).
 #   7. New session numbers in .agents/LOG.md are unique (not reusing any
 #      previously published number) and ordered (greater than the maximum
@@ -43,6 +59,7 @@ PATCH_FILE=""
 PATCH_SHA=""
 BASE_REF="origin/main"
 ACK_DRAFT=0
+WEB_APPROVAL=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -51,6 +68,13 @@ while [[ $# -gt 0 ]]; do
     --patch) PATCH_FILE="$2"; shift 2 ;;
     --sha256) PATCH_SHA="$2"; shift 2 ;;
     --base) BASE_REF="$2"; shift 2 ;;
+    --approve-web-ui)
+      WEB_APPROVAL="${2:-}"
+      if [[ -z "$WEB_APPROVAL" || "$WEB_APPROVAL" != *:* ]]; then
+        echo "--approve-web-ui requires a non-empty \"<approver>: <reason>\" value" >&2
+        exit 2
+      fi
+      shift 2 ;;
     --ack-draft-wording) ACK_DRAFT=1; shift ;;
     *) echo "Unknown argument: $1" >&2; exit 2 ;;
   esac
@@ -130,9 +154,22 @@ if [[ -z "$CHANGED" ]]; then
 fi
 
 # --- 5. Forbidden paths ------------------------------------------------------
-FORBIDDEN='^\.emergent/|(^|/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock)$|^lib/db/src/schema/|/generated/|^artifacts/web/|^artifacts/mobile/|^attached_assets/|\.patch$|\.bundle$'
-if echo "$CHANGED" | grep -qE "$FORBIDDEN"; then
-  fail "forbidden paths changed: $(echo "$CHANGED" | grep -E "$FORBIDDEN" | tr '\n' ' ')"
+# STRICT categories can never be overridden. artifacts/web/** is the single
+# category that an explicit, audited human approval (--approve-web-ui) may
+# authorize for a reviewed UI publication; the files must still be inside the
+# allow-list (check 4) and every other check still applies.
+STRICT_FORBIDDEN='^\.emergent/|(^|/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock)$|^lib/db/src/schema/|/generated/|^artifacts/mobile/|^attached_assets/|\.patch$|\.bundle$'
+WEB_FORBIDDEN='^artifacts/web/'
+STRICT_HITS="$(echo "$CHANGED" | grep -E "$STRICT_FORBIDDEN" || true)"
+WEB_HITS="$(echo "$CHANGED" | grep -E "$WEB_FORBIDDEN" || true)"
+if [[ -n "$STRICT_HITS" ]]; then
+  fail "forbidden paths changed (never overridable): $(echo "$STRICT_HITS" | tr '\n' ' ')"
+elif [[ -n "$WEB_HITS" && -z "$WEB_APPROVAL" ]]; then
+  fail "forbidden paths changed: $(echo "$WEB_HITS" | tr '\n' ' ') (web UI publication requires explicit --approve-web-ui \"<approver>: <reason>\")"
+elif [[ -n "$WEB_HITS" ]]; then
+  pass "artifacts/web/** publication explicitly authorized — audit record follows"
+  echo "         WEB-UI APPROVAL: ${WEB_APPROVAL}"
+  echo "$WEB_HITS" | sed 's/^/         authorized web file: /'
 else
   pass "no .emergent/lockfile/schema/generated/UI/asset/patch files changed"
 fi
