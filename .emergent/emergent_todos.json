@@ -1,26 +1,30 @@
 [
   {
-    "content": "Independent verification: repo, main SHA, refs, conflict branches, .agents files (anonymous read-only)",
-    "status": "completed"
+    "content": "Read-only 18-branch inventory: tips, authors, committers, timestamps, ancestry, unique commits, classification, attribution",
+    "status": "in_progress"
   },
   {
-    "content": "Verify candidate commits eec0147/0c216d6 absence on remote and in workspace",
-    "status": "completed"
+    "content": "Search conflict branches for traces of lost candidates (evidence only, no recovery claims)",
+    "status": "pending"
   },
   {
-    "content": "Check branch-protection endpoint anonymously + environment tooling (node/pnpm) for baseline test feasibility",
-    "status": "completed"
+    "content": "Re-derive Session 063 traceability from exactly 3e76114 (new identity, docs-only, gate-validated)",
+    "status": "pending"
   },
   {
-    "content": "Attempt bounded independent baseline verification (typecheck/build) or record honestly why not run",
-    "status": "completed"
+    "content": "Re-derive provider sign-out from exactly 3e76114 (new identity, web scope, tests+typecheck+build)",
+    "status": "pending"
   },
   {
-    "content": "Write complete handoff packet under /app/handoff/ (8 sections + verification snapshots + publication drafts)",
-    "status": "completed"
+    "content": "Lockfile reproducibility investigation: diagnose with pinned pnpm, classify cause, minimal documented fix candidate",
+    "status": "pending"
   },
   {
-    "content": "Produce required takeover response (verified / accepted / unverifiable / local candidates / missing evidence / safest next action)",
-    "status": "completed"
+    "content": "Re-run complete baseline suite on the lockfile candidate",
+    "status": "pending"
+  },
+  {
+    "content": "Produce new state matrix + three separate publication drafts; record all hashes; wait for approval",
+    "status": "pending"
   }
 ]
