@@ -30,16 +30,16 @@
 - All `origin/conflict_*` branches are unrelated Emergent workspace lineages
   EXCEPT `conflict_070826_mc2` (real foot history, superseded — see the
   accepted inventory, Session 058). Never merge or base work on any of them.
-- **Gate status (Session 059):** conflict-branch cleanup BLOCKED (no
+- **Gate status (Sessions 059–060):** conflict-branch cleanup BLOCKED (no
   authenticated GitHub channel in the working container; pinned cleanup
   script artifact unrestored; zero side effects — all refs verified
   untouched). Managed-database catalog check environment-unavailable (no
   managed `DATABASE_URL`); managed DB remains **UNVERIFIED**; production
   event-writing gate stays blocked.
 
-## Pending reviewed candidates (stacked on `7c33672`)
+## Published candidates (landed on `main`, Session 060)
 
-- **Phase 4B provider readiness web UI (publish first):** branch
+- **Phase 4B provider readiness web UI — PUBLISHED first:** branch
   `phase4b-readiness-ui`, single commit `b3937a7` (parent `7c33672`,
   tree `10ce4b66…`), patch SHA-256
   `31cbfcf1f8af7042d81b916664eea0e218aa9b0f7d73285fea6701aa1cb15b3d`.
@@ -51,10 +51,11 @@
   the gate documents no approval flag — publication requires an explicit
   managed-channel human decision or a separately reviewed gate amendment
   adding a documented UI-approval flag. See Session 059.
-- **Session 059 traceability entry (publish second):** `.agents` files
-  only, parented on `b3937a7`; `publish:gate` verified against that base.
-  Publish each candidate as its own fast-forward and verify trees and
-  changed-file scopes after each push.
+- **Session 059 traceability entry — PUBLISHED second:** `.agents` files
+  only, parented on `b3937a7`; full gate PASS. Both pushes were
+  fast-forward with post-push tree and changed-file scope verification
+  (see Session 060). `origin/main` = `83cf335`. Next reviewed candidate:
+  the Session 060 docs commit.
 
 ## Settled candidates from Session 058 (now on `main`)
 
