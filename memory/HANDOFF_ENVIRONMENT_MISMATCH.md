@@ -84,5 +84,14 @@ publish Session 063 only after confirmation)
 
 Strategic sequence: preserve trust and history → verify infrastructure → protect client consent → give providers useful operating tools → create high-intent local discovery → connect discovery to confident booking.
 
+## 6. Follow-up decisions received (same session)
+
+- Environment-mismatch handling: **confirmed correct** by the operator.
+- Standalone prototype here: **NOT approved**. Vertical, MVP scope, and auth model intentionally unresolved.
+- Credentials/deploy keys: **must not be provided or requested** in this workspace.
+- Gate A checklist: **approved as a read-only procedure document only** — see `GATE_A_READONLY_AUDIT_PROCEDURE.md` (same directory). It must not inspect a guessed repository, modify /app, contact GitHub, delete branches, or create a remote branch.
+- Canonical repo for the next Neo: verified clone of `sbtheg17-market/foot`; canonical remote remains `main @ 3e76114` with 15 preserved `conflict_*` branches (12 original + `conflict_090826_2326 @ 73bdad6` + post-S063 addenda `conflict_100826_0813 @ 8cc0028`, `conflict_100826_0906 @ 018e69b`).
+- This workspace remains an **environment-mismatch workspace**: no audit or build work here.
+
 ---
 *Recorded by session agent. This file is documentation only; the app template itself was not modified.*
