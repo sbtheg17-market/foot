@@ -80,5 +80,8 @@ are therefore confirmed to hold no unique unrecovered work.
   GitHub retains the unreferenced objects; treat every deletion as effectively
   irreversible and gate accordingly.)
 
-STATUS: DRAFT. Awaiting the operator's separate final confirmation naming the
-exact deletion targets.
+STATUS: **APPROVED by operator final confirmation (2026-08-10, ledger entry 15)**
+naming all 13 targets explicitly. EXECUTION PENDING: managed environment + new
+bounded repo-scoped write credential (none exists in this workspace). Fail-closed
+executor: /root/foot-cleanup-window.sh (sha256 5bff775e…), token via
+FOOT_CLEANUP_TOKEN env at runtime only.
