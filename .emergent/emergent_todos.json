@@ -1,0 +1,18 @@
+[
+  {
+    "content": "Provider sign-out one-file candidate: implemented, verified, committed (0c216d6), patch+checksum recorded, unpushed",
+    "status": "completed"
+  },
+  {
+    "content": "Deliver full-text contract review packet to operator (both contracts)",
+    "status": "in_progress"
+  },
+  {
+    "content": "Phase 3 (gated): C-1..C-3 comfort profiles - blocked on contract approval + managed Gate B for schema/storage",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 3 (gated): economics E-1..E-5 - blocked on contract approval, after 4C",
+    "status": "pending"
+  }
+]
