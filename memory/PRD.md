@@ -32,3 +32,12 @@ Working clone: /root/foot (persistent). Do NOT use the /app template for this pr
 2. Review Phase 4C consent-first comfort-profile contract before implementation
 3. Review provider economics contract before implementation
 4. Keep comfort-profile impl, economics code, mobile parity, PostHog, funnel reporting, discovery gating, booking enforcement, white-label all separate
+
+## Update — MCP publication channel built (2026-08-10)
+- Review approval received: publish exactly c02a308 (FF 47df77e -> c02a308), then stop.
+- Built hardened stdio MCP server at /root/foot-publication-mcp/server.py (venv: /root/foot-publication-mcp/venv, mcp<2 FastMCP).
+- Tools: verify_remote, list_branches, run_publish_gate, publish_fast_forward, key_status, generate_deploy_key, read_audit_log. No raw git escape hatch.
+- Deploy keypair generated: /root/.ssh/foot_publication_mcp_ed25519 (0600, ed25519, IdentitiesOnly alias github-foot, pinned known_hosts verified vs live keyscan). Private key never printed.
+- All refusal paths tested; gate PASS re-verified on c02a308; stdio handshake OK.
+- WAITING: user must add public key as write-enabled deploy key on sbtheg17-market/foot, then publish c02a308 via publish_fast_forward and revoke/read-only the key.
+- NOTE: global pip starlette must stay <0.38 for /app backend (mcp 2.0 install broke it twice; fixed; MCP server isolated in venv).
