@@ -13,7 +13,7 @@ node --version
 pnpm --version
 ```
 
-Use Node.js 24+ and pnpm 9+ (the repository package manager is pnpm 9.15.0). Read these files before changing code:
+Use Node.js 24+ and pnpm 10.5+ (the repository package manager pin is pnpm 10.18.3; `pnpm-workspace.yaml` uses settings such as `overrides` and `minimumReleaseAge` that pnpm reads from the workspace manifest only since 10.5, so older pnpm — including the previously pinned 9.15.0 — fails `pnpm install --frozen-lockfile` with a lockfile-config mismatch). Read these files before changing code:
 
 1. `.agents/LOG.md`
 2. `replit.md`
