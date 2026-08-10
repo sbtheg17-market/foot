@@ -59,3 +59,11 @@ Working clone: /root/foot (persistent). Do NOT use the /app template for this pr
 - Deploy key REVOKED on GitHub (verified Permission denied). Channel closed until next approved window (new key add + approve_publication_window needed).
 - Gate B still blocked: read-only catalog verification needs managed DATABASE_URL in a secure environment; never via chat.
 - Approved sequence position: revoke key ✅ → Session 062 ✅ (drafted) → contract reviews (pending human) → key-expiry ✅ → verify managed DB (blocked) → implement 4C → implement economics.
+
+## Update — Session 062 PUBLISHED + plans + Gate B verifier (2026-08-10T03:0xZ)
+- origin/main = 3e76114ce8ff8908a955d4beac38d6b3cde5dd6a (tree bc67dd6e..., parent c02a308), FF, gate PASS in-window, post-push verification 4/4 + independent HTTPS check. Window explicitly closed after verification (publish now fails closed). USER MUST DELETE the deploy key foot-publication-window-s062 on GitHub.
+- Implementation plans drafted for review (NOT authorized to implement yet):
+  - /root/foot-plans/phase4c-implementation-plan.md sha256 505a9615f456f1693fc006be10ab2dd15abfc6409022a50dfb57458072cd3f07 (slices C-1..C-4 + 15-case test plan)
+  - /root/foot-plans/provider-economics-implementation-plan.md sha256 6203bf7b715c0a0d760096dd06f275bd7d786d793df75bb9c03522764110d3f4 (slices E-1..E-4 + 17-case test plan)
+- Gate B verifier ready: /root/gate-b/verify-db-catalog.mjs sha256 78a2c7d1a1562bdb0cab46bd1bf80f7cf1559f6e8e382ea67448929df0410797 — read-only session, catalog-only queries, redacts connection details, checksummed JSON result; requires runtime-injected DATABASE_URL in the managed environment (fails closed without it, tested). Gate B remains blocked until run there.
+- Next: user reviews/approves the two implementation plans -> run Gate B verifier in managed env -> implement 4C slices -> economics slices. Session 063 will record the 062 landing.
