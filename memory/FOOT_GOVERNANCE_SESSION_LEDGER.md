@@ -50,7 +50,7 @@ Scope rule: this ledger tracks **authoritative status only** — it must not dup
 | Key | `foot-publication-window-s062` |
 | Status | **DELETED — confirmed by primary audit-log evidence** |
 | Evidence | `public_key.delete` 2026-08-10T03:06:49.870Z, removed_by_user, doc ID `dBCe3Oevk8h46xWacXhjSA`; all 8 key creates reconcile to 8 deletes — zero publication keys remain (see `DEPLOY_KEY_DELETION_EVIDENCE.md`) |
-| New audit-scoped key | `foot-gate-a-readonly-audit-2026-08-10` (read-only deploy key, added by operator 2026-08-10 ~15:07Z; CANNOT publish — write unchecked) |
+| New audit-scoped key | REVOKED in the operator's access sweep (2026-08-10, behavioral evidence: publickey refused). **Post-containment audit key approved and generated (temporary)**: title `foot-postcontainment-audit-2026-08-10-temporary`, fingerprint `SHA256:a5eggDRah/Ummy36kY5u6O45t1HOplRu+7tD+WwpyzQ` — read-only, repository-specific, single-purpose (post-containment branch inventory only), to be DELETED immediately after the audit. No write key exists or is authorized yet. |
 | Rule | Session 063 publication still requires a separate bounded WRITE window — see section 4 blocker |
 
 ## 3a. Containment (runbook v1.1) — evidence status
