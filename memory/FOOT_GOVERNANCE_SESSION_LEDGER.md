@@ -5,6 +5,19 @@ Do NOT add this ledger to Session 063. Do NOT publish it automatically. It track
 
 Ledger last updated: end of environment-mismatch session (fresh-template workspace).
 
+## 0. Update protocol (approved at ledger review — every update MUST include)
+
+1. Session/date and responsible operator.
+2. Gate A inventory version and checksum.
+3. Exact conflict-branch count and tip SHAs.
+4. Gate B verifier version, checksum, managed-run status, and report checksum.
+5. Deploy-key status with deletion confirmation.
+6. Session 063 candidate SHA, parent, tree, patch checksum, and publication status.
+7. Approval changes and reasons.
+8. A timestamped change-log entry.
+
+Scope rule: this ledger tracks **authoritative status only** — it must not duplicate application requirements. Keep local-only; never add to Session 063; never publish automatically.
+
 ---
 
 ## 1. Gate A — Conflict-branch audit
@@ -79,6 +92,7 @@ Verified canonical clone
 | Entry | Session | Change |
 |---|---|---|
 | 1 | Environment-mismatch session (fresh template) | Ledger created. Recorded: Gate A pending (15-branch inventory v3), Gate B blocked, deploy-key deletion pending, S063 publication blocked, approvals register, sequence of record. No repository, GitHub, or app work performed. |
+| 2 | Environment-mismatch session (ledger review) | Ledger structure APPROVED as local status source of truth. Update protocol (section 0) embedded per review. Workspace declared CLOSED — no further work here beyond preserving the four documentation artifacts. Next: verified canonical clone → Gate A audit → deploy-key deletion + verification → update ledger with both results → only then open bounded S063 publication window → Gate B → C-2 → Phase 4C → economics → discovery/SEO. |
 
 ---
 *Companion documents in this directory: `HANDOFF_ENVIRONMENT_MISMATCH.md`, `GATE_A_READONLY_AUDIT_PROCEDURE.md`, `GATE_A_DISCREPANCY_REPORT_TEMPLATE.md`.*
