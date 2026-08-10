@@ -41,3 +41,11 @@ Working clone: /root/foot (persistent). Do NOT use the /app template for this pr
 - All refusal paths tested; gate PASS re-verified on c02a308; stdio handshake OK.
 - WAITING: user must add public key as write-enabled deploy key on sbtheg17-market/foot, then publish c02a308 via publish_fast_forward and revoke/read-only the key.
 - NOTE: global pip starlette must stay <0.38 for /app backend (mcp 2.0 install broke it twice; fixed; MCP server isolated in venv).
+
+## Update — Session 061 PUBLISHED (2026-08-10T02:38Z)
+- origin/main = c02a3080cb91c41066ac9e1e1ae39763abc7d73c (tree 41c2442..., parent 47df77e), fast-forward, gate PASS, patch sha256 verified, exact two-file scope verified post-push (independent HTTPS check too).
+- Published via the new MCP channel (publish_fast_forward); audit record in /root/foot-publication-mcp/audit.jsonl.
+- Deploy key (repo-scoped, SHA256:TP17tQ7OS3i9Y2HI/OUAXjsrvQ3MhExZKcUtewwsDKg) still has WRITE access — user reminded to revoke/set read-only.
+- Old rotated key (hCqqnZK8...) deleted from repo deploy keys during swap; its private half destroyed earlier — inert.
+- Gate A authenticated read-only inventory: 12 conflict_* branches confirmed; none touched. Gate B still blocked/UNVERIFIED.
+- STOPPED after verification per instruction. Next checkpoint: Phase 4C comfort-profile contract review, then provider economics contract review (contract-to-implementation planning approved; NO migrations, NO production rollout, no feature bundling, no cleanup).

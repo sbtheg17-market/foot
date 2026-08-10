@@ -1,30 +1,26 @@
 [
   {
-    "content": "Install official MCP Python SDK and verify environment (isolated venv; /app backend restored)",
+    "content": "Build + test MCP publication channel (7 tools, fail-closed policy, stdio)",
     "status": "completed"
   },
   {
-    "content": "Implement server.py: policy engine + 5 safety tools + generate_deploy_key + read_audit_log",
+    "content": "Deploy key lifecycle: rotate, repo-scoped install, identity verified as sbtheg17-market/foot",
     "status": "completed"
   },
   {
-    "content": "Generate ed25519 deploy keypair in MCP runtime (0600, dedicated name, pinned known_hosts, IdentitiesOnly alias)",
+    "content": "Publish c02a308 via publish_fast_forward (gate PASS, dry-run, FF push)",
     "status": "completed"
   },
   {
-    "content": "Test all tools directly + MCP stdio handshake + refusal paths",
+    "content": "Post-publication: remote commit/tree/checksum/scope verified + independent HTTPS check + audit record",
     "status": "completed"
   },
   {
-    "content": "Gate A read-only inventory pass: 12 conflict_* branches + refs confirmed (no deletions)",
+    "content": "Gate A authenticated read-only inventory re-confirmed via SSH channel (12 branches, none touched)",
     "status": "completed"
   },
   {
-    "content": "User adds public key as write deploy key, then publish c02a308 via publish_fast_forward",
+    "content": "Deliver revocation reminder and stop for review",
     "status": "in_progress"
-  },
-  {
-    "content": "Post-publication: verify remote commit/tree/checksum/scope, audit record, revocation reminder, stop",
-    "status": "pending"
   }
 ]
