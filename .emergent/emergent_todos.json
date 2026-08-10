@@ -1,0 +1,26 @@
+[
+  {
+    "content": "Revise Phase 4C plan (DB-boundary vocabulary enforcement, erasure exception, exact booking eligibility, normative projection authz, abuse controls)",
+    "status": "completed"
+  },
+  {
+    "content": "Revise provider economics plan (money semantics, stacking, preview token, atomic cap, lifecycle/no-auto-renewal, filterable clarification)",
+    "status": "completed"
+  },
+  {
+    "content": "Gate B verifier v2: pinned catalog (columns/indexes/enum labels) + full checks + rollback/redaction/read-only-role handling",
+    "status": "completed"
+  },
+  {
+    "content": "Verifier v2 test suite: missing/unexpected columns & indexes, enum-label drift, rollback, redaction, read-only role — all green (20/20)",
+    "status": "completed"
+  },
+  {
+    "content": "Surface exact C-2 diff of commit 2678aac for content review",
+    "status": "completed"
+  },
+  {
+    "content": "Recompute and record new artifact checksums; keep Session 063 candidate untouched and unpushed",
+    "status": "completed"
+  }
+]
