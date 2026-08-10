@@ -1,0 +1,26 @@
+[
+  {
+    "content": "Independent verification: repo, main SHA, refs, conflict branches, .agents files (anonymous read-only)",
+    "status": "completed"
+  },
+  {
+    "content": "Verify candidate commits eec0147/0c216d6 absence on remote and in workspace",
+    "status": "completed"
+  },
+  {
+    "content": "Check branch-protection endpoint anonymously + environment tooling (node/pnpm) for baseline test feasibility",
+    "status": "completed"
+  },
+  {
+    "content": "Attempt bounded independent baseline verification (typecheck/build) or record honestly why not run",
+    "status": "completed"
+  },
+  {
+    "content": "Write complete handoff packet under /app/handoff/ (8 sections + verification snapshots + publication drafts)",
+    "status": "completed"
+  },
+  {
+    "content": "Produce required takeover response (verified / accepted / unverifiable / local candidates / missing evidence / safest next action)",
+    "status": "completed"
+  }
+]
