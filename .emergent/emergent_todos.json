@@ -1,26 +1,22 @@
 [
   {
-    "content": "Build + test MCP publication channel (7 tools, fail-closed policy, stdio)",
+    "content": "Key auto-expiry: approve_publication_window tool + key_status warning + publish fail-closed (tested incl. real expiry)",
     "status": "completed"
   },
   {
-    "content": "Deploy key lifecycle: rotate, repo-scoped install, identity verified as sbtheg17-market/foot",
+    "content": "Draft Phase 4C comfort-profile contract (review-only doc, checksummed)",
     "status": "completed"
   },
   {
-    "content": "Publish c02a308 via publish_fast_forward (gate PASS, dry-run, FF push)",
+    "content": "Draft provider economics contract incl. buffers/travel boundaries/min value/preferred blocks (review-only, checksummed)",
     "status": "completed"
   },
   {
-    "content": "Post-publication: remote commit/tree/checksum/scope verified + independent HTTPS check + audit record",
+    "content": "Session 062 local-only draft: commit 3e76114, gate PASS, checksum recorded, unpushed (remote verified unchanged)",
     "status": "completed"
   },
   {
-    "content": "Gate A authenticated read-only inventory re-confirmed via SSH channel (12 branches, none touched)",
+    "content": "Deploy-key revocation verified (channel closed); report and stop for contract review",
     "status": "completed"
-  },
-  {
-    "content": "Deliver revocation reminder and stop for review",
-    "status": "in_progress"
   }
 ]

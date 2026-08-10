@@ -49,3 +49,13 @@ Working clone: /root/foot (persistent). Do NOT use the /app template for this pr
 - Old rotated key (hCqqnZK8...) deleted from repo deploy keys during swap; its private half destroyed earlier — inert.
 - Gate A authenticated read-only inventory: 12 conflict_* branches confirmed; none touched. Gate B still blocked/UNVERIFIED.
 - STOPPED after verification per instruction. Next checkpoint: Phase 4C comfort-profile contract review, then provider economics contract review (contract-to-implementation planning approved; NO migrations, NO production rollout, no feature bundling, no cleanup).
+
+## Update — Session 062 drafted + contracts + key-expiry (2026-08-10)
+- Session 062 LOCAL candidate: branch session-062-traceability, commit 3e76114ce8ff8908a955d4beac38d6b3cde5dd6a (parent c02a308 = origin/main, tree bc67dd6e281d3521d679c411fc70cdde6ab24a34), gate PASS 12/12 (via MCP run_publish_gate), patch /root/session-062.patch sha256 52fe8566109f9523500672e8010c0e9c7b24ba9558094d011863a5ab7f389b81. NOT pushed (remote verified unchanged).
+- Contracts (review-only docs, outside repo):
+  - /root/foot-contracts/phase4c-comfort-profile-contract.md sha256 1fa0eecba58c4cd5c0b8a31cbd56f934ba47067e9af4dddf8a461d0e7269bb14
+  - /root/foot-contracts/provider-economics-contract.md sha256 5a7a20290d0e99eb73f418e09eebb346f6778b0900e73dcf6cfeef2a49342bcc (refined: buffers, travel boundaries, min booking value, preferred blocks)
+- MCP key auto-expiry shipped: approve_publication_window tool (max 72h), publish fails closed without active window + fingerprint match, key_status warns; keys never auto-deleted/rotated. Tested incl. expiry.
+- Deploy key REVOKED on GitHub (verified Permission denied). Channel closed until next approved window (new key add + approve_publication_window needed).
+- Gate B still blocked: read-only catalog verification needs managed DATABASE_URL in a secure environment; never via chat.
+- Approved sequence position: revoke key ✅ → Session 062 ✅ (drafted) → contract reviews (pending human) → key-expiry ✅ → verify managed DB (blocked) → implement 4C → implement economics.
