@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { FileDiff, GitCommitHorizontal, Loader2, BadgeCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { FileDiff, GitCommitHorizontal, Loader2, BadgeCheck, ChevronDown, ChevronUp, ShieldCheck, ShieldAlert } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -101,6 +101,24 @@ export default function PatchIndex() {
                       <p className="flex items-start gap-1.5 text-xs leading-relaxed text-teal-700">
                         <BadgeCheck size={14} className="mt-0.5 shrink-0" />
                         <span>{p.evidence}</span>
+                      </p>
+                    )}
+                    {p.approval && (
+                      <p
+                        data-testid="patch-index-approval"
+                        className={
+                          "flex items-start gap-1.5 rounded-lg px-3 py-2 text-xs leading-relaxed " +
+                          (p.approval.includes("CAVEAT")
+                            ? "bg-amber-50 text-amber-800"
+                            : "bg-emerald-50 text-emerald-800")
+                        }
+                      >
+                        {p.approval.includes("CAVEAT") ? (
+                          <ShieldAlert size={14} className="mt-0.5 shrink-0" />
+                        ) : (
+                          <ShieldCheck size={14} className="mt-0.5 shrink-0" />
+                        )}
+                        <span>{p.approval}</span>
                       </p>
                     )}
                   </div>

@@ -58,6 +58,10 @@ STATUS: SATISFIED FOR THIS CHECKOUT / OPEN FOR MONOREPO
 
 ---
 
+## DEPLOY BLOCKER (from approval ENTRY-012)
+- AUTH approved for dev/staging ONLY. Before any live deployment: remove or confine the
+  X-Patient-Id / X-Provider-Id test bypass headers to non-production builds.
+
 ## Standing gate state (unchanged)
 - Managed Gate B: BLOCKED — managed `DATABASE_URL` unavailable in this environment; local
   PostgreSQL does not qualify and none is installed.

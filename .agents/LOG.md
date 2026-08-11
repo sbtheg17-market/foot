@@ -171,3 +171,40 @@ Format: ENTRY-XXX | date | actor | action | evidence
 - Standing note: X-Patient-Id / X-Provider-Id header bypass remains for testing — REMOVE BEFORE
   DEPLOY (memory/test_credentials.md).
 - Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-012 | 2026-08-11 | Operator (Deep Research) | Patch approvals — signed log
+Approval block received from operator, recorded verbatim per the Fable/Replit signed-log
+policy (ENTRY-002):
+
+> PHASE_4C_restoration.patch — Approved. Restores Phase 4C contract + shell as design-only;
+> no schema, migrations, routes, or events. Safe as a non-behavioral prep step and matches
+> the consent-first principles.
+>
+> PHASE_4C_comfort-profile-api.patch — Approved. Implements the six consent-gated routes
+> exactly per contract (grant 201/400, withdraw/delete separate with 404, PUT 409 on inactive
+> consent, projection 404-only) with two additive collections only; node:test
+> fetch-against-BASE 12/12 passing.
+>
+> PHASE_4C_provider-projection-card.patch — Approved. Provider card respects consent and
+> visibility rules: renders nothing on 404/null, filters out ungranted categories, and has no
+> discovery surface. Matches the "projection only during ACTIVE booking" constraint.
+>
+> AUTH_patient-signin-logout.patch — Approved (dev/staging). Patient sign-in + hardened logout
+> (token cleared in finally, banner shown, server logout always 200) is correct and aligns
+> with secure portal auth patterns.
+> Caveat: the X-Patient-Id / X-Provider-Id test bypass must be removed or confined to a
+> non-production build before any live deployment; auth bypass headers are explicitly called
+> out as unsafe in production guidance.
+>
+> C3_patch-index-page.patch — Approved. /patches index that parses real patch files (name,
+> commit, files, test evidence) strengthens traceability and makes your one-task → one-patch
+> workflow transparent for future agents.
+>
+> Prepared by Deep Research
+
+Actions taken:
+- Approvals mirrored into patches/INDEX.json (`approval` field per patch).
+- /patches page now surfaces approval status (emerald badge; amber ShieldAlert when the
+  approval carries a CAVEAT — currently the AUTH dev/staging bypass caveat).
+- DEPLOY BLOCKER reaffirmed: remove/confine the X-Patient-Id / X-Provider-Id bypass before
+  any live deployment (see NEXT_TASK).

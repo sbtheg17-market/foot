@@ -72,6 +72,7 @@ async def list_patches():
         meta = index.get(path.name, {})
         entry["evidence"] = meta.get("evidence", "")
         entry["task"] = meta.get("task", "")
+        entry["approval"] = meta.get("approval", "")
         entries.append(entry)
     # chronological by author date where possible, fallback name
     entries.sort(key=lambda e: (e["date"], e["name"]))
