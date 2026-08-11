@@ -15,6 +15,16 @@ import { toast } from 'sonner';
 import { ROUTES } from '@/lib/routes';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
 import ClientReviewForm from '@/components/client-review-form';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const STATUS_META: Record<string, { label: string; className: string; description: string }> = {
   requested: {
@@ -78,6 +88,7 @@ export default function ClientBookingDetail() {
   });
   const booking = data?.booking;
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const updateStatus = useUpdateBookingStatus();
   const statusFeedback = useClientBookingStatusFeedback(booking ? [booking] : undefined);
   const queryClient = useQueryClient();
@@ -124,6 +135,16 @@ export default function ClientBookingDetail() {
   const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
   const isReviewEligible = booking.status === 'completed';
 
+  const requestCancel = () => {
+    if (isCancelling || !canCancel) {
+      if (!canCancel) {
+        toast.info('This booking can no longer be cancelled. Refreshing.');
+      }
+      return;
+    }
+    setIsCancelConfirmOpen(true);
+  };
+
   const handleCancel = () => {
     if (isCancelling || !canCancel) {
       if (!canCancel) {
@@ -131,8 +152,7 @@ export default function ClientBookingDetail() {
       }
       return;
     }
-    if (!window.confirm('Cancel this booking?\n\nThis cannot be undone.')) return;
-
+    setIsCancelConfirmOpen(false);
     setIsCancelling(true);
     updateStatus.mutate(
       {
@@ -280,7 +300,7 @@ export default function ClientBookingDetail() {
         </button>
         {canCancel && (
           <button
-            onClick={handleCancel}
+            onClick={requestCancel}
             disabled={isCancelling}
             className="w-full rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-semibold text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -288,6 +308,29 @@ export default function ClientBookingDetail() {
           </button>
         )}
       </div>
+
+      {/* In-app cancellation confirmation (never the native browser confirm) */}
+      <AlertDialog open={isCancelConfirmOpen} onOpenChange={setIsCancelConfirmOpen}>
+        <AlertDialogContent data-testid="cancel-booking-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your provider will be notified and this time slot will be released. This
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="cancel-booking-keep">Keep booking</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="cancel-booking-confirm"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleCancel}
+            >
+              Cancel booking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

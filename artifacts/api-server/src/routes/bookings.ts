@@ -223,6 +223,37 @@ router.post(
       return;
     }
 
+    const scheduledAtDate = new Date(String(scheduledAt));
+
+    // Duplicate-submit protection: the same client must not be able to create a
+    // second ACTIVE request for the identical provider + service + scheduled time
+    // (double-tap, back-button resubmit, or parallel tab). Cancelled / completed /
+    // no-show bookings never block a re-request. Application-level check only — a
+    // partial unique index would require a schema migration, which stays blocked
+    // behind Gate B (managed-database verification).
+    const [duplicate] = await db
+      .select({ id: bookingsTable.id })
+      .from(bookingsTable)
+      .where(
+        and(
+          eq(bookingsTable.clientId, req.user!.sub),
+          eq(bookingsTable.providerId, Number(providerId)),
+          eq(bookingsTable.serviceId, Number(serviceId)),
+          eq(bookingsTable.scheduledAt, scheduledAtDate),
+          inArray(bookingsTable.status, ["requested", "confirmed", "rescheduled"])
+        )
+      )
+      .limit(1);
+
+    if (duplicate) {
+      res.status(409).json({
+        error:
+          "You already have an active request for this provider, service, and time. Check your bookings before submitting again.",
+        bookingId: duplicate.id,
+      });
+      return;
+    }
+
     const [booking] = await db
       .insert(bookingsTable)
       .values({
@@ -230,7 +261,7 @@ router.post(
         providerId: Number(providerId),
         serviceId: Number(serviceId),
         status: "requested",
-        scheduledAt: new Date(String(scheduledAt)),
+        scheduledAt: scheduledAtDate,
         address: String(address),
         city: String(city),
         postalCode: postalCode !== undefined ? String(postalCode) : null,

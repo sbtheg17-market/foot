@@ -31,6 +31,7 @@ export * from './createBookingRequest';
 export * from './createReviewRequest';
 export * from './createServiceRequest';
 export * from './createTravelZoneRequest';
+export * from './duplicateBookingConflictResponse';
 export * from './earningsExportItem';
 export * from './earningsExportResponse';
 export * from './earningsExportResponseProvider';

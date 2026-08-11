@@ -4,6 +4,16 @@ import { Calendar, MapPin, ChevronRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'wouter';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type Tab = 'upcoming' | 'past' | 'cancelled';
 
@@ -25,6 +35,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 export default function ClientBookings() {
   const [activeTab, setActiveTab] = useState<Tab>('upcoming');
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [confirmingCancelId, setConfirmingCancelId] = useState<number | null>(null);
 
   const { data, isLoading, refetch } = useListBookings(undefined, {
     query: {
@@ -61,7 +72,7 @@ export default function ClientBookings() {
   const history = historyData?.history ?? [];
   const isActiveTabLoading = activeTab === 'past' ? isHistoryLoading : isLoading;
 
-  const handleCancel = (id: number) => {
+  const requestCancel = (id: number) => {
     if (cancellingId !== null) return; // guard against double-tap
     const booking = data?.bookings.find((item) => item.id === id);
     if (!booking || !['requested', 'confirmed', 'rescheduled'].includes(booking.status)) {
@@ -69,9 +80,12 @@ export default function ClientBookings() {
       void refetch();
       return;
     }
+    setConfirmingCancelId(id);
+  };
 
-    if (!window.confirm('Cancel this booking?\n\nThis cannot be undone.')) return;
-
+  const handleCancel = (id: number) => {
+    if (cancellingId !== null) return; // guard against double-tap
+    setConfirmingCancelId(null);
     setCancellingId(id);
     updateStatus.mutate(
       {
@@ -219,7 +233,7 @@ export default function ClientBookings() {
                   </div>
                   {canCancel && (
                     <button
-                      onClick={() => handleCancel(booking.id)}
+                      onClick={() => requestCancel(booking.id)}
                       disabled={cancellingId === booking.id}
                       className="ml-3 w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50"
                       title="Cancel booking"
@@ -276,6 +290,36 @@ export default function ClientBookings() {
           })
         )}
       </div>
+
+      {/* In-app cancellation confirmation (never the native browser confirm) */}
+      <AlertDialog
+        open={confirmingCancelId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmingCancelId(null);
+        }}
+      >
+        <AlertDialogContent data-testid="cancel-booking-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your provider will be notified and this time slot will be released. This
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="cancel-booking-keep">Keep booking</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="cancel-booking-confirm"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmingCancelId !== null) handleCancel(confirmingCancelId);
+              }}
+            >
+              Cancel booking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

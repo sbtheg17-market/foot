@@ -43,6 +43,14 @@
    duplicate-submit protection, one-review-per-completed-booking UI; reuse existing APIs;
    tests for repeat submissions and invalid states. Next feature slice after (or while
    arranging) Gate B.
+   **Status (Session 070): IMPLEMENTED as a reviewed candidate — pending PR review /
+   squash merge.** Reimplemented from test-report evidence (original uncommitted working
+   tree unavailable — see `docs/roadmap/SESSION_070_RECON_FOOT_WORKTREE.evidence.md`).
+   Delivered: `POST /bookings` duplicate 409 + `bookingId` (contract-first, codegen),
+   in-app cancel dialogs on the bookings list + detail (no `window.confirm`),
+   booking-modal 409 info-toast + redirect, and
+   `client-booking-lifecycle.integration.test.ts` (7/7; full regression green). The
+   race-proof partial unique index remains a future schema task gated behind Gate B.
 3. **Phase 4C stack-native port PLAN (plan only)** — Drizzle schema additions, Express
    routes, authz boundaries, consent status + visibility models, projection conditions,
    exact status codes (grant 201/400; PUT 409-on-inactive; withdraw/delete separate,
