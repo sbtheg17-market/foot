@@ -1,38 +1,34 @@
 [
   {
-    "content": "Environment setup: node/pnpm/corepack/postgres/playwright checks",
+    "content": "Record B′ identity bookkeeping: local 9e0bbd45 retired, canonical = d2ad54cd; PB-004 open (P4-001)",
     "status": "completed"
   },
   {
-    "content": "Verify old B′ source patch checksum dfbf9e18 (evidence only, identity retired)",
+    "content": "Re-derive Phase 4C non-schema prep onto d2ad54cd: 396040ea, 9-file scope (P4-002)",
     "status": "completed"
   },
   {
-    "content": "Create new B′ candidate: parent e2406942, one-file scope, new identity 9e0bbd45",
+    "content": "Re-capture 38/38 comfort-profile contract tests via capture.py (P4-003)",
     "status": "completed"
   },
   {
-    "content": "Validation 1-2: typecheck + web build (BD-005, BD-006 PASS)",
+    "content": "Verify OpenAPI draft, fixtures, contract module, unwired shells: typecheck+build+static (P4-004/005)",
     "status": "completed"
   },
   {
-    "content": "Validation 3-6: desktop 6/6 + mobile 6/6 + token clearing + protected routes 8/8 (BD-010..BD-012 PASS)",
+    "content": "Confirm blocked surfaces untouched + patch/tree reproduction + secret scan (P4-005/006)",
     "status": "completed"
   },
   {
-    "content": "Validation 7-8: real reviewed --approve-web-ui rationale + gate 12/12 (BD-014 PASS)",
+    "content": "Separate Rule 12 r2 re-derivation: e5919bd4, full gate PASS (RD-001/002)",
     "status": "completed"
   },
   {
-    "content": "Validation 9-10: patch/tree reproduction + secret scan clean (BD-015, BD-016 PASS)",
+    "content": "Packages assembled (10/10, 5/5 OK); handoff manifest 149/149; matrix v7 written",
     "status": "completed"
   },
   {
-    "content": "Package: patch, manifest, checksums 20/20, guide, evidence, handoff manifest 115/115",
-    "status": "completed"
-  },
-  {
-    "content": "STOP: report candidate identity, validation matrix, checksums, publication blockers",
+    "content": "STOPPED before any push; report delivered",
     "status": "completed"
   }
 ]

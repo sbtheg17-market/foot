@@ -1,0 +1,2007 @@
+From 396040ea3e6921eaee7555609269dae3dd201412 Mon Sep 17 00:00:00 2001
+From: "E2 Agent (Emergent)" <github@emergent.sh>
+Date: Mon, 10 Aug 2026 22:19:26 +0000
+Subject: [PATCH] =?UTF-8?q?docs(comfort):=20Phase=204C=20non-schema=20prep?=
+ =?UTF-8?q?aration=20=E2=80=94=20OpenAPI=20draft=20(x-status:=20draft,=20p?=
+ =?UTF-8?q?inned=20to=20contract=20checksum=20339a03e6),=20dependency-free?=
+ =?UTF-8?q?=20contract=20module=20encoding=20closed=20vocabularies=20+=20c?=
+ =?UTF-8?q?onsent=20latest-row=20semantics=20+=20booking-scoped=20projecti?=
+ =?UTF-8?q?on=20filtering,=20canonical=20fixtures,=2038=20passing=20contra?=
+ =?UTF-8?q?ct=20tests=20(test:comfort-contract),=20and=20unwired=20UI=20sh?=
+ =?UTF-8?q?ells=20(client=20editor=20+=20provider=20booking=20card)=20with?=
+ =?UTF-8?q?=20copy-audit=20enforcement=20of=20the=20matches-your-preferenc?=
+ =?UTF-8?q?es=20language=20rule;=20no=20DB=20schema,=20no=20codegen,=20no?=
+ =?UTF-8?q?=20routing=20changes,=20no=20storage=20wiring,=20no=20event=20e?=
+ =?UTF-8?q?mission;=20pnpm-lock.yaml=20untouched?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ artifacts/api-server/package.json             |   3 +-
+ .../comfort-profile.contract.test.ts          | 323 ++++++++++++++
+ .../fixtures/comfort-profile.fixtures.ts      | 134 ++++++
+ .../src/contracts/comfort-profile.contract.ts | 412 ++++++++++++++++++
+ .../comfort/provider-comfort-card-shell.tsx   | 120 +++++
+ .../comfort/comfort-preferences-shell.tsx     | 312 +++++++++++++
+ .../PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md   | 144 ++++++
+ docs/comfort-profile/WIRING_NOTES.md          |  50 +++
+ docs/comfort-profile/openapi.draft.yaml       | 408 +++++++++++++++++
+ 9 files changed, 1905 insertions(+), 1 deletion(-)
+ create mode 100644 artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts
+ create mode 100644 artifacts/api-server/src/__tests__/fixtures/comfort-profile.fixtures.ts
+ create mode 100644 artifacts/api-server/src/contracts/comfort-profile.contract.ts
+ create mode 100644 artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx
+ create mode 100644 artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx
+ create mode 100644 docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md
+ create mode 100644 docs/comfort-profile/WIRING_NOTES.md
+ create mode 100644 docs/comfort-profile/openapi.draft.yaml
+
+diff --git a/artifacts/api-server/package.json b/artifacts/api-server/package.json
+index a877abf..865e6d5 100644
+--- a/artifacts/api-server/package.json
++++ b/artifacts/api-server/package.json
+@@ -26,7 +26,8 @@
+     "test:provider-notifications": "node --import tsx/esm --test src/__tests__/provider-notifications.integration.test.ts",
+     "test:reviewer-decisions": "node --import tsx/esm --test src/__tests__/reviewer-decisions.integration.test.ts",
+     "test:provider-readiness": "node --import tsx/esm --test src/__tests__/provider-readiness.integration.test.ts",
+-    "test:marketplace-events": "node --import tsx/esm --test src/__tests__/marketplace-events.integration.test.ts"
++    "test:marketplace-events": "node --import tsx/esm --test src/__tests__/marketplace-events.integration.test.ts",
++    "test:comfort-contract": "node --import tsx/esm --test src/__tests__/comfort-profile.contract.test.ts"
+   },
+   "dependencies": {
+     "@workspace/api-zod": "workspace:*",
+diff --git a/artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts b/artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts
+new file mode 100644
+index 0000000..72effbc
+--- /dev/null
++++ b/artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts
+@@ -0,0 +1,323 @@
++/**
++ * Phase 4C — Comfort Profile — CONTRACT TESTS (non-schema preparation).
++ *
++ * Pure tests: no database, no server, no network. They pin the contract
++ * semantics (closed enums, privacy-by-default visibility, consent latest-row
++ * semantics, booking-scoped projection filtering, 404-never-403 darkness,
++ * language rule, and OpenAPI draft coverage) before any implementation.
++ */
++import { strict as assert } from 'node:assert';
++import { test } from 'node:test';
++import { readFileSync } from 'node:fs';
++import { join, dirname } from 'node:path';
++import { fileURLToPath } from 'node:url';
++
++import {
++  ACCESSIBILITY_NEEDS,
++  BOOKING_REASONS,
++  COMMUNICATION_PREFERENCES,
++  FRAGRANCE_PREFERENCES,
++  PREFERRED_DURATION_BUCKETS,
++  PREFERRED_TIME_WINDOWS,
++  PRESSURE_PREFERENCES,
++  PROJECTION_ACTIVE_BOOKING_STATUSES,
++  SENSITIVITY_FLAGS,
++  SETTING_PREFERENCES,
++  TOUCH_SENSITIVITIES,
++  VISIBILITY_CATEGORIES,
++  VISIT_NOTE_MAX_LENGTH,
++  buildProviderProjection,
++  defaultVisibilityFlags,
++  findForbiddenMedicalPhrases,
++  isConsentActive,
++  validateComfortPreferences,
++  validateVisibilityFlags,
++} from '../contracts/comfort-profile.contract.js';
++import {
++  activeConsentHistory,
++  allHiddenVisibility,
++  comfortAndAccessibilityVisible,
++  duplicateFlagsPreferences,
++  emptyConsentHistory,
++  emptyValidPreferences,
++  everythingVisible,
++  fullValidPreferences,
++  inactiveBookingStatuses,
++  invalidEnumPreferences,
++  invalidVisibilityUnknownCategory,
++  oversizedNotePreferences,
++  projectionContext,
++  regrantedConsentHistory,
++  unknownKeyPreferences,
++  withdrawnConsentHistory,
++} from './fixtures/comfort-profile.fixtures.js';
++
++const __dirname = dirname(fileURLToPath(import.meta.url));
++const REPO_ROOT = join(__dirname, '..', '..', '..', '..');
++
++// ---------------------------------------------------------------------------
++
++test('Closed vocabularies', async (t) => {
++  await t.test('every optional single-select enum starts with "unspecified"', () => {
++    for (const vocab of [
++      BOOKING_REASONS,
++      PRESSURE_PREFERENCES,
++      TOUCH_SENSITIVITIES,
++      SETTING_PREFERENCES,
++      PREFERRED_DURATION_BUCKETS,
++      COMMUNICATION_PREFERENCES,
++      FRAGRANCE_PREFERENCES,
++    ]) {
++      assert.equal(vocab[0], 'unspecified');
++    }
++  });
++
++  await t.test('vocabulary sizes match the v3 contract exactly', () => {
++    assert.equal(BOOKING_REASONS.length, 7); // unspecified + 6
++    assert.equal(PRESSURE_PREFERENCES.length, 5);
++    assert.equal(TOUCH_SENSITIVITIES.length, 4);
++    assert.equal(FRAGRANCE_PREFERENCES.length, 4);
++    assert.equal(SENSITIVITY_FLAGS.length, 5);
++    assert.equal(ACCESSIBILITY_NEEDS.length, 5);
++    assert.equal(SETTING_PREFERENCES.length, 4);
++    assert.equal(PREFERRED_DURATION_BUCKETS.length, 4);
++    assert.equal(PREFERRED_TIME_WINDOWS.length, 6);
++    assert.equal(COMMUNICATION_PREFERENCES.length, 4);
++    assert.equal(VISIBILITY_CATEGORIES.length, 8);
++    assert.equal(VISIT_NOTE_MAX_LENGTH, 280);
++  });
++
++  await t.test('full valid fixture passes validation', () => {
++    const result = validateComfortPreferences(fullValidPreferences);
++    assert.deepEqual(result.issues, []);
++    assert.equal(result.ok, true);
++  });
++
++  await t.test('optional-everything: empty object is a valid profile payload', () => {
++    assert.equal(validateComfortPreferences(emptyValidPreferences).ok, true);
++  });
++
++  await t.test('out-of-enum value is rejected', () => {
++    const result = validateComfortPreferences(invalidEnumPreferences);
++    assert.equal(result.ok, false);
++    assert.ok(result.issues.some((i) => i.path === 'pressurePreference'));
++  });
++
++  await t.test('unknown keys are rejected', () => {
++    const result = validateComfortPreferences(unknownKeyPreferences);
++    assert.equal(result.ok, false);
++    assert.ok(result.issues.some((i) => i.path === 'medicalHistory'));
++  });
++
++  await t.test('visit note over 280 chars is rejected', () => {
++    const result = validateComfortPreferences(oversizedNotePreferences);
++    assert.equal(result.ok, false);
++    assert.ok(result.issues.some((i) => i.path === 'visitNote'));
++  });
++
++  await t.test('duplicate multi-select values are rejected', () => {
++    const result = validateComfortPreferences(duplicateFlagsPreferences);
++    assert.equal(result.ok, false);
++  });
++});
++
++// ---------------------------------------------------------------------------
++
++test('Visibility semantics', async (t) => {
++  await t.test('privacy by default: every category starts hidden', () => {
++    const flags = defaultVisibilityFlags();
++    for (const category of VISIBILITY_CATEGORIES) {
++      assert.equal(flags[category], false, `${category} must default to hidden`);
++    }
++  });
++
++  await t.test('unknown visibility categories are rejected', () => {
++    const result = validateVisibilityFlags(invalidVisibilityUnknownCategory);
++    assert.equal(result.ok, false);
++    assert.ok(result.issues.some((i) => i.path === 'medicalRecords'));
++  });
++
++  await t.test('valid visibility flags pass', () => {
++    assert.equal(validateVisibilityFlags(everythingVisible).ok, true);
++    assert.equal(validateVisibilityFlags(allHiddenVisibility).ok, true);
++  });
++});
++
++// ---------------------------------------------------------------------------
++
++test('Consent semantics (latest row wins)', async (t) => {
++  await t.test('no history means no consent', () => {
++    assert.equal(isConsentActive(emptyConsentHistory), false);
++  });
++
++  await t.test('granted and not withdrawn means active', () => {
++    assert.equal(isConsentActive(activeConsentHistory), true);
++  });
++
++  await t.test('withdrawn latest row means NO consent', () => {
++    assert.equal(isConsentActive(withdrawnConsentHistory), false);
++  });
++
++  await t.test('withdrawal is reversible by re-granting', () => {
++    assert.equal(isConsentActive(regrantedConsentHistory), true);
++  });
++});
++
++// ---------------------------------------------------------------------------
++
++test('Provider projection filtering', async (t) => {
++  await t.test('active booking + consent + visible categories yields only those categories', () => {
++    const projection = buildProviderProjection(projectionContext());
++    assert.ok(projection);
++    // comfort + accessibility visible in the fixture
++    assert.ok(projection.comfort);
++    assert.deepEqual(projection.accessibility, ['limited_mobility', 'stairs_at_entrance']);
++    // hidden categories are entirely absent — not empty, absent
++    assert.equal('bookingReason' in projection, false);
++    assert.equal('sensitivities' in projection, false);
++    assert.equal('visitNote' in projection, false);
++    assert.equal('communication' in projection, false);
++  });
++
++  await t.test('provider who does not own the booking gets darkness (→404, never 403)', () => {
++    assert.equal(buildProviderProjection(projectionContext({ providerOwnsBooking: false })), null);
++  });
++
++  await t.test('exact active-status set is confirmed/en_route/in_progress', () => {
++    assert.deepEqual([...PROJECTION_ACTIVE_BOOKING_STATUSES], ['confirmed', 'en_route', 'in_progress']);
++    for (const status of PROJECTION_ACTIVE_BOOKING_STATUSES) {
++      assert.ok(buildProviderProjection(projectionContext({ bookingStatus: status })));
++    }
++  });
++
++  await t.test('requested/completed/cancelled bookings never yield a projection', () => {
++    for (const status of inactiveBookingStatuses) {
++      assert.equal(buildProviderProjection(projectionContext({ bookingStatus: status })), null, status);
++    }
++  });
++
++  await t.test('withdrawn consent makes the projection go dark immediately', () => {
++    assert.equal(
++      buildProviderProjection(projectionContext({ consentHistory: withdrawnConsentHistory })),
++      null,
++    );
++  });
++
++  await t.test('re-granted consent restores the projection', () => {
++    assert.ok(buildProviderProjection(projectionContext({ consentHistory: regrantedConsentHistory })));
++  });
++
++  await t.test('all categories hidden yields darkness, not an empty object', () => {
++    assert.equal(
++      buildProviderProjection(projectionContext({ visibility: allHiddenVisibility })),
++      null,
++    );
++  });
++
++  await t.test('missing profile yields darkness', () => {
++    assert.equal(
++      buildProviderProjection(projectionContext({ preferences: null, visibility: null })),
++      null,
++    );
++  });
++
++  await t.test('visit note is projected only when its category is explicitly visible', () => {
++    const withNoteVisible = buildProviderProjection(
++      projectionContext({ visibility: { ...comfortAndAccessibilityVisible, visitNote: true } }),
++    );
++    assert.ok(withNoteVisible);
++    assert.equal(typeof withNoteVisible.visitNote, 'string');
++
++    const withNoteHidden = buildProviderProjection(projectionContext());
++    assert.ok(withNoteHidden);
++    assert.equal('visitNote' in withNoteHidden, false);
++  });
++});
++
++// ---------------------------------------------------------------------------
++
++test('Language rule — copy audit', async (t) => {
++  await t.test('detector catches medical-suitability phrasing', () => {
++    assert.deepEqual(findForbiddenMedicalPhrases('This service is medically suitable for you'), [
++      'medically suitable',
++    ]);
++    assert.deepEqual(findForbiddenMedicalPhrases('matches your preferences'), []);
++  });
++
++  await t.test('UI shells contain zero forbidden medical phrases', () => {
++    const shellFiles = [
++      join(REPO_ROOT, 'artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx'),
++      join(REPO_ROOT, 'artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx'),
++    ];
++    for (const file of shellFiles) {
++      const source = readFileSync(file, 'utf8');
++      assert.deepEqual(findForbiddenMedicalPhrases(source), [], file);
++    }
++  });
++
++  await t.test('provider-facing shell uses "matches your preferences" copy', () => {
++    const source = readFileSync(
++      join(REPO_ROOT, 'artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx'),
++      'utf8',
++    );
++    assert.ok(source.toLowerCase().includes('matches your preferences'));
++  });
++});
++
++// ---------------------------------------------------------------------------
++
++test('OpenAPI draft coverage', async (t) => {
++  const draft = readFileSync(join(REPO_ROOT, 'docs/comfort-profile/openapi.draft.yaml'), 'utf8');
++
++  await t.test('draft is marked as draft and pinned to the verified contract checksum', () => {
++    assert.ok(draft.includes('x-status: draft'));
++    assert.ok(
++      draft.includes('339a03e6bb2c7aab6cee7306bb1daff43003a46c6edbbf16f2ed77c2d5fe4a4f'),
++    );
++  });
++
++  await t.test('all six contract routes are present', () => {
++    assert.ok(draft.includes('/clients/me/comfort-profile:'));
++    assert.ok(draft.includes('/clients/me/comfort-consent:'));
++    assert.ok(draft.includes('/bookings/{bookingId}/client-comfort:'));
++    for (const op of [
++      'getMyComfortProfile',
++      'putMyComfortProfile',
++      'deleteMyComfortProfile',
++      'grantComfortConsent',
++      'withdrawComfortConsent',
++      'getBookingClientComfort',
++    ]) {
++      assert.ok(draft.includes(`operationId: ${op}`), op);
++    }
++  });
++
++  await t.test('every closed enum value appears in the draft spec', () => {
++    const vocabularies: readonly (readonly string[])[] = [
++      BOOKING_REASONS,
++      PRESSURE_PREFERENCES,
++      TOUCH_SENSITIVITIES,
++      FRAGRANCE_PREFERENCES,
++      SENSITIVITY_FLAGS,
++      ACCESSIBILITY_NEEDS,
++      SETTING_PREFERENCES,
++      PREFERRED_DURATION_BUCKETS,
++      PREFERRED_TIME_WINDOWS,
++      COMMUNICATION_PREFERENCES,
++    ];
++    for (const vocab of vocabularies) {
++      for (const value of vocab) {
++        assert.ok(draft.includes(value), `missing enum value in draft: ${value}`);
++      }
++    }
++  });
++
++  await t.test('projection denial documents 404-never-403 and note cap is 280', () => {
++    assert.ok(draft.toLowerCase().includes('never 403'));
++    assert.ok(draft.includes('maxLength: 280'));
++  });
++
++  await t.test('draft contains no medical-suitability phrasing', () => {
++    assert.deepEqual(findForbiddenMedicalPhrases(draft), []);
++  });
++});
+diff --git a/artifacts/api-server/src/__tests__/fixtures/comfort-profile.fixtures.ts b/artifacts/api-server/src/__tests__/fixtures/comfort-profile.fixtures.ts
+new file mode 100644
+index 0000000..9365378
+--- /dev/null
++++ b/artifacts/api-server/src/__tests__/fixtures/comfort-profile.fixtures.ts
+@@ -0,0 +1,134 @@
++/**
++ * Phase 4C — Comfort Profile — canonical fixtures for contract tests.
++ * Non-schema preparation artifact: pure data, no storage, no network.
++ */
++import type {
++  ComfortConsentRecord,
++  ComfortPreferences,
++  ComfortVisibilityFlags,
++  ProjectionContext,
++} from '../../contracts/comfort-profile.contract.js';
++import { defaultVisibilityFlags } from '../../contracts/comfort-profile.contract.js';
++
++// -- Preferences -------------------------------------------------------------
++
++/** A fully-populated, valid profile using only closed-enum values. */
++export const fullValidPreferences: ComfortPreferences = {
++  bookingReason: 'recurring_care',
++  pressurePreference: 'light',
++  touchSensitivity: 'high',
++  temperaturePreference: 'warmer',
++  fragrancePreference: 'fragrance_free_required',
++  sensitivityFlags: ['sensitive_skin', 'allergy_latex'],
++  accessibilityNeeds: ['limited_mobility', 'stairs_at_entrance'],
++  settingPreference: 'at_home_only',
++  preferredDurationBucket: 'standard_60',
++  preferredTimeWindows: ['weekday_morning', 'weekend_afternoon'],
++  communicationPreference: 'quiet_visit',
++  languagePreference: 'en',
++  visitNote: 'Please ring the bell twice; the front door sticks a little.',
++};
++
++/** Minimal valid payload — optional-everything means {} is valid. */
++export const emptyValidPreferences: ComfortPreferences = {};
++
++/** Invalid: value outside the closed enum. */
++export const invalidEnumPreferences = {
++  pressurePreference: 'deep_tissue_medical',
++} as const;
++
++/** Invalid: unknown key must be rejected. */
++export const unknownKeyPreferences = {
++  bookingReason: 'comfort',
++  medicalHistory: 'should never be accepted',
++} as const;
++
++/** Invalid: free-text note over the 280-character cap. */
++export const oversizedNotePreferences = {
++  visitNote: 'x'.repeat(281),
++} as const;
++
++/** Invalid: duplicate multi-select values. */
++export const duplicateFlagsPreferences = {
++  sensitivityFlags: ['sensitive_skin', 'sensitive_skin'],
++} as const;
++
++// -- Visibility ---------------------------------------------------------------
++
++export const allHiddenVisibility: ComfortVisibilityFlags = defaultVisibilityFlags();
++
++export const comfortAndAccessibilityVisible: ComfortVisibilityFlags = {
++  ...defaultVisibilityFlags(),
++  comfort: true,
++  accessibility: true,
++};
++
++export const everythingVisible: ComfortVisibilityFlags = {
++  bookingReason: true,
++  comfort: true,
++  sensitivities: true,
++  accessibility: true,
++  setting: true,
++  appointmentShape: true,
++  communication: true,
++  visitNote: true,
++};
++
++export const invalidVisibilityUnknownCategory = {
++  comfort: true,
++  medicalRecords: true,
++} as const;
++
++// -- Consent ------------------------------------------------------------------
++
++export const activeConsentHistory: ComfortConsentRecord[] = [
++  {
++    version: 1,
++    consentTextHash: 'a'.repeat(64),
++    grantedAt: '2026-08-01T10:00:00.000Z',
++    withdrawnAt: null,
++  },
++];
++
++export const withdrawnConsentHistory: ComfortConsentRecord[] = [
++  {
++    version: 1,
++    consentTextHash: 'a'.repeat(64),
++    grantedAt: '2026-08-01T10:00:00.000Z',
++    withdrawnAt: '2026-08-05T09:00:00.000Z',
++  },
++];
++
++/** Withdrawn, then re-granted — consent is active again (contract §2.7). */
++export const regrantedConsentHistory: ComfortConsentRecord[] = [
++  {
++    version: 1,
++    consentTextHash: 'a'.repeat(64),
++    grantedAt: '2026-08-01T10:00:00.000Z',
++    withdrawnAt: '2026-08-05T09:00:00.000Z',
++  },
++  {
++    version: 2,
++    consentTextHash: 'b'.repeat(64),
++    grantedAt: '2026-08-06T11:30:00.000Z',
++    withdrawnAt: null,
++  },
++];
++
++export const emptyConsentHistory: ComfortConsentRecord[] = [];
++
++// -- Projection scenarios -------------------------------------------------------
++
++export function projectionContext(overrides: Partial<ProjectionContext> = {}): ProjectionContext {
++  return {
++    providerOwnsBooking: true,
++    bookingStatus: 'confirmed',
++    consentHistory: activeConsentHistory,
++    preferences: fullValidPreferences,
++    visibility: comfortAndAccessibilityVisible,
++    ...overrides,
++  };
++}
++
++/** Booking statuses that must NEVER yield a projection (contract §2.6). */
++export const inactiveBookingStatuses = ['requested', 'completed', 'cancelled', 'declined'] as const;
+diff --git a/artifacts/api-server/src/contracts/comfort-profile.contract.ts b/artifacts/api-server/src/contracts/comfort-profile.contract.ts
+new file mode 100644
+index 0000000..015ae81
+--- /dev/null
++++ b/artifacts/api-server/src/contracts/comfort-profile.contract.ts
+@@ -0,0 +1,412 @@
++/**
++ * Phase 4C — Consent-First Client Comfort Profile — CONTRACT MODULE (draft)
++ *
++ * Non-schema preparation artifact. Encodes the closed vocabularies, visibility
++ * semantics, consent semantics, and the provider-projection filtering rules
++ * from docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md
++ * (SHA-256 339a03e6bb2c7aab6cee7306bb1daff43003a46c6edbbf16f2ed77c2d5fe4a4f).
++ *
++ * Intentionally dependency-free (no zod, no drizzle, no storage imports):
++ * the canonical Zod schemas will be generated from the OpenAPI spec at
++ * implementation step C-1. Nothing in this module touches the database,
++ * emits events, or registers routes.
++ */
++
++// ---------------------------------------------------------------------------
++// Closed vocabularies (contract §4). "unspecified" is always the default.
++// ---------------------------------------------------------------------------
++
++export const BOOKING_REASONS = [
++  'unspecified',
++  'comfort',
++  'relaxation',
++  'appearance',
++  'recurring_care',
++  'mobility_support',
++  'other_personal_goal',
++] as const;
++export type BookingReason = (typeof BOOKING_REASONS)[number];
++
++export const PRESSURE_PREFERENCES = ['unspecified', 'very_light', 'light', 'moderate', 'firm'] as const;
++export type PressurePreference = (typeof PRESSURE_PREFERENCES)[number];
++
++export const TOUCH_SENSITIVITIES = ['unspecified', 'low', 'medium', 'high'] as const;
++export type TouchSensitivity = (typeof TOUCH_SENSITIVITIES)[number];
++
++export const TEMPERATURE_PREFERENCES = ['unspecified', 'cooler', 'neutral', 'warmer'] as const;
++export type TemperaturePreference = (typeof TEMPERATURE_PREFERENCES)[number];
++
++export const FRAGRANCE_PREFERENCES = [
++  'unspecified',
++  'fragrance_free_required',
++  'light_fragrance_ok',
++  'no_preference',
++] as const;
++export type FragrancePreference = (typeof FRAGRANCE_PREFERENCES)[number];
++
++export const SENSITIVITY_FLAGS = [
++  'sensitive_skin',
++  'allergy_common_lotions',
++  'allergy_latex',
++  'neuropathy_care_attention',
++  'bruises_easily',
++] as const;
++export type SensitivityFlag = (typeof SENSITIVITY_FLAGS)[number];
++
++export const ACCESSIBILITY_NEEDS = [
++  'limited_mobility',
++  'uses_wheelchair',
++  'needs_seated_service',
++  'service_animal_present',
++  'stairs_at_entrance',
++] as const;
++export type AccessibilityNeed = (typeof ACCESSIBILITY_NEEDS)[number];
++
++export const SETTING_PREFERENCES = ['unspecified', 'at_home_only', 'studio_ok', 'either'] as const;
++export type SettingPreference = (typeof SETTING_PREFERENCES)[number];
++
++export const PREFERRED_DURATION_BUCKETS = ['unspecified', 'short_30_45', 'standard_60', 'extended_75_plus'] as const;
++export type PreferredDurationBucket = (typeof PREFERRED_DURATION_BUCKETS)[number];
++
++export const PREFERRED_TIME_WINDOWS = [
++  'weekday_morning',
++  'weekday_afternoon',
++  'weekday_evening',
++  'weekend_morning',
++  'weekend_afternoon',
++  'weekend_evening',
++] as const;
++export type PreferredTimeWindow = (typeof PREFERRED_TIME_WINDOWS)[number];
++
++export const COMMUNICATION_PREFERENCES = ['unspecified', 'chatty', 'quiet_visit', 'no_preference'] as const;
++export type CommunicationPreference = (typeof COMMUNICATION_PREFERENCES)[number];
++
++/** Curated BCP-47 list (contract §4 — curated, extensible at implementation review). */
++export const CURATED_LANGUAGE_TAGS = ['en', 'en-GB', 'es', 'fr', 'de', 'pt-BR', 'zh-Hans', 'hi', 'ar'] as const;
++
++export const VISIT_NOTE_MAX_LENGTH = 280;
++
++// ---------------------------------------------------------------------------
++// Visibility categories (contract §4). Default for every category: hidden.
++// ---------------------------------------------------------------------------
++
++export const VISIBILITY_CATEGORIES = [
++  'bookingReason',
++  'comfort',
++  'sensitivities',
++  'accessibility',
++  'setting',
++  'appointmentShape',
++  'communication',
++  'visitNote',
++] as const;
++export type VisibilityCategory = (typeof VISIBILITY_CATEGORIES)[number];
++
++export type ComfortVisibilityFlags = Record<VisibilityCategory, boolean>;
++
++/** Privacy by default — every category hidden until the client turns it on. */
++export function defaultVisibilityFlags(): ComfortVisibilityFlags {
++  return {
++    bookingReason: false,
++    comfort: false,
++    sensitivities: false,
++    accessibility: false,
++    setting: false,
++    appointmentShape: false,
++    communication: false,
++    visitNote: false,
++  };
++}
++
++// ---------------------------------------------------------------------------
++// Profile shape (all optional — contract §2.2 optional-everything)
++// ---------------------------------------------------------------------------
++
++export interface ComfortPreferences {
++  bookingReason?: BookingReason;
++  pressurePreference?: PressurePreference;
++  touchSensitivity?: TouchSensitivity;
++  temperaturePreference?: TemperaturePreference;
++  fragrancePreference?: FragrancePreference;
++  sensitivityFlags?: SensitivityFlag[];
++  accessibilityNeeds?: AccessibilityNeed[];
++  settingPreference?: SettingPreference;
++  preferredDurationBucket?: PreferredDurationBucket;
++  preferredTimeWindows?: PreferredTimeWindow[];
++  communicationPreference?: CommunicationPreference;
++  languagePreference?: string;
++  visitNote?: string;
++}
++
++const KNOWN_PREFERENCE_KEYS = new Set<string>([
++  'bookingReason',
++  'pressurePreference',
++  'touchSensitivity',
++  'temperaturePreference',
++  'fragrancePreference',
++  'sensitivityFlags',
++  'accessibilityNeeds',
++  'settingPreference',
++  'preferredDurationBucket',
++  'preferredTimeWindows',
++  'communicationPreference',
++  'languagePreference',
++  'visitNote',
++]);
++
++export interface ValidationIssue {
++  path: string;
++  message: string;
++}
++
++function isOneOf(value: unknown, allowed: readonly string[]): boolean {
++  return typeof value === 'string' && (allowed as readonly string[]).includes(value);
++}
++
++function validateMulti(
++  value: unknown,
++  allowed: readonly string[],
++  path: string,
++  issues: ValidationIssue[],
++): void {
++  if (value === undefined) return;
++  if (!Array.isArray(value)) {
++    issues.push({ path, message: 'must be an array' });
++    return;
++  }
++  const seen = new Set<string>();
++  for (const item of value) {
++    if (!isOneOf(item, allowed)) {
++      issues.push({ path, message: `unknown value: ${String(item)}` });
++    } else if (seen.has(item as string)) {
++      issues.push({ path, message: `duplicate value: ${String(item)}` });
++    } else {
++      seen.add(item as string);
++    }
++  }
++}
++
++/**
++ * Validates a raw preferences payload against the closed vocabularies.
++ * Unknown keys are rejected (contract §6 — "unknown keys rejected").
++ */
++export function validateComfortPreferences(raw: unknown): {
++  ok: boolean;
++  issues: ValidationIssue[];
++} {
++  const issues: ValidationIssue[] = [];
++  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
++    return { ok: false, issues: [{ path: '', message: 'preferences must be an object' }] };
++  }
++  const obj = raw as Record<string, unknown>;
++
++  for (const key of Object.keys(obj)) {
++    if (!KNOWN_PREFERENCE_KEYS.has(key)) {
++      issues.push({ path: key, message: 'unknown key rejected' });
++    }
++  }
++
++  const singles: Array<[string, readonly string[]]> = [
++    ['bookingReason', BOOKING_REASONS],
++    ['pressurePreference', PRESSURE_PREFERENCES],
++    ['touchSensitivity', TOUCH_SENSITIVITIES],
++    ['temperaturePreference', TEMPERATURE_PREFERENCES],
++    ['fragrancePreference', FRAGRANCE_PREFERENCES],
++    ['settingPreference', SETTING_PREFERENCES],
++    ['preferredDurationBucket', PREFERRED_DURATION_BUCKETS],
++    ['communicationPreference', COMMUNICATION_PREFERENCES],
++  ];
++  for (const [key, allowed] of singles) {
++    const value = obj[key];
++    if (value !== undefined && !isOneOf(value, allowed)) {
++      issues.push({ path: key, message: `value not in closed enum: ${String(value)}` });
++    }
++  }
++
++  validateMulti(obj['sensitivityFlags'], SENSITIVITY_FLAGS, 'sensitivityFlags', issues);
++  validateMulti(obj['accessibilityNeeds'], ACCESSIBILITY_NEEDS, 'accessibilityNeeds', issues);
++  validateMulti(obj['preferredTimeWindows'], PREFERRED_TIME_WINDOWS, 'preferredTimeWindows', issues);
++
++  const language = obj['languagePreference'];
++  if (language !== undefined && !isOneOf(language, CURATED_LANGUAGE_TAGS)) {
++    issues.push({ path: 'languagePreference', message: 'language tag not in curated list' });
++  }
++
++  const note = obj['visitNote'];
++  if (note !== undefined) {
++    if (typeof note !== 'string') {
++      issues.push({ path: 'visitNote', message: 'must be a string' });
++    } else if (note.length > VISIT_NOTE_MAX_LENGTH) {
++      issues.push({ path: 'visitNote', message: `exceeds ${VISIT_NOTE_MAX_LENGTH} characters` });
++    }
++  }
++
++  return { ok: issues.length === 0, issues };
++}
++
++/** Validates visibility flags: known categories only, booleans only. */
++export function validateVisibilityFlags(raw: unknown): { ok: boolean; issues: ValidationIssue[] } {
++  const issues: ValidationIssue[] = [];
++  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
++    return { ok: false, issues: [{ path: '', message: 'visibility must be an object' }] };
++  }
++  const obj = raw as Record<string, unknown>;
++  const known = new Set<string>(VISIBILITY_CATEGORIES);
++  for (const [key, value] of Object.entries(obj)) {
++    if (!known.has(key)) {
++      issues.push({ path: key, message: 'unknown visibility category rejected' });
++    } else if (typeof value !== 'boolean') {
++      issues.push({ path: key, message: 'must be a boolean' });
++    }
++  }
++  return { ok: issues.length === 0, issues };
++}
++
++// ---------------------------------------------------------------------------
++// Consent semantics (contract §2.7, §5)
++// ---------------------------------------------------------------------------
++
++export interface ComfortConsentRecord {
++  version: number;
++  consentTextHash: string;
++  grantedAt: string; // ISO 8601
++  withdrawnAt?: string | null;
++}
++
++/**
++ * Latest row wins; a latest row with withdrawnAt set means NO consent
++ * (contract §5). An empty history means no consent.
++ */
++export function isConsentActive(history: ComfortConsentRecord[]): boolean {
++  if (history.length === 0) return false;
++  const latest = [...history].sort((a, b) => a.grantedAt.localeCompare(b.grantedAt))[
++    history.length - 1
++  ];
++  return latest !== undefined && (latest.withdrawnAt === undefined || latest.withdrawnAt === null);
++}
++
++// ---------------------------------------------------------------------------
++// Provider projection (contract §2.6, §6)
++// ---------------------------------------------------------------------------
++
++/**
++ * Exact active-status set (contract §2.6): confirmed, en_route, in_progress.
++ * To be re-verified against docs/booking-statuses.md at implementation review.
++ */
++export const PROJECTION_ACTIVE_BOOKING_STATUSES = ['confirmed', 'en_route', 'in_progress'] as const;
++export type ProjectionActiveBookingStatus = (typeof PROJECTION_ACTIVE_BOOKING_STATUSES)[number];
++
++export function isProjectionEligibleStatus(status: string): boolean {
++  return (PROJECTION_ACTIVE_BOOKING_STATUSES as readonly string[]).includes(status);
++}
++
++export interface ComfortProjection {
++  bookingReason?: BookingReason;
++  comfort?: {
++    pressurePreference?: PressurePreference;
++    touchSensitivity?: TouchSensitivity;
++    temperaturePreference?: TemperaturePreference;
++    fragrancePreference?: FragrancePreference;
++  };
++  sensitivities?: SensitivityFlag[];
++  accessibility?: AccessibilityNeed[];
++  setting?: SettingPreference;
++  appointmentShape?: {
++    preferredDurationBucket?: PreferredDurationBucket;
++    preferredTimeWindows?: PreferredTimeWindow[];
++  };
++  communication?: {
++    communicationPreference?: CommunicationPreference;
++    languagePreference?: string;
++  };
++  visitNote?: string;
++}
++
++export interface ProjectionContext {
++  /** Booking is owned by the requesting provider. */
++  providerOwnsBooking: boolean;
++  /** Current booking status. */
++  bookingStatus: string;
++  /** Client's consent history (latest row wins). */
++  consentHistory: ComfortConsentRecord[];
++  /** Stored profile, if any. */
++  preferences: ComfortPreferences | null;
++  /** Stored per-category visibility flags. */
++  visibility: ComfortVisibilityFlags | null;
++}
++
++/**
++ * Pure projection function. Returns the filtered projection or null.
++ * A null result MUST surface as HTTP 404 (never 403) so the existence of a
++ * profile is never confirmed to an unauthorized caller (contract §6).
++ */
++export function buildProviderProjection(ctx: ProjectionContext): ComfortProjection | null {
++  if (!ctx.providerOwnsBooking) return null;
++  if (!isProjectionEligibleStatus(ctx.bookingStatus)) return null;
++  if (!isConsentActive(ctx.consentHistory)) return null;
++  if (ctx.preferences === null || ctx.visibility === null) return null;
++
++  const p = ctx.preferences;
++  const v = ctx.visibility;
++  const projection: ComfortProjection = {};
++
++  if (v.bookingReason && p.bookingReason !== undefined) {
++    projection.bookingReason = p.bookingReason;
++  }
++  if (v.comfort) {
++    const comfort: NonNullable<ComfortProjection['comfort']> = {};
++    if (p.pressurePreference !== undefined) comfort.pressurePreference = p.pressurePreference;
++    if (p.touchSensitivity !== undefined) comfort.touchSensitivity = p.touchSensitivity;
++    if (p.temperaturePreference !== undefined) comfort.temperaturePreference = p.temperaturePreference;
++    if (p.fragrancePreference !== undefined) comfort.fragrancePreference = p.fragrancePreference;
++    if (Object.keys(comfort).length > 0) projection.comfort = comfort;
++  }
++  if (v.sensitivities && p.sensitivityFlags !== undefined && p.sensitivityFlags.length > 0) {
++    projection.sensitivities = [...p.sensitivityFlags];
++  }
++  if (v.accessibility && p.accessibilityNeeds !== undefined && p.accessibilityNeeds.length > 0) {
++    projection.accessibility = [...p.accessibilityNeeds];
++  }
++  if (v.setting && p.settingPreference !== undefined) {
++    projection.setting = p.settingPreference;
++  }
++  if (v.appointmentShape) {
++    const shape: NonNullable<ComfortProjection['appointmentShape']> = {};
++    if (p.preferredDurationBucket !== undefined) shape.preferredDurationBucket = p.preferredDurationBucket;
++    if (p.preferredTimeWindows !== undefined && p.preferredTimeWindows.length > 0) {
++      shape.preferredTimeWindows = [...p.preferredTimeWindows];
++    }
++    if (Object.keys(shape).length > 0) projection.appointmentShape = shape;
++  }
++  if (v.communication) {
++    const comm: NonNullable<ComfortProjection['communication']> = {};
++    if (p.communicationPreference !== undefined) comm.communicationPreference = p.communicationPreference;
++    if (p.languagePreference !== undefined) comm.languagePreference = p.languagePreference;
++    if (Object.keys(comm).length > 0) projection.communication = comm;
++  }
++  if (v.visitNote && p.visitNote !== undefined && p.visitNote.length > 0) {
++    projection.visitNote = p.visitNote;
++  }
++
++  // Nothing visible → dark (surfaces as 404, never an empty card).
++  if (Object.keys(projection).length === 0) return null;
++  return projection;
++}
++
++// ---------------------------------------------------------------------------
++// Language rule (contract §2.8) — copy-audit helper
++// ---------------------------------------------------------------------------
++
++/** Phrases that must never appear in client- or provider-facing comfort copy. */
++export const FORBIDDEN_MEDICAL_PHRASES = [
++  'medically suitable',
++  'safe for your condition',
++  'recommended for your health',
++  'diagnos', // diagnose / diagnosis / diagnostic
++  'treatment for',
++] as const;
++
++export function findForbiddenMedicalPhrases(copy: string): string[] {
++  const lower = copy.toLowerCase();
++  return FORBIDDEN_MEDICAL_PHRASES.filter((phrase) => lower.includes(phrase));
++}
+diff --git a/artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx b/artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx
+new file mode 100644
+index 0000000..74c33d1
+--- /dev/null
++++ b/artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx
+@@ -0,0 +1,120 @@
++/**
++ * Phase 4C — Provider booking detail — "Client comfort preferences" CARD SHELL.
++ *
++ * Presentational scaffold only (non-schema preparation):
++ *   - NOT wired into booking-detail; rendered only when a projection is passed
++ *   - renders NOTHING (not even an empty card) when there is no data — the
++ *     server-side projection is the only authority on what is visible
++ *   - copy rule: this card only ever describes what matches your preferences
++ *     for the visit; it never provides medical guidance
++ */
++import React from 'react';
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
++import { Badge } from '@/components/ui/badge';
++import { HeartHandshake } from 'lucide-react';
++
++export interface ComfortProjectionView {
++  bookingReason?: string;
++  comfort?: {
++    pressurePreference?: string;
++    touchSensitivity?: string;
++    temperaturePreference?: string;
++    fragrancePreference?: string;
++  };
++  sensitivities?: string[];
++  accessibility?: string[];
++  setting?: string;
++  appointmentShape?: {
++    preferredDurationBucket?: string;
++    preferredTimeWindows?: string[];
++  };
++  communication?: {
++    communicationPreference?: string;
++    languagePreference?: string;
++  };
++  visitNote?: string;
++}
++
++function humanize(value: string): string {
++  return value.replace(/_/g, ' ');
++}
++
++function ChipRow({ label, values }: { label: string; values: string[] }) {
++  if (values.length === 0) return null;
++  return (
++    <div className="space-y-1">
++      <p className="text-xs font-medium text-muted-foreground">{label}</p>
++      <div className="flex flex-wrap gap-1">
++        {values.map((value) => (
++          <Badge key={value} variant="secondary">
++            {humanize(value)}
++          </Badge>
++        ))}
++      </div>
++    </div>
++  );
++}
++
++export default function ProviderComfortCardShell({
++  projection,
++}: {
++  /** Server-filtered projection; when absent the card renders nothing at all. */
++  projection?: ComfortProjectionView | null;
++}) {
++  // No data → no card, no empty state, no hint that a profile exists.
++  if (!projection || Object.keys(projection).length === 0) return null;
++
++  const comfortChips: string[] = [];
++  if (projection.comfort?.pressurePreference) comfortChips.push(`${projection.comfort.pressurePreference} pressure`);
++  if (projection.comfort?.touchSensitivity) comfortChips.push(`${projection.comfort.touchSensitivity} touch sensitivity`);
++  if (projection.comfort?.temperaturePreference) comfortChips.push(`${projection.comfort.temperaturePreference} room`);
++  if (projection.comfort?.fragrancePreference) comfortChips.push(projection.comfort.fragrancePreference);
++
++  const shapeChips: string[] = [];
++  if (projection.appointmentShape?.preferredDurationBucket) {
++    shapeChips.push(projection.appointmentShape.preferredDurationBucket);
++  }
++  for (const window of projection.appointmentShape?.preferredTimeWindows ?? []) {
++    shapeChips.push(window);
++  }
++
++  const communicationChips: string[] = [];
++  if (projection.communication?.communicationPreference) {
++    communicationChips.push(projection.communication.communicationPreference);
++  }
++  if (projection.communication?.languagePreference) {
++    communicationChips.push(`language: ${projection.communication.languagePreference}`);
++  }
++
++  return (
++    <Card data-testid="provider-comfort-card">
++      <CardHeader>
++        <CardTitle className="flex items-center gap-2 text-base">
++          <HeartHandshake className="h-4 w-4" aria-hidden />
++          Client comfort preferences
++        </CardTitle>
++        <CardDescription>
++          What matches your preferences for this visit, shared by the client for this active
++          booking only.
++        </CardDescription>
++      </CardHeader>
++      <CardContent className="space-y-3">
++        {projection.bookingReason && (
++          <ChipRow label="Reason for booking" values={[projection.bookingReason]} />
++        )}
++        <ChipRow label="Comfort" values={comfortChips} />
++        <ChipRow label="Sensitivities" values={projection.sensitivities ?? []} />
++        <ChipRow label="Accessibility" values={projection.accessibility ?? []} />
++        {projection.setting && <ChipRow label="Visit setting" values={[projection.setting]} />}
++        <ChipRow label="Appointment shape" values={shapeChips} />
++        <ChipRow label="Communication" values={communicationChips} />
++        {projection.visitNote && (
++          <div className="space-y-1" data-testid="projected-visit-note">
++            <p className="text-xs font-medium text-muted-foreground">Visit note from the client</p>
++            <p className="rounded-md bg-muted p-2 text-sm">{projection.visitNote}</p>
++          </div>
++        )}
++      </CardContent>
++    </Card>
++  );
++}
+diff --git a/artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx b/artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx
+new file mode 100644
+index 0000000..0b41c85
+--- /dev/null
++++ b/artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx
+@@ -0,0 +1,312 @@
++/**
++ * Phase 4C — Client Comfort Preferences — UI SHELL (non-schema preparation).
++ *
++ * Presentational scaffold only:
++ *   - NOT wired into the router (see docs/comfort-profile/WIRING_NOTES.md)
++ *   - NO API calls, NO storage — all data flows through props/callbacks
++ *   - consent-first: editors stay locked until consent is granted
++ *   - privacy by default: every visibility toggle starts hidden
++ *
++ * Copy rule (contract §2.8): this screen only ever says what "matches your
++ * preferences" — it never uses medical-suitability phrasing.
++ */
++import React, { useState } from 'react';
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
++import { Button } from '@/components/ui/button';
++import { Badge } from '@/components/ui/badge';
++import { Switch } from '@/components/ui/switch';
++import { Label } from '@/components/ui/label';
++import { Textarea } from '@/components/ui/textarea';
++import { Separator } from '@/components/ui/separator';
++import {
++  Select,
++  SelectContent,
++  SelectItem,
++  SelectTrigger,
++  SelectValue,
++} from '@/components/ui/select';
++import { Eye, EyeOff, HeartHandshake, Lock, ShieldCheck, Undo2 } from 'lucide-react';
++
++// Closed vocabularies (mirrors artifacts/api-server/src/contracts/comfort-profile.contract.ts;
++// the generated client will replace these literals at implementation step C-1).
++const SINGLE_SELECTS: {
++  key: string;
++  label: string;
++  category: CategoryKey;
++  options: readonly string[];
++}[] = [
++  { key: 'bookingReason', label: 'Reason for booking', category: 'bookingReason', options: ['unspecified', 'comfort', 'relaxation', 'appearance', 'recurring_care', 'mobility_support', 'other_personal_goal'] },
++  { key: 'pressurePreference', label: 'Pressure', category: 'comfort', options: ['unspecified', 'very_light', 'light', 'moderate', 'firm'] },
++  { key: 'touchSensitivity', label: 'Touch sensitivity', category: 'comfort', options: ['unspecified', 'low', 'medium', 'high'] },
++  { key: 'temperaturePreference', label: 'Room temperature', category: 'comfort', options: ['unspecified', 'cooler', 'neutral', 'warmer'] },
++  { key: 'fragrancePreference', label: 'Fragrance', category: 'comfort', options: ['unspecified', 'fragrance_free_required', 'light_fragrance_ok', 'no_preference'] },
++  { key: 'settingPreference', label: 'Visit setting', category: 'setting', options: ['unspecified', 'at_home_only', 'studio_ok', 'either'] },
++  { key: 'preferredDurationBucket', label: 'Preferred duration', category: 'appointmentShape', options: ['unspecified', 'short_30_45', 'standard_60', 'extended_75_plus'] },
++  { key: 'communicationPreference', label: 'During the visit', category: 'communication', options: ['unspecified', 'chatty', 'quiet_visit', 'no_preference'] },
++];
++
++const MULTI_SELECTS: {
++  key: string;
++  label: string;
++  category: CategoryKey;
++  options: readonly string[];
++}[] = [
++  { key: 'sensitivityFlags', label: 'Sensitivities', category: 'sensitivities', options: ['sensitive_skin', 'allergy_common_lotions', 'allergy_latex', 'neuropathy_care_attention', 'bruises_easily'] },
++  { key: 'accessibilityNeeds', label: 'Accessibility', category: 'accessibility', options: ['limited_mobility', 'uses_wheelchair', 'needs_seated_service', 'service_animal_present', 'stairs_at_entrance'] },
++  { key: 'preferredTimeWindows', label: 'Preferred times', category: 'appointmentShape', options: ['weekday_morning', 'weekday_afternoon', 'weekday_evening', 'weekend_morning', 'weekend_afternoon', 'weekend_evening'] },
++];
++
++const CATEGORIES = [
++  { key: 'bookingReason', label: 'Reason for booking' },
++  { key: 'comfort', label: 'Comfort (pressure, touch, temperature, fragrance)' },
++  { key: 'sensitivities', label: 'Sensitivities' },
++  { key: 'accessibility', label: 'Accessibility' },
++  { key: 'setting', label: 'Visit setting' },
++  { key: 'appointmentShape', label: 'Appointment shape' },
++  { key: 'communication', label: 'Communication' },
++  { key: 'visitNote', label: 'Visit note' },
++] as const;
++type CategoryKey = (typeof CATEGORIES)[number]['key'];
++
++const VISIT_NOTE_MAX = 280;
++
++function humanize(value: string): string {
++  return value.replace(/_/g, ' ');
++}
++
++export interface ComfortPreferencesShellProps {
++  /** Current consent status (server-driven at C-3). */
++  consentStatus?: 'none' | 'active' | 'withdrawn';
++  /** Consent version + short copy shown on the consent card. */
++  consentVersion?: number;
++  consentCopy?: string;
++  /** Callbacks wired to the real API at C-3. */
++  onGrantConsent?: () => void;
++  onWithdrawConsent?: () => void;
++  onSave?: (draft: { preferences: Record<string, unknown>; visibility: Record<CategoryKey, boolean> }) => void;
++  onDeleteProfile?: () => void;
++  saving?: boolean;
++}
++
++export default function ComfortPreferencesShell({
++  consentStatus = 'none',
++  consentVersion = 1,
++  consentCopy = 'Comfort preferences are optional. You choose what is stored and which parts a provider can see — and only while they have an active booking with you. You can withdraw at any time, and withdrawal hides everything immediately.',
++  onGrantConsent,
++  onWithdrawConsent,
++  onSave,
++  onDeleteProfile,
++  saving = false,
++}: ComfortPreferencesShellProps) {
++  const consentActive = consentStatus === 'active';
++
++  const [single, setSingle] = useState<Record<string, string>>({});
++  const [multi, setMulti] = useState<Record<string, string[]>>({});
++  const [visitNote, setVisitNote] = useState('');
++  // Privacy by default — every category hidden until the client turns it on.
++  const [visibility, setVisibility] = useState<Record<CategoryKey, boolean>>({
++    bookingReason: false,
++    comfort: false,
++    sensitivities: false,
++    accessibility: false,
++    setting: false,
++    appointmentShape: false,
++    communication: false,
++    visitNote: false,
++  });
++
++  const toggleMulti = (key: string, option: string) => {
++    setMulti((prev) => {
++      const current = prev[key] ?? [];
++      return {
++        ...prev,
++        [key]: current.includes(option) ? current.filter((o) => o !== option) : [...current, option],
++      };
++    });
++  };
++
++  const handleSave = () => {
++    onSave?.({
++      preferences: { ...single, ...multi, ...(visitNote ? { visitNote } : {}) },
++      visibility,
++    });
++  };
++
++  return (
++    <div className="mx-auto w-full max-w-md space-y-4 p-4" data-testid="comfort-preferences-shell">
++      <header className="space-y-1">
++        <h1 className="flex items-center gap-2 text-xl font-semibold">
++          <HeartHandshake className="h-5 w-5" aria-hidden />
++          Comfort preferences
++        </h1>
++        <p className="text-sm text-muted-foreground">
++          Help visits feel right for you. Everything here is optional and never required to book.
++        </p>
++      </header>
++
++      {/* Consent-first card */}
++      <Card data-testid="comfort-consent-card">
++        <CardHeader>
++          <CardTitle className="flex items-center gap-2 text-base">
++            <ShieldCheck className="h-4 w-4" aria-hidden />
++            Your consent, first
++            <Badge variant="outline" data-testid="consent-version-badge">v{consentVersion}</Badge>
++          </CardTitle>
++          <CardDescription>{consentCopy}</CardDescription>
++        </CardHeader>
++        <CardContent className="flex flex-wrap gap-2">
++          {!consentActive ? (
++            <Button onClick={onGrantConsent} data-testid="grant-consent-button">
++              I agree — turn on comfort preferences
++            </Button>
++          ) : (
++            <Button
++              variant="outline"
++              onClick={onWithdrawConsent}
++              data-testid="withdraw-consent-button"
++            >
++              <Undo2 className="mr-1 h-4 w-4" aria-hidden />
++              Withdraw consent
++            </Button>
++          )}
++          {consentStatus === 'withdrawn' && (
++            <p className="w-full text-xs text-muted-foreground" data-testid="withdrawn-explainer">
++              Consent withdrawn — providers can no longer see any preferences. Re-granting brings
++              your saved choices back.
++            </p>
++          )}
++        </CardContent>
++      </Card>
++
++      {/* Editors — locked until consent */}
++      <div className={consentActive ? '' : 'pointer-events-none select-none opacity-50'} aria-disabled={!consentActive}>
++        {!consentActive && (
++          <p className="mb-2 flex items-center gap-1 text-xs text-muted-foreground" data-testid="editors-locked-note">
++            <Lock className="h-3 w-3" aria-hidden /> Grant consent above to edit your preferences.
++          </p>
++        )}
++
++        <Card>
++          <CardHeader>
++            <CardTitle className="text-base">Your preferences</CardTitle>
++            <CardDescription>
++              A provider with an active booking sees only what you make visible — shown to them as
++              what matches your preferences, nothing more.
++            </CardDescription>
++          </CardHeader>
++          <CardContent className="space-y-4">
++            {SINGLE_SELECTS.map((field) => (
++              <div key={field.key} className="space-y-1">
++                <Label htmlFor={`comfort-${field.key}`}>{field.label}</Label>
++                <Select
++                  value={single[field.key] ?? 'unspecified'}
++                  onValueChange={(value) => setSingle((prev) => ({ ...prev, [field.key]: value }))}
++                >
++                  <SelectTrigger id={`comfort-${field.key}`} data-testid={`select-${field.key}`}>
++                    <SelectValue placeholder="unspecified" />
++                  </SelectTrigger>
++                  <SelectContent>
++                    {field.options.map((option) => (
++                      <SelectItem key={option} value={option}>
++                        {humanize(option)}
++                      </SelectItem>
++                    ))}
++                  </SelectContent>
++                </Select>
++              </div>
++            ))}
++
++            <Separator />
++
++            {MULTI_SELECTS.map((field) => (
++              <div key={field.key} className="space-y-1">
++                <Label>{field.label}</Label>
++                <div className="flex flex-wrap gap-2">
++                  {field.options.map((option) => {
++                    const selected = (multi[field.key] ?? []).includes(option);
++                    return (
++                      <Badge
++                        key={option}
++                        variant={selected ? 'default' : 'outline'}
++                        className="cursor-pointer"
++                        onClick={() => toggleMulti(field.key, option)}
++                        data-testid={`chip-${field.key}-${option}`}
++                      >
++                        {humanize(option)}
++                      </Badge>
++                    );
++                  })}
++                </div>
++              </div>
++            ))}
++
++            <Separator />
++
++            <div className="space-y-1">
++              <Label htmlFor="comfort-visit-note">Anything else for your visit? (optional)</Label>
++              <Textarea
++                id="comfort-visit-note"
++                data-testid="visit-note-input"
++                value={visitNote}
++                maxLength={VISIT_NOTE_MAX}
++                onChange={(event) => setVisitNote(event.target.value.slice(0, VISIT_NOTE_MAX))}
++                placeholder="e.g. the doorbell is broken — please knock"
++              />
++              <p className="text-right text-xs text-muted-foreground">
++                {visitNote.length}/{VISIT_NOTE_MAX} · not for sensitive details · hidden unless you
++                make “Visit note” visible below
++              </p>
++            </div>
++          </CardContent>
++        </Card>
++
++        {/* Per-category visibility */}
++        <Card className="mt-4">
++          <CardHeader>
++            <CardTitle className="text-base">What can a provider see?</CardTitle>
++            <CardDescription>
++              Everything starts hidden. Turn on only what you want shared during an active booking.
++            </CardDescription>
++          </CardHeader>
++          <CardContent className="space-y-3">
++            {CATEGORIES.map((category) => (
++              <div key={category.key} className="flex items-center justify-between gap-3">
++                <Label htmlFor={`visibility-${category.key}`} className="flex items-center gap-2 text-sm font-normal">
++                  {visibility[category.key] ? (
++                    <Eye className="h-4 w-4 text-foreground" aria-hidden />
++                  ) : (
++                    <EyeOff className="h-4 w-4 text-muted-foreground" aria-hidden />
++                  )}
++                  {category.label}
++                </Label>
++                <Switch
++                  id={`visibility-${category.key}`}
++                  data-testid={`visibility-${category.key}`}
++                  checked={visibility[category.key]}
++                  onCheckedChange={(checked) =>
++                    setVisibility((prev) => ({ ...prev, [category.key]: checked }))
++                  }
++                />
++              </div>
++            ))}
++          </CardContent>
++        </Card>
++
++        <div className="mt-4 flex flex-wrap gap-2">
++          <Button onClick={handleSave} disabled={!consentActive || saving} data-testid="save-preferences-button">
++            {saving ? 'Saving…' : 'Save preferences'}
++          </Button>
++          <Button
++            variant="ghost"
++            className="text-destructive"
++            onClick={onDeleteProfile}
++            disabled={!consentActive}
++            data-testid="delete-profile-button"
++          >
++            Delete my comfort profile
++          </Button>
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md b/docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md
+new file mode 100644
+index 0000000..1589c78
+--- /dev/null
++++ b/docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md
+@@ -0,0 +1,144 @@
++# Phase 4C — Consent-First Client Comfort Profile Contract
++**Candidate v3 (NEW derivation, 2026-08-10).** No continuity is claimed with any lost
++prior contract document (lost checksums `1fa0eecb…` / "plan v2" are unrecoverable; this
++document was re-derived from the published traceability record in `.agents/LOG.md`
++Sessions 059–062 and the canonical codebase at `main = 3e76114`).
++
++Status: **REVIEW REQUIRED before any implementation.** This is a product/API contract,
++not an implementation. No schema, code, migration, event, mobile, analytics, or rollout
++work is authorized by this document alone.
++
++---
++
++## 1. Purpose
++
++Let clients optionally describe comfort, sensitivity, and accessibility preferences so
++in-home visits feel safe and personal — while the client stays in complete control of
++what is stored, what providers see, and for how long. OnCall Foot is a comfort/care
++marketplace, **not** a medical service: nothing in this feature diagnoses, treats, or
++implies medical suitability.
++
++## 2. Binding principles (all inherited from published traceability)
++
++1. **Consent-first** — nothing is collected, stored, or shown without explicit,
++   plain-language, versioned consent. Consent is withdrawable at any time; withdrawal
++   deactivates provider visibility immediately.
++2. **Optional-everything** — every field is optional; the profile itself is optional;
++   booking never requires a comfort profile.
++3. **Owner-scoped** — only the owning client can create/read/update/withdraw their
++   profile (`requireAuth` + `requireSelf` semantics; admin has no read surface in this
++   slice; support access, if ever needed, is a separately reviewed scope).
++4. **Additive-only structured schema** — new table(s) only; no changes to existing
++   tables. **No free-text sensitive fields**: every preference is an enumerated,
++   structured value. The single optional free-text field ("anything else for your
++   visit") is explicitly labeled non-sensitive, length-capped, and excluded from the
++   provider projection by default.
++5. **Per-category client visibility controls** — the client toggles visibility per
++   category (see §4), not per booking and not all-or-nothing.
++6. **Booking-only filtered provider projection** — a provider sees a filtered
++   projection only while they hold an ACTIVE booking with that client
++   (statuses: `confirmed`, `en_route`, `in_progress` — exact set fixed at
++   implementation review against `docs/booking-statuses.md`), and only the categories
++   the client has made visible. No discovery surface, no search index, no list view
++   ever includes preference data.
++7. **Versioned + withdrawable consent** — consent records `{version, textHash,
++   grantedAt}`; withdrawal is recorded, immediate, and reversible by re-granting.
++   Historic bookings never retain a snapshot of withdrawn data.
++8. **Language rule** — client-facing and provider-facing copy may say
++   **"matches your preferences"** only. Never "medically suitable", "safe for your
++   condition", "recommended for your health", or any diagnostic phrasing.
++
++## 3. Explicitly out of scope for this slice (locked)
++
++- No matching/ranking changes of any kind (preferences never affect discovery order).
++- No new `marketplace_events` emission and no analytics properties from preference data.
++- No mobile (Expo) work; web + API only.
++- No PostHog / third-party analytics integration.
++- No admin/moderation UI.
++- No schema changes beyond the additive tables in §5.
++- No care-notes/medical-history features; `careNotes` privacy rules unchanged.
++
++## 4. Preference categories (structured vocabulary — `client_comfort_preferences`)
++
++Vocabulary anchored to the published Session 060 record; enumerations are closed sets;
++"unspecified" is always the default.
++
++| Category | Field | Enum values (plus `unspecified`) |
++|---|---|---|
++| Booking reason | `bookingReason` | `comfort`, `relaxation`, `appearance`, `recurring_care`, `mobility_support`, `other_personal_goal` |
++| Pressure | `pressurePreference` | `very_light`, `light`, `moderate`, `firm` |
++| Touch | `touchSensitivity` | `low`, `medium`, `high` |
++| Temperature | `temperaturePreference` | `cooler`, `neutral`, `warmer` |
++| Fragrance | `fragrancePreference` | `fragrance_free_required`, `light_fragrance_ok`, `no_preference` |
++| Sensitivities | `sensitivityFlags` | multi-select booleans: `sensitive_skin`, `allergy_common_lotions`, `allergy_latex`, `neuropathy_care_attention`, `bruises_easily` |
++| Accessibility | `accessibilityNeeds` | multi-select booleans: `limited_mobility`, `uses_wheelchair`, `needs_seated_service`, `service_animal_present`, `stairs_at_entrance` |
++| Setting | `settingPreference` | `at_home_only`, `studio_ok`, `either` |
++| Appointment shape | `preferredDurationBucket` (`short_30_45`, `standard_60`, `extended_75_plus`), `preferredTimeWindows` (multi: `weekday_morning`, `weekday_afternoon`, `weekday_evening`, `weekend_morning`, `weekend_afternoon`, `weekend_evening`) |
++| Communication | `communicationPreference` | `chatty`, `quiet_visit`, `no_preference`; `languagePreference` (BCP-47 code from a curated list) |
++| Free note | `visitNote` | optional text ≤ 280 chars, non-sensitive label, **hidden from providers unless the client explicitly toggles the `visit_note` category visible** |
++
++Per-category visibility toggles: `bookingReason`, `comfort` (pressure/touch/temperature/
++fragrance), `sensitivities`, `accessibility`, `setting`, `appointment_shape`,
++`communication`, `visit_note`. Default for every category: **hidden** until the client
++turns it on (privacy by default).
++
++## 5. Data model (additive-only; final DDL at implementation review)
++
++- `client_comfort_profiles` — `id`, `userId` (unique, FK users, cascade delete),
++  structured fields from §4, `visibilityFlags` (per-category booleans), `createdAt`,
++  `updatedAt`.
++- `client_comfort_consents` — `id`, `userId` (FK users), `consentVersion` (int),
++  `consentTextHash` (sha256 of the exact copy shown), `grantedAt`,
++  `withdrawnAt` (nullable). Latest row wins; a row with `withdrawnAt` set and no later
++  grant means **no consent** — API must then return no profile data to anyone,
++  including the owner's provider projection.
++- Prices are unaffected; no monetary fields in this slice.
++
++## 6. API contract (OpenAPI-first; exact shapes at implementation review)
++
++All routes require auth; all are owner-scoped except the provider projection.
++
++| Route | Role | Behavior |
++|---|---|---|
++| `GET /api/clients/me/comfort-profile` | client (self) | Profile + visibility flags + current consent state; `204`/empty-state if none. |
++| `PUT /api/clients/me/comfort-profile` | client (self) | Upsert structured fields + visibility flags. Rejected with a clear error if no active consent. Zod-validated closed enums; unknown keys rejected. |
++| `DELETE /api/clients/me/comfort-profile` | client (self) | Hard-deletes profile row (consent history retained). |
++| `POST /api/clients/me/comfort-consent` | client (self) | Grant consent `{version}`; server stores hash of served consent text. |
++| `DELETE /api/clients/me/comfort-consent` | client (self) | Withdraw consent (immediate; projection goes dark). |
++| `GET /api/bookings/:id/client-comfort` | provider (booking party) | **Only** if the requesting provider owns the booking AND booking status is in the active set AND client consent is active — returns only client-visible categories. Otherwise `404` (never `403`, to avoid confirming existence). |
++
++Server-side enforcement is authoritative; clients render only what the server returns
++(no duplicated authorization rules in UI).
++
++## 7. Web UI slice (mobile-first, 390px)
++
++1. Client → Profile area → "Comfort preferences" screen: plain-language consent card
++   (version + short copy) → grant → per-category editors with visibility toggles →
++   save. Withdraw button always visible once granted, with an honest explanation of
++   effect.
++2. Provider → active booking detail: a "Client comfort preferences" card appears only
++   when the projection returns data; renders "matches your preferences"-style copy;
++   renders nothing (not even an empty card) otherwise.
++3. Booking flow: after a booking request is created, a light, dismissible prompt may
++   invite the client to add comfort preferences (never blocking).
++
++## 8. Acceptance criteria
++
++1. Client can grant consent, save a profile, edit it, withdraw consent, re-grant, and
++   delete — all owner-scoped (verified by integration tests incl. cross-user 404s).
++2. Provider with an active booking sees exactly the visible categories; provider with a
++   `requested`/`completed`/`cancelled`-only relationship sees nothing; unrelated
++   provider sees `404`.
++3. Consent withdrawal takes effect on the next projection request (no caching leak).
++4. No discovery/search/list endpoint includes any preference field (asserted by test).
++5. All enums closed; free text capped at 280 chars and hidden by default.
++6. `pnpm run typecheck`, `pnpm run build`, and new focused integration suite pass;
++   existing 164-test regression stays green.
++7. Copy audit: zero occurrences of medical-suitability phrasing.
++
++## 9. Implementation sequencing (after this contract is approved)
++
++C-1: additive schema + codegen (spec-first) → C-2: storage + API routes + integration
++tests → C-3: web UI (client editor, provider booking card) → regression + E2E. One
++focused local commit per step; patch + checksum artifacts each; no pushes from the
++workspace.
+diff --git a/docs/comfort-profile/WIRING_NOTES.md b/docs/comfort-profile/WIRING_NOTES.md
+new file mode 100644
+index 0000000..70dd679
+--- /dev/null
++++ b/docs/comfort-profile/WIRING_NOTES.md
+@@ -0,0 +1,50 @@
++# Phase 4C — Comfort Profile — Wiring Notes (non-schema preparation)
++
++Status: preparation only. Nothing in this folder or the shells below is wired
++into routing, storage, or the API. Implementation follows the sequencing in
++`PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` §9 (C-1 → C-2 → C-3) and each step
++requires its own review.
++
++## Artifacts in this preparation slice
++
++| Artifact | Path | Wired? |
++|---|---|---|
++| Contract (checksum-verified v3) | `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` (SHA-256 `339a03e6…`) | n/a |
++| OpenAPI draft | `docs/comfort-profile/openapi.draft.yaml` (`x-status: draft`) | NOT merged into `lib/api-spec/openapi.yaml`; no codegen run |
++| Contract module | `artifacts/api-server/src/contracts/comfort-profile.contract.ts` | imported by contract tests only; dependency-free |
++| Fixtures | `artifacts/api-server/src/__tests__/fixtures/comfort-profile.fixtures.ts` | test-only |
++| Contract tests | `artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts` | `pnpm --filter @workspace/api-server run test:comfort-contract` |
++| Client editor shell | `artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx` | NOT routed |
++| Provider card shell | `artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx` | NOT rendered anywhere |
++
++## C-1 (schema + codegen) — BLOCKED until Gate B + implementation review
++
++- Merge `openapi.draft.yaml` paths/schemas into `lib/api-spec/openapi.yaml`,
++  run `pnpm --filter @workspace/api-spec run codegen` (regenerates
++  `lib/api-zod` + `lib/api-client-react`).
++- Additive tables per contract §5 (`client_comfort_profiles`,
++  `client_comfort_consents`) in `lib/db` — requires the managed Gate B
++  verification with runtime-injected `DATABASE_URL` first.
++
++## C-2 (storage + routes + integration tests)
++
++- Express routes under `artifacts/api-server/src/routes/` implementing the six
++  operations; reuse `buildProviderProjection` and the validators from the
++  contract module so behavior matches the contract tests exactly.
++- Denials on the projection route return `404` (never `403`).
++- No `marketplace_events` emission from any comfort route (contract §3).
++
++## C-3 (web UI wiring)
++
++- Client: route the editor shell (e.g. `/profile/comfort`) from the client
++  profile area; replace shell literals with generated types from
++  `@workspace/api-client-react`; wire grant/withdraw/save/delete callbacks.
++- Provider: render `ProviderComfortCardShell` inside the provider booking
++  detail screen, fed exclusively by `GET /api/bookings/:id/client-comfort`;
++  the card renders nothing when the projection is 404/empty.
++- Optional dismissible post-booking prompt (contract §7.3) — never blocking.
++
++## Locked out of scope (contract §3)
++
++No matching/ranking changes, no analytics/event emission, no mobile work,
++no admin UI, no schema beyond the two additive tables, no care-notes changes.
+diff --git a/docs/comfort-profile/openapi.draft.yaml b/docs/comfort-profile/openapi.draft.yaml
+new file mode 100644
+index 0000000..4ab4970
+--- /dev/null
++++ b/docs/comfort-profile/openapi.draft.yaml
+@@ -0,0 +1,408 @@
++# Phase 4C — Consent-First Client Comfort Profile — OpenAPI DRAFT
++#
++# STATUS: DRAFT (x-status: draft). Non-schema preparation artifact only.
++# Derived from docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md
++# (SHA-256 339a03e6bb2c7aab6cee7306bb1daff43003a46c6edbbf16f2ed77c2d5fe4a4f).
++#
++# This file is intentionally kept OUTSIDE lib/api-spec/openapi.yaml.
++# Merging into the canonical spec and running orval codegen is step C-1 of the
++# contract's implementation sequencing and requires implementation review
++# approval. No codegen has been run against this draft.
++#
++# Binding rules encoded here (contract §2):
++#   - consent-first: PUT profile is rejected without active consent (409)
++#   - optional-everything: every field is optional; "unspecified" defaults
++#   - owner-scoped: /clients/me/* routes are self-only
++#   - provider projection: booking-scoped, active statuses only, visible
++#     categories only, 404 (never 403) on any denial
++#   - language rule: descriptions say "matches your preferences" only
++
++openapi: 3.1.0
++info:
++  title: Api
++  version: 0.3.0-comfort-draft
++  description: >-
++    OnCall Foot API — Phase 4C comfort profile DRAFT slice. Comfort preferences
++    describe what matches a client's preferences. They are never medical
++    guidance and never affect discovery or ranking.
++x-status: draft
++x-contract-checksum: 339a03e6bb2c7aab6cee7306bb1daff43003a46c6edbbf16f2ed77c2d5fe4a4f
++servers:
++  - url: /api
++    description: Base API path
++tags:
++  - name: comfort-profile
++    description: Consent-first client comfort preferences (owner-scoped)
++  - name: comfort-projection
++    description: Booking-scoped provider projection of client-visible categories
++
++paths:
++  /clients/me/comfort-profile:
++    get:
++      operationId: getMyComfortProfile
++      tags: [comfort-profile]
++      summary: Get my comfort profile
++      description: >-
++        Returns the authenticated client's comfort profile, per-category
++        visibility flags, and current consent state. Owner-scoped.
++      security:
++        - bearerAuth: []
++      responses:
++        "200":
++          description: Profile with visibility flags and consent state
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/ComfortProfileResponse"
++        "204":
++          description: No profile exists yet (empty state)
++        "401":
++          $ref: "#/components/responses/Unauthorized"
++    put:
++      operationId: putMyComfortProfile
++      tags: [comfort-profile]
++      summary: Create or update my comfort profile
++      description: >-
++        Upserts structured preference fields and per-category visibility flags.
++        Rejected when the client has no active consent. All enums are closed
++        sets; unknown keys are rejected.
++      security:
++        - bearerAuth: []
++      requestBody:
++        required: true
++        content:
++          application/json:
++            schema:
++              $ref: "#/components/schemas/ComfortProfileUpsertRequest"
++      responses:
++        "200":
++          description: Profile saved
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/ComfortProfileResponse"
++        "400":
++          $ref: "#/components/responses/BadRequest"
++        "401":
++          $ref: "#/components/responses/Unauthorized"
++        "409":
++          description: No active consent — grant consent before saving
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/ErrorResponse"
++    delete:
++      operationId: deleteMyComfortProfile
++      tags: [comfort-profile]
++      summary: Delete my comfort profile
++      description: >-
++        Hard-deletes the profile row. Consent history is retained as an audit
++        record.
++      security:
++        - bearerAuth: []
++      responses:
++        "204":
++          description: Profile deleted
++        "401":
++          $ref: "#/components/responses/Unauthorized"
++        "404":
++          description: No profile exists
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/ErrorResponse"
++
++  /clients/me/comfort-consent:
++    post:
++      operationId: grantComfortConsent
++      tags: [comfort-profile]
++      summary: Grant comfort-profile consent
++      description: >-
++        Records versioned consent. The server stores the SHA-256 hash of the
++        exact consent text it served for the requested version.
++      security:
++        - bearerAuth: []
++      requestBody:
++        required: true
++        content:
++          application/json:
++            schema:
++              $ref: "#/components/schemas/ComfortConsentGrantRequest"
++      responses:
++        "201":
++          description: Consent granted
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/ComfortConsentState"
++        "400":
++          $ref: "#/components/responses/BadRequest"
++        "401":
++          $ref: "#/components/responses/Unauthorized"
++    delete:
++      operationId: withdrawComfortConsent
++      tags: [comfort-profile]
++      summary: Withdraw comfort-profile consent
++      description: >-
++        Withdraws consent immediately. The provider projection goes dark on the
++        next request. Withdrawal is reversible by granting consent again.
++      security:
++        - bearerAuth: []
++      responses:
++        "200":
++          description: Consent withdrawn
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/ComfortConsentState"
++        "401":
++          $ref: "#/components/responses/Unauthorized"
++        "404":
++          description: No active consent to withdraw
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/ErrorResponse"
++
++  /bookings/{bookingId}/client-comfort:
++    get:
++      operationId: getBookingClientComfort
++      tags: [comfort-projection]
++      summary: Booking-scoped client comfort projection
++      description: >-
++        Returns the filtered projection of the client's comfort preferences for
++        this booking. Only the provider who owns the booking may call this, only
++        while the booking status is in the active set (confirmed, en_route,
++        in_progress), only while the client's consent is active, and only for
++        the categories the client has made visible. Every denial returns 404 —
++        never 403 — so the existence of a profile is not confirmed.
++      security:
++        - bearerAuth: []
++      parameters:
++        - name: bookingId
++          in: path
++          required: true
++          schema:
++            type: integer
++      responses:
++        "200":
++          description: Client-visible categories only
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/ComfortProjectionResponse"
++        "401":
++          $ref: "#/components/responses/Unauthorized"
++        "404":
++          description: >-
++            Not available (booking not owned, booking not active, consent
++            inactive, no profile, or nothing visible). Never 403.
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/ErrorResponse"
++
++components:
++  securitySchemes:
++    bearerAuth:
++      type: http
++      scheme: bearer
++      bearerFormat: JWT
++  responses:
++    BadRequest:
++      description: Validation error
++      content:
++        application/json:
++          schema:
++            $ref: "#/components/schemas/ErrorResponse"
++    Unauthorized:
++      description: Missing or invalid authentication
++      content:
++        application/json:
++          schema:
++            $ref: "#/components/schemas/ErrorResponse"
++  schemas:
++    ErrorResponse:
++      type: object
++      required: [error]
++      properties:
++        error:
++          type: string
++
++    BookingReason:
++      type: string
++      enum: [unspecified, comfort, relaxation, appearance, recurring_care, mobility_support, other_personal_goal]
++      default: unspecified
++    PressurePreference:
++      type: string
++      enum: [unspecified, very_light, light, moderate, firm]
++      default: unspecified
++    TouchSensitivity:
++      type: string
++      enum: [unspecified, low, medium, high]
++      default: unspecified
++    TemperaturePreference:
++      type: string
++      enum: [unspecified, cooler, neutral, warmer]
++      default: unspecified
++    FragrancePreference:
++      type: string
++      enum: [unspecified, fragrance_free_required, light_fragrance_ok, no_preference]
++      default: unspecified
++    SensitivityFlag:
++      type: string
++      enum: [sensitive_skin, allergy_common_lotions, allergy_latex, neuropathy_care_attention, bruises_easily]
++    AccessibilityNeed:
++      type: string
++      enum: [limited_mobility, uses_wheelchair, needs_seated_service, service_animal_present, stairs_at_entrance]
++    SettingPreference:
++      type: string
++      enum: [unspecified, at_home_only, studio_ok, either]
++      default: unspecified
++    PreferredDurationBucket:
++      type: string
++      enum: [unspecified, short_30_45, standard_60, extended_75_plus]
++      default: unspecified
++    PreferredTimeWindow:
++      type: string
++      enum: [weekday_morning, weekday_afternoon, weekday_evening, weekend_morning, weekend_afternoon, weekend_evening]
++    CommunicationPreference:
++      type: string
++      enum: [unspecified, chatty, quiet_visit, no_preference]
++      default: unspecified
++
++    ComfortVisibilityFlags:
++      type: object
++      description: >-
++        Per-category visibility toggles. Every category defaults to hidden
++        (false) until the client turns it on — privacy by default.
++      properties:
++        bookingReason: { type: boolean, default: false }
++        comfort: { type: boolean, default: false }
++        sensitivities: { type: boolean, default: false }
++        accessibility: { type: boolean, default: false }
++        setting: { type: boolean, default: false }
++        appointmentShape: { type: boolean, default: false }
++        communication: { type: boolean, default: false }
++        visitNote: { type: boolean, default: false }
++      additionalProperties: false
++
++    ComfortPreferences:
++      type: object
++      description: All fields optional — the profile never blocks booking.
++      properties:
++        bookingReason: { $ref: "#/components/schemas/BookingReason" }
++        pressurePreference: { $ref: "#/components/schemas/PressurePreference" }
++        touchSensitivity: { $ref: "#/components/schemas/TouchSensitivity" }
++        temperaturePreference: { $ref: "#/components/schemas/TemperaturePreference" }
++        fragrancePreference: { $ref: "#/components/schemas/FragrancePreference" }
++        sensitivityFlags:
++          type: array
++          items: { $ref: "#/components/schemas/SensitivityFlag" }
++          uniqueItems: true
++        accessibilityNeeds:
++          type: array
++          items: { $ref: "#/components/schemas/AccessibilityNeed" }
++          uniqueItems: true
++        settingPreference: { $ref: "#/components/schemas/SettingPreference" }
++        preferredDurationBucket: { $ref: "#/components/schemas/PreferredDurationBucket" }
++        preferredTimeWindows:
++          type: array
++          items: { $ref: "#/components/schemas/PreferredTimeWindow" }
++          uniqueItems: true
++        communicationPreference: { $ref: "#/components/schemas/CommunicationPreference" }
++        languagePreference:
++          type: string
++          description: BCP-47 language tag from the curated list (see contract §4).
++          maxLength: 35
++        visitNote:
++          type: string
++          maxLength: 280
++          description: >-
++            Optional, explicitly non-sensitive note about the visit. Hidden from
++            providers unless the visit_note category is toggled visible.
++      additionalProperties: false
++
++    ComfortProfileUpsertRequest:
++      type: object
++      required: [preferences, visibility]
++      properties:
++        preferences: { $ref: "#/components/schemas/ComfortPreferences" }
++        visibility: { $ref: "#/components/schemas/ComfortVisibilityFlags" }
++      additionalProperties: false
++
++    ComfortConsentGrantRequest:
++      type: object
++      required: [version]
++      properties:
++        version:
++          type: integer
++          minimum: 1
++      additionalProperties: false
++
++    ComfortConsentState:
++      type: object
++      required: [status]
++      properties:
++        status:
++          type: string
++          enum: [none, active, withdrawn]
++        version: { type: integer }
++        consentTextHash:
++          type: string
++          description: SHA-256 of the exact consent copy shown to the client.
++        grantedAt: { type: string, format: date-time }
++        withdrawnAt: { type: string, format: date-time }
++      additionalProperties: false
++
++    ComfortProfileResponse:
++      type: object
++      required: [preferences, visibility, consent]
++      properties:
++        preferences: { $ref: "#/components/schemas/ComfortPreferences" }
++        visibility: { $ref: "#/components/schemas/ComfortVisibilityFlags" }
++        consent: { $ref: "#/components/schemas/ComfortConsentState" }
++        updatedAt: { type: string, format: date-time }
++      additionalProperties: false
++
++    ComfortProjectionResponse:
++      type: object
++      description: >-
++        Booking-scoped, consent-gated, client-visible categories only. Wording
++        for providers is always "matches your preferences" — never medical
++        phrasing. Categories the client kept hidden are entirely absent.
++      properties:
++        bookingReason: { $ref: "#/components/schemas/BookingReason" }
++        comfort:
++          type: object
++          properties:
++            pressurePreference: { $ref: "#/components/schemas/PressurePreference" }
++            touchSensitivity: { $ref: "#/components/schemas/TouchSensitivity" }
++            temperaturePreference: { $ref: "#/components/schemas/TemperaturePreference" }
++            fragrancePreference: { $ref: "#/components/schemas/FragrancePreference" }
++          additionalProperties: false
++        sensitivities:
++          type: array
++          items: { $ref: "#/components/schemas/SensitivityFlag" }
++        accessibility:
++          type: array
++          items: { $ref: "#/components/schemas/AccessibilityNeed" }
++        setting: { $ref: "#/components/schemas/SettingPreference" }
++        appointmentShape:
++          type: object
++          properties:
++            preferredDurationBucket: { $ref: "#/components/schemas/PreferredDurationBucket" }
++            preferredTimeWindows:
++              type: array
++              items: { $ref: "#/components/schemas/PreferredTimeWindow" }
++          additionalProperties: false
++        communication:
++          type: object
++          properties:
++            communicationPreference: { $ref: "#/components/schemas/CommunicationPreference" }
++            languagePreference: { type: string }
++          additionalProperties: false
++        visitNote:
++          type: string
++          maxLength: 280
++      additionalProperties: false
+-- 
+2.39.5
+

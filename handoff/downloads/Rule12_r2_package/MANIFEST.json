@@ -1,0 +1,39 @@
+{
+  "package": "Rule12_r2_package",
+  "prepared_utc": "2026-08-11T02:15:00Z",
+  "repository": "sbtheg17-market/foot",
+  "transport_only": true,
+  "applied_remotely": false,
+  "publication_window_opened": false,
+  "publication_approval": "NOT GRANTED - separate named approval required; NEVER bundled with Phase 4C or any other candidate",
+  "candidate": {
+    "key": "Rule12_provenance_docs_r2",
+    "title": "docs(agents): Rule 12 - evidence capture rule (re-derived on post-B-prime tip)",
+    "commit": "e5919bd4f0e94feb77d711d8f789ff5aa8755931",
+    "parent": "d2ad54cd8e450fcc3bf8fab28aed257d67e73b42",
+    "tree": "1f1da660eb1b7b04c61264358cf881bc23b5980d",
+    "base_main": "d2ad54cd8e450fcc3bf8fab28aed257d67e73b42",
+    "branch": "rule12/provenance-docs-r2",
+    "changed_files": [".agents/AGENT-RULES.md"],
+    "diffstat": "+32 (docs-only, one file)",
+    "patch_file": "provenance-rule-docs-r2.patch",
+    "patch_sha256": "1afb92dcce0a759604cd7cc2912c9cf29834e63337096baac0db2e3dc3c52570"
+  },
+  "supersedes": {
+    "old_identity": "b85f71f32202c293c1d7c240ec4af151b22c2c41",
+    "old_parent": "3e76114ce8ff8908a955d4beac38d6b3cde5dd6a",
+    "old_patch_sha256": "fca9c42183636ffa9d3d02057f998a31cead3ed37b838a058f1cdadce4a3b120",
+    "note": "old identity retired as source evidence (RD-001)"
+  },
+  "validation": {
+    "patch_application": {"status": "PASS - git am onto pristine d2ad54cd reproduces exact tree 1f1da660", "ledger": "RD-002"},
+    "publication_gate": {"status": "FULL PASS (docs-only scope, no web approval flag needed) incl. tree identity + patch checksum", "ledger": "RD-002"},
+    "secret_scan": {"status": "CLEAN - zero hits", "ledger": "RD-002"}
+  },
+  "blockers_before_publication": [
+    "explicit named approval for candidate e5919bd4 -> refs/heads/main",
+    "new bounded repository-scoped write credential",
+    "live main must still equal d2ad54cd at push time; re-derive if moved",
+    "publish alone - never in the same window as any other candidate"
+  ]
+}
