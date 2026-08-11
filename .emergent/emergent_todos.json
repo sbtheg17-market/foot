@@ -1,22 +1,26 @@
 [
   {
-    "content": "Author PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md in docs/comfort-profile/ (6 operations, status matrix, projection rules, verbatim copy, codegen boundary)",
-    "status": "completed"
+    "content": "Task 1: Comfort Profile API — six contract routes + node:test suite → PHASE_4C_comfort-profile-api.patch",
+    "status": "in_progress"
   },
   {
-    "content": "Create ComfortPreferencesShell (props-driven, presentation-only: empty + consent-lock states, locked editor, withdraw-hides copy verbatim)",
-    "status": "completed"
+    "content": "Task 2: Provider Projection Card — read-only card, renders nothing on 404 → PHASE_4C_provider-projection-card.patch",
+    "status": "pending"
   },
   {
-    "content": "Create shell preview route so Phase 4C shell is visible in the app (no API/schema)",
-    "status": "completed"
+    "content": "Task 3: Patient Auth — sign-in + hardened logout (always clears session) → AUTH_patient-signin-logout.patch",
+    "status": "pending"
   },
   {
-    "content": "Create .agents/LOG.md + .agents/NEXT_TASK.md with current true baseline + provenance + follow-ups (logout hardening, stale baseline cleanup)",
-    "status": "completed"
+    "content": "Task 4: Patch Index Page — name/commit/files/evidence listing → C3_patch-index-page.patch",
+    "status": "pending"
   },
   {
-    "content": "Verify frontend compiles + screenshot preview + testing agent validation",
-    "status": "completed"
+    "content": "Comprehensive end-to-end validation via testing agent + fix all issues",
+    "status": "pending"
+  },
+  {
+    "content": "Record all patches + INDEX evidence in final process commit + LOG entries",
+    "status": "pending"
   }
 ]

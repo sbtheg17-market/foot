@@ -154,3 +154,20 @@ Format: ENTRY-XXX | date | actor | action | evidence
 - Verified live: endpoint returns all 4 existing patches with correct commits/subjects/file
   counts; C3 patch self-appears once cut (parser reads the directory).
 - Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-011 | 2026-08-11 | Neo (E2) | Comprehensive E2E validation — PASS; patches recorded
+- Testing agent full run (test_reports/iteration_2.json): backend 100% (16/16 node:test),
+  frontend 100% — register→portal flow, consent-lock→grant→save→persist, provider card 200
+  scope-filtering (ungranted lighting absent) + 404 renders-nothing path, withdraw
+  hide-without-delete with preserved data on re-grant, HARDENED logout (signed-out banner +
+  token cleared) and expired-token path, login validation, patch index (5 entries, file toggle,
+  evidence). No console errors.
+- Accepted change from testing run: `aria-pressed` attribute on shell option buttons
+  (accessibility improvement; no contract impact; verbatim copy untouched). Recorded here since
+  it rides in the process commit rather than a task patch.
+- Patches recorded in repo: PHASE_4C_restoration, PHASE_4C_comfort-profile-api,
+  PHASE_4C_provider-projection-card, AUTH_patient-signin-logout, C3_patch-index-page —
+  each verified with `git apply --check` against its parent commit.
+- Standing note: X-Patient-Id / X-Provider-Id header bypass remains for testing — REMOVE BEFORE
+  DEPLOY (memory/test_credentials.md).
+- Approval record: approved and logical — per operator policy (ENTRY-002).

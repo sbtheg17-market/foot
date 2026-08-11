@@ -72,6 +72,7 @@ function OptionRow({ icon: Icon, label, options, value, onChange, testIdPrefix }
               key={opt.value}
               type="button"
               data-testid={`${testIdPrefix}-${opt.value}`}
+              aria-pressed={active}
               onClick={() => onChange(active ? null : opt.value)}
               className={
                 "rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors " +

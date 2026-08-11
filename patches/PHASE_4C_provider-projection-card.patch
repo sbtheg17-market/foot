@@ -1,0 +1,325 @@
+From 5a1911e191838a9a4a5ecdd60fea849563b857aa Mon Sep 17 00:00:00 2001
+From: emergent-agent-e1 <github@emergent.sh>
+Date: Tue, 11 Aug 2026 14:41:22 +0000
+Subject: [PATCH] =?UTF-8?q?Phase=204C=20=E2=80=94=20Provider=20projection?=
+ =?UTF-8?q?=20card?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- ProviderComfortCard: pure props-driven read-only card; renders NOTHING
+  (returns null) when projection is null/empty per contract §1.11; shows only
+  server-filtered scope-granted non-null fields.
+- ProviderPortal (/provider): container fetches
+  GET /api/provider/comfort-projection/{patientId} (X-Provider-Id stub);
+  404 -> null projection, card absent, neutral non-leaking page hint;
+  401/network errors as container messages.
+- App.js route + home link. No backend changes.
+---
+ .agents/LOG.md                                |  14 ++
+ .agents/NEXT_TASK.md                          |   6 +-
+ frontend/src/App.js                           |   9 ++
+ .../comfort-profile/ProviderComfortCard.jsx   |  73 ++++++++++
+ frontend/src/pages/ProviderPortal.jsx         | 135 ++++++++++++++++++
+ 5 files changed, 234 insertions(+), 3 deletions(-)
+ create mode 100644 frontend/src/components/comfort-profile/ProviderComfortCard.jsx
+ create mode 100644 frontend/src/pages/ProviderPortal.jsx
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index 1434a2e..92f4cfe 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -111,3 +111,17 @@ Format: ENTRY-XXX | date | actor | action | evidence
+   `tests/comfort-profile.api.test.mjs` — **12/12 PASS** covering the full status matrix,
+   hide-without-delete, re-grant latest-row rule, scope filtering, and the projection 404 matrix.
+ - Approval record: approved and logical — per operator policy (ENTRY-002).
++
++## ENTRY-008 | 2026-08-11 | Neo (E2) | Task: Provider Projection Card
++- `frontend/src/components/comfort-profile/ProviderComfortCard.jsx` — pure props-driven
++  presentation; returns null (renders NOTHING — no skeleton, no error chrome) when projection is
++  null/empty (contract §1.11); displays only server-filtered, scope-granted, non-null fields.
++- `frontend/src/pages/ProviderPortal.jsx` — container at `/provider`: fetches
++  GET /api/provider/comfort-projection/{patientId} with X-Provider-Id header stub; 404 → null
++  projection (card absent, neutral non-leaking hint shown by the PAGE, not the card); 401 and
++  network errors surfaced as container messages.
++- App.js: `/provider` route + home link. No backend changes in this task.
++- Live verification: seeded patient demo-patient-777 via real API (grant 201, PUT 200) with scope
++  [temperature, noise, notes]; portal page renders; full interaction matrix queued for the
++  comprehensive test run.
++- Approval record: approved and logical — per operator policy (ENTRY-002).
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index 5539365..463db80 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -18,11 +18,11 @@ STATUS: DONE + VERIFIED (LOG ENTRY-007 — 12/12 node:test checks passed)
+ PATCH: patches/PHASE_4C_comfort-profile-api.patch
+ 
+ ## Task B — Provider Projection Card (operator priority 2)
+-STATUS: NEXT
+-- Read-only provider card; calls projection endpoint; renders NOTHING on 404/null.
++STATUS: DONE (LOG ENTRY-008) — interaction matrix queued for comprehensive test run
++PATCH: patches/PHASE_4C_provider-projection-card.patch
+ 
+ ## Task C — Patient Auth (operator priority 3)
+-STATUS: QUEUED
++STATUS: NEXT
+ - Sign-in + hardened logout (always clears session even on request failure).
+ 
+ ## Task D — Patch Index Page (operator priority 4)
+diff --git a/frontend/src/App.js b/frontend/src/App.js
+index 914550b..6181463 100644
+--- a/frontend/src/App.js
++++ b/frontend/src/App.js
+@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+ import axios from "axios";
+ import { HOME } from "@/constants/testIds";
+ import ComfortShellPreview from "@/pages/ComfortShellPreview";
++import ProviderPortal from "@/pages/ProviderPortal";
+ 
+ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+ const API = `${BACKEND_URL}/api`;
+@@ -42,6 +43,13 @@ const Home = () => {
+         >
+           Phase 4C — Comfort shell preview
+         </Link>
++        <Link
++          to="/provider"
++          data-testid="home-provider-portal-link"
++          className="mt-3 rounded-full border border-indigo-500/40 px-5 py-2 text-base text-indigo-300 transition-colors hover:bg-indigo-500/10"
++        >
++          Provider portal
++        </Link>
+       </header>
+     </div>
+   );
+@@ -54,6 +62,7 @@ function App() {
+         <Routes>
+           <Route path="/" element={<Home />} />
+           <Route path="/phase-4c/shell-preview" element={<ComfortShellPreview />} />
++          <Route path="/provider" element={<ProviderPortal />} />
+         </Routes>
+       </BrowserRouter>
+     </div>
+diff --git a/frontend/src/components/comfort-profile/ProviderComfortCard.jsx b/frontend/src/components/comfort-profile/ProviderComfortCard.jsx
+new file mode 100644
+index 0000000..35bf33e
+--- /dev/null
++++ b/frontend/src/components/comfort-profile/ProviderComfortCard.jsx
+@@ -0,0 +1,73 @@
++import { Thermometer, Lamp, Volume2, StickyNote, ShieldCheck } from "lucide-react";
++import { Badge } from "@/components/ui/badge";
++
++/**
++ * ProviderComfortCard — Phase 4C provider-facing read-only card.
++ *
++ * CONTRACT (§5.1, §4): docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md
++ * - Pure props-driven presentation. No fetching, no state, no side effects.
++ * - Renders NOTHING (returns null) when the projection is null — no skeleton,
++ *   no error chrome. The 404-only design means absence reveals nothing.
++ * - Shows ONLY the fields present in the projection (already scope-filtered
++ *   and non-null by the server's buildProviderProjection).
++  */
++
++const FIELD_META = {
++  temperature: { icon: Thermometer, label: "Room temperature" },
++  lighting: { icon: Lamp, label: "Lighting" },
++  noise: { icon: Volume2, label: "Noise level" },
++  notes: { icon: StickyNote, label: "Notes" },
++};
++
++const FIELD_ORDER = ["temperature", "lighting", "noise", "notes"];
++
++export default function ProviderComfortCard({ projection = null, patientLabel = "" }) {
++  // Contract §1.11 — the card renders nothing when the projection is null.
++  if (projection === null || projection === undefined) return null;
++
++  const fields = FIELD_ORDER.filter((f) => projection[f] !== undefined && projection[f] !== null);
++  if (fields.length === 0) return null;
++
++  return (
++    <section
++      data-testid="provider-card-root"
++      className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
++    >
++      <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
++        <div>
++          <h3 className="text-sm font-semibold text-slate-900">
++            Comfort preferences{patientLabel ? ` — ${patientLabel}` : ""}
++          </h3>
++          <p className="text-xs text-slate-500">Read-only · shared by the patient</p>
++        </div>
++        <Badge className="gap-1 border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-50">
++          <ShieldCheck size={13} /> Consented
++        </Badge>
++      </header>
++      <ul className="divide-y divide-slate-100">
++        {fields.map((field) => {
++          const { icon: Icon, label } = FIELD_META[field];
++          const value = projection[field];
++          return (
++            <li key={field} className="flex items-start gap-3 px-5 py-3.5">
++              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100">
++                <Icon className="text-slate-500" size={16} />
++              </span>
++              <div className="min-w-0">
++                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
++                  {label}
++                </p>
++                <p
++                  data-testid={`provider-card-${field}`}
++                  className="mt-0.5 break-words text-sm text-slate-800"
++                >
++                  {field === "notes" ? value : value.charAt(0).toUpperCase() + value.slice(1)}
++                </p>
++              </div>
++            </li>
++          );
++        })}
++      </ul>
++    </section>
++  );
++}
+diff --git a/frontend/src/pages/ProviderPortal.jsx b/frontend/src/pages/ProviderPortal.jsx
+new file mode 100644
+index 0000000..c8957e2
+--- /dev/null
++++ b/frontend/src/pages/ProviderPortal.jsx
+@@ -0,0 +1,135 @@
++import { useState } from "react";
++import axios from "axios";
++import { Stethoscope, Search, Loader2 } from "lucide-react";
++import { Button } from "@/components/ui/button";
++import { Input } from "@/components/ui/input";
++import ProviderComfortCard from "@/components/comfort-profile/ProviderComfortCard";
++
++const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
++
++/**
++ * ProviderPortal — container for the Phase 4C provider projection card.
++ *
++ * The CONTAINER fetches (GET /api/provider/comfort-projection/{patientId});
++ * the CARD stays pure presentation. On 404 the projection is null and the card
++ * renders nothing — the page shows only a neutral, non-leaking hint.
++ * Provider identity: X-Provider-Id header stub until provider auth lands.
++ */
++export default function ProviderPortal() {
++  const [providerId, setProviderId] = useState("");
++  const [patientId, setPatientId] = useState("");
++  const [loading, setLoading] = useState(false);
++  const [searched, setSearched] = useState(false);
++  const [projection, setProjection] = useState(null);
++  const [message, setMessage] = useState(null);
++
++  const lookup = async () => {
++    if (!providerId.trim() || !patientId.trim()) {
++      setMessage("Enter your provider ID and the patient ID.");
++      return;
++    }
++    setLoading(true);
++    setMessage(null);
++    setProjection(null);
++    setSearched(false);
++    try {
++      const res = await axios.get(
++        `${API}/provider/comfort-projection/${encodeURIComponent(patientId.trim())}`,
++        { headers: { "X-Provider-Id": providerId.trim() } }
++      );
++      setProjection(res.data.projection);
++    } catch (e) {
++      if (e.response?.status === 404) {
++        // 404-only design: nothing is shared. Card renders nothing.
++        setProjection(null);
++      } else if (e.response?.status === 401) {
++        setMessage("Provider identity is required.");
++      } else {
++        setMessage("Something went wrong. Please try again.");
++      }
++    } finally {
++      setLoading(false);
++      setSearched(true);
++    }
++  };
++
++  return (
++    <main className="min-h-screen bg-slate-50 px-4 py-10 text-left">
++      <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
++        <header className="flex items-center gap-3">
++          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50">
++            <Stethoscope className="text-indigo-600" size={22} />
++          </span>
++          <div>
++            <h1 className="text-lg font-semibold text-slate-900">Provider portal</h1>
++            <p className="text-sm text-slate-500">
++              View comfort preferences a patient has chosen to share
++            </p>
++          </div>
++        </header>
++
++        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
++          <div className="grid gap-3 sm:grid-cols-2">
++            <div className="space-y-1.5">
++              <label className="text-sm font-medium text-slate-700" htmlFor="provider-id">
++                Your provider ID
++              </label>
++              <Input
++                id="provider-id"
++                data-testid="provider-portal-provider-id"
++                placeholder="e.g. dr-rivera"
++                value={providerId}
++                onChange={(e) => setProviderId(e.target.value)}
++                className="border-slate-200 focus-visible:ring-indigo-500"
++              />
++            </div>
++            <div className="space-y-1.5">
++              <label className="text-sm font-medium text-slate-700" htmlFor="patient-id">
++                Patient ID
++              </label>
++              <Input
++                id="patient-id"
++                data-testid="provider-portal-patient-id"
++                placeholder="patient identifier"
++                value={patientId}
++                onChange={(e) => setPatientId(e.target.value)}
++                onKeyDown={(e) => e.key === "Enter" && lookup()}
++                className="border-slate-200 focus-visible:ring-indigo-500"
++              />
++            </div>
++          </div>
++          <Button
++            data-testid="provider-portal-lookup-btn"
++            onClick={lookup}
++            disabled={loading}
++            className="w-full bg-indigo-600 text-white hover:bg-indigo-700"
++          >
++            {loading ? (
++              <Loader2 size={16} className="mr-1.5 animate-spin" />
++            ) : (
++              <Search size={16} className="mr-1.5" />
++            )}
++            View shared preferences
++          </Button>
++          {message && (
++            <p data-testid="provider-portal-message" className="text-sm text-red-600">
++              {message}
++            </p>
++          )}
++        </div>
++
++        {/* The card renders NOTHING when projection is null (contract §1.11). */}
++        <ProviderComfortCard projection={projection} patientLabel={searched && projection ? patientId.trim() : ""} />
++
++        {searched && !loading && projection === null && !message && (
++          <p
++            data-testid="provider-portal-nothing-shared"
++            className="text-center text-sm text-slate-400"
++          >
++            No comfort preferences are shared for this patient.
++          </p>
++        )}
++      </div>
++    </main>
++  );
++}
+-- 
+2.39.5
+

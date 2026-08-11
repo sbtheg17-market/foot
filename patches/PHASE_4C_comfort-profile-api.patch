@@ -1,0 +1,665 @@
+From 7ae0f705d62cfe97bd645a16d744ef732c738cb6 Mon Sep 17 00:00:00 2001
+From: emergent-agent-e1 <github@emergent.sh>
+Date: Tue, 11 Aug 2026 14:38:44 +0000
+Subject: [PATCH] =?UTF-8?q?Phase=204C=20=E2=80=94=20Comfort=20Profile=20AP?=
+ =?UTF-8?q?I=20routes=20(consent-gated)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Six operations per PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md, implemented at the
+contract/module boundary (backend/comfort_profile.py):
+- grantConsent            POST   /api/comfort-profile/consent           201|400|401
+- withdrawConsent         POST   /api/comfort-profile/consent/withdraw  200|404|401
+- deleteComfortProfile    DELETE /api/comfort-profile                   204|404|401
+- getComfortProfile       GET    /api/comfort-profile                   200|401
+- updateComfortPreferences PUT   /api/comfort-profile/preferences       200|400|409|401
+- getProviderProjection   GET    /api/provider/comfort-projection/{id}  200|404-only|401
+
+Rules: build_provider_projection encodes the four conditions + [ACTIVE] allow-list;
+isConsentActive from latest row; withdraw hides (append WITHDRAWN), never deletes;
+no 403 branch exists. Persistence: exactly two additive collections
+(comfort_consents append-only, comfort_profiles); existing collections untouched.
+Identity: X-Patient-Id / X-Provider-Id header stub (401 when missing) until AUTH task.
+
+Tests (contract §8: node:test fetch-against-BASE):
+tests/comfort-profile.api.test.mjs — 12/12 PASS (full status matrix,
+hide-without-delete, re-grant latest-row, scope filtering, projection 404 matrix).
+
+No UI changes. No events/analytics/economics.
+---
+ .agents/LOG.md                     |  20 ++
+ .agents/NEXT_TASK.md               |  17 ++
+ backend/comfort_profile.py         | 311 +++++++++++++++++++++++++++++
+ backend/server.py                  |   4 +
+ tests/comfort-profile.api.test.mjs | 229 +++++++++++++++++++++
+ 5 files changed, 581 insertions(+)
+ create mode 100644 backend/comfort_profile.py
+ create mode 100644 tests/comfort-profile.api.test.mjs
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index fbd3fc2..1434a2e 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -91,3 +91,23 @@ Format: ENTRY-XXX | date | actor | action | evidence
+   contains the verbatim-copy constant. Evidence: command output in session transcript.
+ - Main branch: App.js route wiring restored in commit `b1d9bce` after the baseline snapshot.
+ - Approval record: approved and logical — per operator policy (ENTRY-002).
++
++## ENTRY-007 | 2026-08-11 | Neo (E2) | Task: Comfort Profile API — six contract routes implemented
++- Operator authorization: implement the six Phase 4C consent routes exactly per
++  PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md; wire to persistence; NO UI changes; forbidden:
++  schema beyond the two additive stores, new events/analytics.
++- Implemented `backend/comfort_profile.py` (contract/module boundary):
++  grantConsent 201/400/401 · withdrawConsent 200/404/401 · deleteComfortProfile 204/404/401 ·
++  getComfortProfile 200/401 · updateComfortPreferences 200/400/409/401 ·
++  getProviderProjection 200/404-only/401 (no 403 branch exists in the module).
++- `build_provider_projection` encodes the four conditions + ["ACTIVE"] allow-list;
++  `isConsentActive` from latest row (ns-timestamp ordering); withdraw appends WITHDRAWN row and
++  never touches profile data.
++- Persistence: exactly TWO additive Mongo collections — `comfort_consents` (append-only),
++  `comfort_profiles`. No existing collections modified. No events/analytics/economics.
++- Identity: Task-1 stub via `X-Patient-Id` / `X-Provider-Id` headers (401 when missing);
++  AUTH task will layer Bearer tokens on top (stub retained as documented test bypass).
++- Test evidence (contract §8 convention — node:test, fetch-against-BASE):
++  `tests/comfort-profile.api.test.mjs` — **12/12 PASS** covering the full status matrix,
++  hide-without-delete, re-grant latest-row rule, scope filtering, and the projection 404 matrix.
++- Approval record: approved and logical — per operator policy (ENTRY-002).
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index 5584639..5539365 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -11,6 +11,23 @@
+ 
+ ## Task 1 — Restore Phase 4C comfort-profile contract + shell
+ STATUS: DONE + VERIFIED (LOG ENTRY-004, ENTRY-005 — 16/16 automated checks passed)
++PATCH: patches/PHASE_4C_restoration.patch
++
++## Task A — Comfort Profile API (operator priority 1)
++STATUS: DONE + VERIFIED (LOG ENTRY-007 — 12/12 node:test checks passed)
++PATCH: patches/PHASE_4C_comfort-profile-api.patch
++
++## Task B — Provider Projection Card (operator priority 2)
++STATUS: NEXT
++- Read-only provider card; calls projection endpoint; renders NOTHING on 404/null.
++
++## Task C — Patient Auth (operator priority 3)
++STATUS: QUEUED
++- Sign-in + hardened logout (always clears session even on request failure).
++
++## Task D — Patch Index Page (operator priority 4)
++STATUS: QUEUED
++- Lists patch name, commit hash, files touched, test evidence.
+ - `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` present.
+ - `ComfortPreferencesShell` present, props-driven, aligned with contract §5.
+ - Shell visible at `/phase-4c/shell-preview` (presentation-only harness).
+diff --git a/backend/comfort_profile.py b/backend/comfort_profile.py
+new file mode 100644
+index 0000000..2c26441
+--- /dev/null
++++ b/backend/comfort_profile.py
+@@ -0,0 +1,311 @@
++"""
++Comfort Profile API — Phase 4C consent-gated routes.
++
++CONTRACT (source of truth): docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md
++
++Server rules live HERE, at the contract/module boundary (§1.2) — never in client shells.
++
++Operations (exactly six — §2):
++  1. grantConsent              POST   /api/comfort-profile/consent            -> 201 | 400 | 401
++  2. withdrawConsent           POST   /api/comfort-profile/consent/withdraw  -> 200 | 404 | 401
++  3. deleteComfortProfile      DELETE /api/comfort-profile                    -> 204 | 404 | 401
++  4. getComfortProfile         GET    /api/comfort-profile                    -> 200 | 401
++  5. updateComfortPreferences  PUT    /api/comfort-profile/preferences        -> 200 | 400 | 409 | 401
++  6. getProviderProjection     GET    /api/provider/comfort-projection/{id}   -> 200 | 404-only | 401 (NO 403)
++
++Invariants enforced here:
++  - isConsentActive is determined from the LATEST consent row (§3).
++  - Status allow-list is exactly ["ACTIVE"] (§3).
++  - Withdraw appends a WITHDRAWN row; it NEVER deletes profile data (§2.1).
++  - Withdraw and delete are separate operations.
++  - PUT returns 409 when consent is not active.
++  - build_provider_projection encodes the FOUR conditions (§4); null -> HTTP 404.
++  - There is NO 403 branch anywhere in this module.
++
++Persistence: exactly TWO additive collections (§6) — comfort_consents (append-only),
++comfort_profiles. No existing collections are modified.
++
++Identity (Task-1 stub, upgraded by AUTH task): requests carry `X-Patient-Id` /
++`X-Provider-Id` headers; a missing identity yields 401.
++"""
++import os
++import time
++import uuid
++from datetime import datetime, timezone
++from pathlib import Path
++
++from dotenv import load_dotenv
++from fastapi import APIRouter, Request
++from fastapi.responses import JSONResponse, Response
++from motor.motor_asyncio import AsyncIOMotorClient
++
++ROOT_DIR = Path(__file__).parent
++load_dotenv(ROOT_DIR / ".env")
++
++_client = AsyncIOMotorClient(os.environ["MONGO_URL"])
++_db = _client[os.environ["DB_NAME"]]
++consents = _db["comfort_consents"]   # additive collection 1 (append-only rows)
++profiles = _db["comfort_profiles"]   # additive collection 2 (one doc per patient)
++
++router = APIRouter(prefix="/api")
++
++# ---- Contract constants (§2.1, §3) -------------------------------------------------
++ALLOWED_SCOPE_FIELDS = ["temperature", "lighting", "noise", "notes"]
++STATUS_ALLOW_LIST = ["ACTIVE"]  # exactly one entry — extending requires contract review
++PREFERENCE_ENUMS = {
++    "temperature": ["cool", "moderate", "warm"],
++    "lighting": ["dim", "soft", "bright"],
++    "noise": ["quiet", "low", "moderate"],
++}
++NOTES_MAX_LEN = 1000
++
++
++# ---- Helpers ------------------------------------------------------------------------
++def _unauthorized() -> JSONResponse:
++    return JSONResponse(status_code=401, content={"error": "UNAUTHORIZED"})
++
++
++def _bad_request(detail: str) -> JSONResponse:
++    return JSONResponse(status_code=400, content={"error": "VALIDATION", "detail": detail})
++
++
++def _now_iso() -> str:
++    return datetime.now(timezone.utc).isoformat()
++
++
++async def _patient_id(request: Request) -> str | None:
++    """Resolve the acting patient identity. Task-1 header stub; AUTH task adds Bearer."""
++    resolver = getattr(request.app.state, "resolve_patient", None)
++    if resolver is not None:
++        resolved = await resolver(request)
++        if resolved:
++            return resolved
++    pid = request.headers.get("X-Patient-Id", "").strip()
++    return pid or None
++
++
++def _provider_id(request: Request) -> str | None:
++    pid = request.headers.get("X-Provider-Id", "").strip()
++    return pid or None
++
++
++async def _latest_consent_row(patient_id: str) -> dict | None:
++    rows = await consents.find({"patientId": patient_id}).sort("ts", -1).limit(1).to_list(1)
++    return rows[0] if rows else None
++
++
++def _is_consent_active(latest_row: dict | None) -> bool:
++    """§3 — latest row exists AND its status is in the allow-list."""
++    return latest_row is not None and latest_row.get("status") in STATUS_ALLOW_LIST
++
++
++def build_provider_projection(latest_row: dict | None, profile: dict | None) -> dict | None:
++    """§4 — the four conditions, all required, evaluated in order.
++
++    Returns the scoped, non-null projection dict, or None (-> HTTP 404, never 403).
++    """
++    # 1. Consent exists — the patient has at least one consent row.
++    if latest_row is None:
++        return None
++    # 2. Latest row allowed — status in the allow-list.
++    if latest_row.get("status") not in STATUS_ALLOW_LIST:
++        return None
++    # 3. Profile exists.
++    if profile is None:
++        return None
++    # 4. Non-empty scoped payload — filter to granted scope; ≥1 non-null field remains.
++    scope = latest_row.get("scope") or []
++    scoped = {
++        field: profile.get(field)
++        for field in ALLOWED_SCOPE_FIELDS
++        if field in scope and profile.get(field) not in (None, "")
++    }
++    if not scoped:
++        return None
++    return scoped
++
++
++def _validate_scope(body: dict) -> tuple[list | None, str | None]:
++    scope = body.get("scope")
++    if not isinstance(scope, list) or len(scope) == 0:
++        return None, "scope must be a non-empty array"
++    cleaned = []
++    for item in scope:
++        if not isinstance(item, str) or item not in ALLOWED_SCOPE_FIELDS:
++            return None, f"scope items must be one of {ALLOWED_SCOPE_FIELDS}"
++        if item not in cleaned:
++            cleaned.append(item)
++    return cleaned, None
++
++
++def _validate_preferences(body: dict) -> tuple[dict | None, str | None]:
++    if not isinstance(body, dict) or len(body) == 0:
++        return None, "at least one preference field is required"
++    updates: dict = {}
++    for key, value in body.items():
++        if key not in ALLOWED_SCOPE_FIELDS:
++            return None, f"unknown field '{key}'"
++        if value is None:
++            updates[key] = None
++            continue
++        if key == "notes":
++            if not isinstance(value, str) or len(value) > NOTES_MAX_LEN:
++                return None, f"notes must be a string of at most {NOTES_MAX_LEN} characters"
++            updates[key] = value
++        else:
++            if value not in PREFERENCE_ENUMS[key]:
++                return None, f"{key} must be one of {PREFERENCE_ENUMS[key]}"
++            updates[key] = value
++    return updates, None
++
++
++async def _json_body(request: Request) -> tuple[dict | None, JSONResponse | None]:
++    try:
++        body = await request.json()
++    except Exception:
++        return None, _bad_request("request body must be valid JSON")
++    if not isinstance(body, dict):
++        return None, _bad_request("request body must be a JSON object")
++    return body, None
++
++
++# ---- 1. grantConsent — POST /api/comfort-profile/consent -> 201 | 400 | 401 ---------
++@router.post("/comfort-profile/consent")
++async def grant_consent(request: Request):
++    patient_id = await _patient_id(request)
++    if not patient_id:
++        return _unauthorized()
++    body, err = await _json_body(request)
++    if err:
++        return err
++    scope, detail = _validate_scope(body)
++    if detail:
++        return _bad_request(detail)
++    row = {
++        "id": str(uuid.uuid4()),
++        "patientId": patient_id,
++        "status": "ACTIVE",
++        "scope": scope,
++        "createdAt": _now_iso(),
++        "ts": time.time_ns(),  # monotonic-enough ordering key for latest-row selection
++    }
++    await consents.insert_one(dict(row))
++    return JSONResponse(
++        status_code=201,
++        content={
++            "consentId": row["id"],
++            "status": row["status"],
++            "scope": row["scope"],
++            "createdAt": row["createdAt"],
++        },
++    )
++
++
++# ---- 2. withdrawConsent — POST /api/comfort-profile/consent/withdraw -> 200|404|401 -
++@router.post("/comfort-profile/consent/withdraw")
++async def withdraw_consent(request: Request):
++    patient_id = await _patient_id(request)
++    if not patient_id:
++        return _unauthorized()
++    latest = await _latest_consent_row(patient_id)
++    if latest is None:
++        # §2.1 — 404 when no consent record exists at all
++        return JSONResponse(status_code=404, content={"error": "NO_CONSENT_RECORD"})
++    row = {
++        "id": str(uuid.uuid4()),
++        "patientId": patient_id,
++        "status": "WITHDRAWN",
++        "scope": [],
++        "createdAt": _now_iso(),
++        "ts": time.time_ns(),
++    }
++    # Withdraw HIDES (append-only status row). It never touches comfort_profiles.
++    await consents.insert_one(dict(row))
++    return JSONResponse(
++        status_code=200,
++        content={"consentId": row["id"], "status": row["status"], "createdAt": row["createdAt"]},
++    )
++
++
++# ---- 3. deleteComfortProfile — DELETE /api/comfort-profile -> 204 | 404 | 401 -------
++@router.delete("/comfort-profile")
++async def delete_comfort_profile(request: Request):
++    patient_id = await _patient_id(request)
++    if not patient_id:
++        return _unauthorized()
++    result = await profiles.delete_one({"patientId": patient_id})
++    if result.deleted_count == 0:
++        return JSONResponse(status_code=404, content={"error": "NO_PROFILE"})
++    return Response(status_code=204)
++
++
++# ---- 4. getComfortProfile — GET /api/comfort-profile -> 200 | 401 -------------------
++@router.get("/comfort-profile")
++async def get_comfort_profile(request: Request):
++    patient_id = await _patient_id(request)
++    if not patient_id:
++        return _unauthorized()
++    latest = await _latest_consent_row(patient_id)
++    profile = await profiles.find_one({"patientId": patient_id})
++    preferences = None
++    if profile is not None:
++        preferences = {field: profile.get(field) for field in ALLOWED_SCOPE_FIELDS}
++    return JSONResponse(
++        status_code=200,
++        content={
++            "isConsentActive": _is_consent_active(latest),
++            "hasProfile": profile is not None,
++            "preferences": preferences,
++        },
++    )
++
++
++# ---- 5. updateComfortPreferences — PUT /api/comfort-profile/preferences -------------
++#      -> 200 | 400 | 409 | 401
++@router.put("/comfort-profile/preferences")
++async def update_comfort_preferences(request: Request):
++    patient_id = await _patient_id(request)
++    if not patient_id:
++        return _unauthorized()
++    body, err = await _json_body(request)
++    if err:
++        return err
++    updates, detail = _validate_preferences(body)
++    if detail:
++        return _bad_request(detail)
++    latest = await _latest_consent_row(patient_id)
++    if not _is_consent_active(latest):
++        # §1.4 — PUT returns 409 when consent is not active
++        return JSONResponse(status_code=409, content={"error": "CONSENT_NOT_ACTIVE"})
++    now = _now_iso()
++    await profiles.update_one(
++        {"patientId": patient_id},
++        {
++            "$set": {**updates, "updatedAt": now},
++            "$setOnInsert": {"id": str(uuid.uuid4()), "patientId": patient_id, "createdAt": now},
++        },
++        upsert=True,
++    )
++    profile = await profiles.find_one({"patientId": patient_id})
++    return JSONResponse(
++        status_code=200,
++        content={
++            "preferences": {field: profile.get(field) for field in ALLOWED_SCOPE_FIELDS},
++            "updatedAt": profile.get("updatedAt"),
++        },
++    )
++
++
++# ---- 6. getProviderProjection — GET /api/provider/comfort-projection/{patientId} ----
++#      -> 200 | 404-only (never 403) | 401
++@router.get("/provider/comfort-projection/{patient_id}")
++async def get_provider_projection(patient_id: str, request: Request):
++    if not _provider_id(request):
++        return _unauthorized()
++    latest = await _latest_consent_row(patient_id)
++    profile = await profiles.find_one({"patientId": patient_id})
++    projection = build_provider_projection(latest, profile)
++    if projection is None:
++        # 404-only design — reveals nothing beyond absence-of-share; NO 403 path exists.
++        return JSONResponse(status_code=404, content={"error": "NOT_FOUND"})
++    return JSONResponse(status_code=200, content={"patientId": patient_id, "projection": projection})
+diff --git a/backend/server.py b/backend/server.py
+index 9ed97af..ae4afa3 100644
+--- a/backend/server.py
++++ b/backend/server.py
+@@ -69,6 +69,10 @@ async def get_status_checks():
+ # Include the router in the main app
+ app.include_router(api_router)
+ 
++# Phase 4C — Comfort Profile API (contract module boundary)
++from comfort_profile import router as comfort_router  # noqa: E402
++app.include_router(comfort_router)
++
+ app.add_middleware(
+     CORSMiddleware,
+     allow_credentials=True,
+diff --git a/tests/comfort-profile.api.test.mjs b/tests/comfort-profile.api.test.mjs
+new file mode 100644
+index 0000000..5ae302c
+--- /dev/null
++++ b/tests/comfort-profile.api.test.mjs
+@@ -0,0 +1,229 @@
++// Comfort Profile API — Phase 4C contract test suite.
++// Convention (contract §8): node:test with fetch-against-BASE.
++// Run: BASE=http://localhost:8001 node --test tests/comfort-profile.api.test.mjs
++
++import test from "node:test";
++import assert from "node:assert/strict";
++import { randomUUID } from "node:crypto";
++
++const BASE = process.env.BASE || "http://localhost:8001";
++
++async function req(method, path, { patient, provider, body } = {}) {
++  const headers = { "Content-Type": "application/json" };
++  if (patient) headers["X-Patient-Id"] = patient;
++  if (provider) headers["X-Provider-Id"] = provider;
++  const res = await fetch(`${BASE}${path}`, {
++    method,
++    headers,
++    body: body === undefined ? undefined : JSON.stringify(body),
++  });
++  let json = null;
++  try {
++    json = await res.json();
++  } catch {
++    /* 204 has no body */
++  }
++  return { status: res.status, json };
++}
++
++const PROVIDER = `provider-${randomUUID()}`;
++
++// ---------- 401 matrix: every operation requires an identity ----------
++test("401 — all six operations reject missing identity", async () => {
++  const cases = [
++    ["POST", "/api/comfort-profile/consent", { body: { scope: ["notes"] } }],
++    ["POST", "/api/comfort-profile/consent/withdraw", {}],
++    ["DELETE", "/api/comfort-profile", {}],
++    ["GET", "/api/comfort-profile", {}],
++    ["PUT", "/api/comfort-profile/preferences", { body: { noise: "quiet" } }],
++    ["GET", `/api/provider/comfort-projection/${randomUUID()}`, {}],
++  ];
++  for (const [method, path, opts] of cases) {
++    const { status } = await req(method, path, opts);
++    assert.equal(status, 401, `${method} ${path} should be 401 without identity`);
++  }
++});
++
++// ---------- grantConsent: 201 success, 400 validation ----------
++test("grantConsent — 201 with consent row payload", async () => {
++  const patient = randomUUID();
++  const { status, json } = await req("POST", "/api/comfort-profile/consent", {
++    patient,
++    body: { scope: ["temperature", "noise"] },
++  });
++  assert.equal(status, 201, "grant success MUST be 201, not 200");
++  assert.equal(json.status, "ACTIVE");
++  assert.deepEqual(json.scope, ["temperature", "noise"]);
++  assert.ok(json.consentId);
++  assert.ok(json.createdAt);
++});
++
++test("grantConsent — 400 on invalid scope payloads", async () => {
++  const patient = randomUUID();
++  const badBodies = [
++    { scope: [] },
++    { scope: ["bogus"] },
++    { scope: "temperature" },
++    {},
++    { scope: [42] },
++  ];
++  for (const body of badBodies) {
++    const { status } = await req("POST", "/api/comfort-profile/consent", { patient, body });
++    assert.equal(status, 400, `expected 400 for ${JSON.stringify(body)}`);
++  }
++});
++
++// ---------- getComfortProfile: fresh patient baseline ----------
++test("getComfortProfile — fresh patient: inactive, no profile", async () => {
++  const patient = randomUUID();
++  const { status, json } = await req("GET", "/api/comfort-profile", { patient });
++  assert.equal(status, 200);
++  assert.equal(json.isConsentActive, false);
++  assert.equal(json.hasProfile, false);
++  assert.equal(json.preferences, null);
++});
++
++// ---------- updateComfortPreferences: 409 gate, 400 validation, 200 ----------
++test("updateComfortPreferences — 409 when consent not active (editor locked)", async () => {
++  const patient = randomUUID();
++  const { status, json } = await req("PUT", "/api/comfort-profile/preferences", {
++    patient,
++    body: { temperature: "cool" },
++  });
++  assert.equal(status, 409);
++  assert.equal(json.error, "CONSENT_NOT_ACTIVE");
++});
++
++test("updateComfortPreferences — 400 invalid enum / unknown field; 200 valid", async () => {
++  const patient = randomUUID();
++  await req("POST", "/api/comfort-profile/consent", {
++    patient,
++    body: { scope: ["temperature", "lighting", "noise", "notes"] },
++  });
++  for (const body of [{ temperature: "freezing" }, { hacker: true }, {}]) {
++    const { status } = await req("PUT", "/api/comfort-profile/preferences", { patient, body });
++    assert.equal(status, 400, `expected 400 for ${JSON.stringify(body)}`);
++  }
++  const ok = await req("PUT", "/api/comfort-profile/preferences", {
++    patient,
++    body: { temperature: "warm", noise: "quiet", notes: "Extra blanket please." },
++  });
++  assert.equal(ok.status, 200);
++  assert.equal(ok.json.preferences.temperature, "warm");
++  assert.equal(ok.json.preferences.noise, "quiet");
++  assert.equal(ok.json.preferences.lighting, null);
++});
++
++// ---------- full lifecycle: grant -> save -> read -> project ----------
++test("lifecycle — grant, save, read back, provider sees scoped projection", async () => {
++  const patient = randomUUID();
++  await req("POST", "/api/comfort-profile/consent", {
++    patient,
++    body: { scope: ["temperature", "noise"] }, // lighting/notes NOT granted
++  });
++  await req("PUT", "/api/comfort-profile/preferences", {
++    patient,
++    body: { temperature: "cool", lighting: "dim", noise: "low", notes: "hi" },
++  });
++  const me = await req("GET", "/api/comfort-profile", { patient });
++  assert.equal(me.json.isConsentActive, true);
++  assert.equal(me.json.hasProfile, true);
++  assert.equal(me.json.preferences.lighting, "dim");
++
++  const proj = await req("GET", `/api/provider/comfort-projection/${patient}`, {
++    provider: PROVIDER,
++  });
++  assert.equal(proj.status, 200);
++  // Condition 4: only granted-scope, non-null fields appear
++  assert.deepEqual(proj.json.projection, { temperature: "cool", noise: "low" });
++  assert.equal(proj.json.projection.lighting, undefined, "ungranted field must not leak");
++  assert.equal(proj.json.projection.notes, undefined, "ungranted field must not leak");
++});
++
++// ---------- withdraw: hides, never deletes; separate from delete ----------
++test("withdrawConsent — hides projection but NEVER deletes profile data", async () => {
++  const patient = randomUUID();
++  await req("POST", "/api/comfort-profile/consent", { patient, body: { scope: ["noise"] } });
++  await req("PUT", "/api/comfort-profile/preferences", { patient, body: { noise: "quiet" } });
++
++  const w = await req("POST", "/api/comfort-profile/consent/withdraw", { patient });
++  assert.equal(w.status, 200);
++  assert.equal(w.json.status, "WITHDRAWN");
++
++  // isConsentActive derives from the LATEST row -> now false
++  const me = await req("GET", "/api/comfort-profile", { patient });
++  assert.equal(me.json.isConsentActive, false);
++  // …but the profile data is still there (hide-without-delete)
++  assert.equal(me.json.hasProfile, true);
++  assert.equal(me.json.preferences.noise, "quiet");
++
++  // Provider projection is now 404 (condition 2 fails) — and never 403
++  const proj = await req("GET", `/api/provider/comfort-projection/${patient}`, {
++    provider: PROVIDER,
++  });
++  assert.equal(proj.status, 404);
++});
++
++test("withdrawConsent — 404 when patient has no consent record at all", async () => {
++  const patient = randomUUID();
++  const { status } = await req("POST", "/api/comfort-profile/consent/withdraw", { patient });
++  assert.equal(status, 404);
++});
++
++test("re-grant after withdraw — latest-row rule restores access", async () => {
++  const patient = randomUUID();
++  await req("POST", "/api/comfort-profile/consent", { patient, body: { scope: ["notes"] } });
++  await req("PUT", "/api/comfort-profile/preferences", { patient, body: { notes: "water nearby" } });
++  await req("POST", "/api/comfort-profile/consent/withdraw", { patient });
++  await req("POST", "/api/comfort-profile/consent", { patient, body: { scope: ["notes"] } });
++  const proj = await req("GET", `/api/provider/comfort-projection/${patient}`, {
++    provider: PROVIDER,
++  });
++  assert.equal(proj.status, 200);
++  assert.deepEqual(proj.json.projection, { notes: "water nearby" });
++});
++
++// ---------- deleteComfortProfile: 204 / 404, separate from withdraw ----------
++test("deleteComfortProfile — 204 on delete, 404 when nothing to delete", async () => {
++  const patient = randomUUID();
++  // nothing to delete yet
++  const miss = await req("DELETE", "/api/comfort-profile", { patient });
++  assert.equal(miss.status, 404);
++
++  await req("POST", "/api/comfort-profile/consent", { patient, body: { scope: ["noise"] } });
++  await req("PUT", "/api/comfort-profile/preferences", { patient, body: { noise: "low" } });
++  const del = await req("DELETE", "/api/comfort-profile", { patient });
++  assert.equal(del.status, 204);
++
++  const me = await req("GET", "/api/comfort-profile", { patient });
++  assert.equal(me.json.hasProfile, false);
++  // consent row remains ACTIVE (delete is not withdraw)
++  assert.equal(me.json.isConsentActive, true);
++
++  const again = await req("DELETE", "/api/comfort-profile", { patient });
++  assert.equal(again.status, 404);
++});
++
++// ---------- projection 404 matrix: each of the four conditions ----------
++test("projection — 404 for each failing condition; never 403", async () => {
++  // C1: no consent rows at all
++  const p1 = randomUUID();
++  const c1 = await req("GET", `/api/provider/comfort-projection/${p1}`, { provider: PROVIDER });
++  assert.equal(c1.status, 404);
++
++  // C3: consent active but no profile document
++  const p2 = randomUUID();
++  await req("POST", "/api/comfort-profile/consent", { patient: p2, body: { scope: ["noise"] } });
++  const c3 = await req("GET", `/api/provider/comfort-projection/${p2}`, { provider: PROVIDER });
++  assert.equal(c3.status, 404);
++
++  // C4: profile exists but granted scope yields only null fields
++  const p3 = randomUUID();
++  await req("POST", "/api/comfort-profile/consent", { patient: p3, body: { scope: ["notes"] } });
++  await req("PUT", "/api/comfort-profile/preferences", { patient: p3, body: { noise: "low" } });
++  const c4 = await req("GET", `/api/provider/comfort-projection/${p3}`, { provider: PROVIDER });
++  assert.equal(c4.status, 404);
++
++  // No 403 appeared anywhere in this suite — assert the canonical miss is 404
++  for (const r of [c1, c3, c4]) assert.notEqual(r.status, 403, "403 path is forbidden");
++});
+-- 
+2.39.5
+

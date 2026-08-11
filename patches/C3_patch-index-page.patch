@@ -1,0 +1,347 @@
+From 1ad5695e94e0433fedc25fab505f21573fb7733e Mon Sep 17 00:00:00 2001
+From: emergent-agent-e1 <github@emergent.sh>
+Date: Tue, 11 Aug 2026 14:48:21 +0000
+Subject: [PATCH] =?UTF-8?q?C-3=20=E2=80=94=20patch=20index=20page=20(name,?=
+ =?UTF-8?q?=20commit,=20files,=20test=20evidence)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- backend/patch_index.py: GET /api/patches parses real patches/*.patch files
+  (commit sha, decoded subject, date, exact changed-file list) and merges
+  evidence from patches/INDEX.json.
+- patches/INDEX.json: per-patch task + test-evidence manifest.
+- /patches page: patch name, commit hash, files touched (expandable), evidence.
+- Home link. Meta-infrastructure only: no schema, no events, no comfort changes.
+---
+ .agents/LOG.md                    |  11 +++
+ .agents/NEXT_TASK.md              |   4 +-
+ backend/patch_index.py            |  78 ++++++++++++++++++++
+ backend/server.py                 |   4 ++
+ frontend/src/App.js               |   9 +++
+ frontend/src/pages/PatchIndex.jsx | 115 ++++++++++++++++++++++++++++++
+ patches/INDEX.json                |  22 ++++++
+ 7 files changed, 241 insertions(+), 2 deletions(-)
+ create mode 100644 backend/patch_index.py
+ create mode 100644 frontend/src/pages/PatchIndex.jsx
+ create mode 100644 patches/INDEX.json
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index 9dff9e5..91e9b1c 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -143,3 +143,14 @@ Format: ENTRY-XXX | date | actor | action | evidence
+   x3 paths, Bearer end-to-end on comfort routes, revocation → 401). Full suite 16/16 PASS
+   (no regression on comfort matrix).
+ - Approval record: approved and logical — per operator policy (ENTRY-002).
++
++## ENTRY-010 | 2026-08-11 | Neo (E2) | Task: Patch Index Page
++- Backend `backend/patch_index.py`: GET /api/patches parses the REAL patches/*.patch files on
++  disk (commit from mbox From-line, RFC2047-decoded subject, author date, exact changed-file list
++  from diff headers) and merges test-evidence strings from patches/INDEX.json. Nothing invented.
++- `patches/INDEX.json`: evidence manifest per patch (task + recorded test results).
++- Frontend `/patches` (PatchIndex.jsx): lists patch name, commit hash, files touched
++  (expandable), and test evidence. Home link added.
++- Verified live: endpoint returns all 4 existing patches with correct commits/subjects/file
++  counts; C3 patch self-appears once cut (parser reads the directory).
++- Approval record: approved and logical — per operator policy (ENTRY-002).
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index f5d6d56..d68c938 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -28,8 +28,8 @@ PATCH: patches/AUTH_patient-signin-logout.patch
+   feedback, server logout always 200. The monorepo B-prime caveat criteria are met here.
+ 
+ ## Task D — Patch Index Page (operator priority 4)
+-STATUS: NEXT
+-- Lists patch name, commit hash, files touched, test evidence.
++STATUS: DONE (LOG ENTRY-010) — /patches page + GET /api/patches parsing real patch files
++PATCH: patches/C3_patch-index-page.patch
+ - `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` present.
+ - `ComfortPreferencesShell` present, props-driven, aligned with contract §5.
+ - Shell visible at `/phase-4c/shell-preview` (presentation-only harness).
+diff --git a/backend/patch_index.py b/backend/patch_index.py
+new file mode 100644
+index 0000000..3a0f1cd
+--- /dev/null
++++ b/backend/patch_index.py
+@@ -0,0 +1,78 @@
++"""
++Patch Index — meta-infrastructure endpoint.
++
++GET /api/patches -> 200 [{name, commit, subject, date, files, evidence, task}]
++
++Parses the REAL `patches/*.patch` files on disk (git format-patch mbox format):
++  - commit hash from the 'From <sha>' line,
++  - subject (RFC 2047 decoded, '[PATCH] ' prefix stripped),
++  - author date,
++  - exact changed-file list from 'diff --git' headers.
++Test-evidence strings are merged from `patches/INDEX.json` (maintained per the
++.agents/SETUP.md workflow). Nothing is invented: files that do not exist on disk
++are not listed.
++"""
++import json
++import re
++from email import message_from_string
++from email.header import decode_header
++from pathlib import Path
++
++from fastapi import APIRouter
++from fastapi.responses import JSONResponse
++
++PATCHES_DIR = Path(__file__).parent.parent / "patches"
++
++router = APIRouter(prefix="/api")
++
++_FROM_RE = re.compile(r"^From ([0-9a-f]{40}) ", re.MULTILINE)
++_DIFF_RE = re.compile(r"^diff --git a/(.+?) b/", re.MULTILINE)
++
++
++def _decode_subject(raw: str) -> str:
++    parts = decode_header(raw or "")
++    out = ""
++    for text, charset in parts:
++        out += text.decode(charset or "utf-8") if isinstance(text, bytes) else text
++    out = out.replace("\n", " ").strip()
++    return out[len("[PATCH] "):] if out.startswith("[PATCH] ") else out
++
++
++def _parse_patch(path: Path) -> dict:
++    text = path.read_text(encoding="utf-8", errors="replace")
++    commit_match = _FROM_RE.search(text)
++    msg = message_from_string(text)
++    return {
++        "name": path.name,
++        "commit": commit_match.group(1) if commit_match else None,
++        "subject": _decode_subject(msg.get("Subject", "")),
++        "date": msg.get("Date", ""),
++        "files": sorted(set(_DIFF_RE.findall(text))),
++    }
++
++
++def _load_index() -> dict:
++    index_path = PATCHES_DIR / "INDEX.json"
++    if not index_path.exists():
++        return {}
++    try:
++        return json.loads(index_path.read_text(encoding="utf-8"))
++    except Exception:
++        return {}
++
++
++@router.get("/patches")
++async def list_patches():
++    if not PATCHES_DIR.exists():
++        return JSONResponse(status_code=200, content=[])
++    index = _load_index()
++    entries = []
++    for path in sorted(PATCHES_DIR.glob("*.patch")):
++        entry = _parse_patch(path)
++        meta = index.get(path.name, {})
++        entry["evidence"] = meta.get("evidence", "")
++        entry["task"] = meta.get("task", "")
++        entries.append(entry)
++    # chronological by author date where possible, fallback name
++    entries.sort(key=lambda e: (e["date"], e["name"]))
++    return JSONResponse(status_code=200, content=entries)
+diff --git a/backend/server.py b/backend/server.py
+index 7b8177b..002cb1c 100644
+--- a/backend/server.py
++++ b/backend/server.py
+@@ -78,6 +78,10 @@ from auth import router as auth_router, resolve_patient  # noqa: E402
+ app.include_router(auth_router)
+ app.state.resolve_patient = resolve_patient
+ 
++# Patch Index — meta-infrastructure (parses patches/*.patch on disk)
++from patch_index import router as patch_index_router  # noqa: E402
++app.include_router(patch_index_router)
++
+ app.add_middleware(
+     CORSMiddleware,
+     allow_credentials=True,
+diff --git a/frontend/src/App.js b/frontend/src/App.js
+index 5653d61..c042897 100644
+--- a/frontend/src/App.js
++++ b/frontend/src/App.js
+@@ -7,6 +7,7 @@ import ComfortShellPreview from "@/pages/ComfortShellPreview";
+ import ProviderPortal from "@/pages/ProviderPortal";
+ import SignIn from "@/pages/SignIn";
+ import PatientPortal from "@/pages/PatientPortal";
++import PatchIndex from "@/pages/PatchIndex";
+ import { Toaster } from "sonner";
+ 
+ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+@@ -60,6 +61,13 @@ const Home = () => {
+         >
+           Phase 4C — Comfort shell preview
+         </Link>
++        <Link
++          to="/patches"
++          data-testid="home-patch-index-link"
++          className="mt-3 rounded-full border border-slate-500/40 px-5 py-2 text-base text-slate-300 transition-colors hover:bg-slate-500/10"
++        >
++          Patch index
++        </Link>
+       </header>
+     </div>
+   );
+@@ -75,6 +83,7 @@ function App() {
+           <Route path="/provider" element={<ProviderPortal />} />
+           <Route path="/signin" element={<SignIn />} />
+           <Route path="/portal" element={<PatientPortal />} />
++          <Route path="/patches" element={<PatchIndex />} />
+         </Routes>
+         <Toaster position="top-center" richColors />
+       </BrowserRouter>
+diff --git a/frontend/src/pages/PatchIndex.jsx b/frontend/src/pages/PatchIndex.jsx
+new file mode 100644
+index 0000000..409199e
+--- /dev/null
++++ b/frontend/src/pages/PatchIndex.jsx
+@@ -0,0 +1,115 @@
++import { useEffect, useState } from "react";
++import axios from "axios";
++import { FileDiff, GitCommitHorizontal, Loader2, BadgeCheck, ChevronDown, ChevronUp } from "lucide-react";
++
++const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
++
++/**
++ * PatchIndex — meta-infrastructure page listing every published patch:
++ * name, commit hash, files touched, and recorded test evidence.
++ * Data comes from GET /api/patches, which parses the REAL patches/*.patch
++ * files on disk and merges evidence from patches/INDEX.json.
++ */
++export default function PatchIndex() {
++  const [patches, setPatches] = useState(null);
++  const [error, setError] = useState(null);
++  const [openFiles, setOpenFiles] = useState({});
++
++  useEffect(() => {
++    axios
++      .get(`${API}/patches`)
++      .then((res) => setPatches(res.data))
++      .catch(() => setError("Could not load the patch index."));
++  }, []);
++
++  return (
++    <main className="min-h-screen bg-slate-50 px-4 py-10 text-left">
++      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
++        <header className="flex items-center gap-3">
++          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900">
++            <FileDiff className="text-white" size={22} />
++          </span>
++          <div>
++            <h1 className="text-lg font-semibold text-slate-900">Patch index</h1>
++            <p className="text-sm text-slate-500">
++              One task → one commit → one patch · parsed live from <code className="rounded bg-slate-100 px-1 text-xs">patches/</code>
++            </p>
++          </div>
++        </header>
++
++        {error && (
++          <p data-testid="patch-index-error" className="text-sm text-red-600">{error}</p>
++        )}
++
++        {!patches && !error && (
++          <div data-testid="patch-index-loading" className="flex items-center gap-2 text-slate-500">
++            <Loader2 className="animate-spin" size={16} /> Loading patches…
++          </div>
++        )}
++
++        {patches && patches.length === 0 && (
++          <p data-testid="patch-index-empty" className="text-sm text-slate-500">
++            No patches recorded yet.
++          </p>
++        )}
++
++        {patches && patches.length > 0 && (
++          <ol data-testid="patch-index-list" className="space-y-4">
++            {patches.map((p) => {
++              const filesOpen = !!openFiles[p.name];
++              return (
++                <li
++                  key={p.name}
++                  data-testid="patch-index-item"
++                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
++                >
++                  <div className="border-b border-slate-100 px-5 py-4">
++                    <h2 className="text-sm font-semibold text-slate-900">{p.subject}</h2>
++                    <p className="mt-1 font-mono text-xs text-slate-500">{p.name}</p>
++                  </div>
++                  <div className="space-y-3 px-5 py-4">
++                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-slate-500">
++                      <span className="inline-flex items-center gap-1.5">
++                        <GitCommitHorizontal size={14} className="text-slate-400" />
++                        <code className="font-mono" title={p.commit || ""}>
++                          {p.commit ? p.commit.slice(0, 10) : "—"}
++                        </code>
++                      </span>
++                      <span>{p.date}</span>
++                      <button
++                        type="button"
++                        data-testid="patch-index-files-toggle"
++                        onClick={() =>
++                          setOpenFiles((s) => ({ ...s, [p.name]: !s[p.name] }))
++                        }
++                        className="inline-flex items-center gap-1 font-medium text-slate-600 hover:text-slate-900"
++                      >
++                        {p.files.length} file{p.files.length === 1 ? "" : "s"} touched
++                        {filesOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
++                      </button>
++                    </div>
++                    {filesOpen && (
++                      <ul className="space-y-1 rounded-lg bg-slate-50 px-3 py-2">
++                        {p.files.map((f) => (
++                          <li key={f} className="font-mono text-xs text-slate-600">
++                            {f}
++                          </li>
++                        ))}
++                      </ul>
++                    )}
++                    {p.evidence && (
++                      <p className="flex items-start gap-1.5 text-xs leading-relaxed text-teal-700">
++                        <BadgeCheck size={14} className="mt-0.5 shrink-0" />
++                        <span>{p.evidence}</span>
++                      </p>
++                    )}
++                  </div>
++                </li>
++              );
++            })}
++          </ol>
++        )}
++      </div>
++    </main>
++  );
++}
+diff --git a/patches/INDEX.json b/patches/INDEX.json
+new file mode 100644
+index 0000000..38eb28f
+--- /dev/null
++++ b/patches/INDEX.json
+@@ -0,0 +1,22 @@
++{
++  "PHASE_4C_restoration.patch": {
++    "task": "Restore Phase 4C contract + shell (design-only)",
++    "evidence": "16/16 automated frontend checks PASS (testing agent, test_reports/iteration_1.json); verbatim copy byte-exact; shell purity verified (zero comfort API calls)"
++  },
++  "PHASE_4C_comfort-profile-api.patch": {
++    "task": "Comfort Profile API — six consent-gated routes",
++    "evidence": "12/12 node:test fetch-against-BASE checks PASS (tests/comfort-profile.api.test.mjs): full 201/400/401/404/409 matrix, hide-without-delete, latest-row rule, scope filtering, projection 404 matrix (no 403)"
++  },
++  "PHASE_4C_provider-projection-card.patch": {
++    "task": "Provider projection card — read-only, renders nothing on 404/null",
++    "evidence": "Live API seed verified (grant 201, PUT 200); interaction matrix covered in comprehensive test run"
++  },
++  "AUTH_patient-signin-logout.patch": {
++    "task": "Patient sign-in + hardened logout",
++    "evidence": "4/4 node:test checks PASS (tests/auth.api.test.mjs): register/login matrix, hardened logout across 3 failure paths, Bearer end-to-end on comfort routes, revocation 401; full suite 16/16"
++  },
++  "C3_patch-index-page.patch": {
++    "task": "Patch index page — name, commit, files, test evidence",
++    "evidence": "GET /api/patches parses real patch files on disk; verified in comprehensive test run"
++  }
++}
+-- 
+2.39.5
+
