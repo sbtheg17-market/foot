@@ -37,6 +37,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Layer | Status | Notes |
 |---|---|---|
 | DB schema | ✅ Phase 3 authorization state verified in development | Existing schema remains intact; `account_roles` and `provider_applications` are now read by authorization middleware. `users.role` and provider verification state remain compatibility fields. |
+| Gate B — Supabase managed catalog | ❌ BLOCKED / UNVERIFIED (2026-08-11) | Exact authorized session-pooler host was attempted read-only, but the stored secret was a direct Supabase URI and the pooler rejected its credential components with `no tenant identifier provided`; no SQL completed, no catalog state was inferred, and no schema operation ran. |
 | API server workflow | ✅ Running with Phase 2 readiness API | `artifacts/api-server: API Server` builds and serves on port 8080; database-backed role guards, approved-provider gates, owner-scoped provider applications, public discovery, admin routes, and owner-scoped provider readiness are verified. |
 | Auth routes | ✅ Shared role-intent flow added | Registration accepts additive `roleIntent`, creates provider membership/profile/application transactionally for provider intent, and preserves database-backed authorization. Login/signup routing uses server-confirmed application state. |
 | JWT middleware | ✅ Database-backed | `requireAuth` confirms active user/context from PostgreSQL; `requireRole` checks `account_roles`; approved-provider middleware checks application/profile ownership and approval. JWT claims remain unchanged. |
@@ -2403,6 +2404,30 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Build state at end:** Implementation is installed; verification is being run in this continuation. Gate B remains BLOCKED/UNVERIFIED, and the application-level race-proofing caveat remains explicit.
 
 **Next best action:** Complete the focused and workspace verification, restart the API/web workflows, inspect the 390px web preview, then publish only through the trusted review channel.
+
+---
+
+### Session 071 — 2026-08-11
+**Agent:** Replit Main Agent  
+**Scope:** `S`  
+**Triggered by:** Operator authorized the exact Supabase Session pooler host and requested option 3(a), read-only Gate B catalog verification with no schema changes.
+
+**What was done:**
+- Confirmed the secure `SUPABASE_DATABASE_URL` secret exists without reading or printing its value.
+- Confirmed the stored URI was a Supabase direct database URI, not the Session pooler URI. The direct database path was not used; the container has no global IPv6 interface.
+- Used the exact operator-supplied pooler host `aws-1-us-west-2.pooler.supabase.com` for the connection attempt, without guessing a hostname.
+- The pooler rejected the stored direct-URI credential components with `no tenant identifier provided (external_id or sni_hostname required)`. No SQL statement completed.
+- Did not run schema push, `drizzle-kit push`, migrations, migration generation, seed, DDL, writes, or Race-Proof Index creation.
+- Recorded the complete evidence and the honest non-PASS disposition in `memory/GATE_B_RUN_2026-08-11.md`; the requested `/app/memory` path does not exist in this workspace.
+
+**Files changed:**
+- `memory/GATE_B_RUN_2026-08-11.md`
+- `.agents/LOG.md`
+- `.agents/NEXT_TASK.md`
+
+**Build state at end:** Application and schema unchanged. Gate B remains **BLOCKED/UNVERIFIED**. Provider/database identity, PostgreSQL version, extensions, migration state, and catalog contents were not verified because the managed pooler session did not complete. No empty-catalog success was fabricated.
+
+**Next best action:** Replace `SUPABASE_DATABASE_URL` with the complete URI copied from Supabase **Connect → Session pooler → URI** (including its pooler tenant/project user component), then rerun only the read-only Gate B catalog check. Keep Gate B and all migrations blocked until that run completes.
 
 ---
 

@@ -15,6 +15,26 @@
 - The Eagle View (`docs/roadmap/NEO_EAGLE_VIEW.md`), root `AGENTS.md`, and Branch
   Inventory V7 are now canonical on `main`. Next agents: start there.
 
+## Gate B attempt — 2026-08-11 — BLOCKED / UNVERIFIED
+
+- The operator authorized the exact Supabase Session pooler host
+  `aws-1-us-west-2.pooler.supabase.com` and selected option 3(a): read-only
+  verification only.
+- The secure `SUPABASE_DATABASE_URL` value was not printed or logged. It parsed
+  as a Supabase direct database URI rather than the complete Session pooler URI.
+  The direct path was not used; this container has no global IPv6 interface.
+- The exact pooler host was attempted without guessing a hostname. The pooler
+  rejected the stored direct-URI credential components with `no tenant
+  identifier provided (external_id or sni_hostname required)`. No SQL completed.
+- No schema push, `drizzle-kit push`, migration, migration generation, seed,
+  write, DDL, or Race-Proof Index operation ran. Provider/database identity,
+  PostgreSQL version, extensions, migration state, and catalog contents remain
+  unverified. No empty catalog or Gate B PASS was fabricated.
+- Required disposition recorded: **schema absent — pending separately authorized
+  migration**; this is not evidence that the remote catalog is empty.
+- Full report: `memory/GATE_B_RUN_2026-08-11.md`. The requested absolute
+  `/app/memory/` path does not exist in this workspace.
+
 ## Current active state — Session 068 (2026-08-11, eagle view + inventory v7)
 
 - **Canonical remote baseline:** `origin/main` = `b20087d13eb77ad3da0b60efc88d4e768f68134d`
