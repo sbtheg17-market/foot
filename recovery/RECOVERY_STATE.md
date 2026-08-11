@@ -109,6 +109,17 @@ verify okay, 5 refs; commit/parent/tree verified against handoff-downloads JSON:
 r2 commit objects 9e0bbd45 (B′ r2), 396040ea (P4C r2), e5919bd4 (Rule12 r2): ABSENT from both
 ODBs — r2 patches retained as evidence only; NOT publication-ready; NOT re-derived.
 
+### Session 2026-08-11 (change-control protocol adopted)
+- DECISION_PROTOCOL.md created and ledger-pinned (AC-023): every future plan/contract/
+  candidate/gate/implementation report uses Decision / Scope / Reason / Evidence /
+  Permitted / Still blocked / Next action / Approval required. Alteration rule: never
+  silently alter an accepted plan — stop, produce the seven-part mismatch report, wait
+  for explicit acceptance. Design acceptance is never implementation approval.
+- DECISION REGISTER carried forward: D-001 plan v1.1 ACCEPTED AS DESIGN ONLY;
+  D-002 Gate B BLOCKED / PENDING EXTERNAL MANAGED RUN; D-003 C-1 CONDITIONALLY
+  APPROVED, NOT YET EXECUTABLE (preconditions 1/4 satisfied).
+- Ledger 23 records VERIFY PASS; manifest refreshed (2dc0037a..., 0 failures).
+
 ### Session 2026-08-11 (Gate B operator preparation)
 - GATE B remains OWNER/OPERATOR-RUN. This workspace did NOT run it, did not substitute
   local PostgreSQL, and did not request the credential.
