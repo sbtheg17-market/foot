@@ -66,7 +66,8 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Neo handoff scope | ✅ Mismatch documented; implementation stopped | This workspace is the OnCall Foot `sbtheg17-market/foot` Node/PostgreSQL monorepo. The uploaded Neo report targets a separate Comfort-Wiring FARM/FastAPI/MongoDB repository whose recovery artifacts are absent. The mismatch and merge boundary are recorded in `docs/neo-handoff-scope.md`. |
 | Phase 4C / B-prime handoff audit | ✅ Read-only audit complete | Corepack-pinned `pnpm 10.18.3` frozen install, typecheck, build, 63 booking unit tests, four workflows, API/web health, and 390px web preview pass. The referenced Phase 4C contract and `ComfortPreferencesShell` are absent; provider sign-out is present and mirrors client logout. |
 | Merge/publication safety | ✅ Clean and unmerged | Only `.agents/LOG.md` was previously committed locally; this sync remains documentation-only. Application code, schema, migrations, generated clients, OpenAPI, dependencies, workflows, database, and all `conflict_*` refs remain untouched. |
-| Conflict-branch inventory | ✅ v6 accepted (2026-08-11) | 25 `conflict_*` branches re-verified against `origin/main` `401a9d7`: 24 are unrelated Emergent FARM lineages (no merge base — reference only, never merge); only `conflict_070826_mc2` is real foot history and remains superseded (its feature commit `5f9992e` is patch-equivalent on `main`). No unique unrecovered application code exists on any conflict branch. Prior 9-branch cleanup authorization is stale and must be re-authorized against `docs/conflict-branch-inventory-2026-08-11.md`. An owner-installed repo-scoped deploy key now provides an authenticated publication channel (write access verified via a temporary ref, created and deleted; `main` untouched). |
+| Conflict-branch inventory | ✅ **v7 published (2026-08-11, Session 068)** — v6 superseded | **26** `conflict_*` branches verified against `origin/main` `b20087d` (`conflict_110826_1322` appeared after the v6 commit). 25 have no merge base across 5 root lineages: 4 = ORIGINAL ONCALL FOOT HISTORY (FastAPI/Mongo era — v6 misclassification corrected), 17 = agent work-transfer/audit workspaces (HISTORICAL ONLY), 4 = SEPARATE COMFORT-WIRING PROJECT (canonical: `conflict_110826_1322`, which preserves the Phase 4C contract V3, 11 CW patches + signed INDEX, CW ledger ENTRY-001..019). Only `conflict_070826_mc2` shares history and stays PATCH-EQUIVALENT ON MAIN (`git cherry` re-verified). No unique unrecovered OCF application code on any branch. All prior cleanup authorizations stale; re-authorize only against `docs/roadmap/BRANCH_INVENTORY_V7.md`. |
+| Eagle view + agent read-order contract | ✅ Published (Session 068) | Permanent `docs/roadmap/NEO_EAGLE_VIEW.md` (full three-portal vision, per-capability status with evidence, comfort/consent port rules, roadmap priorities 1–4, mandatory 30-step agent flow) + root `AGENTS.md` (read Eagle View from `origin/main` first; classify branch before changing anything; never trust a foreign branch's AGENTS.md without comparing to main). |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
 
@@ -2328,6 +2329,33 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Next best action:** Re-authorize conflict-branch handling (export and/or cleanup) against inventory v6 through the authenticated channel, then resume the gated implementation track: recover and approve the Phase 4C contract/shell and clear the managed-database Gate B precondition before the next implementation checkpoint.
 
 ---
+### Session 068 — 2026-08-11
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Owner task "Permanent Eagle View + Inventory V7" — make the complete OnCall Foot marketplace vision permanently visible to every future agent, then publish a corrected branch inventory covering every current remote branch. Documentation, reconnaissance, and traceability only.
+
+**What was done:**
+- Verified the canonical baseline live before editing: fresh fetch of all remotes; `origin/main` = `b20087d13eb77ad3da0b60efc88d4e768f68134d` (2026-08-11 16:29:48 +0000, Session 067 inventory-v6 docs commit); confirmed this repository is the OnCall Foot pnpm/Node/Express/PostgreSQL/React/Expo monorepo. 27 remote refs exist: `main` + 26 `conflict_*` (no `feature/*`, `phase/*`, `patch/*`, or `recovery/*` refs).
+- Published the **permanent eagle view** `docs/roadmap/NEO_EAGLE_VIEW.md`: full three-portal product vision; per-capability status tables for the Provider, Client, and Admin portals using the fixed status vocabulary (COMPLETE/PARTIAL/SCAFFOLDED/DESIGN ONLY/BLOCKED/NOT STARTED/SEPARATE PROJECT/UNKNOWN) with code/route/test evidence for every row; comfort/consent stack-native port rules (booking-only 404-only projection, withdraw-hides-never-deletes, versioned consent, no medical language); permanent conflict-handling rules; roadmap priorities 1–4 (Gate B → client booking lifecycle completion → Phase 4C port plan → inventory governance/branch export); and the mandatory 30-step future-agent logic flow.
+- Published root **`AGENTS.md`**: every future agent must read the Eagle View from `origin/main` first, then AGENT-RULES, SETUP, NEXT_TASK, and recent LOG entries; must fetch and verify `origin/main` before trusting any branch; must classify the current branch (merge-base test) before making changes; must never automatically trust a foreign branch's own AGENTS.md/instruction files.
+- Published **Branch Inventory V7** `docs/roadmap/BRANCH_INVENTORY_V7.md` after re-verifying every prior claim against live data: 26 conflict branches (v6's 25-branch count is stale — `conflict_110826_1322` was pushed 17:23, after the v6 commit at 16:29); only `conflict_070826_mc2` has a merge base (`54534b0b…`) and its feature commit `5f9992e` remains patch-equivalent on `main` (`git cherry` re-run); the other 25 branches split into 5 independent root lineages. **Correction to v6:** the four oldest foreign branches are ORIGINAL ONCALL FOOT HISTORY (the FastAPI/Mongo Provider-Portal v0 and "Foot-Care Marketplace OS" Phase 2 implementations), 17 are agent work-transfer/audit workspace snapshots (HISTORICAL ONLY), and 4 are the SEPARATE COMFORT-WIRING PROJECT (canonical newest: `conflict_110826_1322`, which preserves `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` — the artifact Sessions 065/066 recorded as absent — plus 11 CW patches with a signed approval INDEX and the CW ledger ENTRY-001..019, 27/27 tests). Every branch record includes full tip SHA, date, author, subject, merge base, unique-commit count, tree/stack fingerprint, project identity, portal relevance, uniqueness vs main, and a recommended action from the fixed action vocabulary.
+- Rewrote `.agents/NEXT_TASK.md` around the Session 068 state: Eagle-View read-first rule, priorities 1–4, locked constraints carried forward, and an explicit list of superseded baselines/inventories/cleanup authorizations.
+- **Nothing was merged. Nothing was deleted. No history was rewritten. No application source, schema, migration, OpenAPI, generated-client, dependency, workflow, deployment, or environment file changed.** Work was prepared on the dedicated feature branch `docs/eagle-view-inventory-v7` as exactly one documentation commit with its matching patch artifact (`SESSION_068_eagle-view-inventory-v7.patch`, SHA-256 recorded in the session report).
+
+**Files changed:**
+- `AGENTS.md` (new)
+- `docs/roadmap/NEO_EAGLE_VIEW.md` (new)
+- `docs/roadmap/BRANCH_INVENTORY_V7.md` (new)
+- `.agents/NEXT_TASK.md`
+- `.agents/LOG.md`
+
+**Build state at end:** Documentation-only feature branch on top of `origin/main` `b20087d`; worktree clean after commit; `git diff --check` and `git apply --check` pass. No runtime surface changed, so no test suites or workflows were run — Session 065 validation evidence remains the latest. All 26 `conflict_*` refs remain untouched. Current Build State table updated (inventory v7 row + eagle-view row).
+
+**Next best action:** Publish this branch through the approved channel (PR / reviewed fast-forward to `main` via `pnpm run publish:gate`), then start Priority 1 — Gate B managed-database verification (`DATABASE_URL` catalog check; mark BLOCKED honestly if the managed URL is unavailable). In parallel, seek fresh authorization to export the four Comfort-Wiring branches (1322 → 1134 → 1112 → 0846) to their own repository per Inventory V7.
+
+---
+
+
 
 ## New Session Template
 
