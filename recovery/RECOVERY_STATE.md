@@ -109,6 +109,27 @@ verify okay, 5 refs; commit/parent/tree verified against handoff-downloads JSON:
 r2 commit objects 9e0bbd45 (B′ r2), 396040ea (P4C r2), e5919bd4 (Rule12 r2): ABSENT from both
 ODBs — r2 patches retained as evidence only; NOT publication-ready; NOT re-derived.
 
+### Session 2026-08-11 (formal review gate)
+- WIRING PLAN REVIEW (AC-016): section-by-section against real artifacts —
+  8 ACCEPTED, 2 CHANGE REQUESTED, 0 UNRESOLVED. Findings: grant returns 201(+400) not 200;
+  withdraw/delete include 404; shells lack loading/error/unauthorized scaffolds (to be ADDED
+  at C-3); repo test harness is node:test + fetch (not supertest). Corrections folded into
+  plan v1.1 (AC-019 supersedes AC-013 pin). Full report: COMFORT_WIRING_PLAN_REVIEW.md.
+  Plan status: READY FOR OWNER ACCEPTANCE — NOT implementation-approved.
+- GATE B (AC-017): BLOCKED — managed runtime-injected DATABASE_URL not available here;
+  local PostgreSQL explicitly does not qualify. Owner-run per GATE_B_RUNBOOK.md.
+- C-1 (AC-018): NOT_RUN — conditionally approved; requires (1) explicit plan acceptance,
+  (2) Gate B PASS, (3) confirmed additive-table scope, (4) OpenAPI/codegen boundary review.
+  Not started from summary alone, per instruction.
+- ENDPOINT VERIFICATION (AC-020): independent testing agent — 7/7 PASS; all three archives
+  byte-exact with attachment headers and valid structure. Owner-side fetch failure is an
+  interface limitation (chat cannot render binary), not a server defect; use browser/curl.
+- LEDGER: 20 records, VERIFY PASS. Manifest HANDOFF-R3-MANIFEST.sha256 refreshed (0 failures).
+  Sealed acceptance bundle re-verified 22/22.
+- PRESERVED HOLDS: no Rule 12 publication, no Phase 4C publication, no economics,
+  no discovery expansion, no admin dashboard, no supply-health dashboards, no cleanup,
+  no remote writes, no schema/tables/codegen during review.
+
 ### Session 2026-08-11 (three follow-on local tasks)
 - RULE 12 R3 EXPORT: package extended with MANIFEST.json + STATUS.txt (LOCAL-ONLY/UNPUBLISHED,
   commit fc6251a4 / parent d2ad54cd / tree 1f1da660 / patch sha 3eee486c...), CHECKSUMS 8/8,

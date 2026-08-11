@@ -1,7 +1,7 @@
 # Evidence Ledger — Human Summary
-Generated 2026-08-11T05:41:57Z from LEDGER.jsonl (append-only; 15 records).
+Generated 2026-08-11T12:12:09Z from LEDGER.jsonl (append-only; 20 records).
 
-Status totals: FAIL=2, PASS=13
+Status totals: BLOCKED=1, FAIL=2, NOT_RUN=1, PASS=16
 
 | # | UTC time | Type | Action | Status | Exit | Tests | Key artifact |
 |---|---|---|---|---|---|---|---|
@@ -20,6 +20,11 @@ Status totals: FAIL=2, PASS=13
 | AC-013 | 2026-08-11T05:40:33Z | handoff | phase4c comfort-wiring plan drafted for review (plan only; nothing wired; openapi remains draft) | PASS | 0 | — | recovery/ledger/logs/AC-013_phase4c_comfort_wiring_plan_drafted_for_.log |
 | AC-014 | 2026-08-11T05:41:57Z | verification | supersedes AC-006 — rule12 r3 CHECKSUMS.sha256 legitimately regenerated during export packaging (MANIFEST.json + STATUS.txt added per owner instruction); package re-verified 8/8 OK | PASS | 0 | — | recovery/candidates-r3/rule12_r3/CHECKSUMS.sha256 |
 | AC-015 | 2026-08-11T05:41:57Z | verification | supersedes AC-011 (structured) — dry-run script cwd defect fixed; corrected session recorded as AC-012 with items 1-8 ALL PASS | PASS | 0 | — | recovery/work/dryrun-items-1-8.sh |
+| AC-016 | 2026-08-11T12:08:52Z | inspection | comfort-wiring plan section-by-section review complete — 8 accepted, 2 change-requested (folded into plan v1.1); NOT implementation approval | PASS | 0 | — | recovery/ledger/logs/AC-016_comfort_wiring_plan_section_by_section_r.log |
+| AC-017 | 2026-08-11T12:08:52Z | gate | gate B managed database verification | BLOCKED | — | — | — |
+| AC-018 | 2026-08-11T12:08:52Z | setup | C-1 schema preparation (spec merge + codegen + two additive tables) | NOT_RUN | — | — | — |
+| AC-019 | 2026-08-11T12:09:08Z | verification | supersedes AC-013 — wiring plan revised to v1.1 by the formal review (status codes, UI-state wording, test harness); re-pins the reviewed plan | PASS | 0 | — | recovery/COMFORT_WIRING_PLAN.md |
+| AC-020 | 2026-08-11T12:12:09Z | verification | independent testing-agent verification of all three download endpoints (7/7 PASS; owner-side fetch issue is interface limitation, not a server defect) | PASS | 0 | — | recovery/ledger/logs/AC-020_independent_testing_agent_verification_o.log |
 
 Classification key: PASS = captured and reproducible · FAIL = captured with diagnosis · BLOCKED = external prerequisite missing · UNRECORDED = output lost, must rerun · NOT_RUN = deliberately not executed.
 

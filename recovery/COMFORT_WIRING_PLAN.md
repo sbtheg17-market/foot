@@ -1,4 +1,9 @@
-# PHASE 4C COMFORT-PROFILE WIRING PLAN (for review — nothing wired yet)
+# PHASE 4C COMFORT-PROFILE WIRING PLAN v1.1 (for review — nothing wired yet)
+
+Revision v1.1 (2026-08-11, per COMFORT_WIRING_PLAN_REVIEW.md): status-code matrix
+corrected to the OpenAPI draft (grant 201/400; withdraw and delete include 404);
+UI states re-worded from "already scaffolded" to "to be added at C-3";
+test harness corrected to the repo's node:test + fetch convention (not supertest).
 
 Status: PLAN ONLY. Prepared 2026-08-11 against candidate phase4c-nonschema-prep-r3
 (d9195dfa, parent d2ad54cd). The OpenAPI document REMAINS `x-status: draft`.
@@ -12,9 +17,9 @@ its own review and this plan's stop conditions.
 |---|---|---|---|---|
 | 1 | GET /clients/me/comfort-profile | getMyComfortProfile | 200 profile+flags+consent; 204 no profile | 401 |
 | 2 | PUT /clients/me/comfort-profile | putMyComfortProfile | 200 saved | 400 validation, 401, 409 no active consent |
-| 3 | DELETE /clients/me/comfort-profile | deleteMyComfortProfile | 204 | 401 |
-| 4 | POST /clients/me/comfort-consent | grantComfortConsent | 200 consent state | 401 |
-| 5 | DELETE /clients/me/comfort-consent | withdrawComfortConsent | 200 consent state (profile hidden, not deleted) | 401 |
+| 3 | DELETE /clients/me/comfort-profile | deleteMyComfortProfile | 204 | 401, 404 no profile |
+| 4 | POST /clients/me/comfort-consent | grantComfortConsent | 201 consent state | 400 validation, 401 |
+| 5 | DELETE /clients/me/comfort-consent | withdrawComfortConsent | 200 consent state (profile hidden, not deleted) | 401, 404 no consent to withdraw |
 | 6 | GET /bookings/{bookingId}/client-comfort | getBookingClientComfort | 200 projection | 401; **404 on EVERY denial** (never 403) |
 
 Contract source of truth: `PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md`
@@ -58,7 +63,7 @@ Then return ONLY categories whose visibility flag is true, built by
 `buildProviderProjection` (server-side; no raw profile fields pass through).
 Empty projection (all flags off) → 200 with empty categories; card renders nothing.
 
-## 5. UI states (both shells; all states already scaffolded, to be wired)
+## 5. UI states (both shells; empty/consent-lock states exist today — loading, error, and unauthorized handling are TO BE ADDED at C-3)
 - Loading: skeleton on editor and provider card while the hook is in-flight.
 - Empty: editor shows "no profile yet" first-run state (GET 204); provider card
   renders NOTHING for 404/empty projection (no "hidden profile" hint).
@@ -70,8 +75,8 @@ Empty projection (all flags off) → 200 with empty categories; card renders not
 
 ## 6. Test plan
 - Keep: 38/38 contract tests (vocabularies, consent semantics, projection, copy audit).
-- Add integration tests (supertest against the express app, following
-  existing routes/__tests__ patterns): one happy + each error path per operation
+- Add integration tests using the repo's existing harness — node:test + fetch
+  against a running BASE (as in review.integration.test.ts); NOT supertest: one happy + each error path per operation
   (401/400/409/404 matrix, ~18 cases); consent latest-row edge (grant→withdraw→grant);
   projection status matrix (each non-active status → 404); visibility filtering
   (flag off ⇒ category absent); no-event assertion (no `marketplace_events` writes).
