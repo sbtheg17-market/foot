@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Author PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md in docs/comfort-profile/ (6 operations, status matrix, projection rules, verbatim copy, codegen boundary)",
+    "status": "completed"
+  },
+  {
+    "content": "Create ComfortPreferencesShell (props-driven, presentation-only: empty + consent-lock states, locked editor, withdraw-hides copy verbatim)",
+    "status": "completed"
+  },
+  {
+    "content": "Create shell preview route so Phase 4C shell is visible in the app (no API/schema)",
+    "status": "completed"
+  },
+  {
+    "content": "Create .agents/LOG.md + .agents/NEXT_TASK.md with current true baseline + provenance + follow-ups (logout hardening, stale baseline cleanup)",
+    "status": "completed"
+  },
+  {
+    "content": "Verify frontend compiles + screenshot preview + testing agent validation",
+    "status": "completed"
+  }
+]
