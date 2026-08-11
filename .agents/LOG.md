@@ -208,3 +208,17 @@ Actions taken:
   approval carries a CAVEAT — currently the AUTH dev/staging bypass caveat).
 - DEPLOY BLOCKER reaffirmed: remove/confine the X-Patient-Id / X-Provider-Id bypass before
   any live deployment (see NEXT_TASK).
+
+## ENTRY-013 | 2026-08-11 | Operator | Repo-separation decision — recorded
+- OnCall Foot (pnpm/Postgres/Vite; main @ 401a9d7, clean, synced with origin) and
+  Comfort-Wiring (THIS repo: FastAPI/Mongo/React-CRA) are DISTINCT projects with separate
+  git histories. No merging, no history rewriting, no cross-application of patches.
+- `origin/conflict_110826_0846` on the OnCall Foot remote is an unrelated Comfort-Wiring
+  snapshot; it is ignored for OnCall Foot work and is NOT a working base — the canonical
+  Comfort-Wiring work continues in this repo.
+- The approved Comfort-Wiring patches (INDEX.json) apply ONLY to this repo's stack/layout.
+- Future porting of consent/comfort functionality into OnCall Foot is a design exercise:
+  fresh, stack-native implementation using this repo's contract + UX as reference, on its own
+  feature branch and patch series. Not authorized yet.
+- Confirmed statement of record: "No branches were merged, no history was rewritten, and no
+  files were changed."
