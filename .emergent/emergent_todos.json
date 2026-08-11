@@ -1,26 +1,18 @@
 [
   {
-    "content": "Task 2 prep: locate capture.py + gate tooling at d2ad54cd; verify recovered rule12 r2 patch checksum",
-    "status": "in_progress"
+    "content": "Task 1: Rule 12 r3 export package + endpoint + round-trip + manifest refresh",
+    "status": "completed"
   },
   {
-    "content": "Task 2: re-derive Rule 12 docs-only candidate from d2ad54cd (new identity, capture.py, gate, checksum, secret scan)",
-    "status": "pending"
+    "content": "Task 2: comfort-wiring plan drafted (all 10 required sections), no wiring performed",
+    "status": "completed"
   },
   {
-    "content": "Task 1: assemble + export Phase 4C r3 package via download endpoint (identity, provenance, evidence, checksums, manifest, local-only status)",
-    "status": "pending"
+    "content": "Task 3: captured dry run of checklist items 1-8 only (AC-012 PASS 9/9, preparation-only)",
+    "status": "completed"
   },
   {
-    "content": "Task 3: write one-page managed Gate B runbook (secret handling, catalog checks, redaction, capture records, PASS/FAIL/BLOCKED/UNRECORDED)",
-    "status": "pending"
-  },
-  {
-    "content": "Task 4: Phase 4C r3 publication-readiness checklist (all 15 required items, stop before publication)",
-    "status": "pending"
-  },
-  {
-    "content": "Refresh capture ledger + handoff artifact manifest after each action",
-    "status": "pending"
+    "content": "Refresh ledger + HANDOFF-R3-MANIFEST + RECOVERY_STATE after each task",
+    "status": "completed"
   }
 ]

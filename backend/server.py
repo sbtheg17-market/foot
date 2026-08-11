@@ -82,6 +82,26 @@ async def download_phase4c_r3_checksum():
         raise HTTPException(status_code=404, detail="checksum file not found")
     return path.read_text()
 
+RULE12_R3_ARCHIVE = "rule12-r3-package-2026-08-11.tar.gz"
+
+@api_router.get("/recovery/rule12-r3")
+async def download_rule12_r3_package():
+    """Rule 12 r3 candidate package — LOCAL-ONLY / UNPUBLISHED, docs-only.
+    Contains: patch (sha256 pinned), commit fc6251a4 / parent d2ad54cd /
+    tree 1f1da660 identity, provenance report, AC-002/AC-003/AC-005/AC-006
+    evidence logs, CHECKSUMS.sha256, STATUS.txt."""
+    path = EXPORTS_DIR / RULE12_R3_ARCHIVE
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="rule12 r3 package not found")
+    return FileResponse(path, media_type="application/gzip", filename=RULE12_R3_ARCHIVE)
+
+@api_router.get("/recovery/rule12-r3.sha256", response_class=PlainTextResponse)
+async def download_rule12_r3_checksum():
+    path = EXPORTS_DIR / (RULE12_R3_ARCHIVE + ".sha256")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="checksum file not found")
+    return path.read_text()
+
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):

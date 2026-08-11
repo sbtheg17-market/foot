@@ -1,0 +1,33 @@
+{
+  "package": "rule12-provenance candidate r3 — sbtheg17-market/foot",
+  "generated_utc": "2026-08-11T05:30:00Z",
+  "status": "LOCAL_ONLY_UNPUBLISHED",
+  "publication_window_opened": false,
+  "applied_remotely": false,
+  "credentials_used": 0,
+  "candidate": {
+    "key": "rule12_provenance_r3",
+    "title": "Rule 12 — evidence and provenance (r3 re-derivation, docs-only)",
+    "branch_local_only": "candidate/rule12-provenance-r3",
+    "commit": "fc6251a4e2726c31f7adab1c45370500a0d2d693",
+    "parent": "d2ad54cd8e450fcc3bf8fab28aed257d67e73b42",
+    "tree": "1f1da660eb1b7b04c61264358cf881bc23b5980d",
+    "patch": "provenance-rule-docs-r3.patch",
+    "patch_sha256": "3eee486c85ce2e510aeda3283209ed3a9d749e6c8c2ed2ec31116038196154c9",
+    "source_material": {
+      "recovered_patch": "candidates/provenance-rule-docs-r2.patch",
+      "recovered_patch_sha256": "1afb92dcce0a759604cd7cc2912c9cf29834e63337096baac0db2e3dc3c52570",
+      "historical_r2_commit_absent_and_unclaimed": "e5919bd4f0e94feb77d711d8f789ff5aa8755931"
+    },
+    "scope": [".agents/AGENT-RULES.md (+32 lines, docs-only)"],
+    "explicitly_excluded": ["code", "schema", "lockfile", "UI", "routing", "storage", "events", "economics"],
+    "validation_ledger_records": {
+      "AC-002": "publication review gate 12/12 PASS",
+      "AC-003": "secret scan FAIL (policy-text false positive, superseded)",
+      "AC-005": "secret VALUE scan via pattern file PASS (supersedes AC-003)",
+      "AC-006": "package assembly checksum verification PASS"
+    }
+  },
+  "separation": "Never bundled with Phase 4C r3; separate branch, package, approval track.",
+  "notes": "Publication NOT authorized. Gate PASS is a pre-approval safety result only."
+}

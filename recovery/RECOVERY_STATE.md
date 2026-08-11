@@ -109,6 +109,31 @@ verify okay, 5 refs; commit/parent/tree verified against handoff-downloads JSON:
 r2 commit objects 9e0bbd45 (B′ r2), 396040ea (P4C r2), e5919bd4 (Rule12 r2): ABSENT from both
 ODBs — r2 patches retained as evidence only; NOT publication-ready; NOT re-derived.
 
+### Session 2026-08-11 (three follow-on local tasks)
+- RULE 12 R3 EXPORT: package extended with MANIFEST.json + STATUS.txt (LOCAL-ONLY/UNPUBLISHED,
+  commit fc6251a4 / parent d2ad54cd / tree 1f1da660 / patch sha 3eee486c...), CHECKSUMS 8/8,
+  archived (sha fedacb17...) and served at GET /api/recovery/rule12-r3 (+.sha256);
+  round-trip byte-identical (AC-010); sealed acceptance bundle untouched (22/22).
+- COMFORT-WIRING PLAN: /app/recovery/COMFORT_WIRING_PLAN.md drafted for review (AC-013) —
+  six routes/contracts, ownership boundaries, consent/privacy, 404-only projection rules,
+  five UI states, test plan, exact file list, C-1 schema/codegen implications, Gate B
+  dependency, rollback/stop conditions. NOTHING wired; OpenAPI remains x-status: draft.
+- CHECKLIST DRY RUN (items 1-8 only): AC-011 FAIL (script cwd defect, superseded) →
+  AC-012 PASS 9/9: fresh main==d2ad54cd, identity+checksums, 38/38 tests, typecheck+build,
+  lockfile invariant, exact 9-file scope, secret scan, gate rationale mechanism
+  (rejects malformed; runs end-to-end with self-describing DRY-RUN non-approval text,
+  no --ack-draft-wording needed). Recorded as PREPARATION ONLY; items 9-15 untouched.
+- LEDGER INTEGRITY EVENT: verify caught two artifact drifts (AC-006 checksums file
+  regenerated during export; AC-011 script fix) — resolved append-only with structured
+  supersedes records AC-014/AC-015; VERIFY PASS, 15 records.
+- MANIFEST: HANDOFF-R3-MANIFEST.sha256 refreshed (self-hash d68fedef...), 0 failures.
+- DEFERRED per owner: recovery index page.
+- STILL BLOCKED: schema, migrations, storage, economics, production events, demo wiring,
+  Rule 12 publication, Phase 4C publication, conflict-branch cleanup, Gate B execution
+  (owner-run), credentials, push/merge.
+- NEXT MILESTONE (owner-set): review comfort-wiring plan → Gate B → smallest persisted
+  Phase 4C implementation.
+
 ### Session 2026-08-11 (four approved local tasks)
 - TASK 1 (export): phase4c_r3 package (patch + MANIFEST.json identity/scope + PROVENANCE.md +
   STATUS.txt LOCAL-ONLY/UNPUBLISHED + 4 evidence logs + CHECKSUMS.sha256) archived
