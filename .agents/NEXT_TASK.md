@@ -1,5 +1,18 @@
 # Next product task — read `docs/roadmap/NEO_EAGLE_VIEW.md` first
 
+## Session 070 publication candidate — ready for review (2026-08-11)
+
+- The uploaded Session 069 publication record, Session 070 forensic resume report, and
+  Session 070 client booking-lifecycle slice are applied in order on a dedicated branch.
+- Workspace verification: `pnpm install --frozen-lockfile`, full typecheck, full build,
+  API/web workflow startup, 63 booking state-machine tests, and a 390px web preview pass.
+- DB-backed lifecycle, concurrency, and review suites are **UNVERIFIED in this workspace**
+  because the development database has no `users` relation. No schema push or seed was
+  performed, and this is not a Gate B attempt.
+- The publication branch excludes the pre-existing `.replit` environment edit and all
+  uploaded `.patch` files. Review and merge the pull request before treating the slice as
+  published.
+
 ## Publication record — Session 068 is PUBLISHED (2026-08-11)
 
 - **Session 068 landed on `main`:** squash-merge of PR #1 → `origin/main` =
