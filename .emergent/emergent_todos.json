@@ -1,26 +1,26 @@
 [
   {
-    "content": "Regenerate AC-00x transport-validation logs for all 5 candidates via capture.py (RG-001..005)",
+    "content": "Independent read-only verification of A′ publication (0938c440) + record mapping via capture.py",
     "status": "completed"
   },
   {
-    "content": "Regenerate A′ publish:gate evidence (gate_A.log) in scratch clone via capture.py",
+    "content": "Credential revocation status: verify no bounded credential in this workspace, record honestly",
     "status": "completed"
   },
   {
-    "content": "Reproduce A′ patch via git format-patch --binary, confirm byte-identity",
+    "content": "Refresh mirror/worktree snapshot + verify 20 conflict branches untouched",
     "status": "completed"
   },
   {
-    "content": "Rebuild patch_package metadata (MANIFEST evidence entries, CHECKSUMS.sha256, provenance note)",
+    "content": "Re-derive C′ on new tip 0938c440 as new candidate commit + new patch",
     "status": "completed"
   },
   {
-    "content": "Build A′ downloadable export package + tar.gz/zip + DOWNLOADS.sha256",
+    "content": "Re-run frozen install, lockfile diff, full battery, publication gate through capture.py",
     "status": "completed"
   },
   {
-    "content": "Secret scan package, record via capture.py, refresh MANIFEST.sha256 + ledger sync",
+    "content": "Build C′ r2 transport package and STOP for separate publication approval",
     "status": "completed"
   }
 ]

@@ -1,7 +1,7 @@
 # Evidence Ledger — Human Summary
-Generated 2026-08-11T00:18:01Z from LEDGER.jsonl (append-only; 70 records).
+Generated 2026-08-11T00:42:33Z from LEDGER.jsonl (append-only; 80 records).
 
-Status totals: BLOCKED=5, FAIL=3, NOT_RUN=1, PASS=61
+Status totals: BLOCKED=6, FAIL=4, NOT_RUN=1, PASS=69
 
 | # | UTC time | Type | Action | Status | Exit | Tests | Key artifact |
 |---|---|---|---|---|---|---|---|
@@ -75,6 +75,16 @@ Status totals: BLOCKED=5, FAIL=3, NOT_RUN=1, PASS=61
 | RG-009 | 2026-08-11T00:17:27Z | handoff | A_prime export finalization: package CHECKSUMS 7/7, DOWNLOADS.sha256 22/22, handoff MANIFEST.sha256 67/67, archives sha256 recorded | FAIL | 1 | — | memory/evidence/logs/RG-009_a_prime_export_finalization__package_che.log |
 | RG-010 | 2026-08-11T00:17:28Z | verification | post-export read-only remote re-check: main unchanged, 20 conflict branches, zero remote writes this session | PASS | 0 | — | memory/evidence/logs/RG-010_post_export_read_only_remote_re_check__m.log |
 | RG-011 | 2026-08-11T00:18:01Z | verification | supersedes RG-009: FAIL was ledger-copy staleness from manifest-before-ledger-close ordering, not corruption; A_prime package re-verified 7/7 + archives present; manifests regenerate AFTER this final ledger record | PASS | 0 | — | memory/evidence/logs/RG-011_supersedes_rg_009__fail_was_ledger_copy_.log |
+| PB-001 | 2026-08-11T00:30:37Z | verification | A_prime publication verified read-only: local candidate f4a5dfec -> published 0938c440 (committer sbtheg17-market 2026-08-11T00:27:32Z); commit objects NOT byte-identical; published TREE 63dcfbe3 and 2-file patch scope MATCH; fast-forward 1 commit from 3e76114; 20 conflict branches intact | PASS | 0 | — | memory/evidence/logs/PB-001_a_prime_publication_verified_read_only__.log |
+| PB-002 | 2026-08-11T00:30:47Z | publication | bounded write credential revocation for A_prime window | BLOCKED | — | — | — |
+| CD-001 | 2026-08-11T00:31:26Z | reconstruction | C_prime re-derived on new tip: old 2c6d0248 (base 3e76114) -> new f905a1518803342a4e3bc5c20a92660443fd005b (parent 0938c440, tree bc28a5c1571af56c25394ac907e440d928a780dc); scope .agents/SETUP.md + package.json; patch exported | PASS | 0 | — | memory/evidence/logs/CD-001_c_prime_re_derived_on_new_tip__old_2c6d0.log |
+| CD-002 | 2026-08-11T00:32:28Z | test | C_prime r2 frozen install: pnpm install --frozen-lockfile with pinned pnpm@10.18.3 on tree bc28a5c1 (the fix under test) | PASS | 0 | — | memory/evidence/logs/CD-002_c_prime_r2_frozen_install__pnpm_install_.log |
+| CD-003 | 2026-08-11T00:32:45Z | test | C_prime r2 lockfile diff: pnpm-lock.yaml byte-identical after frozen install (git diff empty) | PASS | 0 | — | memory/evidence/logs/CD-003_c_prime_r2_lockfile_diff__pnpm_lock_yaml.log |
+| CD-004 | 2026-08-11T00:33:49Z | test | C_prime r2 full battery: all 17 api-server suites on tree bc28a5c1, postgres 15.18 local | FAIL | 1 | 65/102 | memory/evidence/logs/CD-004_c_prime_r2_full_battery__all_17_api_serv.log |
+| CD-005 | 2026-08-11T00:38:30Z | test | supersedes CD-004 (env bootstrap missing, not code failure): C_prime r2 full battery with build+seed+server on :8899, postgres 15.18 | PASS | 0 | 229/229 | memory/evidence/logs/CD-005_supersedes_cd_004__env_bootstrap_missing.log |
+| CD-006 | 2026-08-11T00:40:31Z | gate | C_prime r2 publication gate: verify-publication.sh on candidate f905a151 vs origin/main 0938c440 (local mirror origin) | PASS | 0 | — | memory/evidence/logs/CD-006_c_prime_r2_publication_gate__verify_publ.log |
+| CD-007 | 2026-08-11T00:41:29Z | handoff | C_prime r2 package assembly (patch + manifest + evidence + secret scan) | PASS | 0 | — | memory/evidence/logs/CD-007_c_prime_r2_package_assembly__patch___man.log |
+| CD-008 | 2026-08-11T00:42:33Z | handoff | C_prime r2 export finalized + session close: package checksums self-verified; archives created; STOPPED for separate C_prime approval; manifests regenerate after this record | PASS | 0 | — | memory/evidence/logs/CD-008_c_prime_r2_export_finalized___session_cl.log |
 
 Classification key: PASS = captured and reproducible · FAIL = captured with diagnosis · BLOCKED = external prerequisite missing · UNRECORDED = output lost, must rerun · NOT_RUN = deliberately not executed.
 

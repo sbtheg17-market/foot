@@ -1,0 +1,50 @@
+From f905a1518803342a4e3bc5c20a92660443fd005b Mon Sep 17 00:00:00 2001
+From: "E2 Agent (Emergent)" <github@emergent.sh>
+Date: Mon, 10 Aug 2026 21:31:54 +0000
+Subject: [PATCH] =?UTF-8?q?chore(toolchain):=20fix=20frozen-install=20repr?=
+ =?UTF-8?q?oducibility=20=E2=80=94=20pin=20packageManager=20to=20pnpm@10.1?=
+ =?UTF-8?q?8.3=20(pnpm-workspace.yaml=20settings=20such=20as=20overrides/m?=
+ =?UTF-8?q?inimumReleaseAge=20are=20read=20only=20since=20pnpm=2010.5,=20s?=
+ =?UTF-8?q?o=20the=20stale=209.15.0=20pin=20made=20'pnpm=20install=20--fro?=
+ =?UTF-8?q?zen-lockfile'=20fail=20with=20a=20lockfile-config=20mismatch=20?=
+ =?UTF-8?q?for=20every=20corepack=20user);=20lockfile=20itself=20verified?=
+ =?UTF-8?q?=20consistent=20and=20left=20byte-identical;=20SETUP.md=20toolc?=
+ =?UTF-8?q?hain=20sentence=20corrected?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .agents/SETUP.md | 2 +-
+ package.json     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/.agents/SETUP.md b/.agents/SETUP.md
+index 174132c..3ea004b 100644
+--- a/.agents/SETUP.md
++++ b/.agents/SETUP.md
+@@ -13,7 +13,7 @@ node --version
+ pnpm --version
+ ```
+ 
+-Use Node.js 24+ and pnpm 9+ (the repository package manager is pnpm 9.15.0). Read these files before changing code:
++Use Node.js 24+ and pnpm 10.5+ (the repository package manager pin is pnpm 10.18.3; `pnpm-workspace.yaml` uses settings such as `overrides` and `minimumReleaseAge` that pnpm reads from the workspace manifest only since 10.5, so older pnpm — including the previously pinned 9.15.0 — fails `pnpm install --frozen-lockfile` with a lockfile-config mismatch). Read these files before changing code:
+ 
+ 1. `.agents/LOG.md`
+ 2. `replit.md`
+diff --git a/package.json b/package.json
+index f9751b4..7235e99 100644
+--- a/package.json
++++ b/package.json
+@@ -18,7 +18,7 @@
+     "node": ">=20",
+     "pnpm": ">=9"
+   },
+-  "packageManager": "pnpm@9.15.0",
++  "packageManager": "pnpm@10.18.3",
+   "private": true,
+   "devDependencies": {
+     "prettier": "^3.9.6",
+-- 
+2.39.5
+
