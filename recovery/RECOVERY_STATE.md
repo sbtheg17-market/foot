@@ -109,6 +109,23 @@ verify okay, 5 refs; commit/parent/tree verified against handoff-downloads JSON:
 r2 commit objects 9e0bbd45 (B′ r2), 396040ea (P4C r2), e5919bd4 (Rule12 r2): ABSENT from both
 ODBs — r2 patches retained as evidence only; NOT publication-ready; NOT re-derived.
 
+### Session 2026-08-11 (Gate B operator preparation)
+- GATE B remains OWNER/OPERATOR-RUN. This workspace did NOT run it, did not substitute
+  local PostgreSQL, and did not request the credential.
+- PREPARED (AC-022): /app/recovery/gate-b/run-gate-b.sh + gateb-query.mjs — the six
+  runbook checks (identity, connectivity, role/permissions, schemas, comfort-tables-absent,
+  drizzle migration baseline where absence is itself the state) each wrapped in capture.py.
+  DATABASE_URL is read only from the child-process environment (never argv, never printed,
+  never checksummed); helper accepts single read-only SELECTs only; script refuses without
+  --managed and records BLOCKED if the env var is missing. Refusal rails self-tested here.
+- Operator command: bash /app/recovery/gate-b/run-gate-b.sh --managed
+- AFTER GATE B PASS (owner-sequenced): confirm two additive tables; confirm codegen scope
+  limited to lib/api-zod + lib/api-client-react; then C-1 as separate candidate with full
+  captured evidence (schema, codegen, typecheck, generated-client, API, rollback, tree,
+  patch checksum, changed-file scope); stop before publication.
+- HOLDS UNCHANGED: schema, codegen, migrations, storage, production events, economics,
+  credentials, publications; 22 conflict branches + sealed acceptance bundle preserved.
+
 ### Session 2026-08-11 (plan v1.1 accepted)
 - OWNER ACCEPTANCE recorded (AC-021, PLAN_V1.1_ACCEPTANCE.md): plan v1.1 accepted as the
   reviewed design with the four corrections (grant 201/+400; withdraw+delete 404;
