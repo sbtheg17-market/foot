@@ -1,0 +1,89 @@
+From 7b9b7190ab7ab5c0106cf8c4dc5427547cfe6381 Mon Sep 17 00:00:00 2001
+From: "Neo (E2)" <neo-e2@oncallfoot.local>
+Date: Tue, 11 Aug 2026 22:40:55 +0000
+Subject: [PATCH] =?UTF-8?q?docs:=20record=20Gate=20B=20clearance=20?=
+ =?UTF-8?q?=E2=80=94=20approved=20Option=20B=20migration=20applied=20(18/1?=
+ =?UTF-8?q?8=20pinned=20tables=20verified=20on=20the=20managed=20database)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .agents/LOG.md       | 22 ++++++++++++++++++++++
+ .agents/NEXT_TASK.md | 27 ++++++++++++++++-----------
+ 2 files changed, 38 insertions(+), 11 deletions(-)
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index d5561f1..a40e4e2 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -2434,6 +2434,28 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
+ 
+ ---
+ 
++### Session 071 addendum — 2026-08-11 (Gate B CLEARED)
++**Agent:** E2 Agent (Emergent, Neo)
++**Scope:** `XS` (approved schema migration to the managed database + documentation; zero repository application/schema file changes)
++**Triggered by:** Operator reviewed the prepared authorization packet and approved exactly: "Create the 18 pinned OnCall Foot tables in the verified managed Supabase database — Option B approved" (target `aws-0-us-west-2` pooler :5432 only; reviewed plan SHA-256 `f765cf97…`; one transaction with auto-rollback; explicitly excluding application changes, seed data, RLS, auth configuration, extra extensions, and the Race-Proof partial unique index).
++
++**What was done:**
++- **Authorization packet first (no execution):** exact non-secret target, same-tenant confirmation, pinned schema provenance (main `f17bdcec…`; schema dir tree `2c5feac6160deee7c4ce13496b0304f02eec0ea0`; source sha256 `2af45e443ff41e61ada7b1a7d7f130e9ba5ca561b60ebe55856e64ba79aeec37`; 18 tables), offline-generated full SQL plan (18 CREATE TABLE, 14 CREATE TYPE, 12 indexes, 34 FKs, **0 destructive statements**), and read-only writability confirmation. Execution stayed blocked until the explicit approval above.
++- **Option B execution:** plan hash re-verified programmatically (abort-on-mismatch), then the reviewed SQL applied byte-for-byte in ONE transaction — COMMITTED.
++- **Immediate read-only catalog re-check:** **18/18 pinned tables present, 0 absent, 0 unexpected — FULL MATCH**; scope audit confirmed exactly 14 enum types, 12 non-constraint indexes, 34 foreign keys, and 0 rows (no seed data).
++- **Independent verification:** separate testing agent re-ran the clearance checks read-only — **16/16 passed** (exact table-set match, object counts, structural spot-checks, empty tables, read-only + rollback, secret hygiene).
++- Secret handled throughout in a mode-600 env file outside the git tree; never printed, logged, committed, or patched. The lost pinned verifier (`df1465bb…`) was never reconstructed; all verifiers/hashes in this session are new and clearly labeled.
++
++**Files changed:**
++- `.agents/LOG.md` (this addendum)
++- `.agents/NEXT_TASK.md` (Priority 1 → CLEARED)
++
++**Build state at end:** **GATE B: CLEARED** on an actual 18/18 result — the managed Supabase database now holds exactly the pinned OnCall Foot schema and nothing else (no data, no RLS, no auth config, no extra extensions, no race-proof index). Repository application and schema files untouched. Full run record: `/app/memory/GATE_B_RUN_2026-08-11.md`; artifacts: `GATE_B_MIGRATION_AUTHORIZATION_PACKET.md`, `GATE_B_MIGRATION_PLAN.sql` (sha256 `f765cf97…`).
++
++**Next best action:** (1) Race-Proof partial unique index on bookings as its own authorization + reviewed schema task (now unblocked); (2) decide the managed-database seed policy through its own approval; (3) Phase 4C stack-native port PLAN (plan only). Production event writes / activation phases remain subject to their own approvals.
++
++---
++
+ ## New Session Template
+ 
+ Copy and append below the last entry:
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index cf608cc..65ffded 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -37,17 +37,22 @@
+ 
+ 1. **Gate B clearance** — verify managed PostgreSQL `DATABASE_URL` (managed DB only; no
+    local substitute; no fabricated PASS; record exactly what ran).
+-   **Status (Session 071): managed environment VERIFIED — catalog NOT CLEARED.**
+-   Read-only run against the operator-authorized managed Supabase database (session
+-   pooler, port 5432; direct host is IPv6-only and unreachable from an IPv4-only
+-   container): connection PASS, identity/version recorded (PostgreSQL 17.6,
+-   Supabase-managed confirmed), required extensions PASS, migration state NONE (expected),
+-   catalog EMPTY → pinned comparison 0/18 present = **"schema absent — pending separately
+-   authorized migration."** Overall gate remains **NOT CLEARED** and still blocks:
+-   activation Phases 4–7, production event writes, all migrations (incl. any future 4C
+-   schema and the race-proof partial unique index). Next: separately authorized
+-   `drizzle-kit push` + re-run of the read-only catalog check (expect 18/18).
+-   Full record: Session 071 entry in `.agents/LOG.md`.
++   **Status (Session 071 addendum): CLEARED — actual 18/18.** After the environment
++   verification (below), the operator reviewed a prepared authorization packet and
++   approved the Option B migration (reviewed SQL plan, SHA-256 `f765cf97…`, one
++   transaction). Execution committed; immediate read-only re-check: 18/18 pinned tables,
++   14 enum types, 12 indexes, 34 FKs, 0 rows; independently re-verified 16/16.
++   Now unblocked (each still needs its own approval): the Race-Proof partial unique
++   index (separate reviewed schema task), managed-database seed policy, activation
++   phases / production event writes.
++   Prior state (Session 071 initial run): managed environment VERIFIED — catalog NOT
++   CLEARED. Read-only run against the operator-authorized managed Supabase database
++   (session pooler, port 5432; direct host is IPv6-only and unreachable from an
++   IPv4-only container): connection PASS, identity/version recorded (PostgreSQL 17.6,
++   Supabase-managed confirmed), required extensions PASS, migration state NONE
++   (expected), catalog EMPTY → pinned comparison 0/18 present = "schema absent — pending
++   separately authorized migration."
++   Full record: Session 071 entry + addendum in `.agents/LOG.md`.
+ 2. **Client booking lifecycle completion slice** — cancellation confirmation,
+    duplicate-submit protection, one-review-per-completed-booking UI; reuse existing APIs;
+    tests for repeat submissions and invalid states. Next feature slice after (or while
+-- 
+2.39.5
+
