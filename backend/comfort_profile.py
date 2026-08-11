@@ -73,20 +73,40 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _bypass_enabled() -> bool:
+    """DOCUMENTED TEST BYPASS (dev/staging only — approval ENTRY-012 caveat).
+    X-Patient-Id / X-Provider-Id headers are honored ONLY when
+    ALLOW_TEST_IDENTITY_HEADERS=true. Production must not set this flag."""
+    return os.environ.get("ALLOW_TEST_IDENTITY_HEADERS", "false").strip().lower() == "true"
+
+
 async def _patient_id(request: Request) -> str | None:
-    """Resolve the acting patient identity. Task-1 header stub; AUTH task adds Bearer."""
+    """Resolve the acting patient identity. Bearer session first; header bypass
+    only when the dev flag allows it."""
     resolver = getattr(request.app.state, "resolve_patient", None)
     if resolver is not None:
         resolved = await resolver(request)
         if resolved:
             return resolved
-    pid = request.headers.get("X-Patient-Id", "").strip()
-    return pid or None
+    if _bypass_enabled():
+        pid = request.headers.get("X-Patient-Id", "").strip()
+        return pid or None
+    return None
 
 
-def _provider_id(request: Request) -> str | None:
-    pid = request.headers.get("X-Provider-Id", "").strip()
-    return pid or None
+async def _provider_identity(request: Request) -> str | None:
+    """Resolve the acting provider identity. Bearer provider session first
+    (patient tokens are rejected by role enforcement); header bypass only when
+    the dev flag allows it."""
+    resolver = getattr(request.app.state, "resolve_provider", None)
+    if resolver is not None:
+        resolved = await resolver(request)
+        if resolved:
+            return resolved
+    if _bypass_enabled():
+        pid = request.headers.get("X-Provider-Id", "").strip()
+        return pid or None
+    return None
 
 
 async def _latest_consent_row(patient_id: str) -> dict | None:
@@ -300,7 +320,7 @@ async def update_comfort_preferences(request: Request):
 #      -> 200 | 404-only (never 403) | 401
 @router.get("/provider/comfort-projection/{patient_id}")
 async def get_provider_projection(patient_id: str, request: Request):
-    if not _provider_id(request):
+    if not await _provider_identity(request):
         return _unauthorized()
     latest = await _latest_consent_row(patient_id)
     profile = await profiles.find_one({"patientId": patient_id})

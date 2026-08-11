@@ -1,26 +1,30 @@
 [
   {
-    "content": "Task 1: Comfort Profile API — six contract routes + node:test suite → PHASE_4C_comfort-profile-api.patch",
+    "content": "Record repo-separation decision (LOG ENTRY-013)",
     "status": "completed"
   },
   {
-    "content": "Task 2: Provider Projection Card — read-only card, renders nothing on 404 → PHASE_4C_provider-projection-card.patch",
-    "status": "completed"
+    "content": "Provider Auth backend: provider accounts + sessions with roles, resolve_provider, role enforcement",
+    "status": "in_progress"
   },
   {
-    "content": "Task 3: Patient Auth — sign-in + hardened logout (always clears session) → AUTH_patient-signin-logout.patch",
-    "status": "completed"
+    "content": "Bypass confinement: X-Patient-Id/X-Provider-Id honored only when ALLOW_TEST_IDENTITY_HEADERS=true (dev flag in .env)",
+    "status": "pending"
   },
   {
-    "content": "Task 4: Patch Index Page — name/commit/files/evidence listing → C3_patch-index-page.patch",
-    "status": "completed"
+    "content": "Provider portal frontend: sign-in gate + Bearer lookup + hardened provider logout",
+    "status": "pending"
   },
   {
-    "content": "Comprehensive end-to-end validation via testing agent + fix all issues",
-    "status": "completed"
+    "content": "node:test suite for provider auth + role enforcement; full suite green",
+    "status": "pending"
   },
   {
-    "content": "Record all patches + INDEX evidence in final process commit + LOG entries",
-    "status": "completed"
+    "content": "Testing agent validation of provider flow; fix issues",
+    "status": "pending"
+  },
+  {
+    "content": "Commit → AUTH_provider-signin-bypass-confinement.patch → verify → record in INDEX + LOG",
+    "status": "pending"
   }
 ]

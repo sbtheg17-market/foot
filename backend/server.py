@@ -74,9 +74,10 @@ from comfort_profile import router as comfort_router  # noqa: E402
 app.include_router(comfort_router)
 
 # Patient Auth — sign-in + hardened logout; installs Bearer identity resolution
-from auth import router as auth_router, resolve_patient  # noqa: E402
+from auth import router as auth_router, resolve_patient, resolve_provider  # noqa: E402
 app.include_router(auth_router)
 app.state.resolve_patient = resolve_patient
+app.state.resolve_provider = resolve_provider
 
 # Patch Index — meta-infrastructure (parses patches/*.patch on disk)
 from patch_index import router as patch_index_router  # noqa: E402

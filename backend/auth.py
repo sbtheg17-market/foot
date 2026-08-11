@@ -39,6 +39,7 @@ load_dotenv(ROOT_DIR / ".env")
 _client = AsyncIOMotorClient(os.environ["MONGO_URL"])
 _db = _client[os.environ["DB_NAME"]]
 patients = _db["patients"]
+providers = _db["providers"]
 sessions = _db["auth_sessions"]
 
 router = APIRouter(prefix="/api/auth")
@@ -67,9 +68,20 @@ def _bearer_token(request: Request) -> str | None:
     return None
 
 
-async def _session_patient_id(token: str) -> str | None:
+async def _session_subject_id(token: str, role: str) -> str | None:
+    """Resolve a session token to a subject id, ENFORCING the session role.
+    Legacy sessions without a role field are treated as patient sessions."""
     session = await sessions.find_one({"token": token, "revoked": False})
-    return session["patientId"] if session else None
+    if not session:
+        return None
+    session_role = session.get("role", "patient")
+    if session_role != role:
+        return None
+    return session.get("subjectId") or session.get("patientId")
+
+
+async def _session_patient_id(token: str) -> str | None:
+    return await _session_subject_id(token, "patient")
 
 
 async def resolve_patient(request: Request) -> str | None:
@@ -80,12 +92,24 @@ async def resolve_patient(request: Request) -> str | None:
     return await _session_patient_id(token)
 
 
-async def _issue_session(patient_id: str) -> str:
+async def resolve_provider(request: Request) -> str | None:
+    """Installed on app.state.resolve_provider — used by the projection route.
+    Patient tokens are NOT valid provider identities (role enforcement)."""
+    token = _bearer_token(request)
+    if not token:
+        return None
+    return await _session_subject_id(token, "provider")
+
+
+async def _issue_session(subject_id: str, role: str = "patient") -> str:
     token = secrets.token_urlsafe(32)
     await sessions.insert_one(
         {
             "token": token,
-            "patientId": patient_id,
+            "subjectId": subject_id,
+            "role": role,
+            # legacy field kept for pre-role sessions/readers
+            "patientId": subject_id if role == "patient" else None,
             "createdAt": datetime.now(timezone.utc).isoformat(),
             "revoked": False,
         }
@@ -165,3 +189,62 @@ async def me(request: Request):
     if not doc:
         return _unauthorized()
     return JSONResponse(status_code=200, content={"patient": _public_patient(doc)})
+
+
+# ---- Provider accounts (role: provider) ----------------------------------------------
+# Logout is shared: POST /api/auth/logout revokes any token (hardened, always 200).
+
+@router.post("/provider/register")
+async def provider_register(request: Request):
+    body = await _json_body(request)
+    if body is None:
+        return _bad_request("request body must be a JSON object")
+    email = (body.get("email") or "").strip().lower()
+    password = body.get("password") or ""
+    name = (body.get("name") or "").strip()
+    if not EMAIL_RE.match(email):
+        return _bad_request("a valid email is required")
+    if not isinstance(password, str) or len(password) < PASSWORD_MIN_LEN:
+        return _bad_request(f"password must be at least {PASSWORD_MIN_LEN} characters")
+    if await providers.find_one({"email": email}):
+        return JSONResponse(status_code=409, content={"error": "EMAIL_EXISTS"})
+    doc = {
+        "id": str(uuid.uuid4()),
+        "email": email,
+        "name": name,
+        "passwordHash": bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode(),
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+    }
+    await providers.insert_one(dict(doc))
+    token = await _issue_session(doc["id"], role="provider")
+    return JSONResponse(status_code=201, content={"token": token, "provider": _public_patient(doc)})
+
+
+@router.post("/provider/login")
+async def provider_login(request: Request):
+    body = await _json_body(request)
+    if body is None:
+        return _bad_request("request body must be a JSON object")
+    email = (body.get("email") or "").strip().lower()
+    password = body.get("password") or ""
+    if not email or not isinstance(password, str) or not password:
+        return _bad_request("email and password are required")
+    doc = await providers.find_one({"email": email})
+    if not doc or not bcrypt.checkpw(password.encode(), doc["passwordHash"].encode()):
+        return _unauthorized()
+    token = await _issue_session(doc["id"], role="provider")
+    return JSONResponse(status_code=200, content={"token": token, "provider": _public_patient(doc)})
+
+
+@router.get("/provider/me")
+async def provider_me(request: Request):
+    token = _bearer_token(request)
+    if not token:
+        return _unauthorized()
+    provider_id = await _session_subject_id(token, "provider")
+    if not provider_id:
+        return _unauthorized()
+    doc = await providers.find_one({"id": provider_id})
+    if not doc:
+        return _unauthorized()
+    return JSONResponse(status_code=200, content={"provider": _public_patient(doc)})
