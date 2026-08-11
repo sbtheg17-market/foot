@@ -24,3 +24,10 @@ claimed until either (a) the platform workspace snapshot actually pushes, or
 /app/repo_audit/{foot-mirror,main_worktree} are embedded git repositories; a
 workspace snapshot records them only as gitlinks (contents lost). Hence the
 bundle + patches here as plain files.
+
+## Insights loop (added 2026-08-11)
+- insights/INSIGHTS_LOG.md — append-only product/market advisory ledger.
+  Every handoff recipient reads the latest entries and APPENDS their own
+  (never edits history). Non-binding advisory; implementation still requires
+  owner approval and gate compliance. Entry INSIGHT-001 covers provider-
+  revenue and admin-layer gaps pre-white-label.

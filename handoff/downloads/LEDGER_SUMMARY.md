@@ -1,7 +1,7 @@
 # Evidence Ledger — Human Summary
-Generated 2026-08-11T02:13:02Z from LEDGER.jsonl (append-only; 129 records).
+Generated 2026-08-11T02:24:18Z from LEDGER.jsonl (append-only; 130 records).
 
-Status totals: BLOCKED=8, FAIL=8, NOT_RUN=1, PASS=112
+Status totals: BLOCKED=8, FAIL=8, NOT_RUN=1, PASS=113
 
 | # | UTC time | Type | Action | Status | Exit | Tests | Key artifact |
 |---|---|---|---|---|---|---|---|
@@ -134,6 +134,7 @@ Status totals: BLOCKED=8, FAIL=8, NOT_RUN=1, PASS=112
 | RD-002 | 2026-08-11T02:10:27Z | gate | Rule 12 r2 verification: git am onto pristine d2ad54cd reproduces exact tree 1f1da660; publication gate run with allow-list .agents/AGENT-RULES.md + expected tree + patch sha 1afb92dc (docs-only, no web approval flag needed); secret scan clean | PASS | 0 | — | memory/evidence/logs/RD-002_rule_12_r2_verification__git_am_onto_pri.log |
 | P4-007 | 2026-08-11T02:11:09Z | gate | Phase 4C r2 publication gate MECHANICS CHECK ONLY: run with rationale explicitly labeled DRAFT-VERIFICATION (not an approval, not publication-valid) because scope includes artifacts/web/** shells; all mechanical checks incl. tree identity + patch checksum verified; REAL reviewed rationale still required at future review time | PASS | 0 | — | memory/evidence/logs/P4-007_phase_4c_r2_publication_gate_mechanics_c.log |
 | P4-008 | 2026-08-11T02:13:02Z | handoff | Phase 4C r2 + Rule 12 r2 session close: both candidates prepared as SEPARATE packages and STOPPED before any push; state matrix v7 written; Gate B still UNVERIFIED (persistence/codegen/schema/migrations/storage/events remain blocked); PB-004 stays OPEN; handoff manifest regenerates after this record | PASS | 0 | — | memory/evidence/logs/P4-008_phase_4c_r2___rule_12_r2_session_close__.log |
+| IN-001 | 2026-08-11T02:24:18Z | handoff | insights loop established per owner request: append-only INSIGHTS_LOG.md created in handoff bundle + canonical /app/memory copy; INSIGHT-001 recorded (10 ranked gaps: supply-health early warning, credential lifecycle + scope-of-practice, rebooking-rate quality signal feeding matching loop, incident module, financial audit ledger, demand-supply gap map, HSA/FSA receipts, org accounts, care-plan health, public verification registry) with gate-compliant sequencing; advisory-only, authorizes no scope | PASS | 0 | — | memory/evidence/logs/IN-001_insights_loop_established_per_owner_requ.log |
 
 Classification key: PASS = captured and reproducible · FAIL = captured with diagnosis · BLOCKED = external prerequisite missing · UNRECORDED = output lost, must rerun · NOT_RUN = deliberately not executed.
 
