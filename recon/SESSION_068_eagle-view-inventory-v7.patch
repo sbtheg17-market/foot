@@ -1,0 +1,854 @@
+From bc2379a5cd067aa8de0d0b9fe5c93dc3aee5a39f Mon Sep 17 00:00:00 2001
+From: "Neo (E2)" <neo-e2@oncallfoot.local>
+Date: Tue, 11 Aug 2026 17:55:28 +0000
+Subject: [PATCH] docs: publish permanent Neo eagle view and branch inventory
+ v7
+
+---
+ .agents/LOG.md                      |  30 ++-
+ .agents/NEXT_TASK.md                | 360 +++++-----------------------
+ AGENTS.md                           |  52 ++++
+ docs/roadmap/BRANCH_INVENTORY_V7.md | 111 +++++++++
+ docs/roadmap/NEO_EAGLE_VIEW.md      | 240 +++++++++++++++++++
+ 5 files changed, 496 insertions(+), 297 deletions(-)
+ create mode 100644 AGENTS.md
+ create mode 100644 docs/roadmap/BRANCH_INVENTORY_V7.md
+ create mode 100644 docs/roadmap/NEO_EAGLE_VIEW.md
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index 17bf25a..e844d1f 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -66,7 +66,8 @@ Since agent credit balances cannot be read programmatically, each session entry
+ | Neo handoff scope | ✅ Mismatch documented; implementation stopped | This workspace is the OnCall Foot `sbtheg17-market/foot` Node/PostgreSQL monorepo. The uploaded Neo report targets a separate Comfort-Wiring FARM/FastAPI/MongoDB repository whose recovery artifacts are absent. The mismatch and merge boundary are recorded in `docs/neo-handoff-scope.md`. |
+ | Phase 4C / B-prime handoff audit | ✅ Read-only audit complete | Corepack-pinned `pnpm 10.18.3` frozen install, typecheck, build, 63 booking unit tests, four workflows, API/web health, and 390px web preview pass. The referenced Phase 4C contract and `ComfortPreferencesShell` are absent; provider sign-out is present and mirrors client logout. |
+ | Merge/publication safety | ✅ Clean and unmerged | Only `.agents/LOG.md` was previously committed locally; this sync remains documentation-only. Application code, schema, migrations, generated clients, OpenAPI, dependencies, workflows, database, and all `conflict_*` refs remain untouched. |
+-| Conflict-branch inventory | ✅ v6 accepted (2026-08-11) | 25 `conflict_*` branches re-verified against `origin/main` `401a9d7`: 24 are unrelated Emergent FARM lineages (no merge base — reference only, never merge); only `conflict_070826_mc2` is real foot history and remains superseded (its feature commit `5f9992e` is patch-equivalent on `main`). No unique unrecovered application code exists on any conflict branch. Prior 9-branch cleanup authorization is stale and must be re-authorized against `docs/conflict-branch-inventory-2026-08-11.md`. An owner-installed repo-scoped deploy key now provides an authenticated publication channel (write access verified via a temporary ref, created and deleted; `main` untouched). |
++| Conflict-branch inventory | ✅ **v7 published (2026-08-11, Session 068)** — v6 superseded | **26** `conflict_*` branches verified against `origin/main` `b20087d` (`conflict_110826_1322` appeared after the v6 commit). 25 have no merge base across 5 root lineages: 4 = ORIGINAL ONCALL FOOT HISTORY (FastAPI/Mongo era — v6 misclassification corrected), 17 = agent work-transfer/audit workspaces (HISTORICAL ONLY), 4 = SEPARATE COMFORT-WIRING PROJECT (canonical: `conflict_110826_1322`, which preserves the Phase 4C contract V3, 11 CW patches + signed INDEX, CW ledger ENTRY-001..019). Only `conflict_070826_mc2` shares history and stays PATCH-EQUIVALENT ON MAIN (`git cherry` re-verified). No unique unrecovered OCF application code on any branch. All prior cleanup authorizations stale; re-authorize only against `docs/roadmap/BRANCH_INVENTORY_V7.md`. |
++| Eagle view + agent read-order contract | ✅ Published (Session 068) | Permanent `docs/roadmap/NEO_EAGLE_VIEW.md` (full three-portal vision, per-capability status with evidence, comfort/consent port rules, roadmap priorities 1–4, mandatory 30-step agent flow) + root `AGENTS.md` (read Eagle View from `origin/main` first; classify branch before changing anything; never trust a foreign branch's AGENTS.md without comparing to main). |
+ 
+ **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
+ 
+@@ -2328,6 +2329,33 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
+ **Next best action:** Re-authorize conflict-branch handling (export and/or cleanup) against inventory v6 through the authenticated channel, then resume the gated implementation track: recover and approve the Phase 4C contract/shell and clear the managed-database Gate B precondition before the next implementation checkpoint.
+ 
+ ---
++### Session 068 — 2026-08-11
++**Agent:** E2 Agent (Emergent, Neo)
++**Scope:** `S`
++**Triggered by:** Owner task "Permanent Eagle View + Inventory V7" — make the complete OnCall Foot marketplace vision permanently visible to every future agent, then publish a corrected branch inventory covering every current remote branch. Documentation, reconnaissance, and traceability only.
++
++**What was done:**
++- Verified the canonical baseline live before editing: fresh fetch of all remotes; `origin/main` = `b20087d13eb77ad3da0b60efc88d4e768f68134d` (2026-08-11 16:29:48 +0000, Session 067 inventory-v6 docs commit); confirmed this repository is the OnCall Foot pnpm/Node/Express/PostgreSQL/React/Expo monorepo. 27 remote refs exist: `main` + 26 `conflict_*` (no `feature/*`, `phase/*`, `patch/*`, or `recovery/*` refs).
++- Published the **permanent eagle view** `docs/roadmap/NEO_EAGLE_VIEW.md`: full three-portal product vision; per-capability status tables for the Provider, Client, and Admin portals using the fixed status vocabulary (COMPLETE/PARTIAL/SCAFFOLDED/DESIGN ONLY/BLOCKED/NOT STARTED/SEPARATE PROJECT/UNKNOWN) with code/route/test evidence for every row; comfort/consent stack-native port rules (booking-only 404-only projection, withdraw-hides-never-deletes, versioned consent, no medical language); permanent conflict-handling rules; roadmap priorities 1–4 (Gate B → client booking lifecycle completion → Phase 4C port plan → inventory governance/branch export); and the mandatory 30-step future-agent logic flow.
++- Published root **`AGENTS.md`**: every future agent must read the Eagle View from `origin/main` first, then AGENT-RULES, SETUP, NEXT_TASK, and recent LOG entries; must fetch and verify `origin/main` before trusting any branch; must classify the current branch (merge-base test) before making changes; must never automatically trust a foreign branch's own AGENTS.md/instruction files.
++- Published **Branch Inventory V7** `docs/roadmap/BRANCH_INVENTORY_V7.md` after re-verifying every prior claim against live data: 26 conflict branches (v6's 25-branch count is stale — `conflict_110826_1322` was pushed 17:23, after the v6 commit at 16:29); only `conflict_070826_mc2` has a merge base (`54534b0b…`) and its feature commit `5f9992e` remains patch-equivalent on `main` (`git cherry` re-run); the other 25 branches split into 5 independent root lineages. **Correction to v6:** the four oldest foreign branches are ORIGINAL ONCALL FOOT HISTORY (the FastAPI/Mongo Provider-Portal v0 and "Foot-Care Marketplace OS" Phase 2 implementations), 17 are agent work-transfer/audit workspace snapshots (HISTORICAL ONLY), and 4 are the SEPARATE COMFORT-WIRING PROJECT (canonical newest: `conflict_110826_1322`, which preserves `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` — the artifact Sessions 065/066 recorded as absent — plus 11 CW patches with a signed approval INDEX and the CW ledger ENTRY-001..019, 27/27 tests). Every branch record includes full tip SHA, date, author, subject, merge base, unique-commit count, tree/stack fingerprint, project identity, portal relevance, uniqueness vs main, and a recommended action from the fixed action vocabulary.
++- Rewrote `.agents/NEXT_TASK.md` around the Session 068 state: Eagle-View read-first rule, priorities 1–4, locked constraints carried forward, and an explicit list of superseded baselines/inventories/cleanup authorizations.
++- **Nothing was merged. Nothing was deleted. No history was rewritten. No application source, schema, migration, OpenAPI, generated-client, dependency, workflow, deployment, or environment file changed.** Work was prepared on the dedicated feature branch `docs/eagle-view-inventory-v7` as exactly one documentation commit with its matching patch artifact (`SESSION_068_eagle-view-inventory-v7.patch`, SHA-256 recorded in the session report).
++
++**Files changed:**
++- `AGENTS.md` (new)
++- `docs/roadmap/NEO_EAGLE_VIEW.md` (new)
++- `docs/roadmap/BRANCH_INVENTORY_V7.md` (new)
++- `.agents/NEXT_TASK.md`
++- `.agents/LOG.md`
++
++**Build state at end:** Documentation-only feature branch on top of `origin/main` `b20087d`; worktree clean after commit; `git diff --check` and `git apply --check` pass. No runtime surface changed, so no test suites or workflows were run — Session 065 validation evidence remains the latest. All 26 `conflict_*` refs remain untouched. Current Build State table updated (inventory v7 row + eagle-view row).
++
++**Next best action:** Publish this branch through the approved channel (PR / reviewed fast-forward to `main` via `pnpm run publish:gate`), then start Priority 1 — Gate B managed-database verification (`DATABASE_URL` catalog check; mark BLOCKED honestly if the managed URL is unavailable). In parallel, seek fresh authorization to export the four Comfort-Wiring branches (1322 → 1134 → 1112 → 0846) to their own repository per Inventory V7.
++
++---
++
++
+ 
+ ## New Session Template
+ 
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index 0d079b7..4c5d13e 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -1,296 +1,64 @@
+-# Next product task — Provider Activation & First Booking Conversion remains gated; current handoff is documentation-synchronized, not an implementation checkpoint
+-
+-## Handoff scope notice — 2026-08-11
+-
+-This workspace is the OnCall Foot repository (`sbtheg17-market/foot`), not the
+-Comfort-Wiring FARM/FastAPI/MongoDB repository described by the uploaded Neo
+-Entry Report. The referenced Comfort-Wiring recovery artifacts are absent here.
+-That mismatch is documented in [`docs/neo-handoff-scope.md`](neo-handoff-scope.md).
+-
+-Do not reconstruct Comfort-Wiring, merge unrelated `conflict_*` branches, or
+-change OnCall Foot code in response to that report. A future Comfort-Wiring
+-handoff must provide its actual repository URL, archive, or complete recovery
+-bundle and name that repository as the target. Until then, continue only with a
+-separately approved OnCall Foot task.
+-
+-## Current active state — Session 066 (2026-08-11, documentation synchronization)
+-
+-- **Canonical remote baseline:** `origin/main` is `184833b` (`184833bd87271742cbbc1b2f0b8604902e97ff77`) on `main`.
+-- **Local continuation:** `fe3462b` is the existing docs-only activity-log commit on top of that baseline; this synchronization is another docs-only continuation and must not be confused with an application checkpoint.
+-- **Merge boundary:** no `conflict_*` branch has been merged, used as a base, deleted, or modified. Do not force-push, rewrite history, or merge archival branches. Any publication must be a reviewed fast-forward through the approved managed channel.
+-- **Runtime/source scope:** application code, schema, migrations, OpenAPI, generated clients, dependencies, workflows, and database remain unchanged by the Phase 4C/B-prime/C-prime audit and this documentation synchronization.
+-- **Phase 4C status:** blocked for implementation because `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` and `ComfortPreferencesShell` are absent from this checkout. Do not reconstruct either from report prose or summaries.
+-- **B-prime status:** provider sign-out is implemented through the shared authenticated logout mutation, local token removal, and login redirect; failed logout cleanup remains a documented edge case, not an approved change.
+-- **Validation evidence:** Corepack-pinned frozen install, full typecheck, production build, 63 booking tests, all four managed workflows, API/web HTTP 200 health, expected unauthenticated 401s, and a 390px web preview were verified in Session 065.
+-- **Follow-up status:** the proposed follow-ups for missing Phase 4C artifacts, stale baseline cleanup, and logout failure handling were canceled. They are not implementation authorization.
+-- **Next checkpoint preconditions:** recover and approve the exact Phase 4C contract/shell, define its API/schema/test scope, clear managed database Gate B, and authorize a separate implementation checkpoint.
+-
+-## Historical state — Session 063 (2026-08-10, takeover workspace)
+-
+-- **Baseline:** canonical `origin/main` = `3e76114` (verified anonymous clone; tree `bc67dd6…`).
+-  **18** `conflict_*` branches exist (inventory v5) — all archival snapshots, never merged,
+-  based on, or modified; the two newest are platform auto-snapshots of the prior continuation
+-  workspaces (attribution recorded; owner audit-log confirmation open). **All conflict-branch
+-  cleanup is PAUSED** — the 16-branch cleanup plan and any deletion approval tied to it are
+-  invalidated.
+-- **Baseline independently re-verified green** from `3e76114`: typecheck + build PASS and all
+-  API suites reproduce recorded numbers (63/63, 8/8, 9/9, 23/23, 7/7, 14/14, 12/12, 14/14,
+-  11/11, 12/12) on an ephemeral local database. Gate B remains **NOT passed** (managed DB
+-  still UNVERIFIED).
+-- **Lost-candidate recovery:** the prior local candidates' patch artifacts and both v3
+-  contract documents were recovered read-only from archival snapshot `conflict_100826_1543`
+-  with exact checksum matches. The retired identities (`eec0147…`, `0c216d6…`) are not
+-  reused; new candidates are derived from exactly `3e76114`, each separate.
+-- **New local candidates (each requires its own review and publication approval):**
+-  1. this Session 063 traceability entry (docs-only);
+-  2. provider sign-out (one file, `artifacts/web/**` — publication additionally requires
+-     `--approve-web-ui`);
+-  3. lockfile-reproducibility fix (frozen install currently fails at the canonical tip;
+-     cause documented; no blind lockfile regeneration).
+-- **Standing approvals:** Phase 4C comfort-profile v3 (`339a03e6…`) — non-schema preparation
+-  only; provider economics v3 (`2172f6cf…`) — contract only. Blocked: schema, migrations,
+-  storage wiring, production event writes, economics implementation, marketplace expansion,
+-  conflict-branch cleanup, remote ledger edits, any push or merge without named approval.
+-
+-> **Active checkpoint: Provider Activation & First Booking Conversion** (approved to sequence
+-> BEFORE the mobile feed). Product/measurement spec:
+-> `/workspace/CHECKPOINT_PROVIDER_ACTIVATION_FIRST_BOOKING_SPEC.md`. Phased, each phase
+-> separately sign-off-gated. **Phase 1 (additive `marketplace_events` migration) applied to the
+-> test DB** (Session 053). **Phase 2 (owner-scoped readiness API) PUBLISHED** as `4bb0e00`
+-> (Session 054). **Phase 3 (event emission) PUBLISHED** at `cf689b5`, tree
+-> `e30feca1251f250a7126e987c9379ca3e42e1056`, exactly the six approved files (Session 055
+-> remote verification). Managed database status: **UNVERIFIED**. Phases 4–7 (booking
+-> enforcement → flagged discovery gating → funnel-report API → validation) and readiness UI
+-> NOT started and remain gated. Mobile feed, email outbox, and push remain gated and
+-> sequenced after this checkpoint.
+-
+-## Publication state (Session 062 remote verification)
+-
+-- Canonical `origin/main` tip: `c02a308` (Session 061 traceability), tree
+-  `41c244286bda90be9b8a5c764e1d73722c39eec3`, parent `47df77e`
+-  (review-gate `--approve-web-ui` flag). Chain:
+-  `… → b3937a7 → 83cf335 → 6aa4863 → 47df77e → c02a308`,
+-  fast-forward only.
+-- Canonical fast-forward history: `cf689b5` (Phase 3, tree `e30feca…`) →
+-  `4734990` (Session 055 recreation, tree `4002cbed…`) → `6a5cf35`
+-  (premature Session 056 publication — recorded and corrected by Session
+-  057) → `5e031e5` (Session 057, tree `cdaa7cb9…`) → `5853768` (review
+-  gate) → `7c33672` (Session 058). No force-push, rewrite, or `conflict_*`
+-  merge at any step.
+-- Sessions 054–061 are present exactly once each in `.agents/LOG.md`;
+-  Phase 3 remains unchanged at tree `e30feca1251f250a7126e987c9379ca3e42e1056`.
+-- Full ancestry: `d7a5999` (Phase 1 base) → `4bb0e00` (Phase 2 readiness
+-  patch) → `d7a01e8` (readiness docs) → `cf689b5` (Phase 3, six-file scope
+-  confirmed) → traceability chain above.
+-- All `origin/conflict_*` branches are unrelated Emergent workspace lineages
+-  EXCEPT `conflict_070826_mc2` (real foot history, superseded — see the
+-  accepted inventory, Session 058). Never merge or base work on any of them.
+-- **Gate status (Sessions 059–060):** conflict-branch cleanup BLOCKED (no
+-  authenticated GitHub channel in the working container; pinned cleanup
+-  script artifact unrestored; zero side effects — all refs verified
+-  untouched). Managed-database catalog check environment-unavailable (no
+-  managed `DATABASE_URL`); managed DB remains **UNVERIFIED**; production
+-  event-writing gate stays blocked.
+-
+-## Published candidates (landed on `main`, Session 060)
+-
+-- **Phase 4B provider readiness web UI — PUBLISHED first:** branch
+-  `phase4b-readiness-ui`, single commit `b3937a7` (parent `7c33672`,
+-  tree `10ce4b66…`), patch SHA-256
+-  `31cbfcf1f8af7042d81b916664eea0e218aa9b0f7d73285fea6701aa1cb15b3d`.
+-  Nine files, all `artifacts/web/src/**`, including the review-required
+-  `/provider/travel-zones` fix destination for C5 (existing contract
+-  only: list/add/remove; no update endpoint exists). `publish:gate`
+-  passes every check (incl. tree identity + patch checksum) except the
+-  single intentional `artifacts/web/**` forbidden-path rule, for which
+-  the gate documents no approval flag — publication requires an explicit
+-  managed-channel human decision or a separately reviewed gate amendment
+-  adding a documented UI-approval flag. See Session 059.
+-- **Session 059 traceability entry — PUBLISHED second:** `.agents` files
+-  only, parented on `b3937a7`; full gate PASS. Both pushes were
+-  fast-forward with post-push tree and changed-file scope verification
+-  (see Session 060). Session 060 subsequently landed at `6aa4863`
+-  (tree `4cf87b0552…`, parent `83cf335`).
+-- **Review-gate UI-approval flag — PUBLISHED (verified in Session 061):**
+-  `47df77e` (parent `6aa4863`, tree `1ef7d452…`), exactly one changed file
+-  (`scripts/verify-publication.sh`, +40/−3). `--approve-web-ui
+-  "<approver>: <reason>"` authorizes ONLY `artifacts/web/**` and prints an
+-  audit record (approval text + each authorized web file); every other
+-  forbidden category stays hard-forbidden and all other checks are
+-  unchanged. Functionally re-verified from the published tree (web change
+-  fails unflagged, passes flagged with audit record; schema changes still
+-  fail even when flagged; docs-only behavior unchanged).
+-- **Session 061 traceability — PUBLISHED (Session 062):** `c02a308`
+-  (parent `47df77e`, tree `41c2442…`), fast-forward via the new dedicated
+-  MCP publication channel (repo-scoped deploy key, full gate PASS, post-push
+-  tree/scope/patch-checksum verification, independent HTTPS cross-check;
+-  deploy-key write access revoked after the window; channel now requires an
+-  explicit operator-approved publication window and fails closed outside
+-  it). `origin/main` = `c02a308`. Next reviewed candidate: the Session 062
+-  docs commit.
+-
+-## Settled candidates from Session 058 (now on `main`)
+-
+-- **Publication review gate — PUBLISHED** at `5853768` (parent `5e031e5`,
+-  tree byte-identical to the reviewed commit `f957caf`):
+-  `scripts/verify-publication.sh` + root `publish:gate`. Pre-push safety
+-  checks for parent identity, fast-forward-only, allow-list scope,
+-  forbidden paths, draft-status wording, unique+ordered session numbers,
+-  tree identity, and patch checksum. A safety check — human publication
+-  approval remains required.
+-- **Session 058 traceability entry:** PUBLISHED at `7c33672` (parent
+-  `5853768`), the current canonical tip.
+-
+-## Queued after publication (approved order — recorded, not started)
+-
+-1. **Phase 4C — client comfort/preferences intake** (next approved
+-   checkpoint). Contract prepared for review — SHA-256
+-   `1fa0eecba58c4cd5c0b8a31cbd56f934ba47067e9af4dddf8a461d0e7269bb14`:
+-   consent-first structured preferences, owner-scoped access, booking-only
+-   filtered provider projection, per-category client visibility toggles,
+-   consent versioning + withdrawal, no sensitive free text or medical
+-   inference. After contract approval: convert into its own API/schema and
+-   test plan; implement as its own slice (own tests, review, publication
+-   gate, traceability entry). No migration before Gate B clears.
+-2. **Provider economics** (after Phase 4C). Contract prepared for review —
+-   SHA-256 `5a7a20290d0e99eb73f418e09eebb346f6778b0900e73dcf6cfeef2a49342bcc`:
+-   provider boundary settings (buffers, travel boundaries via the existing
+-   travel-zone contract, minimum booking value, preferred blocks), capped
+-   time-bounded deals, mandatory pre-publish earnings preview,
+-   advisory-only worthwhile-ness estimates; no forced acceptance, automatic
+-   discounting, or ranking changes. After contract approval: separate
+-   API/schema and test plan; separate slice from Phase 4C.
+-3. Phase 4D provider opportunity cards (one action + one measurable
+-   outcome per card; never pressure providers past availability,
+-   boundaries, or comfort).
+-4. Phase 4E discovery eligibility (separately authorized gating).
+-5. Phase 4F booking reliability.
+-6. Phase 4G funnel reporting + product analytics (PostHog candidate)
+-   using the approved 14-event taxonomy recorded in Session 059 —
+-   supplements, never replaces, canonical `marketplace_events`; binding
+-   privacy rules: no health details, care notes, exact addresses, payment
+-   data, or document contents; masked replay; flag-gated experiments.
+-7. Phase 5 mobile readiness parity; later: white-label/admin platform
+-   phase (tenant isolation first, not a visual skin).
+-
+-Approved immediate sequence (Session 062): revoke key (done) → Session 062
+-candidate → review both contracts → MCP key-expiry safeguard (done, channel
+-infrastructure) → verify managed DB (Gate B still blocking) → implement
+-Phase 4C → implement provider economics.
+-
+-## Authorized conflict-branch cleanup (separate managed-channel operation)
+-
+-- Order: (1) tag `archive/conflict_070826_mc2` at `bed2e06` and verify the
+-  tag; (2) delete ONLY the nine unrelated Emergent lineages
+-  (`conflict_010826_0008`, `conflict_010826_0036`, `conflict_060826_2025`,
+-  `conflict_080826_1307`, `conflict_090826_0856`, `conflict_090826_1405`,
+-  `conflict_090826_1718`, `conflict_310726_1942`, `conflict_310726_2216`);
+-  (3) confirm `main` is unchanged and report results.
+-- Basis: accepted read-only inventory (Session 058) — no unique
+-  unrecovered artifacts exist on any conflict branch; all patch artifacts
+-  correspond to published `main` work.
+-- Never delete `main`, rewrite history, or merge any conflict branch.
+-
+-## Canonical handoff policy (permanent)
+-
+-- `origin/main` of `https://github.com/sbtheg17-market/foot` is the ONLY
+-  canonical source of truth.
+-- Every new account/agent must clone that repository, then fetch and verify
+-  `origin/main` (commit + tree) BEFORE editing anything.
+-- Never continue from an Emergent-generated `conflict_*` branch unless it is
+-  proven to descend from foot `main`.
+-- Use a unique local branch per task; push only reviewed commits through the
+-  authenticated managed publication channel, as a fast-forward — no
+-  force-push, no history rewrite, no `conflict_*` merges.
+-- End every session with either a pushed commit or an explicit local artifact
+-  (patch) plus SHA-256 checksum recorded in `.agents/LOG.md`.
+-- The next account must verify the remote commit/tree before doing any work.
+-- Archive `conflict_*` branches for forensics; do not merge or force-push them.
+-
+-## Current gate
+-
+-**MC9 complete** and validated on canonical `main` (`8323aac`): reviewer approve/reject
+-workflow, transactional approved/rejected decision notifications, and the
+-durable `test:reviewer-decisions` suite (14/14) are all present.
+-
+-**Web in-app notification feed + unread badge — DONE (frontend-only, awaiting
+-managed-environment publication).** `/provider/notifications` consumes only the
+-existing MC8-lite APIs via the generated client; ProviderLayout gained an
+-"Alerts" unread badge. No backend/schema/OpenAPI/generated-client/notification
+--semantics changes; no email/SMTP/push/SSE/notification-bus/vendor coupling
+-(complies with `NOTIFICATION_ARCHITECTURE_CONSTRAINTS.md`). Validated:
+-typecheck + build pass; regression green (`test:reviewer-decisions` 14/14,
+-`test:provider-notifications` 12/12, provider-application 8/8, provider-status
+-9/9); all UI states verified by manual browser screenshots (no web test
+-framework introduced — that infra remains deferred). Scope: `artifacts/web/`
+-only. See Session 052 in `.agents/LOG.md`.
+-
+-### Superseded reference — MC9 locked three-commit scope
+-
+-
+-- **Commit 1 (landed):** admin-only reviewer decision endpoints — published
+-  as split commits `0afb3ff` + `92d001f` (tree byte-identical to the
+-  reviewed implementation; `59068c8` is an environment-only `.replit`
+-  marker). See Session 050 traceability note.
+-- **Commit 2 (landed, `917361d`):** transactional `approved`/`rejected`
+-  provider notifications — tree byte-identical to the reviewed
+-  implementation (Session 051 traceability note).
+-- **Commit 3 (done, awaiting review):** durable `node:test` suite
+-  `test:reviewer-decisions` (14 cases) — reviewer authn/authz, self-review
+-  prevention, valid/invalid/repeated decisions with no-side-effect
+-  assertions, event + notification atomicity, ownership isolation, privacy.
+-  No app/API/schema changes.
+-
+-Once Commit 3 lands, **MC9 is complete**. Next candidate checkpoints remain
+-gated pending separate scope approval: web/mobile in-app notification feed
+-with unread badge → email alerts via a separately designed outbox/retry
+-channel → push delivery.
+-
+-## Constraints (locked)
+-
+-- Step-0 gate before any work; one reviewed commit at a time; no push
+-  before approval.
+-- Web/mobile notification UI remains **out of scope**.
+-- Email, outbox, retry, and external delivery remain **out of scope**.
+-- No unrelated reviewer workflow or admin UI.
+-- Published history is never rewritten (Commit 4 `files` subject and the
+-  Commit 1 split-commit publication are recorded cosmetic discrepancies —
+-  see Session 049/050 traceability notes).
+-- Publication channel: patches applied by the managed environment, which
+-  may split commits or alter subjects — verify **tree identity, scope,
+-  ancestry, and validation**, not published commit hashes.
+-
+-## Next gated candidate
+-
+-**Mobile in-app notification feed + unread badge (Expo)** — parity with the web
+-feed, consuming the SAME existing MC8-lite APIs via the generated client. Still
+-**gated**: requires its own scope, acceptance criteria, and explicit approval
+-before any work. Then: vendor-neutral email outbox + delivery-adapter design →
+-push through the same channel abstraction. Each is separately approved.
+-
+-## Post-MC9 deferred
+-
+-- Web in-app notification feed with unread badge — **DONE** (Session 052; awaiting publication).
+-- Mobile in-app notification feed with unread badge — next gated candidate (see above).
+-- Email alerts through a separately designed, vendor-neutral outbox/retry channel.
+-- Push channel (`expo-notifications` present but unused for this line).
+-- Composite index `(provider_application_id, created_at DESC, id DESC)` on
+-  `provider_application_submissions` — documented follow-up (D1 deferred).
+-- Web/mobile test infrastructure (vitest / RN testing-library) — still deferred; the web
+-  feed (Session 052) was verified via manual browser screenshots, not automated tests.
+-- Root `attached_assets/Pasted-*.txt` cleanup; delete stale
+-  `origin/conflict_070826_mc2` branch (hygiene actions).
+-
+-## Guardrails
+-
+-- Never render `reviewerNotes` in any client. Only `rejectionReason` and
+-  the public snapshot fields of `previousSubmissions` are safe to render.
+-- Reviewer decisions do not touch provider-profile `verificationStatus`;
+-  the approved-provider authorization boundary (application **and**
+-  verification both approved) stays intact.
+-- Signup `roleIntent` remains an onboarding request, not an authorization
+-  claim.
+-- Do not duplicate server authorization rules in any client — render
+-  actions strictly from `canEdit` / `canReset` / `canResubmit`.
+-- Do not add Stripe, payouts, disputes, background checks, or any
+-  unrelated admin / care-history / review work.
++# Next product task — read `docs/roadmap/NEO_EAGLE_VIEW.md` first
++
++## Current active state — Session 068 (2026-08-11, eagle view + inventory v7)
++
++- **Canonical remote baseline:** `origin/main` = `b20087d13eb77ad3da0b60efc88d4e768f68134d`
++  (2026-08-11 16:29:48 +0000, Session 067 inventory-v6 docs commit).
++- **This session (068) is documentation-only:** permanent eagle view
++  (`docs/roadmap/NEO_EAGLE_VIEW.md`), root `AGENTS.md` read-order contract, and
++  **Branch Inventory V7** (`docs/roadmap/BRANCH_INVENTORY_V7.md`, 26 branches —
++  supersedes inventory v6 and every older inventory/cleanup authorization).
++  No application, schema, OpenAPI, generated-client, dependency, workflow, or database
++  changes. No branch was merged or deleted.
++- **Merge boundary (permanent):** never merge, base work on, or delete any `conflict_*`
++  ref without fresh named authorization against Inventory V7. No force-push. No history
++  rewrite. Publication to `main` only via reviewed fast-forward / PR through the gate
++  (`pnpm run publish:gate`).
++- **Comfort-Wiring:** separate project. Canonical preserved state = `conflict_110826_1322`
++  (contract V3 + V3.1, 11 patches + signed INDEX, CW ledger ENTRY-001..019, 27/27).
++  Reference only — stack-native port under its own approval (Eagle View §4).
++
++## Priority order (recorded in the Eagle View §7)
++
++1. **Gate B clearance** — verify managed PostgreSQL `DATABASE_URL` (managed DB only; no
++   local substitute; no fabricated PASS; record exactly what ran). Currently
++   **BLOCKED/UNVERIFIED**. Blocks: activation Phases 4–7, production event writes, all
++   migrations (incl. any future 4C schema).
++2. **Client booking lifecycle completion slice** — cancellation confirmation,
++   duplicate-submit protection, one-review-per-completed-booking UI; reuse existing APIs;
++   tests for repeat submissions and invalid states. Next feature slice after (or while
++   arranging) Gate B.
++3. **Phase 4C stack-native port PLAN (plan only)** — Drizzle schema additions, Express
++   routes, authz boundaries, consent status + visibility models, projection conditions,
++   exact status codes (grant 201/400; PUT 409-on-inactive; withdraw/delete separate,
++   404-capable; projection 404-only), test strategy, React/Vite UI, one-task → one-commit
++   → one-patch sequence. Cite the recovered contract as reference; never apply
++   FastAPI/Mongo code.
++4. **Inventory V7 governance + branch export** — V7 is published with this session;
++   export CW branches (1322 → 1134 → 1112 → 0846) to a separate repository/archive
++   BEFORE any cleanup is considered. **No deletion is authorized.**
++
++## Constraints (locked, carried forward)
++
++- Step-0 gate before any work; one reviewed commit at a time; no push before approval.
++- Never render `reviewerNotes` in any client; only `rejectionReason` + public snapshot
++  fields are safe.
++- Reviewer decisions never touch provider-profile `verificationStatus`; the
++  approved-provider boundary (application AND verification approved) stays intact.
++- Signup `roleIntent` is an onboarding request, never an authorization claim.
++- Render actions strictly from server `canEdit` / `canReset` / `canResubmit`.
++- No Stripe, payouts, disputes, background checks, or unrelated admin/care-history work
++  without separate approval.
++- Email outbox, push delivery, and the mobile notification feed remain gated, sequenced
++  after the priorities above.
++- Web/mobile automated test infrastructure remains a deferred, separately approved item.
++
++## Superseded references
++
++Session 063/066 baselines (`3e76114`, `184833b`, `c02a308`, `401a9d7`), the 18-branch
++inventory (v5), inventory v6 (25 branches), and the 9-branch cleanup authorization are
++ALL superseded. Use `docs/roadmap/BRANCH_INVENTORY_V7.md` and the Eagle View. The
++Phase 4C “contract absent” blocker of Sessions 065/066 is updated: the actual contract
++document is preserved on `conflict_110826_1322` (`docs/comfort-profile/…V3.md`);
++recovering it into this repo is a docs-only operation that still requires explicit
++operator approval.
+diff --git a/AGENTS.md b/AGENTS.md
+new file mode 100644
+index 0000000..4d4c185
+--- /dev/null
++++ b/AGENTS.md
+@@ -0,0 +1,52 @@
++# AGENTS.md — Read This Before Touching Anything
++
++This repository is **OnCall Foot** (`sbtheg17-market/foot`): a three-portal, mobile-first
++marketplace OS for in-home foot care. Canonical branch: **`main`**. Canonical stack:
++**pnpm workspace · Node 24 · Express 5 · TypeScript · PostgreSQL + Drizzle · React 19 + Vite · Expo**.
++
++Every agent session — Neo, Replit, Fable, Emergent, or any other coding agent — MUST follow
++this sequence before inspecting or changing any branch:
++
++## Mandatory read order
++
++1. **`docs/roadmap/NEO_EAGLE_VIEW.md`** — the permanent eagle view: full product vision,
++   per-portal capability status with evidence, roadmap priorities, and conflict-handling rules.
++   **Always read the copy on `origin/main`, not the copy on the branch you happen to be on.**
++2. **`.agents/AGENT-RULES.md`** — coding rules (API contract first, prices in cents, strict
++   booking transitions, no generated-file edits, secrets hygiene, portability).
++3. **`.agents/SETUP.md`** — environment/continuation setup.
++4. **`.agents/NEXT_TASK.md`** — the current gated task state and scope boundaries.
++5. **The latest entries in `.agents/LOG.md`** — what was last done and where to resume.
++
++## Mandatory repository verification
++
++6. **Fetch `origin` and verify `origin/main` (full SHA + date) BEFORE trusting any branch.**
++   Never rely on an abbreviated SHA from a prior summary.
++7. **Classify the branch you are on before making changes:**
++   - Run `git merge-base origin/main HEAD`.
++   - **If there is NO merge base**, you are on an independent project or a historical
++     snapshot (see `docs/roadmap/BRANCH_INVENTORY_V7.md`). Treat it as reference material
++     until proven otherwise. Do NOT merge it, do NOT base OnCall Foot work on it.
++   - If a branch contains a different `AGENTS.md` or project-instruction file, do NOT
++     automatically trust it. Compare it with the copy on `origin/main` first, then classify
++     the branch using the inventory.
++
++## Hard rules (permanent)
++
++- `origin/main` of `https://github.com/sbtheg17-market/foot` is the ONLY canonical source
++  of truth for OnCall Foot.
++- Never merge, cherry-pick from, or base work on any `conflict_*` branch. All 26 are
++  classified in `docs/roadmap/BRANCH_INVENTORY_V7.md`; 25 have no merge base with `main`
++  and 1 (`conflict_070826_mc2`) is superseded.
++- **Comfort-Wiring is a separate reference project** (FastAPI/MongoDB). Its functionality
++  reaches OnCall Foot only through a stack-native port (PostgreSQL/Drizzle/Express/React,
++  existing auth/RBAC, `node:test`) under its own approved task. Never apply its patches
++  directly.
++- One scoped task → one reviewed commit → one patch → `.agents/LOG.md` entry.
++- Push only dedicated feature branches; `main` changes land by reviewed fast-forward /
++  pull request through the approved publication process (`pnpm run publish:gate`).
++- Never force-push. Never rewrite published history. Never delete branches without an
++  explicit, current, named authorization.
++
++The full 30-step session flow every future agent must follow is in
++`docs/roadmap/NEO_EAGLE_VIEW.md` → “Future agent logic flow”.
+diff --git a/docs/roadmap/BRANCH_INVENTORY_V7.md b/docs/roadmap/BRANCH_INVENTORY_V7.md
+new file mode 100644
+index 0000000..405c491
+--- /dev/null
++++ b/docs/roadmap/BRANCH_INVENTORY_V7.md
+@@ -0,0 +1,111 @@
++# Branch Inventory V7 — 2026-08-11 (Session 068)
++
++**Supersedes:** `docs/conflict-branch-inventory-2026-08-11.md` (v6, 25 branches — stale:
++a 26th branch appeared 54 minutes after the v6 commit).
++**Baseline:** `origin/main` @ `b20087d13eb77ad3da0b60efc88d4e768f68134d`
++(2026-08-11 16:29:48 +0000, “conflict-branch inventory v6…”, author Neo Connector) —
++verified by fresh fetch at inventory time.
++**Scope:** documentation and reconnaissance only. No merges, no deletions, no history
++rewrite, no application changes. **No branch deletion is authorized by this document.**
++
++## Method
++
++- `git fetch origin '+refs/heads/*'` + `git branch -r` → **27 remote refs: `main` + 26
++  `conflict_*`**. No `feature/*`, `phase/*`, `patch/*`, or `recovery/*` refs exist on the
++  remote at inventory time.
++- Per branch: full tip SHA / date / author / subject; `git merge-base origin/main <b>`;
++  `git rev-list --count origin/main..<b>`; root commit (`--max-parents=0`); `git ls-tree`
++  top level; stack fingerprint (`pnpm-workspace.yaml` vs `backend/requirements.txt`
++  FastAPI/Motor); content sampling of READMEs, servers, patches, plans, ledgers.
++- `git cherry origin/main conflict_070826_mc2 54534b0b…` re-run for patch-equivalence.
++
++## Re-verification of prior claims (all re-tested this session)
++
++| Prior claim | Verdict |
++|---|---|
++| 27 remote refs total; main + 26 conflict branches | **CONFIRMED** |
++| `conflict_110826_1322` created after Inventory V6 | **CONFIRMED** (tip 17:23:01 vs v6 commit 16:29:48) |
++| Inventory V6 stale / not current | **CONFIRMED** — this V7 supersedes it |
++| Only `conflict_070826_mc2` shares history with main | **CONFIRMED** (merge base `54534b0b2541d50a7ae1a1b64a18312482ea86dd`; every other branch: NONE) |
++| Its useful feature commit already patch-equivalent on main | **CONFIRMED** (`git cherry` marks `5f9992e75f0899ef646294ccc7c41b3bf3bc50af` with `-`) |
++| “24 branches are Comfort-Wiring family” (v6 wording) | **CORRECTED** — all 25 no-merge-base branches are FARM-stack Emergent workspace snapshots, but only 4 are Comfort-Wiring proper; 4 are ORIGINAL OnCall Foot FastAPI/Mongo history; 17 are agent work-transfer/audit workspaces (see classes below) |
++| Four oldest foreign branches possibly original OnCall Foot FastAPI/Mongo history | **CONFIRMED** (code-level: FastAPI provider portal “foot care” v0 and “Foot-Care Marketplace OS” Phase 2) |
++
++## Root lineages (5 independent histories among the 25 no-merge-base branches)
++
++| Root | Branches | Identity |
++|---|---|---|
++| `11c2276` (2026-07-25) | 310726_1942, 310726_2216 | **Original OnCall Foot FastAPI/MongoDB Provider Portal v0** — `backend/app/{core,db,models,repositories,routers}`, cookie-JWT auth + lockout, onboarding, services/bookings/earnings/invoices/reviews features, `auth_testing.md` |
++| `b720fae` | 010826_0008, 010826_0036 | **OnCall Foot “Foot-Care Marketplace OS” FastAPI Phase 2** — `opportunities.py`, `sms.py`, `storage_client.py`, marketplace pytest suites |
++| `d0aeb89` | 060826_2025, 080826_1307 | **Emergent work-transfer workspaces for OnCall Foot patches** — `external/foot` git submodule (gitlink `fa973a8`); root patch artifacts `phase1-mc1..mc4`, `seed-script-hygiene`, `baseline-test-drift` |
++| `66e9b96` | 16 branches (090826_0856 → 110826_0846) | **Agent continuation/audit workspaces** — phase-2 patch carriers (mc9, marketplace-events, notification feed), Phase 4B `plan.md`, `handoff/`, `repo_audit/`, `audit/`; ends in the Comfort-Wiring recovery workspace (`recovery/COMFORT_WIRING_PLAN.md`) |
++| `efbf7ec` (2026-08-11) | 110826_1112, 110826_1134, 110826_1322 | **Comfort-Wiring implementation workspaces** — FastAPI/Mongo backend, React frontend, `patches/` + INDEX.json, `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md`, CW ledger ENTRY-001..019 |
++
++## Full inventory (26 branches, newest tip first)
++
++Columns: merge base w/ main (NONE = no merge base exists) · U = unique commits vs main ·
++Action (vocabulary: KEEP MAIN / SAFE TO REVIEW / PATCH-EQUIVALENT ON MAIN / HISTORICAL
++ONLY / SEPARATE COMFORT-WIRING PROJECT / ORIGINAL ONCALL FOOT HISTORY / UNRELATED /
++UNKNOWN). All 25 no-merge-base tips carry subject “Auto-generated changes” by
++`emergent-agent-e1` (automated workspace snapshots).
++
++| # | Branch | Tip SHA (full) | Tip date (UTC) | Merge base | U | Action |
++|---|---|---|---|---|---|---|
++| 1 | conflict_110826_1322 | `93cf393e8ea6cb9549591477128a8554d5aaead1` | 2026-08-11 17:23 | NONE | 8 | SEPARATE COMFORT-WIRING PROJECT (canonical/newest CW state) |
++| 2 | conflict_110826_1134 | `0fa8ffc10c2ea009d734617108937feed796980e` | 2026-08-11 15:35 | NONE | 18 | SEPARATE COMFORT-WIRING PROJECT |
++| 3 | conflict_110826_1112 | `c687c8f8a23211173a549acd9a181ab446eac23e` | 2026-08-11 15:12 | NONE | 15 | SEPARATE COMFORT-WIRING PROJECT |
++| 4 | conflict_110826_0846 | `39965b0f5e61a142068417750ca0fbc1d1a02435` | 2026-08-11 12:47 | NONE | 12 | SEPARATE COMFORT-WIRING PROJECT (recovery plan lineage) |
++| 5 | conflict_100826_2258 | `12c88633121eb7ad137654eabdd1661b4f5cbf56` | 2026-08-11 02:58 | NONE | 8 | HISTORICAL ONLY (agent audit workspace) |
++| 6 | conflict_100826_2113 | `b9d27229a86d1ecf39b9f289251773eb88386e1a` | 2026-08-11 01:14 | NONE | 7 | HISTORICAL ONLY (agent workspace) |
++| 7 | conflict_100826_1941 | `9a752aec36c4abd5bf4bfa9760fdb9267392072e` | 2026-08-10 23:41 | NONE | 8 | HISTORICAL ONLY (agent workspace) |
++| 8 | conflict_100826_1738 | `1eefbfd37b3008e59b55b887d83634e16484fd76` | 2026-08-10 21:39 | NONE | 6 | HISTORICAL ONLY (agent workspace) |
++| 9 | conflict_100826_1543 | `9e9a3ee9ae0c56d67c6e8ffe527f7ea8c9b0321b` | 2026-08-10 19:44 | NONE | 3 | HISTORICAL ONLY (Session-063 recovery source; nested `foot/` dir) |
++| 10 | conflict_100826_1415 | `27a5ada26367158b9e79b7321e18fa5b4e5019d6` | 2026-08-10 18:15 | NONE | 8 | HISTORICAL ONLY (agent workspace) |
++| 11 | conflict_100826_1234 | `f9d0b7e9b60a6b45f640d14f5b60c31f2eacdd00` | 2026-08-10 16:34 | NONE | 21 | HISTORICAL ONLY (agent workspace) |
++| 12 | conflict_100826_0906 | `018e69bff9aca281ceed19f8be34a0e567e71422` | 2026-08-10 13:07 | NONE | 8 | HISTORICAL ONLY (agent workspace) |
++| 13 | conflict_100826_0813 | `8cc00284ad2dfb654374469e001ba3f39fe322a8` | 2026-08-10 12:14 | NONE | 5 | HISTORICAL ONLY (agent workspace) |
++| 14 | conflict_090826_2326 | `73bdad6ba0c354234d89670ce5bce22e0147e075` | 2026-08-10 03:26 | NONE | 9 | HISTORICAL ONLY (agent workspace) |
++| 15 | conflict_090826_2136 | `7f7cfaa54ec536eb59d1f6d3e497d2cdd02cfd33` | 2026-08-10 01:36 | NONE | 5 | HISTORICAL ONLY (Phase-4B local-slice workspace; that work landed on main as `b3937a7`) |
++| 16 | conflict_090826_1916 | `81014b03325101c20fe8d2fbc61a8d8f2b6df319` | 2026-08-09 23:16 | NONE | 13 | HISTORICAL ONLY (handoff bundle: HANDOFF-README, SHA256SUMS) |
++| 17 | conflict_090826_1718 | `c3589b1941f2f5993477a0b0c6eb9b23823d568d` | 2026-08-09 21:18 | NONE | 14 | HISTORICAL ONLY (OCF patch carrier: marketplace-events / notification-feed) |
++| 18 | conflict_090826_1405 | `60979dbfba25095085fe6b04dc32b5ec01896308` | 2026-08-09 18:05 | NONE | 12 | HISTORICAL ONLY (OCF patch carrier, same series) |
++| 19 | conflict_090826_0856 | `7110dc939810271908b5409b7cbb3c7b09342463` | 2026-08-09 12:56 | NONE | 10 | HISTORICAL ONLY (OCF patch carrier: `phase2-mc9-commit1..3`) |
++| 20 | conflict_080826_1307 | `305fd861353b846a32c6cce5daa9a054631bda1e` | 2026-08-08 17:08 | NONE | 21 | HISTORICAL ONLY (OCF patch carrier: `phase1-mc1..4` + hygiene patches; `external/foot` submodule) |
++| 21 | conflict_070826_mc2 | `bed2e069107df40312e806536c6fb462e8f402bc` | 2026-08-08 13:28 (author sbtheg17-market, “update to patch”) | `54534b0b2541d50a7ae1a1b64a18312482ea86dd` | 5 | PATCH-EQUIVALENT ON MAIN (superseded; optional docs-only salvage `docs/phase1-mc2-handoff.md`) |
++| 22 | conflict_060826_2025 | `058cf6ecb01cc6bc02c0f9982115be96851b6006` | 2026-08-07 00:26 | NONE | 6 | HISTORICAL ONLY (OCF work-transfer workspace; `external/foot` submodule) |
++| 23 | conflict_010826_0036 | `0c7bd7bde12738ead7f5bfebf2cb080afb3e9be2` | 2026-08-01 04:36 | NONE | 11 | ORIGINAL ONCALL FOOT HISTORY (FastAPI “Marketplace OS” Phase 2) |
++| 24 | conflict_010826_0008 | `a5638c55c4e182db98413eed4e1319b573776fd6` | 2026-08-01 04:09 | NONE | 9 | ORIGINAL ONCALL FOOT HISTORY (FastAPI Phase 2) |
++| 25 | conflict_310726_2216 | `5e852632731b3d14a21544bd087cfbb90e4e644d` | 2026-08-01 02:17 | NONE | 14 | ORIGINAL ONCALL FOOT HISTORY (FastAPI Provider Portal v0) |
++| 26 | conflict_310726_1942 | `ffe8515962a6f617b183dab3adb1059905109ee2` | 2026-07-31 23:43 | NONE | 12 | ORIGINAL ONCALL FOOT HISTORY (FastAPI Provider Portal v0) |
++| — | main | `b20087d13eb77ad3da0b60efc88d4e768f68134d` | 2026-08-11 16:29 | — | — | KEEP MAIN (only canonical source of truth) |
++
++## Per-branch detail (tree · stack · identity · portal relevance · uniqueness · on-main?)
++
++**#1 conflict_110826_1322** — top level: `.agents/ backend/ frontend/ docs/ patches/ memory/ tests/ test_reports/ backend_test.py yarn.lock`; stack FastAPI+Motor/Mongo + React (yarn); identity: Comfort-Wiring cycle-2 workspace. Portal relevance: reference for future client comfort/consent (Phase 4C port). **Unique content not on main:** `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` (the artifact Sessions 065/066 recorded as absent), 11 patches + signed `patches/INDEX.json` (5 pending operator review: AUTH_provider-signin, AUTH_bypass-removal, C4, C5, C6), CW ledger ENTRY-001..019 (27/27 tests), prior Neo marketplace report (`memory/`). Already on main: NO (and must never be merged). Action: SEPARATE COMFORT-WIRING PROJECT — export/preserve; port stack-natively under approval.
++
++**#2 conflict_110826_1134 / #3 conflict_110826_1112** — same layout minus the newest work (1134 = cycle-2 start with provider auth; 1112 = cycle 1). Strict ancestors-in-content of #1; everything of value is superseded by #1. Action: SEPARATE COMFORT-WIRING PROJECT (export with #1; #1 is canonical).
++
++**#4 conflict_110826_0846** — `recovery/` bundle: `COMFORT_WIRING_PLAN.md` v1.1 + review, `GATE_B_RUNBOOK.md`, decision protocol, acceptance records, phase4c_r3 candidate manifests + checksums; minimal FastAPI template backend. Identity: definitive Comfort-Wiring recovery/planning workspace. Unique: recovery/acceptance records not present elsewhere. On main: NO. Action: SEPARATE COMFORT-WIRING PROJECT (export).
++
++**#5–#16 (66e9b96 lineage, non-CW)** — standard Emergent FARM template (`backend/ frontend/ memory/ tests/`) plus variously: `audit/`, `handoff/`, `repo_audit/`, `plan.md` (Phase 4B, #15), HANDOFF-README + SHA256SUMS (#16), nested `foot/` (#9). Identity: agent continuation/audit workspaces operating ON OnCall Foot remotely. Portal relevance: none directly; forensic provenance of published main work. Unique functionality: none proven — patch artifacts correspond to work already published on main (Phase 4B slice → `b3937a7`; audits → Session ledger). On main: the underlying OCF work IS on main; the workspace wrappers are not needed. Action: HISTORICAL ONLY.
++
++**#17–#19 (phase-2 patch carriers)** — FARM template + root `.patch` artifacts (`phase2-mc9-commit1..3`, marketplace-events, notification-feed). The corresponding OCF features are published on main (MC9 14/14; events Phases 1–3; MC10 feed). Action: HISTORICAL ONLY.
++
++**#20 / #22 (d0aeb89 lineage)** — FARM template + `external/foot` **git submodule** (gitlink `fa973a85e81af856d870026f15e13602d04bf07b`) + root patch artifacts `phase1-mc1..mc4`, `seed-script-hygiene`, `baseline-test-drift` (#20). The MC1–MC4 application lifecycle is published on main (8/8, 11/11, 9/9, 23/23 suites). Action: HISTORICAL ONLY.
++
++**#21 conflict_070826_mc2** — the ONLY real foot lineage (pnpm/artifacts/lib layout; 114 total commits; merge base `54534b0b…`; 46 behind main). `git cherry` (re-run this session): `5f9992e` (provider application status API) = **patch-equivalent on main**; `27654e3`, `f6df78e`, `bce9735`, `bed2e06` = patch artifacts (`attached_assets/*.patch`) + handoff notes only. Unique salvageable: `docs/phase1-mc2-handoff.md` (47 lines, docs-only — recover via fresh commit, never cherry-pick). Action: PATCH-EQUIVALENT ON MAIN.
++
++**#23–#26 (FastAPI-era OnCall Foot)** — #25/#26: `backend/app/` modular FastAPI (core/db/models/repositories/routers), Mongo via Motor, cookie-JWT + brute-force lockout, provider onboarding/services/bookings/earnings/invoices/reviews React features, `auth_testing.md`, design_guidelines. #23/#24: `server.py` “Foot-Care Marketplace OS” + `opportunities.py`, `sms.py`, `storage_client.py`, marketplace/phase-2 pytest suites. Identity: the pre-rebuild OnCall Foot implementation the PRD stack-note describes. Portal relevance: provider portal v0 concepts — all re-implemented (better) on main’s TS stack. Unique functionality on main: none required; concepts superseded. Action: ORIGINAL ONCALL FOOT HISTORY (preserve as reference; never merge — different stack, no shared history).
++
++## Standing conclusions
++
++1. **Nothing on any conflict branch is mergeable into `main`.** 25 branches: no merge
++   base. 1 branch: superseded, cherry-verified.
++2. **No unique unrecovered OnCall Foot application code exists on any conflict branch.**
++   The only unique artifacts are documentation/reference: the CW project state (#1–#4,
++   canonical #1) and `docs/phase1-mc2-handoff.md` (#21).
++3. **Cleanup remains unauthorized.** Any future cleanup must be re-authorized against
++   THIS 26-branch inventory, and Comfort-Wiring branches must be exported to their own
++   repository/archive first (newest-richest order: #1, #2, #3, #4).
++4. Comfort-Wiring functionality reaches OnCall Foot ONLY via a stack-native port
++   (see `docs/roadmap/NEO_EAGLE_VIEW.md` §4, §7 Priority 3).
+diff --git a/docs/roadmap/NEO_EAGLE_VIEW.md b/docs/roadmap/NEO_EAGLE_VIEW.md
+new file mode 100644
+index 0000000..1d84def
+--- /dev/null
++++ b/docs/roadmap/NEO_EAGLE_VIEW.md
+@@ -0,0 +1,240 @@
++# NEO EAGLE VIEW — OnCall Foot Permanent Source of Truth
++
++**Location:** `docs/roadmap/NEO_EAGLE_VIEW.md` (canonical copy = the one on `origin/main`)
++**First published:** 2026-08-11 (Session 068)
++**Purpose:** Make the complete OnCall Foot marketplace vision permanently visible to every
++future Neo, Replit, Fable, and coding agent, regardless of which branch or workspace is
++opened. Read this file from `origin/main` BEFORE inspecting or changing any branch.
++
++Status vocabulary used everywhere in this document (exactly one per capability):
++`COMPLETE` · `PARTIAL` · `SCAFFOLDED` · `DESIGN ONLY` · `BLOCKED` · `NOT STARTED` ·
++`SEPARATE PROJECT` · `UNKNOWN`
++
++> No capability may be marked COMPLETE because a summary says so. COMPLETE requires code,
++> route, test, or deployment evidence in this repository. Statuses below were verified
++> against the code surface of `origin/main` `b20087d13eb77ad3da0b60efc88d4e768f68134d`
++> (2026-08-11). When you change reality, update this file in the same reviewed commit.
++
++---
++
++## 1. Product vision
++
++OnCall Foot — *“The right care. At your door. Right now.”* — is a **three-portal
++marketplace**, not a booking site and not a solo scheduling tool:
++
++1. **Provider Portal** — a mobile business OS: services, availability, travel, bookings,
++   clients, trust status, earnings.
++2. **Client Portal** — trusted discovery and easy in-home booking with lifecycle visibility.
++3. **Admin / Operations Portal** — trust, verification, moderation, oversight, and future
++   monetization.
++
++One shared lifecycle underneath all three:
++`provider joins → verified → publishes services + availability + coverage → client
++discovers → requests booking → provider confirms/completes → invoice → review → admin
++observes, moderates, monetizes`.
++
++**Comfort-Wiring is a separate reference project** (FastAPI/MongoDB consent-first comfort
++profile). It must NEVER be merged directly into OnCall Foot — see §5 and the branch
++inventory. Its behavior arrives only via a stack-native port.
++
++Canonical stack: pnpm workspace · Node 24 · Express 5 · TypeScript 5.9 · PostgreSQL +
++Drizzle · OpenAPI 3.1 + Orval codegen · React 19 + Vite · Expo. Monetary values are
++always integer cents. Booking transitions are strict (`docs/booking-statuses.md`).
++
++---
++
++## 2. Provider Portal — capability status (evidence-based)
++
++| Capability | Status | Evidence (routes / pages / tests / ledger) |
++|---|---|---|
++| Provider signup | COMPLETE | `POST /api/auth/register` with additive `roleIntent` (transactional provider membership + profile + application); `pages/register.tsx`; `/register`→`/signup` redirect |
++| Provider signin | COMPLETE | `POST /api/auth/login`; server-confirmed role-aware redirects; `pages/login.tsx` |
++| Provider logout | COMPLETE | `POST /api/auth/logout` + shared logout mutation, token removal, login redirect (failed-logout cleanup edge documented, unimplemented — B-prime caveat) |
++| Provider sessions | COMPLETE | JWT HS256 bearer; `requireAuth` re-validates the user against PostgreSQL each request |
++| Provider RBAC | COMPLETE | DB-backed `account_roles`; `requireRole`; approved-provider gate = application AND verification both approved |
++| Onboarding | COMPLETE | `pages/onboarding/provider.tsx` (+ Expo `app/onboarding/provider.tsx`); client “Become a provider” entry point |
++| Application lifecycle | COMPLETE | draft→submit→review→approve/reject→reset→resubmit; `POST /providers/application/reset`; suites: provider-application 8/8, resubmission 11/11, onboarding 23/23 |
++| Application status API | COMPLETE | `GET /providers/application/status` (server-derived `nextAction`, `canEdit/canReset/canResubmit`); 9/9 |
++| Application history | COMPLETE | `GET /providers/application/submissions` keyset-paginated; web + mobile `SubmissionHistoryTimeline`; 11/11 |
++| Provider profile | COMPLETE | `pages/portal/profile.tsx`, `portal/credentials.tsx`; public profile parity web+mobile |
++| Verification status | COMPLETE | `verificationStatus` gates public discoverability (unapproved providers’ services never publicly listed — regression-tested) |
++| Submit-for-review workflow | COMPLETE | application submit + admin reviewer decisions (14/14) |
++| Profile completion | COMPLETE | trust checklist + completion progress; readiness checklist C1–C7 |
++| Services CRUD | COMPLETE | `pages/portal/services.tsx`; list/create/edit/soft-delete |
++| Service price | COMPLETE | `price_cents` integer (schema `services.ts`) |
++| Service duration | COMPLETE | `duration_minutes` (schema) |
++| Service description | COMPLETE | `description` (schema) |
++| Service category | PARTIAL | `category` text column exists (default `foot_care`); no admin-managed taxonomy |
++| Active/inactive services | COMPLETE | `is_active` toggle |
++| Availability grid | COMPLETE | weekly grid, `pages/portal/availability.tsx` |
++| 9–5 weekday preset | COMPLETE | `applyWeekdayPreset`; test:availability 3/3 |
++| Travel zones | COMPLETE | `pages/portal/travel-zones.tsx`; list/add/remove (no update endpoint, by contract) |
++| Bookings inbox | COMPLETE | `pages/portal/bookings.tsx`; status-chip filters + counts |
++| Booking filters | COMPLETE | Session 018 checkpoint (commit `9730a7f` era); tested |
++| Booking state machine | COMPLETE | `lib/booking-state-machine.ts`; 63 unit + 16 concurrency + 13 pressure tests; strict matrix; admin override only |
++| — statuses | COMPLETE | `requested`, `confirmed`, `completed`, `cancelled`, `rescheduled`, `no_show` (“pending/accepted” map to requested/confirmed) |
++| — no-show | PARTIAL | transition exists + tested; dedicated UI affordance UNKNOWN (not evidenced in page inventory) |
++| Today timeline | COMPLETE | today section in provider bookings |
++| Tap-to-call | COMPLETE | `tel:` links on booking detail |
++| Tap-to-map | COMPLETE | map links on booking detail |
++| Private care notes | COMPLETE | `careNotes` never rendered to clients (privacy regression-tested) |
++| Earnings | COMPLETE | `pages/portal/earnings.tsx`; derived from completed bookings only (today/week/month) |
++| Printable statements | COMPLETE | `pages/portal/earnings-statement.tsx` (print-to-PDF) |
++| Invoices | COMPLETE (records) | auto-created on confirm; `GET /invoices`, `GET /invoices/:id`; `pending→paid` reserved for future payments |
++| Notification feed | COMPLETE (web) | `pages/portal/notifications.tsx` on MC8-lite APIs; 12/12 |
++| Unread badge | COMPLETE (web) | ProviderLayout “Alerts” badge, 99+ cap, hidden at 0 |
++| Readiness checklist | COMPLETE | `GET /providers/me/readiness` C1–C7; `pages/portal/readiness.tsx` + dashboard card + nav badge; 14/14 |
++| Mobile parity (Expo) | PARTIAL | discover/bookings/account/provider/auth/onboarding/application-status present; mobile notification feed GATED, not started |
++| Future payouts | DESIGN ONLY | `docs/future-monetization.md` |
++| Future monetization | DESIGN ONLY | commissions/subscriptions/featured slots named only |
++
++## 3. Client Portal — capability status (evidence-based)
++
++| Capability | Status | Evidence |
++|---|---|---|
++| Client signup | COMPLETE | shared `/signup`; `POST /api/auth/register` |
++| Role intent | COMPLETE | additive `roleIntent` — an onboarding request, NEVER an authorization claim |
++| Client signin | COMPLETE | `POST /api/auth/login` |
++| Client logout | COMPLETE | shared logout path |
++| Client sessions | COMPLETE | JWT bearer + DB re-validation |
++| Client RBAC | COMPLETE | client-only booking access enforced; providers/admins directed away |
++| Client profile | PARTIAL | account basics exist; no client settings surface |
++| Discovery | COMPLETE (core) | public `GET /providers`; `pages/discover.tsx`; browsable without an account; verified-only surfacing |
++| Provider search | PARTIAL | browse + basics; no geo-distance sort/filter yet |
++| Provider profile (public) | COMPLETE | `pages/provider-profile.tsx`; `GET /providers/:id` |
++| Provider services (public) | COMPLETE | `GET /providers/:id/services` (gated on approved verification) |
++| Service categories | PARTIAL | category field surfaces; no taxonomy UX |
++| Verification indicators | COMPLETE | verified-only discovery + trust display |
++| Booking request | COMPLETE | `POST /bookings`; unauthenticated → sign-in routing |
++| Booking status | COMPLETE | server-owned status labels; refresh on mount/focus/reconnect |
++| Booking history | COMPLETE (bounded) | `GET /bookings/history` client-safe bounded (test:care-history) |
++| Cancellation | PARTIAL | cancel works; **cancellation confirmation + duplicate-submit protection are the queued next slice (Priority 2)** |
++| Duplicate-submit protection | NOT STARTED | queued in Priority 2 |
++| Rescheduling | PARTIAL | `rescheduled` exists in the state machine + transitions tested; no client UI |
++| Completed bookings | COMPLETE | history separation upcoming/past/cancelled |
++| Reviews | PARTIAL | backend COMPLETE (`POST/GET /reviews`, completed-booking + one-per-booking validation, green); client review UI NOT STARTED (queued) |
++| One-review-per-completed-booking rule | COMPLETE (API) | duplicate races return safe conflicts (review.integration) |
++| Notifications (client-facing) | SCAFFOLDED | SSE + push infra exists; no client feed |
++| Account deletion | NOT STARTED | no route/UI |
++| Support | NOT STARTED | `support.ts` schema exists (SCAFFOLDED at DB layer); no routes/UI |
++
++## 4. Client comfort & consent — planned stack-native capability
++
++Status on OnCall Foot main: **NOT STARTED (DESIGN ONLY)** — Phase 4C has a standing
++contract-only approval; implementation is gated (own scope approval + Gate B).
++The recovered Comfort-Wiring contract V3 (+V3.1 history addendum) and its working
++FastAPI/Mongo implementation are preserved on `conflict_110826_1322` — **reference
++material only**.
++
++Binding product rules for the eventual port:
++
++| Rule | Requirement |
++|---|---|
++| Optional comfort profile | client-owned, entirely optional |
++| Consent-first collection | nothing stored without explicit consent |
++| Versioned consent | append-only, versioned (+hashed) consent rows |
++| Grant consent | explicit action; scoped at grant time |
++| Withdraw consent | separate action; **withdraw hides, never deletes** |
++| Delete profile | separate explicit operation from withdraw |
++| Per-category visibility | client picks exactly which categories are shared (notes OFF by default) |
++| Consent history | owner-scoped, append-only timeline of every grant/withdrawal |
++| Booking-only provider projection | provider sees a filtered projection ONLY with an eligible (active-booking) relationship |
++| Projection eligibility | server-derived; **404-only** semantics — no 403 path ever |
++| No discovery exposure | preference data never appears in discovery |
++| No search exposure | never indexed/searchable |
++| No access without relationship | no eligible relationship → 404, indistinguishable from absence |
++| Language | no medical or diagnostic language; no “medically suitable” claims |
++
++Port target: PostgreSQL + Drizzle (additive models), Express + TypeScript routes with the
++exact status-code semantics (grant 201/400, PUT 409-on-inactive-consent, withdraw/delete
++separate each 404-capable, projection 404-only), existing OnCall Foot auth/RBAC,
++React/Vite UI, `node:test` suites. **Do not apply FastAPI/Mongo patches directly.**
++
++## 5. Admin / Operations Portal — implemented vs roadmap
++
++**Actually implemented (evidence):**
++
++| Capability | Status | Evidence |
++|---|---|---|
++| Admin signin | COMPLETE | shared auth; demo admin seeded |
++| Admin RBAC | COMPLETE | `requireRole("admin")` DB-backed |
++| Provider verification queue | COMPLETE | `GET /api/admin/verification/queue` + `PATCH /api/admin/verification/docs/:docId`; `pages/admin/verification.tsx` |
++| Reviewer decisions | COMPLETE | `POST /api/admin/provider-applications/:id/approve\|reject`; transactional notifications; self-review prevention; 14/14 |
++| Provider approval/rejection | COMPLETE | same endpoints; application state machine |
++
++**Roadmap only — do NOT mark implemented:**
++
++| Capability | Status |
++|---|---|
++| Provider suspension | NOT STARTED |
++| Client management | NOT STARTED |
++| Booking oversight | NOT STARTED (admin override exists in the state machine only) |
++| Disputes | NOT STARTED |
++| Support (admin side) | NOT STARTED (DB schema SCAFFOLDED) |
++| Taxonomy / categories mgmt | NOT STARTED |
++| Commissions | DESIGN ONLY |
++| Payouts | DESIGN ONLY |
++| Subscriptions | DESIGN ONLY |
++| Invoices (admin view) | NOT STARTED |
++| Analytics | PARTIAL substrate (`marketplace_events` Phases 1–3, 12/12) — reporting BLOCKED (Gate B); dashboards NOT STARTED |
++| Audit logs | PARTIAL substrate (append-only `marketplace_events`); no UI |
++| Operations dashboards | NOT STARTED |
++
++---
++
++## 6. Branch & conflict handling (permanent rules)
++
++Current inventory: **`docs/roadmap/BRANCH_INVENTORY_V7.md`** (26 conflict branches,
++supersedes `docs/conflict-branch-inventory-2026-08-11.md` v6).
++
++A merge is NEVER allowed merely because a branch is newer, has a later timestamp in its
++name, contains a useful feature, was called “approved” by an agent, or carries a passing
++test report. Before ANY integration verify: project identity, stack identity, merge base,
++parent commit, files changed, test evidence, roadmap relevance, and whether the
++functionality already exists on main.
++
++For no-merge-base branches: do not merge; do not cherry-pick blindly; do not copy whole
++trees; classify and preserve as reference; port only specific behavior in a new
++stack-native task.
++
++## 7. Current roadmap priorities (recorded 2026-08-11, Session 068)
++
++**Priority 1 — Gate B clearance.** Verify the managed PostgreSQL environment and required
++`DATABASE_URL`. Managed database ONLY — never substitute local PostgreSQL, never fabricate
++a PASS. If `DATABASE_URL` is unavailable, Gate B is **BLOCKED**; record exactly which
++checks ran and which did not. No migrations or production event writes activate before
++Gate B clears. (Status now: **BLOCKED/UNVERIFIED** — no managed `DATABASE_URL` has ever
++been verified.)
++
++**Priority 2 — Client booking lifecycle completion.** Cancellation confirmation,
++duplicate-submit protection, one-review-per-completed-booking UI, existing API reuse,
++client booking-history update, notification behavior, tests for repeat submissions and
++invalid states. This is the next product feature slice after Gate B (or while Gate B
++access is being arranged).
++
++**Priority 3 — Phase 4C stack-native port PLAN (plan only, no implementation).** Define:
++Drizzle schema additions, Express routes, authorization boundaries, consent status model,
++visibility model, provider projection conditions, exact status codes, test strategy,
++React/Vite UI changes, one-task → one-commit → one-patch sequence. Cite the recovered
++Comfort-Wiring contract as reference; never apply its FastAPI/Mongo code.
++
++**Priority 4 — Inventory V7 governance + branch export.** Inventory V7 must be published
++before any branch cleanup. Comfort-Wiring branches must be exported to a separate
++repository/archive before cleanup is even considered. **No branch deletion is authorized
++by this document.**
++
++## 8. Future agent logic flow (mandatory, every session)
++
++1. Identify the repository. 2. Fetch origin. 3. Verify `origin/main` (full SHA + date).
++4. Read `AGENTS.md`. 5. Read `docs/roadmap/NEO_EAGLE_VIEW.md`. 6. Read
++`.agents/AGENT-RULES.md`. 7. Read `.agents/SETUP.md`. 8. Read `.agents/NEXT_TASK.md`.
++9. Read recent `.agents/LOG.md` entries. 10. Identify the portal affected. 11. Identify
++the layer affected. 12. Identify the project and stack. 13. Classify the current branch.
++14. Check the merge-base relationship. 15. Search for existing implementation. 16. Check
++whether the task is already complete. 17. Check whether the requested behavior is
++roadmap-approved. 18. Produce a task plan. 19. Implement only ONE scoped task. 20. Run
++targeted tests. 21. Run typecheck/build. 22. Create one commit. 23. Create one patch.
++24. Update `.agents/LOG.md`. 25. Update `.agents/NEXT_TASK.md`. 26. Update the patch
++index/records. 27. Leave the worktree clean. 28. Push only the correct feature branch.
++29. Use a pull request / reviewed fast-forward for `main`. 30. Never force-push or
++rewrite history.
+-- 
+2.39.5
+
