@@ -63,6 +63,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
 | Publication review-gate UI-approval flag | ✅ PUBLISHED at `47df77e` | `scripts/verify-publication.sh` check 5 split into two tiers: hard-forbidden paths (`.emergent/`, lockfiles, `lib/db/src/schema/`, generated clients, `artifacts/mobile/`, `attached_assets/`, `.patch`/`.bundle`) are never overridable; `artifacts/web/**` alone may be explicitly authorized for a reviewed UI publication via `--approve-web-ui "<approver>: <reason>"`, with the approval text and each authorized web file printed as the audit record. All other checks (parent identity, fast-forward-only ancestry, single non-merge commit, allow-list scope, tree identity, patch checksum, session numbering, wording) are unchanged. Functionally re-verified from the published tree in Session 061. |
 | GitHub sync | ✅ Synchronized (read-only takeover baseline) | New-account takeover verified `origin/main` = `3e76114` (Session 062 live; tree `bc67dd6…`) via anonymous read-only clone; full ref inventory (18 `conflict_*` snapshots) and `.agents` checksums recorded in the local takeover packet. This workspace holds NO GitHub credential and never pushes; Session 063 exists as a local traceability commit with a recorded patch checksum, handed off for separately approved publication. |
+| Neo handoff scope | ✅ Mismatch documented; implementation stopped | This workspace is the OnCall Foot `sbtheg17-market/foot` Node/PostgreSQL monorepo at `d2ad54c`; the uploaded Neo report targets a separate Comfort-Wiring FARM/FastAPI/MongoDB repository whose recovery artifacts are absent. See `docs/neo-handoff-scope.md`. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
 
@@ -2225,6 +2226,30 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Build state at end:** Local `HEAD` and `origin/main` are synchronized at the provider-readiness checkpoint; working tree is clean after the log update is published.
 
 **Next best action:** If approved, add provider-facing readiness progress presentation in the existing web and mobile provider surfaces; the published Phase 2 patch intentionally contains no UI.
+
+---
+
+### Session 064 — 2026-08-11
+**Agent:** Replit Main Agent
+**Scope:** `XS`
+**Triggered by:** User supplied a Neo Entry Report for a different project and approved documenting the mismatch while leaving OnCall Foot unchanged.
+
+**What was done:**
+- Read the uploaded mismatch response and the referenced Neo Entry Report from this workspace.
+- Verified the repository target as `sbtheg17-market/foot`, branch `main`, synchronized at `d2ad54c`.
+- Confirmed this workspace is the OnCall Foot pnpm/Node/PostgreSQL monorepo, not the reported Comfort-Wiring FARM/FastAPI/MongoDB repository.
+- Confirmed the reported Comfort-Wiring recovery artifacts are absent from this workspace.
+- Added `docs/neo-handoff-scope.md` with the target identity, mismatch evidence, explicit allowed/forbidden actions, and the required next handoff input.
+- Made no application, schema, generated-client, dependency, workflow, or database changes.
+
+**Files changed:**
+- `docs/neo-handoff-scope.md`
+- `.agents/LOG.md`
+- `.agents/NEXT_TASK.md`
+
+**Build state at end:** OnCall Foot application code and runtime configuration are unchanged. No tests or workflows were run because this was an intentional documentation-only mismatch record. The actual checkout was synchronized with `origin/main` before the documentation edit.
+
+**Next best action:** For Comfort-Wiring work, provide its actual repository URL, archive, or complete recovery artifact set in a separately scoped handoff. Until then, do not reconstruct Comfort-Wiring inside OnCall Foot; resume only an explicitly approved OnCall Foot task.
 
 ---
 

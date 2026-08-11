@@ -1,5 +1,18 @@
 # Next product task — Web notification feed PUBLISHED (`a98e1a3`); Provider Activation & First Booking Conversion IN PROGRESS (Phases 1–3 done; Phase 3 PUBLISHED at `cf689b5`); Mobile feed sequenced after
 
+## Handoff scope notice — 2026-08-11
+
+This workspace is the OnCall Foot repository (`sbtheg17-market/foot`), not the
+Comfort-Wiring FARM/FastAPI/MongoDB repository described by the uploaded Neo
+Entry Report. The referenced Comfort-Wiring recovery artifacts are absent here.
+That mismatch is documented in [`docs/neo-handoff-scope.md`](neo-handoff-scope.md).
+
+Do not reconstruct Comfort-Wiring, merge unrelated `conflict_*` branches, or
+change OnCall Foot code in response to that report. A future Comfort-Wiring
+handoff must provide its actual repository URL, archive, or complete recovery
+bundle and name that repository as the target. Until then, continue only with a
+separately approved OnCall Foot task.
+
 ## Current state — Session 063 (2026-08-10, takeover workspace)
 
 - **Baseline:** canonical `origin/main` = `3e76114` (verified anonymous clone; tree `bc67dd6…`).
