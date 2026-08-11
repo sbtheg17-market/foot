@@ -85,7 +85,7 @@ export default function SignIn() {
           <div className="inline-flex w-full rounded-lg border border-slate-200 bg-slate-50 p-1">
             {[
               ["login", "Sign in"],
-              ["register", "Create account"],
+              ["register", "New account"],
             ].map(([value, label]) => (
               <button
                 key={value}

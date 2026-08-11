@@ -1,0 +1,80 @@
+{
+  "summary": "Completed comprehensive testing of Comfort Wiring Neo cycle 2 features: consent history, scoped grants, provider auth, and projection filtering. Backend APIs fully functional (27/27 node tests pass, 23/23 Python tests pass). Frontend mostly functional with one minor issue in patient registration form.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "SignIn.jsx (Patient registration)",
+        "issue": "Patient registration form does not redirect to /portal after successful account creation. Form submission appears to complete (fields are filled, button is clicked) but page remains on /signin. Provider registration works correctly with identical pattern.",
+        "selector": "button:has-text('Create account')",
+        "fix_priority": "MEDIUM",
+        "workaround": "Patient registration API works correctly (returns 201 with token). Issue is frontend-only. Provider registration form works correctly, suggesting issue is specific to patient signin component or routing."
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Backend: GET /api/comfort-profile/consent/history - 401 without auth, 200 with Bearer token",
+    "Backend: Consent history returns hash-consistent consentText (sha256 verification)",
+    "Backend: Consent history returns consentTextVersion='1'",
+    "Backend: POST /api/comfort-profile/consent with partial scope ['temperature','noise'] - 201",
+    "Backend: Consent history records scope, consentVersion, consentTextHash, purpose",
+    "Backend: Grant then withdraw - history newest-first [WITHDRAWN, ACTIVE]",
+    "Backend: Profile data preserved after withdraw",
+    "Backend: POST /api/auth/provider/register - 201",
+    "Backend: POST /api/auth/provider/login - 200",
+    "Backend: GET /api/auth/provider/me with patient token - 401 (role enforcement)",
+    "Backend: GET /api/provider/comfort-projection/{patientId} with provider Bearer - 200",
+    "Backend: Provider projection returns 404 for non-existent patient (404-only semantics, never 403)",
+    "Backend: Notes excluded from projection when not in granted scope",
+    "Backend: Hardened logout - always 200",
+    "Frontend: Patient portal loads with consent lock state",
+    "Frontend: Scope picker visible with 4 categories",
+    "Frontend: Notes is OFF by default (aria-checked=false)",
+    "Frontend: 'off by default' label present for notes",
+    "Frontend: Consent statement visible",
+    "Frontend: Grant consent button enabled when categories selected",
+    "Frontend: Editor unlocks after consent granted",
+    "Frontend: Sharing chips show granted categories (3 chips: temperature, lighting, noise)",
+    "Frontend: Consent history card visible",
+    "Frontend: Consent history item shows 'Consent granted' with version line (v1 · sha256 hash · purpose)",
+    "Frontend: Save preferences (temperature Warm + notes)",
+    "Frontend: Withdraw consent returns to lock state",
+    "Frontend: Consent history shows 2 items after withdraw (newest first: WITHDRAWN on top)",
+    "Frontend: Re-grant consent unlocks editor",
+    "Frontend: Data preserved after withdraw (temperature still Warm)",
+    "Frontend: Provider portal - registration works",
+    "Frontend: Provider portal - authentication works",
+    "Frontend: Provider portal - patient ID lookup works",
+    "Frontend: Provider portal - 'No comfort preferences are shared' message for non-existent patient",
+    "Frontend: Provider portal - sign out works with notice",
+    "Frontend: /patches page - 11 patches listed",
+    "Frontend: /patches page - filter chips (All=11, Production-safe=4, Caveat=1, Pending=5, Recorded=1)",
+    "Frontend: /patches page - Caveat filter shows 1 patch with amber badge",
+    "Frontend: /patches page - Pending filter shows 5 patches",
+    "Frontend: /patches page - file toggle expands file list",
+    "Frontend: /phase-4c/shell-preview renders without errors",
+    "Cross-check: Provider projection end-to-end - patient grants scope WITHOUT notes, saves temperature Warm + private note; provider sees ONLY temperature, notes excluded from projection"
+  ],
+  "test_report_links": [
+    "/app/backend_test.py",
+    "/app/tests/consent-history.api.test.mjs",
+    "/app/tests/comfort-profile.api.test.mjs",
+    "/app/tests/auth.api.test.mjs",
+    "/app/tests/provider-auth.api.test.mjs"
+  ],
+  "success_percentage": {
+    "backend": "100% (27/27 node tests + 23/23 Python tests)",
+    "frontend": "95% (40/41 tests - 1 minor UI issue in patient registration form)"
+  },
+  "updated_files": [
+    "/app/backend_test.py"
+  ],
+  "action_item_for_main_agent": "Fix patient registration form redirect issue in /app/frontend/src/pages/SignIn.jsx. The form submission completes successfully (API returns 201 with token) but the page does not redirect to /portal. Provider registration works correctly with identical pattern, suggesting the issue is specific to the patient signin flow. Check: (1) form submission handler, (2) navigation logic after setToken(), (3) any console errors during form submission.",
+  "should_call_test_agent_after_fix": "false",
+  "should_main_agent_test_itself": "true"
+}
