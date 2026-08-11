@@ -1,0 +1,54 @@
+{
+  "package": "phase4c-nonschema-prep candidate r3 — sbtheg17-market/foot",
+  "generated_utc": "2026-08-11T05:00:00Z",
+  "status": "LOCAL_ONLY_UNPUBLISHED",
+  "publication_window_opened": false,
+  "applied_remotely": false,
+  "credentials_used": 0,
+  "candidate": {
+    "key": "phase4c_prep_r3",
+    "title": "Phase 4C non-schema preparation (r3 re-derivation)",
+    "branch_local_only": "candidate/phase4c-nonschema-prep-r3",
+    "commit": "d9195dfab83a211dd2d79e7836348693a9748bc8",
+    "parent": "d2ad54cd8e450fcc3bf8fab28aed257d67e73b42",
+    "tree": "2b1a3f7d7141b3afdfc8e016fbf6083dd47b8a93",
+    "patch": "phase4c-nonschema-prep-r3.patch",
+    "patch_sha256": "computed in CHECKSUMS.sha256",
+    "source_material": {
+      "recovered_patch": "candidates/phase4c-nonschema-prep-r2.patch",
+      "recovered_patch_sha256": "db0717024ac609367a5edd69cc6467ba2b24743333012cb82cf754c8e536e66c",
+      "historical_r2_commit_absent_and_unclaimed": "396040ea3e6921eaee7555609269dae3dd201412"
+    },
+    "scope": [
+      "docs/comfort-profile/openapi.draft.yaml (x-status: draft)",
+      "docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md",
+      "docs/comfort-profile/WIRING_NOTES.md",
+      "artifacts/api-server/src/contracts/comfort-profile.contract.ts",
+      "artifacts/api-server/src/__tests__/fixtures/comfort-profile.fixtures.ts",
+      "artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts",
+      "artifacts/api-server/package.json (test:comfort-contract script only)",
+      "artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx (UNWIRED)",
+      "artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx (UNWIRED)"
+    ],
+    "explicitly_excluded": [
+      "DB schema", "migrations", "storage wiring", "routing changes",
+      "generated clients/codegen", "event emission", "economics",
+      "pnpm-lock.yaml changes"
+    ],
+    "validation": {
+      "frozen_install": "PASS (pnpm 10.18.3, node v20.20.2, lockfile byte-identical)",
+      "contract_tests": "PASS 38/38 (also ledger AC-004)",
+      "workspace_typecheck": "PASS",
+      "web_production_build": "PASS",
+      "secret_scan": "CLEAN",
+      "evidence": [
+        "evidence/P4R3-PNPM_INSTALL_2026-08-11.log",
+        "evidence/P4R3-COMFORT_CONTRACT_TEST_2026-08-11.log",
+        "evidence/P4R3-TYPECHECK_2026-08-11.log",
+        "evidence/P4R3-WEB_BUILD_2026-08-11.log"
+      ]
+    }
+  },
+  "ledger": "/app/recovery/ledger/LEDGER.jsonl (append-only, redacted)",
+  "notes": "Evidence logs are NEW (2026-08-11), clearly labeled; they close no missing historical manifest entry. Publication requires the separate readiness checklist, named approval, and a bounded repository-scoped credential — none created here."
+}

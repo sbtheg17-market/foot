@@ -1,30 +1,26 @@
 [
   {
-    "content": "Export sealed handoff-bundle as one downloadable archive + checksum + download link",
-    "status": "completed"
+    "content": "Task 2 prep: locate capture.py + gate tooling at d2ad54cd; verify recovered rule12 r2 patch checksum",
+    "status": "in_progress"
   },
   {
-    "content": "Canonical-baseline report: repo identity, main=d2ad54cd, clean tree, refs audit, 22 conflict branches, no credentials",
-    "status": "completed"
+    "content": "Task 2: re-derive Rule 12 docs-only candidate from d2ad54cd (new identity, capture.py, gate, checksum, secret scan)",
+    "status": "pending"
   },
   {
-    "content": "Inspect d2ad54cd tree + recovered phase4c r2 patch; check applicability",
-    "status": "completed"
+    "content": "Task 1: assemble + export Phase 4C r3 package via download endpoint (identity, provenance, evidence, checksums, manifest, local-only status)",
+    "status": "pending"
   },
   {
-    "content": "Re-derive Phase 4C non-schema candidate on d2ad54cd (OpenAPI draft, fixtures, contract tests, unwired UI shells) - local commit only, no push",
-    "status": "completed"
+    "content": "Task 3: write one-page managed Gate B runbook (secret handling, catalog checks, redaction, capture records, PASS/FAIL/BLOCKED/UNRECORDED)",
+    "status": "pending"
   },
   {
-    "content": "Run comfort-profile contract tests as validation evidence for the new candidate",
-    "status": "completed"
+    "content": "Task 4: Phase 4C r3 publication-readiness checklist (all 15 required items, stop before publication)",
+    "status": "pending"
   },
   {
-    "content": "Package new candidate: patch + checksums + new evidence logs (clearly labeled new, not historical)",
-    "status": "completed"
-  },
-  {
-    "content": "Record Gate B as blocked in this environment (owner-run, managed env, runtime DATABASE_URL)",
-    "status": "completed"
+    "content": "Refresh capture ledger + handoff artifact manifest after each action",
+    "status": "pending"
   }
 ]

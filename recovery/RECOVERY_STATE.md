@@ -109,6 +109,32 @@ verify okay, 5 refs; commit/parent/tree verified against handoff-downloads JSON:
 r2 commit objects 9e0bbd45 (B′ r2), 396040ea (P4C r2), e5919bd4 (Rule12 r2): ABSENT from both
 ODBs — r2 patches retained as evidence only; NOT publication-ready; NOT re-derived.
 
+### Session 2026-08-11 (four approved local tasks)
+- TASK 1 (export): phase4c_r3 package (patch + MANIFEST.json identity/scope + PROVENANCE.md +
+  STATUS.txt LOCAL-ONLY/UNPUBLISHED + 4 evidence logs + CHECKSUMS.sha256) archived
+  (sha 2a981539...) and served at GET /api/recovery/phase4c-r3 (+ .sha256);
+  round-trip byte-identical (ledger AC-007). Sealed acceptance bundle untouched (22/22 re-verified).
+- TASK 2 (Rule 12 r3): recovered r2 patch (sha 1afb92dc..., byte-identical) applied clean onto
+  d2ad54cd → NEW LOCAL-ONLY commit fc6251a4e2726c31f7adab1c45370500a0d2d693
+  (tree 1f1da660, docs-only .agents/AGENT-RULES.md +32) on separate branch
+  candidate/rule12-provenance-r3, never bundled with Phase 4C. Gate 12/12 PASS (AC-002),
+  secret value scan CLEAN (AC-005 supersedes AC-003 policy-text false positive),
+  package /app/recovery/candidates-r3/rule12_r3/ (AC-006). NOT exported, NOT published.
+  Historical r2 commit e5919bd4 remains absent and unclaimed.
+- TASK 3: GATE_B_RUNBOOK.md — managed-env-only, runtime-injected DATABASE_URL, never
+  printed/logged/checksummed/persisted, 6 catalog checks, capture.py redaction,
+  PASS/FAIL/BLOCKED/UNRECORDED taxonomy (AC-008).
+- TASK 4: PUBLICATION_CHECKLIST_phase4c_r3.md — all 15 required items; items 9-15
+  explicitly UNSATISFIED; stop line before window/credential (AC-009).
+- LEDGER: /app/recovery/ledger/LEDGER.jsonl — 9 append-only records, verify PASS,
+  built with recovered capture.py (fe14b624) + record_action.py (28e6c8cf) byte-exact
+  from snapshots; secret-pattern refusal by the redaction layer observed working (AC-005 retry).
+- MANIFEST REFRESH: HANDOFF-R3-MANIFEST.sha256 (38 entries, all verify;
+  self-hash bcc3f58e...). origin remote now points at the verified LOCAL bundle file
+  only (credential-free fetch for gate freshness); refs re-diffed clean.
+- STILL BLOCKED: push/merge, Gate B execution, schema/storage/migrations, economics,
+  Rule 12 publication, publication windows, credentials.
+
 ### Session 2026-08-11 (post-acceptance authorized work)
 - EXPORT: sealed handoff-bundle archived → /app/recovery/exports/foot-handoff-bundle-sealed-2026-08-11.tar.gz
   (SHA-256 e6385b3c1ad972d16c1672efbbd4a6ff4df432cafb966f1ef4ddd2ca06611d8d); extract-verified 22/22;

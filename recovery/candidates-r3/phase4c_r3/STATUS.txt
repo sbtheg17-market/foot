@@ -1,0 +1,12 @@
+STATUS: LOCAL-ONLY / UNPUBLISHED
+
+Candidate phase4c-nonschema-prep-r3
+  commit d9195dfab83a211dd2d79e7836348693a9748bc8
+  parent d2ad54cd8e450fcc3bf8fab28aed257d67e73b42
+  tree   2b1a3f7d7141b3afdfc8e016fbf6083dd47b8a93
+
+This package has NOT been pushed, merged, or published anywhere.
+No publication window has been opened. No credential exists for it.
+Publication requires: the publication-readiness checklist, a real reviewed
+--approve-web-ui rationale (this candidate touches artifacts/web/**),
+named human approval, and a new bounded repository-scoped credential.

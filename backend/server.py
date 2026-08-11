@@ -63,6 +63,25 @@ async def download_sealed_bundle_checksum():
         raise HTTPException(status_code=404, detail="checksum file not found")
     return path.read_text()
 
+PHASE4C_R3_ARCHIVE = "phase4c-r3-package-2026-08-11.tar.gz"
+
+@api_router.get("/recovery/phase4c-r3")
+async def download_phase4c_r3_package():
+    """Phase 4C r3 candidate package — LOCAL-ONLY / UNPUBLISHED.
+    Contains: patch, commit/tree/parent identity (MANIFEST.json), provenance
+    report, four captured evidence logs, CHECKSUMS.sha256, STATUS.txt."""
+    path = EXPORTS_DIR / PHASE4C_R3_ARCHIVE
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="phase4c r3 package not found")
+    return FileResponse(path, media_type="application/gzip", filename=PHASE4C_R3_ARCHIVE)
+
+@api_router.get("/recovery/phase4c-r3.sha256", response_class=PlainTextResponse)
+async def download_phase4c_r3_checksum():
+    path = EXPORTS_DIR / (PHASE4C_R3_ARCHIVE + ".sha256")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="checksum file not found")
+    return path.read_text()
+
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
