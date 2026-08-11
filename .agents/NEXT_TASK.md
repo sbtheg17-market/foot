@@ -28,8 +28,8 @@ PATCH: patches/AUTH_patient-signin-logout.patch
   feedback, server logout always 200. The monorepo B-prime caveat criteria are met here.
 
 ## Task D — Patch Index Page (operator priority 4)
-STATUS: NEXT
-- Lists patch name, commit hash, files touched, test evidence.
+STATUS: DONE (LOG ENTRY-010) — /patches page + GET /api/patches parsing real patch files
+PATCH: patches/C3_patch-index-page.patch
 - `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` present.
 - `ComfortPreferencesShell` present, props-driven, aligned with contract §5.
 - Shell visible at `/phase-4c/shell-preview` (presentation-only harness).

@@ -78,6 +78,10 @@ from auth import router as auth_router, resolve_patient  # noqa: E402
 app.include_router(auth_router)
 app.state.resolve_patient = resolve_patient
 
+# Patch Index — meta-infrastructure (parses patches/*.patch on disk)
+from patch_index import router as patch_index_router  # noqa: E402
+app.include_router(patch_index_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

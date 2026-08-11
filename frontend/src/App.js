@@ -7,6 +7,7 @@ import ComfortShellPreview from "@/pages/ComfortShellPreview";
 import ProviderPortal from "@/pages/ProviderPortal";
 import SignIn from "@/pages/SignIn";
 import PatientPortal from "@/pages/PatientPortal";
+import PatchIndex from "@/pages/PatchIndex";
 import { Toaster } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -60,6 +61,13 @@ const Home = () => {
         >
           Phase 4C — Comfort shell preview
         </Link>
+        <Link
+          to="/patches"
+          data-testid="home-patch-index-link"
+          className="mt-3 rounded-full border border-slate-500/40 px-5 py-2 text-base text-slate-300 transition-colors hover:bg-slate-500/10"
+        >
+          Patch index
+        </Link>
       </header>
     </div>
   );
@@ -75,6 +83,7 @@ function App() {
           <Route path="/provider" element={<ProviderPortal />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/portal" element={<PatientPortal />} />
+          <Route path="/patches" element={<PatchIndex />} />
         </Routes>
         <Toaster position="top-center" richColors />
       </BrowserRouter>

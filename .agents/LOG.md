@@ -143,3 +143,14 @@ Format: ENTRY-XXX | date | actor | action | evidence
   x3 paths, Bearer end-to-end on comfort routes, revocation → 401). Full suite 16/16 PASS
   (no regression on comfort matrix).
 - Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-010 | 2026-08-11 | Neo (E2) | Task: Patch Index Page
+- Backend `backend/patch_index.py`: GET /api/patches parses the REAL patches/*.patch files on
+  disk (commit from mbox From-line, RFC2047-decoded subject, author date, exact changed-file list
+  from diff headers) and merges test-evidence strings from patches/INDEX.json. Nothing invented.
+- `patches/INDEX.json`: evidence manifest per patch (task + recorded test results).
+- Frontend `/patches` (PatchIndex.jsx): lists patch name, commit hash, files touched
+  (expandable), and test evidence. Home link added.
+- Verified live: endpoint returns all 4 existing patches with correct commits/subjects/file
+  counts; C3 patch self-appears once cut (parser reads the directory).
+- Approval record: approved and logical — per operator policy (ENTRY-002).
