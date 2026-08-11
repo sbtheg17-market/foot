@@ -1,0 +1,170 @@
+From 87807649e63b46663b6477f2cf0ad30d410423c1 Mon Sep 17 00:00:00 2001
+From: "Neo (E2)" <neo@comfort-wiring.dev>
+Date: Tue, 11 Aug 2026 16:50:24 +0000
+Subject: [PATCH 5/5] patch approval filters: caveated patches stand out at a
+ glance
+
+  - /patches gains filter chips with live counts: All / Production-safe (emerald) /
+    Caveat (amber) / Pending / Recorded (slate)
+  - classification derives from the recorded approval text; disabled chips at zero
+  - per-item badge now uses the same three-tier styling (approved/caveat/neutral)
+---
+ frontend/src/pages/PatchIndex.jsx | 97 ++++++++++++++++++++++++++++---
+ 1 file changed, 89 insertions(+), 8 deletions(-)
+
+diff --git a/frontend/src/pages/PatchIndex.jsx b/frontend/src/pages/PatchIndex.jsx
+index 5009a01..ab19bdd 100644
+--- a/frontend/src/pages/PatchIndex.jsx
++++ b/frontend/src/pages/PatchIndex.jsx
+@@ -1,6 +1,6 @@
+-import { useEffect, useState } from "react";
++import { useEffect, useMemo, useState } from "react";
+ import axios from "axios";
+-import { FileDiff, GitCommitHorizontal, Loader2, BadgeCheck, ChevronDown, ChevronUp, ShieldCheck, ShieldAlert } from "lucide-react";
++import { FileDiff, GitCommitHorizontal, Loader2, BadgeCheck, ChevronDown, ChevronUp, ShieldCheck, ShieldAlert, Shield } from "lucide-react";
+ 
+ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+ 
+@@ -9,11 +9,34 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+  * name, commit hash, files touched, and recorded test evidence.
+  * Data comes from GET /api/patches, which parses the REAL patches/*.patch
+  * files on disk and merges evidence from patches/INDEX.json.
++ *
++ * Approval filters: patches can be filtered by approval status so caveated
++ * patches stand out — production-safe (emerald), caveat (amber), pending or
++ * process-recorded (slate).
+  */
++
++// Classify an approval string into a filter bucket.
++export function classifyApproval(approval) {
++  if (!approval) return "pending";
++  if (approval.includes("CAVEAT")) return "caveat";
++  if (approval.trim().startsWith("Approved")) return "approved";
++  if (approval.trim().startsWith("Pending")) return "pending";
++  return "recorded";
++}
++
++const FILTERS = [
++  { key: "all", label: "All" },
++  { key: "approved", label: "Production-safe" },
++  { key: "caveat", label: "Caveat" },
++  { key: "pending", label: "Pending" },
++  { key: "recorded", label: "Recorded" },
++];
++
+ export default function PatchIndex() {
+   const [patches, setPatches] = useState(null);
+   const [error, setError] = useState(null);
+   const [openFiles, setOpenFiles] = useState({});
++  const [filter, setFilter] = useState("all");
+ 
+   useEffect(() => {
+     axios
+@@ -22,6 +45,20 @@ export default function PatchIndex() {
+       .catch(() => setError("Could not load the patch index."));
+   }, []);
+ 
++  const counts = useMemo(() => {
++    const c = { all: patches?.length || 0, approved: 0, caveat: 0, pending: 0, recorded: 0 };
++    (patches || []).forEach((p) => {
++      c[classifyApproval(p.approval)] += 1;
++    });
++    return c;
++  }, [patches]);
++
++  const visible = useMemo(() => {
++    if (!patches) return null;
++    if (filter === "all") return patches;
++    return patches.filter((p) => classifyApproval(p.approval) === filter);
++  }, [patches, filter]);
++
+   return (
+     <main className="min-h-screen bg-slate-50 px-4 py-10 text-left">
+       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+@@ -37,6 +74,39 @@ export default function PatchIndex() {
+           </div>
+         </header>
+ 
++        {/* Approval filters */}
++        {patches && patches.length > 0 && (
++          <div data-testid="patch-index-filters" className="flex flex-wrap gap-1.5">
++            {FILTERS.map((f) => {
++              const active = filter === f.key;
++              const disabled = f.key !== "all" && counts[f.key] === 0;
++              return (
++                <button
++                  key={f.key}
++                  type="button"
++                  data-testid={`patch-filter-${f.key}`}
++                  aria-pressed={active}
++                  disabled={disabled}
++                  onClick={() => setFilter(f.key)}
++                  className={
++                    "rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
++                    (active
++                      ? "border-slate-900 bg-slate-900 text-white"
++                      : disabled
++                        ? "cursor-not-allowed border-slate-200 bg-white text-slate-300"
++                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100")
++                  }
++                >
++                  {f.label}
++                  <span className={"ml-1.5 " + (active ? "text-slate-300" : "text-slate-400")}>
++                    {counts[f.key]}
++                  </span>
++                </button>
++              );
++            })}
++          </div>
++        )}
++
+         {error && (
+           <p data-testid="patch-index-error" className="text-sm text-red-600">{error}</p>
+         )}
+@@ -53,10 +123,17 @@ export default function PatchIndex() {
+           </p>
+         )}
+ 
+-        {patches && patches.length > 0 && (
++        {visible && visible.length === 0 && patches && patches.length > 0 && (
++          <p data-testid="patch-index-filter-empty" className="text-sm text-slate-500">
++            No patches match this filter.
++          </p>
++        )}
++
++        {visible && visible.length > 0 && (
+           <ol data-testid="patch-index-list" className="space-y-4">
+-            {patches.map((p) => {
++            {visible.map((p) => {
+               const filesOpen = !!openFiles[p.name];
++              const bucket = classifyApproval(p.approval);
+               return (
+                 <li
+                   key={p.name}
+@@ -108,15 +185,19 @@ export default function PatchIndex() {
+                         data-testid="patch-index-approval"
+                         className={
+                           "flex items-start gap-1.5 rounded-lg px-3 py-2 text-xs leading-relaxed " +
+-                          (p.approval.includes("CAVEAT")
++                          (bucket === "caveat"
+                             ? "bg-amber-50 text-amber-800"
+-                            : "bg-emerald-50 text-emerald-800")
++                            : bucket === "approved"
++                              ? "bg-emerald-50 text-emerald-800"
++                              : "bg-slate-100 text-slate-600")
+                         }
+                       >
+-                        {p.approval.includes("CAVEAT") ? (
++                        {bucket === "caveat" ? (
+                           <ShieldAlert size={14} className="mt-0.5 shrink-0" />
+-                        ) : (
++                        ) : bucket === "approved" ? (
+                           <ShieldCheck size={14} className="mt-0.5 shrink-0" />
++                        ) : (
++                          <Shield size={14} className="mt-0.5 shrink-0" />
+                         )}
+                         <span>{p.approval}</span>
+                       </p>
+-- 
+2.39.5
+

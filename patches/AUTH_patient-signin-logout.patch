@@ -1,0 +1,847 @@
+From 6dce597baf969ffab32b9c843e24fe0ba921c4ec Mon Sep 17 00:00:00 2001
+From: emergent-agent-e1 <github@emergent.sh>
+Date: Tue, 11 Aug 2026 14:46:18 +0000
+Subject: [PATCH] =?UTF-8?q?Auth=20=E2=80=94=20patient=20sign-in=20+=20logo?=
+ =?UTF-8?q?ut=20hardening?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Backend (backend/auth.py):
+- POST /api/auth/register 201|400|409 (bcrypt), POST /api/auth/login 200|400|401,
+  GET /api/auth/me 200|401, POST /api/auth/logout ALWAYS 200 (idempotent —
+  invalid/expired/missing tokens still succeed).
+- Opaque bearer sessions (auth_sessions) + patients collection (auth scope,
+  separate from the comfort two-store boundary).
+- resolve_patient installed on app.state: comfort routes accept Bearer identity;
+  revoked token -> 401. X-Patient-Id header kept as DOCUMENTED TEST BYPASS
+  (remove before deploy).
+
+Frontend:
+- /signin: login/register with expired + signed-out banners.
+- /portal: container wires ComfortPreferencesShell to the real API (shell stays
+  pure presentation); 409 -> consent-not-active toast; 401 -> expired redirect.
+- HARDENED LOGOUT: token cleared in finally regardless of request outcome +
+  'You have been signed out' feedback (fixes onSuccess-only caveat).
+
+Tests: tests/auth.api.test.mjs 4/4 PASS; full node:test suite 16/16 PASS.
+---
+ .agents/LOG.md                       |  18 +++
+ .agents/NEXT_TASK.md                 |   8 +-
+ backend/auth.py                      | 167 +++++++++++++++++++++++
+ backend/server.py                    |   5 +
+ frontend/src/App.js                  |  19 ++-
+ frontend/src/lib/session.js          |   6 +
+ frontend/src/pages/PatientPortal.jsx | 193 +++++++++++++++++++++++++++
+ frontend/src/pages/SignIn.jsx        | 174 ++++++++++++++++++++++++
+ tests/auth.api.test.mjs              | 113 ++++++++++++++++
+ 9 files changed, 697 insertions(+), 6 deletions(-)
+ create mode 100644 backend/auth.py
+ create mode 100644 frontend/src/lib/session.js
+ create mode 100644 frontend/src/pages/PatientPortal.jsx
+ create mode 100644 frontend/src/pages/SignIn.jsx
+ create mode 100644 tests/auth.api.test.mjs
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index 92f4cfe..9dff9e5 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -125,3 +125,21 @@ Format: ENTRY-XXX | date | actor | action | evidence
+   [temperature, noise, notes]; portal page renders; full interaction matrix queued for the
+   comprehensive test run.
+ - Approval record: approved and logical — per operator policy (ENTRY-002).
++
++## ENTRY-009 | 2026-08-11 | Neo (E2) | Task: Patient Auth — sign-in + hardened logout
++- Backend `backend/auth.py`: register 201/400/409 (bcrypt hashes), login 200/401,
++  me 200/401, logout ALWAYS 200 (idempotent — invalid/expired/missing tokens still succeed so
++  clients can always finish local sign-out). Opaque bearer tokens in `auth_sessions`; accounts
++  in `patients` (additive collections, auth scope — separate from the comfort two-store boundary).
++- Identity resolution: `resolve_patient` installed on `app.state` — comfort routes now accept
++  Bearer tokens (revoked token → 401). `X-Patient-Id` header retained as DOCUMENTED TEST BYPASS —
++  remove before deploy (recorded in memory/test_credentials.md).
++- Frontend: `/signin` (login/register, expired + signed-out banners), `/portal` (container wiring
++  ComfortPreferencesShell to the real API — shell stays pure presentation; 409→"consent not
++  active" toast; 401→session-expired redirect). HARDENED LOGOUT: token cleared in `finally`
++  regardless of request outcome + "You've been signed out" feedback — fixes the onSuccess-only
++  caveat from the B-prime review.
++- Test evidence: tests/auth.api.test.mjs — 4/4 PASS (register/login matrix, hardened logout
++  x3 paths, Bearer end-to-end on comfort routes, revocation → 401). Full suite 16/16 PASS
++  (no regression on comfort matrix).
++- Approval record: approved and logical — per operator policy (ENTRY-002).
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index 463db80..f5d6d56 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -22,11 +22,13 @@ STATUS: DONE (LOG ENTRY-008) — interaction matrix queued for comprehensive tes
+ PATCH: patches/PHASE_4C_provider-projection-card.patch
+ 
+ ## Task C — Patient Auth (operator priority 3)
+-STATUS: NEXT
+-- Sign-in + hardened logout (always clears session even on request failure).
++STATUS: DONE + VERIFIED (LOG ENTRY-009 — 4/4 auth checks; full suite 16/16)
++PATCH: patches/AUTH_patient-signin-logout.patch
++- Hardened logout DONE in this checkout: token cleared in `finally`, "You've been signed out"
++  feedback, server logout always 200. The monorepo B-prime caveat criteria are met here.
+ 
+ ## Task D — Patch Index Page (operator priority 4)
+-STATUS: QUEUED
++STATUS: NEXT
+ - Lists patch name, commit hash, files touched, test evidence.
+ - `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` present.
+ - `ComfortPreferencesShell` present, props-driven, aligned with contract §5.
+diff --git a/backend/auth.py b/backend/auth.py
+new file mode 100644
+index 0000000..dca0618
+--- /dev/null
++++ b/backend/auth.py
+@@ -0,0 +1,167 @@
++"""
++Patient Auth — sign-in + hardened logout.
++
++Endpoints:
++  POST /api/auth/register  {email, password, name}  -> 201 {token, patient} | 400 | 409
++  POST /api/auth/login     {email, password}         -> 200 {token, patient} | 400 | 401
++  POST /api/auth/logout    (Bearer)                  -> ALWAYS 200 (idempotent, hardened)
++  GET  /api/auth/me        (Bearer)                  -> 200 {patient} | 401
++
++Hardened logout semantics (per operator acceptance criteria):
++  - Server: logout NEVER fails for auth reasons — invalid/expired/missing tokens still get 200,
++    so the client can always finish clearing local state.
++  - Client: token is cleared in a `finally` block regardless of the request outcome.
++
++Collections (additive; auth scope, separate from the comfort two-store boundary):
++  patients      {id, email, name, passwordHash, createdAt}
++  auth_sessions {token, patientId, createdAt, revoked}
++
++Identity resolution for comfort routes: `resolve_patient(request)` is installed on
++`app.state.resolve_patient` (see server.py). Bearer tokens take precedence; the
++`X-Patient-Id` header remains as a DOCUMENTED TEST BYPASS to be removed before deploy.
++"""
++import os
++import re
++import secrets
++import uuid
++from datetime import datetime, timezone
++from pathlib import Path
++
++import bcrypt
++from dotenv import load_dotenv
++from fastapi import APIRouter, Request
++from fastapi.responses import JSONResponse
++from motor.motor_asyncio import AsyncIOMotorClient
++
++ROOT_DIR = Path(__file__).parent
++load_dotenv(ROOT_DIR / ".env")
++
++_client = AsyncIOMotorClient(os.environ["MONGO_URL"])
++_db = _client[os.environ["DB_NAME"]]
++patients = _db["patients"]
++sessions = _db["auth_sessions"]
++
++router = APIRouter(prefix="/api/auth")
++
++EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
++PASSWORD_MIN_LEN = 8
++
++
++def _bad_request(detail: str) -> JSONResponse:
++    return JSONResponse(status_code=400, content={"error": "VALIDATION", "detail": detail})
++
++
++def _unauthorized() -> JSONResponse:
++    return JSONResponse(status_code=401, content={"error": "UNAUTHORIZED"})
++
++
++def _public_patient(doc: dict) -> dict:
++    return {"id": doc["id"], "email": doc["email"], "name": doc.get("name") or ""}
++
++
++def _bearer_token(request: Request) -> str | None:
++    header = request.headers.get("Authorization", "")
++    if header.startswith("Bearer "):
++        token = header[7:].strip()
++        return token or None
++    return None
++
++
++async def _session_patient_id(token: str) -> str | None:
++    session = await sessions.find_one({"token": token, "revoked": False})
++    return session["patientId"] if session else None
++
++
++async def resolve_patient(request: Request) -> str | None:
++    """Installed on app.state.resolve_patient — used by comfort routes."""
++    token = _bearer_token(request)
++    if not token:
++        return None
++    return await _session_patient_id(token)
++
++
++async def _issue_session(patient_id: str) -> str:
++    token = secrets.token_urlsafe(32)
++    await sessions.insert_one(
++        {
++            "token": token,
++            "patientId": patient_id,
++            "createdAt": datetime.now(timezone.utc).isoformat(),
++            "revoked": False,
++        }
++    )
++    return token
++
++
++async def _json_body(request: Request):
++    try:
++        body = await request.json()
++    except Exception:
++        return None
++    return body if isinstance(body, dict) else None
++
++
++@router.post("/register")
++async def register(request: Request):
++    body = await _json_body(request)
++    if body is None:
++        return _bad_request("request body must be a JSON object")
++    email = (body.get("email") or "").strip().lower()
++    password = body.get("password") or ""
++    name = (body.get("name") or "").strip()
++    if not EMAIL_RE.match(email):
++        return _bad_request("a valid email is required")
++    if not isinstance(password, str) or len(password) < PASSWORD_MIN_LEN:
++        return _bad_request(f"password must be at least {PASSWORD_MIN_LEN} characters")
++    if await patients.find_one({"email": email}):
++        return JSONResponse(status_code=409, content={"error": "EMAIL_EXISTS"})
++    doc = {
++        "id": str(uuid.uuid4()),
++        "email": email,
++        "name": name,
++        "passwordHash": bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode(),
++        "createdAt": datetime.now(timezone.utc).isoformat(),
++    }
++    await patients.insert_one(dict(doc))
++    token = await _issue_session(doc["id"])
++    return JSONResponse(status_code=201, content={"token": token, "patient": _public_patient(doc)})
++
++
++@router.post("/login")
++async def login(request: Request):
++    body = await _json_body(request)
++    if body is None:
++        return _bad_request("request body must be a JSON object")
++    email = (body.get("email") or "").strip().lower()
++    password = body.get("password") or ""
++    if not email or not isinstance(password, str) or not password:
++        return _bad_request("email and password are required")
++    doc = await patients.find_one({"email": email})
++    if not doc or not bcrypt.checkpw(password.encode(), doc["passwordHash"].encode()):
++        return _unauthorized()
++    token = await _issue_session(doc["id"])
++    return JSONResponse(status_code=200, content={"token": token, "patient": _public_patient(doc)})
++
++
++@router.post("/logout")
++async def logout(request: Request):
++    """Hardened: ALWAYS 200. Invalid/expired/missing tokens still succeed so the
++    client can complete local sign-out deterministically."""
++    token = _bearer_token(request)
++    if token:
++        await sessions.update_one({"token": token}, {"$set": {"revoked": True}})
++    return JSONResponse(status_code=200, content={"status": "SIGNED_OUT"})
++
++
++@router.get("/me")
++async def me(request: Request):
++    token = _bearer_token(request)
++    if not token:
++        return _unauthorized()
++    patient_id = await _session_patient_id(token)
++    if not patient_id:
++        return _unauthorized()
++    doc = await patients.find_one({"id": patient_id})
++    if not doc:
++        return _unauthorized()
++    return JSONResponse(status_code=200, content={"patient": _public_patient(doc)})
+diff --git a/backend/server.py b/backend/server.py
+index ae4afa3..7b8177b 100644
+--- a/backend/server.py
++++ b/backend/server.py
+@@ -73,6 +73,11 @@ app.include_router(api_router)
+ from comfort_profile import router as comfort_router  # noqa: E402
+ app.include_router(comfort_router)
+ 
++# Patient Auth — sign-in + hardened logout; installs Bearer identity resolution
++from auth import router as auth_router, resolve_patient  # noqa: E402
++app.include_router(auth_router)
++app.state.resolve_patient = resolve_patient
++
+ app.add_middleware(
+     CORSMiddleware,
+     allow_credentials=True,
+diff --git a/frontend/src/App.js b/frontend/src/App.js
+index 6181463..5653d61 100644
+--- a/frontend/src/App.js
++++ b/frontend/src/App.js
+@@ -5,6 +5,9 @@ import axios from "axios";
+ import { HOME } from "@/constants/testIds";
+ import ComfortShellPreview from "@/pages/ComfortShellPreview";
+ import ProviderPortal from "@/pages/ProviderPortal";
++import SignIn from "@/pages/SignIn";
++import PatientPortal from "@/pages/PatientPortal";
++import { Toaster } from "sonner";
+ 
+ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+ const API = `${BACKEND_URL}/api`;
+@@ -37,11 +40,11 @@ const Home = () => {
+         </a>
+         <p className="mt-5">Building something incredible ~!</p>
+         <Link
+-          to="/phase-4c/shell-preview"
+-          data-testid="home-shell-preview-link"
++          to="/portal"
++          data-testid="home-patient-portal-link"
+           className="mt-6 rounded-full border border-teal-500/40 px-5 py-2 text-base text-teal-300 transition-colors hover:bg-teal-500/10"
+         >
+-          Phase 4C — Comfort shell preview
++          Patient portal
+         </Link>
+         <Link
+           to="/provider"
+@@ -50,6 +53,13 @@ const Home = () => {
+         >
+           Provider portal
+         </Link>
++        <Link
++          to="/phase-4c/shell-preview"
++          data-testid="home-shell-preview-link"
++          className="mt-3 rounded-full border border-slate-500/40 px-5 py-2 text-base text-slate-300 transition-colors hover:bg-slate-500/10"
++        >
++          Phase 4C — Comfort shell preview
++        </Link>
+       </header>
+     </div>
+   );
+@@ -63,7 +73,10 @@ function App() {
+           <Route path="/" element={<Home />} />
+           <Route path="/phase-4c/shell-preview" element={<ComfortShellPreview />} />
+           <Route path="/provider" element={<ProviderPortal />} />
++          <Route path="/signin" element={<SignIn />} />
++          <Route path="/portal" element={<PatientPortal />} />
+         </Routes>
++        <Toaster position="top-center" richColors />
+       </BrowserRouter>
+     </div>
+   );
+diff --git a/frontend/src/lib/session.js b/frontend/src/lib/session.js
+new file mode 100644
+index 0000000..ed226b5
+--- /dev/null
++++ b/frontend/src/lib/session.js
+@@ -0,0 +1,6 @@
++// Session token helpers — single source of truth for the patient token.
++const KEY = "cw_patient_token";
++
++export const getToken = () => localStorage.getItem(KEY);
++export const setToken = (token) => localStorage.setItem(KEY, token);
++export const clearToken = () => localStorage.removeItem(KEY);
+diff --git a/frontend/src/pages/PatientPortal.jsx b/frontend/src/pages/PatientPortal.jsx
+new file mode 100644
+index 0000000..8d74569
+--- /dev/null
++++ b/frontend/src/pages/PatientPortal.jsx
+@@ -0,0 +1,193 @@
++import { useCallback, useEffect, useState } from "react";
++import { useNavigate } from "react-router-dom";
++import axios from "axios";
++import { toast } from "sonner";
++import { LogOut, Loader2 } from "lucide-react";
++import { Button } from "@/components/ui/button";
++import ComfortPreferencesShell from "@/components/comfort-profile/ComfortPreferencesShell";
++import { getToken, clearToken } from "@/lib/session";
++
++const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
++const FULL_SCOPE = ["temperature", "lighting", "noise", "notes"];
++
++/**
++ * PatientPortal — container that wires ComfortPreferencesShell to the real API.
++ * The shell stays pure presentation; ALL fetching and error handling lives here.
++ *
++ * HARDENED LOGOUT: the token is cleared in a `finally` block — even if the
++ * logout request fails or the token is already expired, the patient always
++ * ends up signed out locally with clear feedback.
++ */
++export default function PatientPortal() {
++  const navigate = useNavigate();
++  const [patient, setPatient] = useState(null);
++  const [profile, setProfile] = useState(null); // {isConsentActive, hasProfile, preferences}
++  const [loading, setLoading] = useState(true);
++  const [signingOut, setSigningOut] = useState(false);
++
++  const authed = useCallback(() => {
++    const token = getToken();
++    return token
++      ? { headers: { Authorization: `Bearer ${token}` } }
++      : { headers: {} };
++  }, []);
++
++  const handleExpired = useCallback(() => {
++    clearToken();
++    navigate("/signin?expired=1");
++  }, [navigate]);
++
++  const load = useCallback(async () => {
++    if (!getToken()) {
++      navigate("/signin");
++      return;
++    }
++    try {
++      const [meRes, profileRes] = await Promise.all([
++        axios.get(`${API}/auth/me`, authed()),
++        axios.get(`${API}/comfort-profile`, authed()),
++      ]);
++      setPatient(meRes.data.patient);
++      setProfile(profileRes.data);
++    } catch (e) {
++      if (e.response?.status === 401) {
++        handleExpired();
++        return;
++      }
++      toast.error("Could not load your profile. Please try again.");
++    } finally {
++      setLoading(false);
++    }
++  }, [authed, handleExpired, navigate]);
++
++  useEffect(() => {
++    load();
++  }, [load]);
++
++  const refresh = async () => {
++    try {
++      const res = await axios.get(`${API}/comfort-profile`, authed());
++      setProfile(res.data);
++    } catch (e) {
++      if (e.response?.status === 401) handleExpired();
++    }
++  };
++
++  const onGrantConsent = async () => {
++    try {
++      await axios.post(`${API}/comfort-profile/consent`, { scope: FULL_SCOPE }, authed());
++      toast.success("Consent granted — your editor is unlocked.");
++      await refresh();
++    } catch (e) {
++      if (e.response?.status === 401) return handleExpired();
++      toast.error("Could not grant consent. Please try again.");
++    }
++  };
++
++  const onWithdrawConsent = async () => {
++    try {
++      await axios.post(`${API}/comfort-profile/consent/withdraw`, null, authed());
++      toast.success("Consent withdrawn — your profile is hidden, not deleted.");
++      await refresh();
++    } catch (e) {
++      if (e.response?.status === 401) return handleExpired();
++      if (e.response?.status === 404) toast.error("No consent record found.");
++      else toast.error("Could not withdraw consent. Please try again.");
++    }
++  };
++
++  const onDeleteProfile = async () => {
++    try {
++      await axios.delete(`${API}/comfort-profile`, authed());
++      toast.success("Comfort profile permanently deleted.");
++      await refresh();
++    } catch (e) {
++      if (e.response?.status === 401) return handleExpired();
++      if (e.response?.status === 404) toast.error("There is no profile to delete.");
++      else toast.error("Could not delete the profile. Please try again.");
++    }
++  };
++
++  const onSavePreferences = async (draft) => {
++    try {
++      await axios.put(`${API}/comfort-profile/preferences`, draft, authed());
++      toast.success("Preferences saved.");
++      await refresh();
++    } catch (e) {
++      if (e.response?.status === 401) return handleExpired();
++      if (e.response?.status === 409)
++        toast.error("Consent is not active — grant consent to save preferences.");
++      else if (e.response?.status === 400)
++        toast.error(e.response?.data?.detail || "Invalid preferences.");
++      else toast.error("Could not save preferences. Please try again.");
++    }
++  };
++
++  // HARDENED SIGN-OUT: local state is ALWAYS cleared, success or failure.
++  const signOut = async () => {
++    setSigningOut(true);
++    try {
++      await axios.post(`${API}/auth/logout`, null, authed());
++    } catch {
++      // Swallow — the finally block guarantees local sign-out either way.
++    } finally {
++      clearToken();
++      setSigningOut(false);
++      navigate("/signin?signedout=1");
++    }
++  };
++
++  if (loading) {
++    return (
++      <main className="flex min-h-screen items-center justify-center bg-slate-50">
++        <div
++          data-testid="portal-loading"
++          className="flex items-center gap-2 text-slate-500"
++        >
++          <Loader2 className="animate-spin" size={18} /> Loading your profile…
++        </div>
++      </main>
++    );
++  }
++
++  return (
++    <main className="min-h-screen bg-slate-50 px-4 py-10 text-left">
++      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
++        <header className="flex items-center justify-between">
++          <div>
++            <h1 className="text-lg font-semibold text-slate-900">
++              Hi{patient?.name ? `, ${patient.name}` : ""}
++            </h1>
++            <p data-testid="portal-patient-email" className="text-sm text-slate-500">
++              {patient?.email}
++            </p>
++          </div>
++          <Button
++            data-testid="portal-signout-btn"
++            variant="outline"
++            onClick={signOut}
++            disabled={signingOut}
++            className="border-slate-300 text-slate-700 hover:bg-slate-100"
++          >
++            {signingOut ? (
++              <Loader2 size={16} className="mr-1.5 animate-spin" />
++            ) : (
++              <LogOut size={16} className="mr-1.5" />
++            )}
++            Sign out
++          </Button>
++        </header>
++
++        <ComfortPreferencesShell
++          isConsentActive={profile?.isConsentActive || false}
++          hasProfile={profile?.hasProfile || false}
++          preferences={profile?.preferences || null}
++          onGrantConsent={onGrantConsent}
++          onWithdrawConsent={onWithdrawConsent}
++          onDeleteProfile={onDeleteProfile}
++          onSavePreferences={onSavePreferences}
++        />
++      </div>
++    </main>
++  );
++}
+diff --git a/frontend/src/pages/SignIn.jsx b/frontend/src/pages/SignIn.jsx
+new file mode 100644
+index 0000000..eba587a
+--- /dev/null
++++ b/frontend/src/pages/SignIn.jsx
+@@ -0,0 +1,174 @@
++import { useState } from "react";
++import { useNavigate, useLocation } from "react-router-dom";
++import axios from "axios";
++import { toast } from "sonner";
++import { HeartHandshake, Loader2 } from "lucide-react";
++import { Button } from "@/components/ui/button";
++import { Input } from "@/components/ui/input";
++import { setToken } from "@/lib/session";
++
++const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
++
++export default function SignIn() {
++  const navigate = useNavigate();
++  const location = useLocation();
++  const expired = new URLSearchParams(location.search).get("expired") === "1";
++  const signedOut = new URLSearchParams(location.search).get("signedout") === "1";
++
++  const [mode, setMode] = useState("login"); // login | register
++  const [email, setEmail] = useState("");
++  const [name, setName] = useState("");
++  const [password, setPassword] = useState("");
++  const [busy, setBusy] = useState(false);
++  const [error, setError] = useState(null);
++
++  const submit = async (e) => {
++    e?.preventDefault();
++    setBusy(true);
++    setError(null);
++    try {
++      const path = mode === "login" ? "/auth/login" : "/auth/register";
++      const payload =
++        mode === "login" ? { email, password } : { email, password, name };
++      const res = await axios.post(`${API}${path}`, payload);
++      setToken(res.data.token);
++      toast.success(
++        mode === "login" ? "Welcome back!" : "Account created — welcome!"
++      );
++      navigate("/portal");
++    } catch (err) {
++      const s = err.response?.status;
++      if (s === 401) setError("Invalid email or password.");
++      else if (s === 409) setError("An account with this email already exists.");
++      else if (s === 400)
++        setError(err.response?.data?.detail || "Please check your details.");
++      else setError("Something went wrong. Please try again.");
++    } finally {
++      setBusy(false);
++    }
++  };
++
++  return (
++    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-left">
++      <div className="w-full max-w-md">
++        <div className="mb-6 flex items-center gap-3">
++          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-50">
++            <HeartHandshake className="text-teal-600" size={22} />
++          </span>
++          <div>
++            <h1 className="text-lg font-semibold text-slate-900">Patient sign in</h1>
++            <p className="text-sm text-slate-500">Manage your comfort profile</p>
++          </div>
++        </div>
++
++        {expired && (
++          <div
++            data-testid="signin-session-expired"
++            className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800"
++          >
++            Session expired — please sign in again.
++          </div>
++        )}
++        {signedOut && (
++          <div
++            data-testid="signin-signed-out"
++            className="mb-4 rounded-lg border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm text-teal-800"
++          >
++            You’ve been signed out.
++          </div>
++        )}
++
++        <form
++          onSubmit={submit}
++          className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
++        >
++          <div className="inline-flex w-full rounded-lg border border-slate-200 bg-slate-50 p-1">
++            {[
++              ["login", "Sign in"],
++              ["register", "Create account"],
++            ].map(([value, label]) => (
++              <button
++                key={value}
++                type="button"
++                data-testid={`signin-mode-${value}`}
++                onClick={() => {
++                  setMode(value);
++                  setError(null);
++                }}
++                className={
++                  "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors " +
++                  (mode === value
++                    ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
++                    : "text-slate-500 hover:text-slate-800")
++                }
++              >
++                {label}
++              </button>
++            ))}
++          </div>
++
++          {mode === "register" && (
++            <div className="space-y-1.5">
++              <label className="text-sm font-medium text-slate-700" htmlFor="name">
++                Name
++              </label>
++              <Input
++                id="name"
++                data-testid="signin-name"
++                placeholder="Your name"
++                value={name}
++                onChange={(e) => setName(e.target.value)}
++                className="border-slate-200 focus-visible:ring-teal-500"
++              />
++            </div>
++          )}
++
++          <div className="space-y-1.5">
++            <label className="text-sm font-medium text-slate-700" htmlFor="email">
++              Email
++            </label>
++            <Input
++              id="email"
++              type="email"
++              data-testid="signin-email"
++              placeholder="you@example.com"
++              value={email}
++              onChange={(e) => setEmail(e.target.value)}
++              className="border-slate-200 focus-visible:ring-teal-500"
++            />
++          </div>
++          <div className="space-y-1.5">
++            <label className="text-sm font-medium text-slate-700" htmlFor="password">
++              Password
++            </label>
++            <Input
++              id="password"
++              type="password"
++              data-testid="signin-password"
++              placeholder="At least 8 characters"
++              value={password}
++              onChange={(e) => setPassword(e.target.value)}
++              className="border-slate-200 focus-visible:ring-teal-500"
++            />
++          </div>
++
++          {error && (
++            <p data-testid="signin-error" className="text-sm text-red-600">
++              {error}
++            </p>
++          )}
++
++          <Button
++            type="submit"
++            data-testid="signin-submit"
++            disabled={busy}
++            className="w-full bg-teal-600 text-white hover:bg-teal-700"
++          >
++            {busy && <Loader2 size={16} className="mr-1.5 animate-spin" />}
++            {mode === "login" ? "Sign in" : "Create account"}
++          </Button>
++        </form>
++      </div>
++    </main>
++  );
++}
+diff --git a/tests/auth.api.test.mjs b/tests/auth.api.test.mjs
+new file mode 100644
+index 0000000..ca1cc58
+--- /dev/null
++++ b/tests/auth.api.test.mjs
+@@ -0,0 +1,113 @@
++// Patient Auth API — test suite (node:test, fetch-against-BASE).
++// Run: BASE=http://localhost:8001 node --test tests/auth.api.test.mjs
++
++import test from "node:test";
++import assert from "node:assert/strict";
++import { randomUUID } from "node:crypto";
++
++const BASE = process.env.BASE || "http://localhost:8001";
++
++async function req(method, path, { token, body } = {}) {
++  const headers = { "Content-Type": "application/json" };
++  if (token) headers["Authorization"] = `Bearer ${token}`;
++  const res = await fetch(`${BASE}${path}`, {
++    method,
++    headers,
++    body: body === undefined ? undefined : JSON.stringify(body),
++  });
++  let json = null;
++  try {
++    json = await res.json();
++  } catch {}
++  return { status: res.status, json };
++}
++
++const email = `patient-${randomUUID()}@test.dev`;
++const password = "sup3r-secure-pw";
++
++test("register — 201 with token; duplicate 409; validation 400", async () => {
++  const ok = await req("POST", "/api/auth/register", {
++    body: { email, password, name: "Test Patient" },
++  });
++  assert.equal(ok.status, 201);
++  assert.ok(ok.json.token);
++  assert.equal(ok.json.patient.email, email);
++
++  const dup = await req("POST", "/api/auth/register", { body: { email, password } });
++  assert.equal(dup.status, 409);
++
++  const badEmail = await req("POST", "/api/auth/register", {
++    body: { email: "nope", password },
++  });
++  assert.equal(badEmail.status, 400);
++
++  const shortPw = await req("POST", "/api/auth/register", {
++    body: { email: `x-${randomUUID()}@test.dev`, password: "short" },
++  });
++  assert.equal(shortPw.status, 400);
++});
++
++test("login — 200 valid; 401 wrong password; me works with token", async () => {
++  const bad = await req("POST", "/api/auth/login", { body: { email, password: "wrong-pw-123" } });
++  assert.equal(bad.status, 401);
++
++  const ok = await req("POST", "/api/auth/login", { body: { email, password } });
++  assert.equal(ok.status, 200);
++  assert.ok(ok.json.token);
++
++  const me = await req("GET", "/api/auth/me", { token: ok.json.token });
++  assert.equal(me.status, 200);
++  assert.equal(me.json.patient.email, email);
++
++  const noTok = await req("GET", "/api/auth/me", {});
++  assert.equal(noTok.status, 401);
++  const garbage = await req("GET", "/api/auth/me", { token: "garbage-token" });
++  assert.equal(garbage.status, 401);
++});
++
++test("logout — hardened: always 200, session revoked, idempotent", async () => {
++  const login = await req("POST", "/api/auth/login", { body: { email, password } });
++  const token = login.json.token;
++
++  const out = await req("POST", "/api/auth/logout", { token });
++  assert.equal(out.status, 200);
++
++  // session is dead now
++  const me = await req("GET", "/api/auth/me", { token });
++  assert.equal(me.status, 401);
++
++  // hardened paths: repeat logout, invalid token, and NO token all still 200
++  for (const t of [token, "totally-invalid", undefined]) {
++    const again = await req("POST", "/api/auth/logout", { token: t });
++    assert.equal(again.status, 200, "logout must never fail for auth reasons");
++  }
++});
++
++test("comfort routes accept Bearer identity end to end", async () => {
++  const reg = await req("POST", "/api/auth/register", {
++    body: { email: `flow-${randomUUID()}@test.dev`, password, name: "Flow" },
++  });
++  const token = reg.json.token;
++
++  const grant = await req("POST", "/api/comfort-profile/consent", {
++    token,
++    body: { scope: ["temperature", "notes"] },
++  });
++  assert.equal(grant.status, 201);
++
++  const put = await req("PUT", "/api/comfort-profile/preferences", {
++    token,
++    body: { temperature: "moderate", notes: "Bearer works" },
++  });
++  assert.equal(put.status, 200);
++
++  const me = await req("GET", "/api/comfort-profile", { token });
++  assert.equal(me.status, 200);
++  assert.equal(me.json.isConsentActive, true);
++  assert.equal(me.json.preferences.temperature, "moderate");
++
++  // revoked token no longer resolves -> 401 on comfort routes
++  await req("POST", "/api/auth/logout", { token });
++  const after = await req("GET", "/api/comfort-profile", { token });
++  assert.equal(after.status, 401);
++});
+-- 
+2.39.5
+

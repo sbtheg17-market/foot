@@ -1,0 +1,307 @@
+# Agent Log — /app checkout
+
+Format: ENTRY-XXX | date | actor | action | evidence
+
+---
+
+## ENTRY-001 | 2026-08-11 | Neo (E2) | Neo Entry Report — BLOCKED
+- Reconstructed repository state without mutation.
+- Findings: repo `/app`, branch `main`, HEAD `efbf7ec565e4403d6bc61b077c7d9a75ace5ab32`
+  (single commit "Initial commit"); worktree = stock FARM template, fully untracked;
+  no remotes, no tags, no stashes, only ref `refs/heads/main`.
+- Expected handoff artifacts MISSING everywhere on the filesystem: `/app/recovery/`,
+  `COMFORT_WIRING_PLAN_REVIEW.md`, `PLAN_V1.1_ACCEPTANCE.md`, ledger (AC-021), manifest,
+  Gate B runbook, contract/OpenAPI draft, C-1 requirements, 22 preserved conflict branches,
+  holds record, `lib/api-zod`, `lib/api-client-react`.
+- Managed `DATABASE_URL`: NOT injected in runtime env (verified). No local PostgreSQL client.
+- Status recorded: BLOCKED — required managed DATABASE_URL is unavailable; C-1 NOT EXECUTABLE.
+- Evidence: command outputs in session transcript (git status/log/for-each-ref, filesystem finds,
+  env inspection).
+
+## ENTRY-002 | 2026-08-11 | Operator | Policy + task authorization
+- Operator policy (quoted): "from now on I am not gating changes as long as Fable and Replit
+  sign a log saying approved and logical."
+- Operator selected next task: "Restore the Phase 4C contract before implementation begins",
+  followed by (2) provider logout hardening and (3) stale-baseline cleanup.
+- Operator-declared scope for Task 1:
+  - ALLOWED: add/restore contract MD + UI shell in correct paths; align shell props and consent
+    behavior with the contract text; update `.agents/LOG.md` and NEXT_TASK entries to reflect
+    the new baseline.
+  - FORBIDDEN: schema/migration changes; API routes, events, or analytics for comfort profile.
+- Approval record: approved and logical — recorded per operator's Fable/Replit log policy.
+
+## ENTRY-003 | 2026-08-11 | Neo (E2) | Provenance conflict — recorded, not silently resolved
+- Operator's prompt targeted `sbtheg17-market/foot` (OnCall Foot monorepo), branch `main`,
+  HEAD `184833bd8727…`, and referenced patches (`phase4c-nonschema-prep.patch`,
+  `B-prime-provider-signout.patch`, `C-prime-lockfile-reproducibility.patch`) and
+  `.agents` history (baselines `3e76114`, `c02a308`).
+- FACT: that monorepo is NOT accessible from this environment. No remote configured; HEAD here
+  is `efbf7ec…`; none of the referenced patches/files exist on this filesystem.
+- Resolution per operator directive: Phase 4C artifacts are AUTHORED FRESH in this checkout from
+  the accepted Comfort-Wiring Plan v1.1 decision record. They are NOT copies of monorepo files.
+  Any future sync against the true monorepo must diff and reconcile explicitly.
+
+## ENTRY-004 | 2026-08-11 | Neo (E2) | Task 1 executed — Phase 4C contract + shell restored
+- Created:
+  - `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` (design-only contract:
+    six operations, status matrix incl. grant=201/400, withdraw+delete separate w/ 404,
+    PUT 409 on inactive consent, latest-row `isConsentActive`, 404-only projection with NO 403,
+    four `buildProviderProjection` conditions + `["ACTIVE"]` allow-list, verbatim withdraw copy,
+    codegen boundary `lib/api-zod` + `lib/api-client-react`, `node:test` fetch-against-BASE
+    harness, two-additive-store reference design pending C-1 review).
+  - `frontend/src/components/comfort-profile/ComfortPreferencesShell.jsx` (props-driven
+    presentation-only shell; states: consent-lock, empty, active editor; withdraw and delete as
+    separate actions; verbatim copy rendered byte-exact via `WITHDRAW_COPY_VERBATIM`).
+  - `frontend/src/pages/ComfortShellPreview.jsx` + route `/phase-4c/shell-preview` (visibility
+    harness passing demo props; wires NO API/persistence/events/analytics).
+  - `.agents/LOG.md`, `.agents/NEXT_TASK.md` (this baseline).
+- NOT done (forbidden in this task): API routes, schema/collections, migrations, codegen,
+  events, analytics, economics, publication.
+- New baseline of record: commit `efbf7ec565e4403d6bc61b077c7d9a75ace5ab32` + the worktree
+  changes described above. Prior baseline references (`3e76114`, `c02a308`, `184833bd`) are
+  HISTORICAL/monorepo-only and MUST NOT be used as baselines for this checkout.
+- Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-005 | 2026-08-11 | Neo (E2) | Task 1 verification evidence — PASS
+- Automated frontend verification: 16/16 checks passed (report:
+  `test_reports/iteration_1.json`).
+- Key evidence:
+  - Verbatim withdraw copy BYTE-EXACT match confirmed (§5.3 of contract).
+  - Consent-lock state: editor absent while locked; grant button emits `onGrantConsent()`.
+  - Empty and active-editor states render per §5.2; badge reflects consent status.
+  - Withdraw and Delete confirmed as separate actions with distinct copy.
+  - Shell purity: ZERO network calls to any `/api/comfort*` endpoint during all interactions.
+  - No console errors; preview route reachable from home.
+- No fixes required. Task 1 status: DONE + VERIFIED.
+
+## ENTRY-006 | 2026-08-11 | Neo (E2) | Adopted one-task→one-patch workflow; PHASE_4C_restoration.patch produced
+- Workflow documented in `.agents/SETUP.md` (commands, naming convention, verification steps,
+  publish flow). Operator directive: every approved change = 1 commit + 1 patch + recorded tests,
+  published via Replit/coordination channel.
+- History note: `9f9394f` is a platform auto-checkpoint mixing template + Phase 4C work; treated
+  as HISTORICAL for patch purposes (append-only policy — nothing rewritten or squashed).
+- Clean patch pair constructed on branch `patch-build/phase4c-restoration`:
+  - baseline `6582133ed19ddb4e33570e9ee6906f75279ac295` (template without Phase 4C artifacts)
+  - task commit `c8a778fd4d7c94116e3aeee0a8d5882799d865d6`
+    ("Phase 4C — restore contract + shell (design-only)")
+- Product: `patches/PHASE_4C_restoration.patch` — exactly 6 files, 775 insertions:
+  contract MD, ComfortPreferencesShell, ComfortShellPreview, App.js route wiring,
+  .agents/LOG.md, .agents/NEXT_TASK.md.
+- Verification: `git apply --check` PASSED on the clean baseline via temp worktree; applied copy
+  contains the verbatim-copy constant. Evidence: command output in session transcript.
+- Main branch: App.js route wiring restored in commit `b1d9bce` after the baseline snapshot.
+- Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-007 | 2026-08-11 | Neo (E2) | Task: Comfort Profile API — six contract routes implemented
+- Operator authorization: implement the six Phase 4C consent routes exactly per
+  PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md; wire to persistence; NO UI changes; forbidden:
+  schema beyond the two additive stores, new events/analytics.
+- Implemented `backend/comfort_profile.py` (contract/module boundary):
+  grantConsent 201/400/401 · withdrawConsent 200/404/401 · deleteComfortProfile 204/404/401 ·
+  getComfortProfile 200/401 · updateComfortPreferences 200/400/409/401 ·
+  getProviderProjection 200/404-only/401 (no 403 branch exists in the module).
+- `build_provider_projection` encodes the four conditions + ["ACTIVE"] allow-list;
+  `isConsentActive` from latest row (ns-timestamp ordering); withdraw appends WITHDRAWN row and
+  never touches profile data.
+- Persistence: exactly TWO additive Mongo collections — `comfort_consents` (append-only),
+  `comfort_profiles`. No existing collections modified. No events/analytics/economics.
+- Identity: Task-1 stub via `X-Patient-Id` / `X-Provider-Id` headers (401 when missing);
+  AUTH task will layer Bearer tokens on top (stub retained as documented test bypass).
+- Test evidence (contract §8 convention — node:test, fetch-against-BASE):
+  `tests/comfort-profile.api.test.mjs` — **12/12 PASS** covering the full status matrix,
+  hide-without-delete, re-grant latest-row rule, scope filtering, and the projection 404 matrix.
+- Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-008 | 2026-08-11 | Neo (E2) | Task: Provider Projection Card
+- `frontend/src/components/comfort-profile/ProviderComfortCard.jsx` — pure props-driven
+  presentation; returns null (renders NOTHING — no skeleton, no error chrome) when projection is
+  null/empty (contract §1.11); displays only server-filtered, scope-granted, non-null fields.
+- `frontend/src/pages/ProviderPortal.jsx` — container at `/provider`: fetches
+  GET /api/provider/comfort-projection/{patientId} with X-Provider-Id header stub; 404 → null
+  projection (card absent, neutral non-leaking hint shown by the PAGE, not the card); 401 and
+  network errors surfaced as container messages.
+- App.js: `/provider` route + home link. No backend changes in this task.
+- Live verification: seeded patient demo-patient-777 via real API (grant 201, PUT 200) with scope
+  [temperature, noise, notes]; portal page renders; full interaction matrix queued for the
+  comprehensive test run.
+- Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-009 | 2026-08-11 | Neo (E2) | Task: Patient Auth — sign-in + hardened logout
+- Backend `backend/auth.py`: register 201/400/409 (bcrypt hashes), login 200/401,
+  me 200/401, logout ALWAYS 200 (idempotent — invalid/expired/missing tokens still succeed so
+  clients can always finish local sign-out). Opaque bearer tokens in `auth_sessions`; accounts
+  in `patients` (additive collections, auth scope — separate from the comfort two-store boundary).
+- Identity resolution: `resolve_patient` installed on `app.state` — comfort routes now accept
+  Bearer tokens (revoked token → 401). `X-Patient-Id` header retained as DOCUMENTED TEST BYPASS —
+  remove before deploy (recorded in memory/test_credentials.md).
+- Frontend: `/signin` (login/register, expired + signed-out banners), `/portal` (container wiring
+  ComfortPreferencesShell to the real API — shell stays pure presentation; 409→"consent not
+  active" toast; 401→session-expired redirect). HARDENED LOGOUT: token cleared in `finally`
+  regardless of request outcome + "You've been signed out" feedback — fixes the onSuccess-only
+  caveat from the B-prime review.
+- Test evidence: tests/auth.api.test.mjs — 4/4 PASS (register/login matrix, hardened logout
+  x3 paths, Bearer end-to-end on comfort routes, revocation → 401). Full suite 16/16 PASS
+  (no regression on comfort matrix).
+- Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-010 | 2026-08-11 | Neo (E2) | Task: Patch Index Page
+- Backend `backend/patch_index.py`: GET /api/patches parses the REAL patches/*.patch files on
+  disk (commit from mbox From-line, RFC2047-decoded subject, author date, exact changed-file list
+  from diff headers) and merges test-evidence strings from patches/INDEX.json. Nothing invented.
+- `patches/INDEX.json`: evidence manifest per patch (task + recorded test results).
+- Frontend `/patches` (PatchIndex.jsx): lists patch name, commit hash, files touched
+  (expandable), and test evidence. Home link added.
+- Verified live: endpoint returns all 4 existing patches with correct commits/subjects/file
+  counts; C3 patch self-appears once cut (parser reads the directory).
+- Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-011 | 2026-08-11 | Neo (E2) | Comprehensive E2E validation — PASS; patches recorded
+- Testing agent full run (test_reports/iteration_2.json): backend 100% (16/16 node:test),
+  frontend 100% — register→portal flow, consent-lock→grant→save→persist, provider card 200
+  scope-filtering (ungranted lighting absent) + 404 renders-nothing path, withdraw
+  hide-without-delete with preserved data on re-grant, HARDENED logout (signed-out banner +
+  token cleared) and expired-token path, login validation, patch index (5 entries, file toggle,
+  evidence). No console errors.
+- Accepted change from testing run: `aria-pressed` attribute on shell option buttons
+  (accessibility improvement; no contract impact; verbatim copy untouched). Recorded here since
+  it rides in the process commit rather than a task patch.
+- Patches recorded in repo: PHASE_4C_restoration, PHASE_4C_comfort-profile-api,
+  PHASE_4C_provider-projection-card, AUTH_patient-signin-logout, C3_patch-index-page —
+  each verified with `git apply --check` against its parent commit.
+- Standing note: X-Patient-Id / X-Provider-Id header bypass remains for testing — REMOVE BEFORE
+  DEPLOY (memory/test_credentials.md).
+- Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-012 | 2026-08-11 | Operator (Deep Research) | Patch approvals — signed log
+Approval block received from operator, recorded verbatim per the Fable/Replit signed-log
+policy (ENTRY-002):
+
+> PHASE_4C_restoration.patch — Approved. Restores Phase 4C contract + shell as design-only;
+> no schema, migrations, routes, or events. Safe as a non-behavioral prep step and matches
+> the consent-first principles.
+>
+> PHASE_4C_comfort-profile-api.patch — Approved. Implements the six consent-gated routes
+> exactly per contract (grant 201/400, withdraw/delete separate with 404, PUT 409 on inactive
+> consent, projection 404-only) with two additive collections only; node:test
+> fetch-against-BASE 12/12 passing.
+>
+> PHASE_4C_provider-projection-card.patch — Approved. Provider card respects consent and
+> visibility rules: renders nothing on 404/null, filters out ungranted categories, and has no
+> discovery surface. Matches the "projection only during ACTIVE booking" constraint.
+>
+> AUTH_patient-signin-logout.patch — Approved (dev/staging). Patient sign-in + hardened logout
+> (token cleared in finally, banner shown, server logout always 200) is correct and aligns
+> with secure portal auth patterns.
+> Caveat: the X-Patient-Id / X-Provider-Id test bypass must be removed or confined to a
+> non-production build before any live deployment; auth bypass headers are explicitly called
+> out as unsafe in production guidance.
+>
+> C3_patch-index-page.patch — Approved. /patches index that parses real patch files (name,
+> commit, files, test evidence) strengthens traceability and makes your one-task → one-patch
+> workflow transparent for future agents.
+>
+> Prepared by Deep Research
+
+Actions taken:
+- Approvals mirrored into patches/INDEX.json (`approval` field per patch).
+- /patches page now surfaces approval status (emerald badge; amber ShieldAlert when the
+  approval carries a CAVEAT — currently the AUTH dev/staging bypass caveat).
+- DEPLOY BLOCKER reaffirmed: remove/confine the X-Patient-Id / X-Provider-Id bypass before
+  any live deployment (see NEXT_TASK).
+
+## ENTRY-013 | 2026-08-11 | Operator | Repo-separation decision — recorded
+- OnCall Foot (pnpm/Postgres/Vite; main @ 401a9d7, clean, synced with origin) and
+  Comfort-Wiring (THIS repo: FastAPI/Mongo/React-CRA) are DISTINCT projects with separate
+  git histories. No merging, no history rewriting, no cross-application of patches.
+- `origin/conflict_110826_0846` on the OnCall Foot remote is an unrelated Comfort-Wiring
+  snapshot; it is ignored for OnCall Foot work and is NOT a working base — the canonical
+  Comfort-Wiring work continues in this repo.
+- The approved Comfort-Wiring patches (INDEX.json) apply ONLY to this repo's stack/layout.
+- Future porting of consent/comfort functionality into OnCall Foot is a design exercise:
+  fresh, stack-native implementation using this repo's contract + UX as reference, on its own
+  feature branch and patch series. Not authorized yet.
+- Confirmed statement of record: "No branches were merged, no history was rewritten, and no
+  files were changed."
+
+## ENTRY-014 | 2026-08-11 | Neo (E2) | Neo cycle 2 — repo identity confirmed; canonical state restored and validated
+- Handoff received: consent-first Comfort Wiring cycle (bypass removal, provider auth, consent
+  scope picker, consent history, approval filters). OnCall Foot explicitly out of scope and
+  untouched (its own Session 067 recon lives in that repo's ledger — no cross-application).
+- Repo identity confirmed: Comfort Wiring FastAPI/MongoDB + React (CRA), layout `backend/`,
+  `frontend/`, `docs/`, `patches/`, `.agents/`, `tests/`. The canonical latest snapshot
+  (`conflict_110826_1134` on the foot remote, 2026-08-11 15:35 UTC) was restored into this
+  workspace with environment values preserved (MONGO_URL/DB_NAME/REACT_APP_BACKEND_URL
+  unchanged; ALLOW_TEST_IDENTITY_HEADERS=true set for this dev environment).
+- Current capabilities verified against the running server: Phase 4C API (12/12), patient auth
+  (4/4), provider auth WIP present in the snapshot, /patches index serving all six recorded
+  patches. Full suite at restoration: 20/20 node:test fetch-against-BASE checks passing.
+- Finding: the snapshot carried two UNRECORDED work items beyond PROCESS_patch-approvals —
+  provider auth (API+UI+tests) and the flag-gated identity-header bypass. Both are now
+  recorded properly as their own one-commit → one-patch tasks (ENTRY-015/016) instead of
+  riding silently in the baseline.
+
+## ENTRY-015 | 2026-08-11 | Neo (E2) | Task: Provider auth + sessions
+- PATCH: patches/AUTH_provider-signin.patch
+- Backend: POST /api/auth/provider/register, /api/auth/provider/login, GET /api/auth/provider/me;
+  sessions carry a role; role enforcement rejects patient tokens on provider surfaces; the
+  comfort projection route resolves provider identity via app.state.resolve_provider (Bearer
+  first). Shared hardened logout: POST /api/auth/logout revokes any token, always 200.
+- Frontend: ProviderPortal gains a sign-in/create-account gate; projection lookup sends the
+  provider Bearer token; hardened sign-out clears the provider token in `finally` with
+  "You've been signed out" feedback; session-expired path redirects to sign-in state.
+- Rides along: aria-pressed on shell option buttons (the ENTRY-011 accepted accessibility fix).
+- Tests: tests/provider-auth.api.test.mjs — register/login/me matrix, role enforcement,
+  projection via provider Bearer, revocation kills access. Suite green.
+- Approval: pending operator review.
+
+## ENTRY-016 | 2026-08-11 | Neo (E2) | Task: Bypass confinement (deploy-caveat closure)
+- PATCH: patches/AUTH_bypass-removal.patch
+- The X-Patient-Id / X-Provider-Id headers are honored ONLY when
+  ALLOW_TEST_IDENTITY_HEADERS=true (default false). NEW HARD STOP: when APP_ENV or
+  ENVIRONMENT names a production build, the bypass is refused regardless of the flag —
+  routes are locked to real Bearer sessions. This closes the ENTRY-012 caveat in code.
+- Deploy checklist remains: do NOT set ALLOW_TEST_IDENTITY_HEADERS in production; set
+  APP_ENV=production for defense in depth. This dev environment keeps the flag on so the
+  fetch-against-BASE suites can seed identities.
+- Approval: pending operator review.
+
+## ENTRY-017 | 2026-08-11 | Neo (E2) | Task: Consent scope picker
+- PATCH: patches/C4_consent-scope-picker.patch
+- The consent-lock state now presents a per-category picker instead of silently sharing all
+  four categories: temperature/lighting/noise default ON, notes (the single free-text field)
+  defaults OFF with an explicit "off by default" label. Grant is disabled at zero selections
+  (matches the API non-empty-scope rule). onGrantConsent(scope) carries the choice out of the
+  shell; the grant request shape is unchanged; shell purity rules (§5.4) preserved.
+- Verified live in the browser: defaults render correctly, grant stores the chosen scope.
+- Approval: pending operator review.
+
+## ENTRY-018 | 2026-08-11 | Neo (E2) | Task: Consent history (contract V3.1 addendum §11)
+- PATCH: patches/C5_consent-history.patch
+- Contract: V3.1 addendum appended to PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md per the §10
+  alteration protocol, under the operator handoff's explicit order. Adds the seventh
+  owner-scoped operation GET /api/comfort-profile/consent/history (200|401, newest-first,
+  still no 403 path anywhere), versioned consent evidence, and the picker presentation rules.
+- Backend: every grant/withdraw row now records consentVersion, consentTextHash (sha256 of
+  the exact statement shown) and purpose — additive fields on the existing append-only
+  collection (still exactly two stores). The consent statement lives server-side as the
+  single source of truth; the grant UI renders it verbatim; wording changes require a
+  version bump. Legacy rows surface null version fields — history is never rewritten.
+- Frontend: ConsentHistoryTimeline (pure presentation) below the shell — every grant and
+  withdrawal with timestamp, shared categories, text version, hash and purpose; legacy note
+  for pre-versioning rows. Currently-shared categories render as read-only chips while
+  consent is active. Language rule kept: "matches your preferences" only, no medical claims.
+- Tests: tests/consent-history.api.test.mjs — 7 checks (401; hash consistency; scoped +
+  versioned grant; newest-first timeline with versioned withdrawal; owner isolation;
+  ungranted notes never reach the projection; failed grants never recorded). Suite 27/27.
+- Approval: pending operator review.
+
+## ENTRY-019 | 2026-08-11 | Neo (E2) | Task: Patch approval filters
+- PATCH: patches/C6_patch-approval-filters.patch
+- /patches gains filter chips with live counts — All / Production-safe (emerald) / Caveat
+  (amber) / Pending / Recorded (slate) — so caveated patches stand out at a glance. Per-item
+  badges use the same three-tier styling. Classification derives from the recorded approval
+  text; zero-count filters are disabled.
+- patches/INDEX.json extended with the five new cycle-2 entries (evidence + pending-review
+  approval status); GET /api/patches now serves 11 patches.
+- Verified live: caveat filter isolates AUTH_patient-signin-logout; counts correct.
+- Approval: pending operator review.

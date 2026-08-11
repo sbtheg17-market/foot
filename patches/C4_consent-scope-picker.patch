@@ -1,0 +1,237 @@
+From 4914b766ec4391d3e07caf51bd2160ae7b458b92 Mon Sep 17 00:00:00 2001
+From: "Neo (E2)" <neo@comfort-wiring.dev>
+Date: Tue, 11 Aug 2026 16:50:05 +0000
+Subject: [PATCH 3/5] consent scope picker: patients choose exactly which
+ categories to share
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+  - the consent-lock state gains a per-category picker (checkbox rows) instead of
+    silently sharing all four categories on grant
+  - conservative defaults: temperature/lighting/noise ON; notes (the single free-text
+    field) OFF by default and labeled as such — free text is only shared deliberately
+  - grant is disabled with zero categories selected (matches the API non-empty-scope rule)
+  - onGrantConsent(scope) carries the selection out of the shell; grant request shape
+    unchanged; shell stays pure presentation (ephemeral local selection state only)
+---
+ .../ComfortPreferencesShell.jsx               | 107 +++++++++++++++++-
+ frontend/src/pages/PatientPortal.jsx          |  10 +-
+ 2 files changed, 109 insertions(+), 8 deletions(-)
+
+diff --git a/frontend/src/components/comfort-profile/ComfortPreferencesShell.jsx b/frontend/src/components/comfort-profile/ComfortPreferencesShell.jsx
+index df40aaf..7c58b8a 100644
+--- a/frontend/src/components/comfort-profile/ComfortPreferencesShell.jsx
++++ b/frontend/src/components/comfort-profile/ComfortPreferencesShell.jsx
+@@ -9,6 +9,8 @@ import {
+   Volume2,
+   Save,
+   ClipboardList,
++  StickyNote,
++  Check,
+ } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+ import { Badge } from "@/components/ui/badge";
+@@ -23,14 +25,18 @@ import { Separator } from "@/components/ui/separator";
+  * Purity rules (§5.4): props-driven presentation ONLY.
+  * - No fetch/axios, no storage, no global state. Callbacks out.
+  * - Ephemeral local editor draft state is permitted (presentation concern).
++ * - The consent SCOPE PICKER is ephemeral local selection state (presentation
++ *   concern); the chosen scope leaves the shell only through onGrantConsent(scope).
+  *
+- * States present at 4C (§5.2): consent-lock, empty, active editor.
++ * States present at 4C (§5.2): consent-lock (now with scope picker), empty, active editor.
+  * loading / error / unauthorized states are added at C-3 — NOT here.
+  *
+  * Invariants honored:
+  * - Editor remains locked until consent is active.
+  * - Withdraw hides; it never deletes. Withdraw and Delete are separate actions.
+  * - Verbatim copy (§5.3) rendered byte-exact next to the withdraw action.
++ * - Conservative scope defaults: the free-text "notes" category is OFF by
++ *   default — it is only shared when the patient explicitly turns it on.
+  */
+ 
+ // §5.3 — normative, byte-exact. Do not edit without contract alteration approval.
+@@ -55,6 +61,19 @@ const NOISE_OPTIONS = [
+ 
+ const EMPTY_DRAFT = { temperature: null, lighting: null, noise: null, notes: "" };
+ 
++// V3.1 — the four shareable categories. `notes` (the single free-text field)
++// defaults to NOT shared; everything else defaults to shared.
++export const SCOPE_CATEGORIES = [
++  { key: "temperature", label: "Room temperature", icon: Thermometer, defaultOn: true },
++  { key: "lighting", label: "Lighting", icon: Lamp, defaultOn: true },
++  { key: "noise", label: "Noise level", icon: Volume2, defaultOn: true },
++  { key: "notes", label: "Notes (free text)", icon: StickyNote, defaultOn: false },
++];
++
++const DEFAULT_SCOPE_SELECTION = Object.fromEntries(
++  SCOPE_CATEGORIES.map((c) => [c.key, c.defaultOn])
++);
++
+ function OptionRow({ icon: Icon, label, options, value, onChange, testIdPrefix }) {
+   return (
+     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+@@ -100,14 +119,25 @@ export default function ComfortPreferencesShell({
+   onSavePreferences = () => {},
+ }) {
+   const [draft, setDraft] = useState(preferences || EMPTY_DRAFT);
++  // Ephemeral scope selection for the consent-lock picker (presentation concern).
++  const [scopeSelection, setScopeSelection] = useState(DEFAULT_SCOPE_SELECTION);
+ 
+   // Re-seed the ephemeral draft when upstream props change (presentation concern only).
+   useEffect(() => {
+     setDraft(preferences || EMPTY_DRAFT);
+   }, [preferences, isConsentActive, hasProfile]);
+ 
++  // Reset the picker to conservative defaults whenever the lock state is re-entered.
++  useEffect(() => {
++    if (!isConsentActive) setScopeSelection(DEFAULT_SCOPE_SELECTION);
++  }, [isConsentActive]);
++
+   const setField = (key, value) => setDraft((d) => ({ ...d, [key]: value }));
+ 
++  const selectedScope = SCOPE_CATEGORIES.filter((c) => scopeSelection[c.key]).map(
++    (c) => c.key
++  );
++
+   return (
+     <section
+       data-testid="comfort-shell-root"
+@@ -147,7 +177,7 @@ export default function ComfortPreferencesShell({
+       {!isConsentActive && (
+         <div
+           data-testid="comfort-shell-consent-lock"
+-          className="flex flex-col items-center gap-4 px-8 py-14 text-center"
++          className="flex flex-col items-center gap-5 px-8 py-10 text-center"
+         >
+           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
+             <Lock className="text-slate-400" size={26} />
+@@ -161,20 +191,89 @@ export default function ComfortPreferencesShell({
+               editor unlocks once consent is active.
+             </p>
+           </div>
++
++          {/* V3.1 — scope picker: choose exactly which categories to share */}
++          <div className="w-full max-w-md space-y-2 text-left">
++            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
++              Choose what to share
++            </p>
++            {SCOPE_CATEGORIES.map((c) => {
++              const on = !!scopeSelection[c.key];
++              const Icon = c.icon;
++              return (
++                <button
++                  key={c.key}
++                  type="button"
++                  role="checkbox"
++                  aria-checked={on}
++                  data-testid={`comfort-shell-scope-${c.key}`}
++                  onClick={() =>
++                    setScopeSelection((s) => ({ ...s, [c.key]: !s[c.key] }))
++                  }
++                  className={
++                    "flex w-full items-center justify-between rounded-xl border px-4 py-2.5 transition-colors " +
++                    (on
++                      ? "border-teal-200 bg-teal-50/60"
++                      : "border-slate-200 bg-white hover:bg-slate-50")
++                  }
++                >
++                  <span className="flex items-center gap-2.5">
++                    <Icon size={16} className={on ? "text-teal-600" : "text-slate-400"} />
++                    <span className={"text-sm font-medium " + (on ? "text-teal-900" : "text-slate-600")}>
++                      {c.label}
++                    </span>
++                    {c.key === "notes" && (
++                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
++                        off by default
++                      </span>
++                    )}
++                  </span>
++                  <span
++                    className={
++                      "flex h-5 w-5 items-center justify-center rounded-md border " +
++                      (on
++                        ? "border-teal-600 bg-teal-600 text-white"
++                        : "border-slate-300 bg-white text-transparent")
++                    }
++                  >
++                    <Check size={13} strokeWidth={3} />
++                  </span>
++                </button>
++              );
++            })}
++            <p className="text-xs leading-relaxed text-slate-400">
++              Free-text notes are only shared if you turn them on. You can withdraw
++              at any time.
++            </p>
++          </div>
++
++
+           <Button
+             data-testid="comfort-shell-grant-btn"
+-            onClick={onGrantConsent}
+-            className="mt-1 bg-teal-600 text-white hover:bg-teal-700"
++            onClick={() => onGrantConsent(selectedScope)}
++            disabled={selectedScope.length === 0}
++            className="mt-1 bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
+           >
+             <ShieldCheck size={16} className="mr-1.5" />
+             Grant consent
++            {selectedScope.length > 0 && (
++              <span className="ml-1.5 rounded-full bg-teal-500/60 px-1.5 text-xs">
++                {selectedScope.length}
++              </span>
++            )}
+           </Button>
++          {selectedScope.length === 0 && (
++            <p data-testid="comfort-shell-scope-empty-hint" className="-mt-2 text-xs text-slate-400">
++              Select at least one category to grant consent.
++            </p>
++          )}
+         </div>
+       )}
+ 
+       {/* Active: empty state or editor */}
+       {isConsentActive && (
+         <div className="px-6 py-6">
++
+           {!hasProfile && (
+             <div
+               data-testid="comfort-shell-empty"
+diff --git a/frontend/src/pages/PatientPortal.jsx b/frontend/src/pages/PatientPortal.jsx
+index 8d74569..e4f357d 100644
+--- a/frontend/src/pages/PatientPortal.jsx
++++ b/frontend/src/pages/PatientPortal.jsx
+@@ -8,7 +8,6 @@ import ComfortPreferencesShell from "@/components/comfort-profile/ComfortPrefere
+ import { getToken, clearToken } from "@/lib/session";
+ 
+ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+-const FULL_SCOPE = ["temperature", "lighting", "noise", "notes"];
+ 
+ /**
+  * PatientPortal — container that wires ComfortPreferencesShell to the real API.
+@@ -73,14 +72,17 @@ export default function PatientPortal() {
+     }
+   };
+ 
+-  const onGrantConsent = async () => {
++  // The shell's scope picker supplies the exact categories to share.
++  const onGrantConsent = async (scope) => {
+     try {
+-      await axios.post(`${API}/comfort-profile/consent`, { scope: FULL_SCOPE }, authed());
++      await axios.post(`${API}/comfort-profile/consent`, { scope }, authed());
+       toast.success("Consent granted — your editor is unlocked.");
+       await refresh();
+     } catch (e) {
+       if (e.response?.status === 401) return handleExpired();
+-      toast.error("Could not grant consent. Please try again.");
++      if (e.response?.status === 400)
++        toast.error(e.response?.data?.detail || "Select at least one category to share.");
++      else toast.error("Could not grant consent. Please try again.");
+     }
+   };
+ 
+-- 
+2.39.5
+

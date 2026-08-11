@@ -1,0 +1,42 @@
+[
+  {
+    "content": "Restore Comfort Wiring snapshot (conflict_110826_1134) into /app with env preservation",
+    "status": "completed"
+  },
+  {
+    "content": "Verify current capabilities: Phase 4C API tests, shell preview, provider card, patient auth, /patches index",
+    "status": "completed"
+  },
+  {
+    "content": "Task 1: AUTH_bypass-removal.patch — remove/restrict X-Patient-Id / X-Provider-Id bypass",
+    "status": "completed"
+  },
+  {
+    "content": "Task 2: Provider auth + sessions (hardened logout parity)",
+    "status": "completed"
+  },
+  {
+    "content": "Task 3: Consent scope picker (per-category grant)",
+    "status": "completed"
+  },
+  {
+    "content": "Task 4: Consent history timeline (immutable audit trail)",
+    "status": "completed"
+  },
+  {
+    "content": "Task 5: /patches approval filters (green/amber badges)",
+    "status": "completed"
+  },
+  {
+    "content": "Update .agents/LOG.md + patches/INDEX.json + /patches per new patches",
+    "status": "completed"
+  },
+  {
+    "content": "End-to-end testing via testing agent",
+    "status": "in_progress"
+  },
+  {
+    "content": "Neo Entry report delivery",
+    "status": "pending"
+  }
+]

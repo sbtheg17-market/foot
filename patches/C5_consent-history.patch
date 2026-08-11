@@ -1,0 +1,673 @@
+From f06f67492c46dd064d39f96ef0ffd7c553d656be Mon Sep 17 00:00:00 2001
+From: "Neo (E2)" <neo@comfort-wiring.dev>
+Date: Tue, 11 Aug 2026 16:50:24 +0000
+Subject: [PATCH 4/5] consent history: patients get a permanent, versioned
+ record of every grant and withdrawal
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+  - contract V3.1 addendum (SS11): seventh owner-scoped operation
+    GET /api/comfort-profile/consent/history -> 200|401, newest-first, no 403 path
+  - every grant/withdraw row now records consentVersion, consentTextHash (sha256 of the
+    exact statement shown) and purpose — additive fields, append-only, never rewritten;
+    rows recorded before versioning surface a legacy note instead
+  - the consent statement lives server-side (single source of truth) and is rendered
+    verbatim in the grant UI; wording changes require a version bump
+  - ConsentHistoryTimeline (pure presentation) renders the timeline below the shell;
+    currently-shared categories show as read-only chips while consent is active
+  - tests/consent-history.api.test.mjs: 7 checks — 401, hash consistency, scoped+versioned
+    grant, newest-first timeline, owner isolation, notes-never-leak, failed-grant purity
+---
+ backend/comfort_profile.py                    |  56 +++++++
+ .../PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md   |  62 ++++++++
+ .../ComfortPreferencesShell.jsx               |  38 ++++-
+ .../ConsentHistoryTimeline.jsx                | 147 ++++++++++++++++++
+ frontend/src/pages/PatientPortal.jsx          |  35 ++++-
+ tests/consent-history.api.test.mjs            | 131 ++++++++++++++++
+ 6 files changed, 462 insertions(+), 7 deletions(-)
+ create mode 100644 frontend/src/components/comfort-profile/ConsentHistoryTimeline.jsx
+ create mode 100644 tests/consent-history.api.test.mjs
+
+diff --git a/backend/comfort_profile.py b/backend/comfort_profile.py
+index 18a5269..7389de7 100644
+--- a/backend/comfort_profile.py
++++ b/backend/comfort_profile.py
+@@ -28,6 +28,7 @@ comfort_profiles. No existing collections are modified.
+ Identity (Task-1 stub, upgraded by AUTH task): requests carry `X-Patient-Id` /
+ `X-Provider-Id` headers; a missing identity yields 401.
+ """
++import hashlib
+ import os
+ import time
+ import uuid
+@@ -59,6 +60,19 @@ PREFERENCE_ENUMS = {
+ }
+ NOTES_MAX_LEN = 1000
+ 
++# ---- Consent versioning (contract V3.1 addendum §11) --------------------------------
++# The consent statement presented to the patient at grant time. Single source of
++# truth: the frontend receives this text from the history endpoint and renders it
++# verbatim. Any wording change REQUIRES bumping CONSENT_TEXT_VERSION.
++CONSENT_PURPOSE = "comfort-profile-sharing"
++CONSENT_TEXT_VERSION = "1"
++CONSENT_TEXT = (
++    "I agree to share the comfort preference categories I select with my care "
++    "providers while I have an active booking. Sharing matches my preferences "
++    "only, is optional, and I can withdraw at any time. Withdrawing hides my "
++    "preferences immediately; it does not delete my data."
++)
++CONSENT_TEXT_HASH = hashlib.sha256(CONSENT_TEXT.encode()).hexdigest()
+ 
+ 
+ # ---- Helpers ------------------------------------------------------------------------
+@@ -216,6 +230,10 @@ async def grant_consent(request: Request):
+         "patientId": patient_id,
+         "status": "ACTIVE",
+         "scope": scope,
++        # V3.1 addendum — versioned consent evidence (additive fields only)
++        "consentVersion": CONSENT_TEXT_VERSION,
++        "consentTextHash": CONSENT_TEXT_HASH,
++        "purpose": CONSENT_PURPOSE,
+         "createdAt": _now_iso(),
+         "ts": time.time_ns(),  # monotonic-enough ordering key for latest-row selection
+     }
+@@ -246,6 +264,10 @@ async def withdraw_consent(request: Request):
+         "patientId": patient_id,
+         "status": "WITHDRAWN",
+         "scope": [],
++        # V3.1 addendum — the consent text version in effect when withdrawal happened
++        "consentVersion": CONSENT_TEXT_VERSION,
++        "consentTextHash": CONSENT_TEXT_HASH,
++        "purpose": CONSENT_PURPOSE,
+         "createdAt": _now_iso(),
+         "ts": time.time_ns(),
+     }
+@@ -340,3 +362,37 @@ async def get_provider_projection(patient_id: str, request: Request):
+         return JSONResponse(status_code=404, content={"error": "NOT_FOUND"})
+     return JSONResponse(status_code=200, content={"patientId": patient_id, "projection": projection})
+ 
++
++# ---- 7. getConsentHistory — GET /api/comfort-profile/consent/history -> 200 | 401 ---
++#      V3.1 ADDENDUM operation (contract §11) — owner-scoped, read-only, append-only
++#      evidence. Exposes the patient's own consent timeline: every grant and
++#      withdrawal with timestamp, scope, consent text version, text hash and purpose.
++#      Rows recorded before versioning surface null version fields (legacy-tolerant).
++@router.get("/comfort-profile/consent/history")
++async def get_consent_history(request: Request):
++    patient_id = await _patient_id(request)
++    if not patient_id:
++        return _unauthorized()
++    rows = await consents.find({"patientId": patient_id}).sort("ts", -1).to_list(500)
++    history = [
++        {
++            "id": r.get("id"),
++            "status": r.get("status"),
++            "scope": r.get("scope") or [],
++            "consentVersion": r.get("consentVersion"),
++            "consentTextHash": r.get("consentTextHash"),
++            "purpose": r.get("purpose"),
++            "createdAt": r.get("createdAt"),
++        }
++        for r in rows
++    ]
++    return JSONResponse(
++        status_code=200,
++        content={
++            "history": history,
++            # Current consent statement — single source of truth for the grant UI.
++            "consentText": CONSENT_TEXT,
++            "consentTextVersion": CONSENT_TEXT_VERSION,
++            "consentTextHash": CONSENT_TEXT_HASH,
++        },
++    )
+diff --git a/docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md b/docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md
+index 5360286..3e5f3db 100644
+--- a/docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md
++++ b/docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md
+@@ -220,3 +220,65 @@ alteration proposal (original wording, actual behavior, precise mismatch, propos
+ reason, affected files, schema/API/test/rollback impact, compatibility, evidence, gate rerun
+ needs, explicit approval requirement). Examples: grant returning 200 → CHANGE REQUESTED, never
+ normalized silently; a third store appearing necessary → BLOCKED pending scope review.
++
++---
++
++## 11. V3.1 ADDENDUM — operator-approved alterations (2026-08-11 Neo handoff)
++
++Authorization: the operator's Comfort Wiring handoff (recorded in `.agents/LOG.md`
++ENTRY-014) explicitly orders the consent scope picker and consent history features.
++Per §10 this addendum is the explicit contract update carrying those alterations.
++Nothing in §§1–10 is weakened except where amended below.
++
++### 11.1 Seventh operation — `getConsentHistory` (amends §1.1/§2 "exactly six")
++
++| # | operationId | Method & Path | Success | Errors |
++|---|-------------|---------------|---------|--------|
++| 7 | `getConsentHistory` | `GET /api/comfort-profile/consent/history` | 200 OK | 401 |
++
++- OWNER-SCOPED and read-only: a patient sees only their own consent rows, newest first.
++- There is still NO 403 path anywhere in the contract.
++- 200 response shape:
++```json
++{
++  "history": [
++    {
++      "id": "uuid", "status": "ACTIVE | WITHDRAWN", "scope": ["..."],
++      "consentVersion": "string | null", "consentTextHash": "sha256-hex | null",
++      "purpose": "comfort-profile-sharing | null", "createdAt": "ISO-8601"
++    }
++  ],
++  "consentText": "current consent statement (verbatim)",
++  "consentTextVersion": "1",
++  "consentTextHash": "sha256-hex of consentText"
++}
++```
++- Rows recorded before versioning surface `null` version fields (legacy-tolerant; history is
++  never rewritten).
++
++### 11.2 Versioned consent evidence (additive fields on `comfort_consents` rows)
++
++Grant and withdraw rows additionally record: `consentVersion`, `consentTextHash`
++(sha256 of the consent statement presented), and `purpose`. The consent statement and its
++version live in `backend/comfort_profile.py` (`CONSENT_TEXT`, `CONSENT_TEXT_VERSION`) — the
++single source of truth. Any wording change REQUIRES a version bump. The store count is
++unchanged (still exactly two collections; fields are additive on existing rows). The §2.1
++response shapes of operations 1–6 are NOT modified.
++
++### 11.3 Consent scope picker (shell presentation; §5 amended)
++
++- The consent-lock state gains a per-category picker: patients choose exactly which of the
++  four categories to share when granting. `onGrantConsent(scope)` carries the selection out
++  of the shell; the grant request shape (§2.1) is unchanged.
++- CONSERVATIVE DEFAULTS (normative): `temperature`, `lighting`, `noise` default ON;
++  `notes` (the single free-text field) defaults OFF and is labeled as off-by-default.
++- Grant is disabled while zero categories are selected (the API's non-empty-scope rule).
++- New presentation-only props: `consentStatement` (server-provided text, rendered verbatim
++  near the grant action) and `sharedScope` (read-only chips of currently shared categories).
++  Shell purity rules (§5.4) are unchanged: props in, callbacks out, ephemeral local state only.
++- `ConsentHistoryTimeline` is a separate pure component rendering the §11.1 history.
++
++### 11.4 Language rule (restated, binding for all §11 surfaces)
++
++All consent/history copy may say "matches your preferences" only — never medical,
++diagnostic, or suitability claims.
+diff --git a/frontend/src/components/comfort-profile/ComfortPreferencesShell.jsx b/frontend/src/components/comfort-profile/ComfortPreferencesShell.jsx
+index 7c58b8a..9e47823 100644
+--- a/frontend/src/components/comfort-profile/ComfortPreferencesShell.jsx
++++ b/frontend/src/components/comfort-profile/ComfortPreferencesShell.jsx
+@@ -20,7 +20,7 @@ import { Separator } from "@/components/ui/separator";
+ /**
+  * ComfortPreferencesShell — Phase 4C client shell.
+  *
+- * CONTRACT: docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md
++ * CONTRACT: docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md (incl. V3.1 addendum §11)
+  *
+  * Purity rules (§5.4): props-driven presentation ONLY.
+  * - No fetch/axios, no storage, no global state. Callbacks out.
+@@ -35,8 +35,8 @@ import { Separator } from "@/components/ui/separator";
+  * - Editor remains locked until consent is active.
+  * - Withdraw hides; it never deletes. Withdraw and Delete are separate actions.
+  * - Verbatim copy (§5.3) rendered byte-exact next to the withdraw action.
+- * - Conservative scope defaults: the free-text "notes" category is OFF by
+- *   default — it is only shared when the patient explicitly turns it on.
++ * - Conservative scope defaults (V3.1 §11): the free-text "notes" category is
++ *   OFF by default — it is only shared when the patient explicitly turns it on.
+  */
+ 
+ // §5.3 — normative, byte-exact. Do not edit without contract alteration approval.
+@@ -74,6 +74,10 @@ const DEFAULT_SCOPE_SELECTION = Object.fromEntries(
+   SCOPE_CATEGORIES.map((c) => [c.key, c.defaultOn])
+ );
+ 
++const CATEGORY_LABELS = Object.fromEntries(
++  SCOPE_CATEGORIES.map((c) => [c.key, c.label])
++);
++
+ function OptionRow({ icon: Icon, label, options, value, onChange, testIdPrefix }) {
+   return (
+     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+@@ -113,6 +117,8 @@ export default function ComfortPreferencesShell({
+   isConsentActive = false,
+   hasProfile = false,
+   preferences = null,
++  consentStatement = "",
++  sharedScope = null,
+   onGrantConsent = () => {},
+   onWithdrawConsent = () => {},
+   onDeleteProfile = () => {},
+@@ -247,6 +253,14 @@ export default function ComfortPreferencesShell({
+             </p>
+           </div>
+ 
++          {consentStatement && (
++            <p
++              data-testid="comfort-shell-consent-statement"
++              className="mx-auto w-full max-w-md rounded-lg bg-slate-50 px-4 py-3 text-left text-xs leading-relaxed text-slate-600"
++            >
++              {consentStatement}
++            </p>
++          )}
+ 
+           <Button
+             data-testid="comfort-shell-grant-btn"
+@@ -273,6 +287,24 @@ export default function ComfortPreferencesShell({
+       {/* Active: empty state or editor */}
+       {isConsentActive && (
+         <div className="px-6 py-6">
++          {/* V3.1 — currently shared categories (server-derived, read-only chips) */}
++          {Array.isArray(sharedScope) && sharedScope.length > 0 && (
++            <div
++              data-testid="comfort-shell-shared-scope"
++              className="mb-5 flex flex-wrap items-center gap-1.5"
++            >
++              <span className="text-xs font-medium text-slate-400">Sharing:</span>
++              {sharedScope.map((key) => (
++                <span
++                  key={key}
++                  data-testid={`comfort-shell-shared-chip-${key}`}
++                  className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-700"
++                >
++                  {CATEGORY_LABELS[key] || key}
++                </span>
++              ))}
++            </div>
++          )}
+ 
+           {!hasProfile && (
+             <div
+diff --git a/frontend/src/components/comfort-profile/ConsentHistoryTimeline.jsx b/frontend/src/components/comfort-profile/ConsentHistoryTimeline.jsx
+new file mode 100644
+index 0000000..9083a4a
+--- /dev/null
++++ b/frontend/src/components/comfort-profile/ConsentHistoryTimeline.jsx
+@@ -0,0 +1,147 @@
++import { ScrollText, ShieldCheck, EyeOff } from "lucide-react";
++
++/**
++ * ConsentHistoryTimeline — V3.1 addendum (§11) patient-facing consent audit trail.
++ *
++ * PURE PRESENTATION (shell purity rules §5.4): props in, nothing out.
++ * Renders the owner-scoped consent timeline: every grant and withdrawal with
++ * timestamp, shared categories, consent text version, text hash and purpose.
++ * Entries recorded before consent versioning show a legacy note instead.
++ *
++ * The history is append-only on the server — this component never mutates.
++ */
++
++const CATEGORY_LABELS = {
++  temperature: "Room temperature",
++  lighting: "Lighting",
++  noise: "Noise level",
++  notes: "Notes (free text)",
++};
++
++function formatWhen(iso) {
++  if (!iso) return "—";
++  try {
++    return new Date(iso).toLocaleString(undefined, {
++      year: "numeric",
++      month: "short",
++      day: "numeric",
++      hour: "2-digit",
++      minute: "2-digit",
++    });
++  } catch {
++    return iso;
++  }
++}
++
++export default function ConsentHistoryTimeline({ history = null }) {
++  return (
++    <section
++      data-testid="consent-history-root"
++      className="w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
++    >
++      <header className="flex items-center gap-3 border-b border-slate-100 px-6 py-5">
++        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
++          <ScrollText className="text-slate-500" size={20} />
++        </span>
++        <div>
++          <h2 className="text-base font-semibold text-slate-900">Consent history</h2>
++          <p className="text-sm text-slate-500">
++            A permanent record of every grant and withdrawal — newest first
++          </p>
++        </div>
++      </header>
++
++      <div className="px-6 py-5">
++        {(!history || history.length === 0) && (
++          <p data-testid="consent-history-empty" className="text-sm text-slate-500">
++            No consent events yet. Granting or withdrawing consent is recorded here.
++          </p>
++        )}
++
++        {history && history.length > 0 && (
++          <ol data-testid="consent-history-list" className="space-y-0">
++            {history.map((entry, i) => {
++              const granted = entry.status === "ACTIVE";
++              const isLast = i === history.length - 1;
++              return (
++                <li
++                  key={entry.id || i}
++                  data-testid="consent-history-item"
++                  className="relative flex gap-3.5 pb-5 last:pb-0"
++                >
++                  {/* timeline spine */}
++                  {!isLast && (
++                    <span
++                      aria-hidden
++                      className="absolute left-[15px] top-8 h-[calc(100%-24px)] w-px bg-slate-200"
++                    />
++                  )}
++                  <span
++                    className={
++                      "z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full " +
++                      (granted ? "bg-teal-50" : "bg-slate-100")
++                    }
++                  >
++                    {granted ? (
++                      <ShieldCheck size={15} className="text-teal-600" />
++                    ) : (
++                      <EyeOff size={15} className="text-slate-500" />
++                    )}
++                  </span>
++                  <div className="min-w-0 flex-1 space-y-1">
++                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
++                      <p
++                        data-testid="consent-history-item-status"
++                        className={
++                          "text-sm font-semibold " +
++                          (granted ? "text-teal-800" : "text-slate-700")
++                        }
++                      >
++                        {granted ? "Consent granted" : "Consent withdrawn"}
++                      </p>
++                      <p className="text-xs text-slate-400">{formatWhen(entry.createdAt)}</p>
++                    </div>
++
++                    {granted && entry.scope && entry.scope.length > 0 && (
++                      <div className="flex flex-wrap gap-1">
++                        {entry.scope.map((key) => (
++                          <span
++                            key={key}
++                            className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
++                          >
++                            {CATEGORY_LABELS[key] || key}
++                          </span>
++                        ))}
++                      </div>
++                    )}
++
++                    {entry.consentVersion ? (
++                      <p
++                        data-testid="consent-history-item-version"
++                        className="font-mono text-[11px] text-slate-400"
++                        title={entry.consentTextHash || ""}
++                      >
++                        Consent text v{entry.consentVersion}
++                        {entry.consentTextHash
++                          ? ` · sha256 ${entry.consentTextHash.slice(0, 12)}…`
++                          : ""}
++                        {entry.purpose ? ` · ${entry.purpose}` : ""}
++                      </p>
++                    ) : (
++                      <p
++                        data-testid="consent-history-item-legacy"
++                        className="text-[11px] italic text-slate-400"
++                      >
++                        Recorded before consent versioning
++                      </p>
++                    )}
++                  </div>
++                </li>
++              );
++            })}
++          </ol>
++        )}
++      </div>
++    </section>
++  );
++}
+diff --git a/frontend/src/pages/PatientPortal.jsx b/frontend/src/pages/PatientPortal.jsx
+index e4f357d..36dcd0e 100644
+--- a/frontend/src/pages/PatientPortal.jsx
++++ b/frontend/src/pages/PatientPortal.jsx
+@@ -5,6 +5,7 @@ import { toast } from "sonner";
+ import { LogOut, Loader2 } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+ import ComfortPreferencesShell from "@/components/comfort-profile/ComfortPreferencesShell";
++import ConsentHistoryTimeline from "@/components/comfort-profile/ConsentHistoryTimeline";
+ import { getToken, clearToken } from "@/lib/session";
+ 
+ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+@@ -13,6 +14,14 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+  * PatientPortal — container that wires ComfortPreferencesShell to the real API.
+  * The shell stays pure presentation; ALL fetching and error handling lives here.
+  *
++ * V3.1 (§11):
++ * - Consent is granted with the patient's CHOSEN scope (shell scope picker) —
++ *   no more share-all-by-default.
++ * - The consent statement text comes from the server (single source of truth,
++ *   versioned + hashed) via the history endpoint.
++ * - ConsentHistoryTimeline renders the owner-scoped, append-only consent audit
++ *   trail below the shell.
++ *
+  * HARDENED LOGOUT: the token is cleared in a `finally` block — even if the
+  * logout request fails or the token is already expired, the patient always
+  * ends up signed out locally with clear feedback.
+@@ -21,6 +30,7 @@ export default function PatientPortal() {
+   const navigate = useNavigate();
+   const [patient, setPatient] = useState(null);
+   const [profile, setProfile] = useState(null); // {isConsentActive, hasProfile, preferences}
++  const [consentLog, setConsentLog] = useState(null); // {history, consentText, consentTextVersion, consentTextHash}
+   const [loading, setLoading] = useState(true);
+   const [signingOut, setSigningOut] = useState(false);
+ 
+@@ -42,12 +52,14 @@ export default function PatientPortal() {
+       return;
+     }
+     try {
+-      const [meRes, profileRes] = await Promise.all([
++      const [meRes, profileRes, historyRes] = await Promise.all([
+         axios.get(`${API}/auth/me`, authed()),
+         axios.get(`${API}/comfort-profile`, authed()),
++        axios.get(`${API}/comfort-profile/consent/history`, authed()),
+       ]);
+       setPatient(meRes.data.patient);
+       setProfile(profileRes.data);
++      setConsentLog(historyRes.data);
+     } catch (e) {
+       if (e.response?.status === 401) {
+         handleExpired();
+@@ -65,14 +77,18 @@ export default function PatientPortal() {
+ 
+   const refresh = async () => {
+     try {
+-      const res = await axios.get(`${API}/comfort-profile`, authed());
+-      setProfile(res.data);
++      const [profileRes, historyRes] = await Promise.all([
++        axios.get(`${API}/comfort-profile`, authed()),
++        axios.get(`${API}/comfort-profile/consent/history`, authed()),
++      ]);
++      setProfile(profileRes.data);
++      setConsentLog(historyRes.data);
+     } catch (e) {
+       if (e.response?.status === 401) handleExpired();
+     }
+   };
+ 
+-  // The shell's scope picker supplies the exact categories to share.
++  // V3.1 — the shell's scope picker supplies the exact categories to share.
+   const onGrantConsent = async (scope) => {
+     try {
+       await axios.post(`${API}/comfort-profile/consent`, { scope }, authed());
+@@ -152,6 +168,13 @@ export default function PatientPortal() {
+     );
+   }
+ 
++  const history = consentLog?.history || [];
++  // Currently shared categories = scope of the latest row, only while it is ACTIVE.
++  const sharedScope =
++    profile?.isConsentActive && history[0]?.status === "ACTIVE"
++      ? history[0].scope || []
++      : [];
++
+   return (
+     <main className="min-h-screen bg-slate-50 px-4 py-10 text-left">
+       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+@@ -184,11 +207,15 @@ export default function PatientPortal() {
+           isConsentActive={profile?.isConsentActive || false}
+           hasProfile={profile?.hasProfile || false}
+           preferences={profile?.preferences || null}
++          consentStatement={consentLog?.consentText || ""}
++          sharedScope={sharedScope}
+           onGrantConsent={onGrantConsent}
+           onWithdrawConsent={onWithdrawConsent}
+           onDeleteProfile={onDeleteProfile}
+           onSavePreferences={onSavePreferences}
+         />
++
++        <ConsentHistoryTimeline history={history} />
+       </div>
+     </main>
+   );
+diff --git a/tests/consent-history.api.test.mjs b/tests/consent-history.api.test.mjs
+new file mode 100644
+index 0000000..bdab881
+--- /dev/null
++++ b/tests/consent-history.api.test.mjs
+@@ -0,0 +1,131 @@
++// Consent history + versioned consent + scoped grant — V3.1 addendum test suite.
++// Convention (contract §8): node:test with fetch-against-BASE.
++// Run: BASE=http://localhost:8001 node --test tests/consent-history.api.test.mjs
++// NOTE: this environment runs with ALLOW_TEST_IDENTITY_HEADERS=true (dev flag);
++// the production hard-stop in comfort_profile._bypass_enabled (APP_ENV=production
++// refuses the bypass regardless of the flag) is enforced in code.
++
++import test from "node:test";
++import assert from "node:assert/strict";
++import { createHash, randomUUID } from "node:crypto";
++
++const BASE = process.env.BASE || "http://localhost:8001";
++
++async function req(method, path, { patient, provider, body } = {}) {
++  const headers = { "Content-Type": "application/json" };
++  if (patient) headers["X-Patient-Id"] = patient;
++  if (provider) headers["X-Provider-Id"] = provider;
++  const res = await fetch(`${BASE}${path}`, {
++    method,
++    headers,
++    body: body === undefined ? undefined : JSON.stringify(body),
++  });
++  let json = null;
++  try {
++    json = await res.json();
++  } catch {
++    /* 204 has no body */
++  }
++  return { status: res.status, json };
++}
++
++const PROVIDER = `provider-${randomUUID()}`;
++
++test("history — 401 without identity", async () => {
++  const r = await req("GET", "/api/comfort-profile/consent/history");
++  assert.equal(r.status, 401);
++});
++
++test("history — fresh patient: empty history, advertised consent text is hash-consistent", async () => {
++  const patient = `patient-${randomUUID()}`;
++  const r = await req("GET", "/api/comfort-profile/consent/history", { patient });
++  assert.equal(r.status, 200);
++  assert.deepEqual(r.json.history, []);
++  assert.equal(typeof r.json.consentText, "string");
++  assert.ok(r.json.consentText.length > 20);
++  assert.equal(r.json.consentTextVersion, "1");
++  const expected = createHash("sha256").update(r.json.consentText).digest("hex");
++  assert.equal(r.json.consentTextHash, expected, "advertised hash must equal sha256(consentText)");
++  // Language rule: the consent text must never make medical claims.
++  assert.ok(!/medic|diagnos|suitab/i.test(r.json.consentText));
++});
++
++test("scoped grant — partial scope is stored and versioned in history", async () => {
++  const patient = `patient-${randomUUID()}`;
++  const g = await req("POST", "/api/comfort-profile/consent", {
++    patient,
++    body: { scope: ["temperature", "noise"] },
++  });
++  assert.equal(g.status, 201);
++  assert.deepEqual(g.json.scope, ["temperature", "noise"]);
++
++  const h = await req("GET", "/api/comfort-profile/consent/history", { patient });
++  assert.equal(h.status, 200);
++  assert.equal(h.json.history.length, 1);
++  const row = h.json.history[0];
++  assert.equal(row.status, "ACTIVE");
++  assert.deepEqual(row.scope, ["temperature", "noise"]);
++  assert.equal(row.consentVersion, "1");
++  assert.equal(row.consentTextHash, h.json.consentTextHash);
++  assert.equal(row.purpose, "comfort-profile-sharing");
++  assert.ok(row.createdAt);
++  assert.ok(row.id);
++});
++
++test("timeline — grant then withdraw: newest-first, both versioned, immutable ids", async () => {
++  const patient = `patient-${randomUUID()}`;
++  await req("POST", "/api/comfort-profile/consent", {
++    patient,
++    body: { scope: ["lighting"] },
++  });
++  const w = await req("POST", "/api/comfort-profile/consent/withdraw", { patient });
++  assert.equal(w.status, 200);
++
++  const h = await req("GET", "/api/comfort-profile/consent/history", { patient });
++  assert.equal(h.json.history.length, 2);
++  const [newest, oldest] = h.json.history;
++  assert.equal(newest.status, "WITHDRAWN");
++  assert.equal(oldest.status, "ACTIVE");
++  assert.notEqual(newest.id, oldest.id);
++  // Withdrawal is also versioned evidence.
++  assert.equal(newest.consentVersion, "1");
++  assert.equal(newest.consentTextHash, h.json.consentTextHash);
++  // Append-only: the original grant row is untouched.
++  assert.deepEqual(oldest.scope, ["lighting"]);
++});
++
++test("owner-scoping — a patient never sees another patient's consent events", async () => {
++  const a = `patient-${randomUUID()}`;
++  const b = `patient-${randomUUID()}`;
++  await req("POST", "/api/comfort-profile/consent", { patient: a, body: { scope: ["noise"] } });
++  const hb = await req("GET", "/api/comfort-profile/consent/history", { patient: b });
++  assert.equal(hb.status, 200);
++  assert.deepEqual(hb.json.history, []);
++});
++
++test("conservative sharing — ungranted notes never reach the provider projection", async () => {
++  const patient = `patient-${randomUUID()}`;
++  // Grant WITHOUT notes (the conservative default of the scope picker).
++  await req("POST", "/api/comfort-profile/consent", {
++    patient,
++    body: { scope: ["temperature", "lighting", "noise"] },
++  });
++  await req("PUT", "/api/comfort-profile/preferences", {
++    patient,
++    body: { temperature: "warm", notes: "private free text — must never leak" },
++  });
++  const p = await req("GET", `/api/provider/comfort-projection/${patient}`, {
++    provider: PROVIDER,
++  });
++  assert.equal(p.status, 200);
++  assert.equal(p.json.projection.temperature, "warm");
++  assert.equal(p.json.projection.notes, undefined, "notes outside scope must not appear");
++});
++
++test("grant validation still holds — empty scope 400; history unchanged by the failure", async () => {
++  const patient = `patient-${randomUUID()}`;
++  const bad = await req("POST", "/api/comfort-profile/consent", { patient, body: { scope: [] } });
++  assert.equal(bad.status, 400);
++  const h = await req("GET", "/api/comfort-profile/consent/history", { patient });
++  assert.deepEqual(h.json.history, [], "failed grants are never recorded");
++});
+-- 
+2.39.5
+

@@ -1,0 +1,83 @@
+From c5574957e24290812677a7bafab6a885f2285307 Mon Sep 17 00:00:00 2001
+From: "Neo (E2)" <neo@comfort-wiring.dev>
+Date: Tue, 11 Aug 2026 16:49:49 +0000
+Subject: [PATCH 2/5] bypass confinement: comfort routes are locked to real
+ sessions outside dev
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+  - X-Patient-Id / X-Provider-Id headers are honored ONLY when
+    ALLOW_TEST_IDENTITY_HEADERS=true (default false)
+  - HARD STOP: APP_ENV/ENVIRONMENT=production refuses the bypass regardless of the
+    flag — closes the ENTRY-012 deploy caveat at the code level
+  - patients and providers keep exactly the same Bearer flows; nothing else changes
+---
+ backend/comfort_profile.py | 35 +++++++++++++++++++++++++++--------
+ 1 file changed, 27 insertions(+), 8 deletions(-)
+
+diff --git a/backend/comfort_profile.py b/backend/comfort_profile.py
+index 27dcc14..18a5269 100644
+--- a/backend/comfort_profile.py
++++ b/backend/comfort_profile.py
+@@ -74,30 +74,49 @@ def _now_iso() -> str:
+     return datetime.now(timezone.utc).isoformat()
+ 
+ 
++def _bypass_enabled() -> bool:
++    """DOCUMENTED TEST BYPASS (dev/staging only — approval ENTRY-012 caveat).
++    X-Patient-Id / X-Provider-Id headers are honored ONLY when
++    ALLOW_TEST_IDENTITY_HEADERS=true AND the environment is not production.
++
++    HARD STOP: when APP_ENV / ENVIRONMENT names a production build, the bypass
++    is refused regardless of the flag — routes are locked to real Bearer
++    sessions. This closes the ENTRY-012 deploy caveat at the code level."""
++    env = (
++        os.environ.get("APP_ENV", "") or os.environ.get("ENVIRONMENT", "")
++    ).strip().lower()
++    if env in ("production", "prod"):
++        return False
++    return os.environ.get("ALLOW_TEST_IDENTITY_HEADERS", "false").strip().lower() == "true"
++
+ 
+ async def _patient_id(request: Request) -> str | None:
+-    """Resolve the acting patient identity. Bearer session first; the header
+-    stub remains as a documented test path (removal tracked as its own task)."""
++    """Resolve the acting patient identity. Bearer session first; header bypass
++    only when the dev flag allows it."""
+     resolver = getattr(request.app.state, "resolve_patient", None)
+     if resolver is not None:
+         resolved = await resolver(request)
+         if resolved:
+             return resolved
+-    pid = request.headers.get("X-Patient-Id", "").strip()
+-    return pid or None
++    if _bypass_enabled():
++        pid = request.headers.get("X-Patient-Id", "").strip()
++        return pid or None
++    return None
+ 
+ 
+ async def _provider_identity(request: Request) -> str | None:
+     """Resolve the acting provider identity. Bearer provider session first
+-    (patient tokens are rejected by role enforcement); the header stub remains
+-    as a documented test path (removal tracked as its own task)."""
++    (patient tokens are rejected by role enforcement); header bypass only when
++    the dev flag allows it."""
+     resolver = getattr(request.app.state, "resolve_provider", None)
+     if resolver is not None:
+         resolved = await resolver(request)
+         if resolved:
+             return resolved
+-    pid = request.headers.get("X-Provider-Id", "").strip()
+-    return pid or None
++    if _bypass_enabled():
++        pid = request.headers.get("X-Provider-Id", "").strip()
++        return pid or None
++    return None
+ 
+ 
+ async def _latest_consent_row(patient_id: str) -> dict | None:
+-- 
+2.39.5
+

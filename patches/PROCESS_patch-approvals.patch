@@ -1,0 +1,178 @@
+From ac9d3cd502e5ef46ec7dd222719c46412fb8880c Mon Sep 17 00:00:00 2001
+From: emergent-agent-e1 <github@emergent.sh>
+Date: Tue, 11 Aug 2026 15:06:59 +0000
+Subject: [PATCH] =?UTF-8?q?Process=20=E2=80=94=20record=20patch=20approval?=
+ =?UTF-8?q?s=20(Deep=20Research=20signed=20log)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- .agents/LOG.md ENTRY-012: operator approval block recorded verbatim
+  (5 patches approved; AUTH approved dev/staging with bypass-removal caveat).
+- patches/INDEX.json: approval field mirrored per patch.
+- /patches page surfaces approval status (emerald badge; amber ShieldAlert
+  when approval carries a CAVEAT).
+- NEXT_TASK: DEPLOY BLOCKER reaffirmed — remove/confine X-Patient-Id /
+  X-Provider-Id bypass before live deployment.
+---
+ .agents/LOG.md                    | 37 +++++++++++++++++++++++++++++++
+ .agents/NEXT_TASK.md              |  4 ++++
+ backend/patch_index.py            |  1 +
+ frontend/src/pages/PatchIndex.jsx | 20 ++++++++++++++++-
+ patches/INDEX.json                | 20 ++++++++++++-----
+ 5 files changed, 76 insertions(+), 6 deletions(-)
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index bf73a33..483ea4a 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -171,3 +171,40 @@ Format: ENTRY-XXX | date | actor | action | evidence
+ - Standing note: X-Patient-Id / X-Provider-Id header bypass remains for testing — REMOVE BEFORE
+   DEPLOY (memory/test_credentials.md).
+ - Approval record: approved and logical — per operator policy (ENTRY-002).
++
++## ENTRY-012 | 2026-08-11 | Operator (Deep Research) | Patch approvals — signed log
++Approval block received from operator, recorded verbatim per the Fable/Replit signed-log
++policy (ENTRY-002):
++
++> PHASE_4C_restoration.patch — Approved. Restores Phase 4C contract + shell as design-only;
++> no schema, migrations, routes, or events. Safe as a non-behavioral prep step and matches
++> the consent-first principles.
++>
++> PHASE_4C_comfort-profile-api.patch — Approved. Implements the six consent-gated routes
++> exactly per contract (grant 201/400, withdraw/delete separate with 404, PUT 409 on inactive
++> consent, projection 404-only) with two additive collections only; node:test
++> fetch-against-BASE 12/12 passing.
++>
++> PHASE_4C_provider-projection-card.patch — Approved. Provider card respects consent and
++> visibility rules: renders nothing on 404/null, filters out ungranted categories, and has no
++> discovery surface. Matches the "projection only during ACTIVE booking" constraint.
++>
++> AUTH_patient-signin-logout.patch — Approved (dev/staging). Patient sign-in + hardened logout
++> (token cleared in finally, banner shown, server logout always 200) is correct and aligns
++> with secure portal auth patterns.
++> Caveat: the X-Patient-Id / X-Provider-Id test bypass must be removed or confined to a
++> non-production build before any live deployment; auth bypass headers are explicitly called
++> out as unsafe in production guidance.
++>
++> C3_patch-index-page.patch — Approved. /patches index that parses real patch files (name,
++> commit, files, test evidence) strengthens traceability and makes your one-task → one-patch
++> workflow transparent for future agents.
++>
++> Prepared by Deep Research
++
++Actions taken:
++- Approvals mirrored into patches/INDEX.json (`approval` field per patch).
++- /patches page now surfaces approval status (emerald badge; amber ShieldAlert when the
++  approval carries a CAVEAT — currently the AUTH dev/staging bypass caveat).
++- DEPLOY BLOCKER reaffirmed: remove/confine the X-Patient-Id / X-Provider-Id bypass before
++  any live deployment (see NEXT_TASK).
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index d68c938..0678f3a 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -58,6 +58,10 @@ STATUS: SATISFIED FOR THIS CHECKOUT / OPEN FOR MONOREPO
+ 
+ ---
+ 
++## DEPLOY BLOCKER (from approval ENTRY-012)
++- AUTH approved for dev/staging ONLY. Before any live deployment: remove or confine the
++  X-Patient-Id / X-Provider-Id test bypass headers to non-production builds.
++
+ ## Standing gate state (unchanged)
+ - Managed Gate B: BLOCKED — managed `DATABASE_URL` unavailable in this environment; local
+   PostgreSQL does not qualify and none is installed.
+diff --git a/backend/patch_index.py b/backend/patch_index.py
+index 3a0f1cd..37d3623 100644
+--- a/backend/patch_index.py
++++ b/backend/patch_index.py
+@@ -72,6 +72,7 @@ async def list_patches():
+         meta = index.get(path.name, {})
+         entry["evidence"] = meta.get("evidence", "")
+         entry["task"] = meta.get("task", "")
++        entry["approval"] = meta.get("approval", "")
+         entries.append(entry)
+     # chronological by author date where possible, fallback name
+     entries.sort(key=lambda e: (e["date"], e["name"]))
+diff --git a/frontend/src/pages/PatchIndex.jsx b/frontend/src/pages/PatchIndex.jsx
+index 409199e..5009a01 100644
+--- a/frontend/src/pages/PatchIndex.jsx
++++ b/frontend/src/pages/PatchIndex.jsx
+@@ -1,6 +1,6 @@
+ import { useEffect, useState } from "react";
+ import axios from "axios";
+-import { FileDiff, GitCommitHorizontal, Loader2, BadgeCheck, ChevronDown, ChevronUp } from "lucide-react";
++import { FileDiff, GitCommitHorizontal, Loader2, BadgeCheck, ChevronDown, ChevronUp, ShieldCheck, ShieldAlert } from "lucide-react";
+ 
+ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+ 
+@@ -103,6 +103,24 @@ export default function PatchIndex() {
+                         <span>{p.evidence}</span>
+                       </p>
+                     )}
++                    {p.approval && (
++                      <p
++                        data-testid="patch-index-approval"
++                        className={
++                          "flex items-start gap-1.5 rounded-lg px-3 py-2 text-xs leading-relaxed " +
++                          (p.approval.includes("CAVEAT")
++                            ? "bg-amber-50 text-amber-800"
++                            : "bg-emerald-50 text-emerald-800")
++                        }
++                      >
++                        {p.approval.includes("CAVEAT") ? (
++                          <ShieldAlert size={14} className="mt-0.5 shrink-0" />
++                        ) : (
++                          <ShieldCheck size={14} className="mt-0.5 shrink-0" />
++                        )}
++                        <span>{p.approval}</span>
++                      </p>
++                    )}
+                   </div>
+                 </li>
+               );
+diff --git a/patches/INDEX.json b/patches/INDEX.json
+index 38eb28f..ddf3205 100644
+--- a/patches/INDEX.json
++++ b/patches/INDEX.json
+@@ -1,22 +1,32 @@
+ {
+   "PHASE_4C_restoration.patch": {
+     "task": "Restore Phase 4C contract + shell (design-only)",
+-    "evidence": "16/16 automated frontend checks PASS (testing agent, test_reports/iteration_1.json); verbatim copy byte-exact; shell purity verified (zero comfort API calls)"
++    "evidence": "16/16 automated frontend checks PASS (testing agent, test_reports/iteration_1.json); verbatim copy byte-exact; shell purity verified (zero comfort API calls)",
++    "approval": "Approved — restores Phase 4C contract + shell as design-only; no schema, migrations, routes, or events. Safe non-behavioral prep step; matches consent-first principles. (Deep Research, 2026-08-11, LOG ENTRY-012)"
+   },
+   "PHASE_4C_comfort-profile-api.patch": {
+     "task": "Comfort Profile API — six consent-gated routes",
+-    "evidence": "12/12 node:test fetch-against-BASE checks PASS (tests/comfort-profile.api.test.mjs): full 201/400/401/404/409 matrix, hide-without-delete, latest-row rule, scope filtering, projection 404 matrix (no 403)"
++    "evidence": "12/12 node:test fetch-against-BASE checks PASS (tests/comfort-profile.api.test.mjs): full 201/400/401/404/409 matrix, hide-without-delete, latest-row rule, scope filtering, projection 404 matrix (no 403)",
++    "approval": "Approved — six consent-gated routes exactly per contract (grant 201/400, withdraw/delete separate with 404, PUT 409 on inactive consent, projection 404-only); two additive collections only. (Deep Research, 2026-08-11, LOG ENTRY-012)"
+   },
+   "PHASE_4C_provider-projection-card.patch": {
+     "task": "Provider projection card — read-only, renders nothing on 404/null",
+-    "evidence": "Live API seed verified (grant 201, PUT 200); interaction matrix covered in comprehensive test run"
++    "evidence": "Live API seed verified (grant 201, PUT 200); interaction matrix covered in comprehensive test run (iteration_2: 200 scope-filtering + 404 renders-nothing paths PASS)",
++    "approval": "Approved — card respects consent and visibility rules: renders nothing on 404/null, filters ungranted categories, no discovery surface. (Deep Research, 2026-08-11, LOG ENTRY-012)"
+   },
+   "AUTH_patient-signin-logout.patch": {
+     "task": "Patient sign-in + hardened logout",
+-    "evidence": "4/4 node:test checks PASS (tests/auth.api.test.mjs): register/login matrix, hardened logout across 3 failure paths, Bearer end-to-end on comfort routes, revocation 401; full suite 16/16"
++    "evidence": "4/4 node:test checks PASS (tests/auth.api.test.mjs): register/login matrix, hardened logout across 3 failure paths, Bearer end-to-end on comfort routes, revocation 401; full suite 16/16",
++    "approval": "Approved (dev/staging) — hardened logout (token cleared in finally, banner shown, server logout always 200) aligns with secure portal auth patterns. CAVEAT: X-Patient-Id / X-Provider-Id test bypass MUST be removed or confined to non-production builds before any live deployment. (Deep Research, 2026-08-11, LOG ENTRY-012)"
+   },
+   "C3_patch-index-page.patch": {
+     "task": "Patch index page — name, commit, files, test evidence",
+-    "evidence": "GET /api/patches parses real patch files on disk; verified in comprehensive test run"
++    "evidence": "GET /api/patches parses real patch files on disk; verified in comprehensive test run (iteration_2: 5 entries, file toggle, evidence PASS)",
++    "approval": "Approved — strengthens traceability; makes the one-task → one-patch workflow transparent for future agents. (Deep Research, 2026-08-11, LOG ENTRY-012)"
++  },
++  "PROCESS_patch-approvals.patch": {
++    "task": "Record Deep Research patch approvals + surface approval status on /patches",
++    "evidence": "Approval block recorded verbatim in .agents/LOG.md ENTRY-012; /patches page shows approval badges incl. AUTH dev/staging caveat",
++    "approval": "Recorded per operator Fable/Replit signed-log policy (LOG ENTRY-002)."
+   }
+ }
+-- 
+2.39.5
+
