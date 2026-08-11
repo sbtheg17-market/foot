@@ -1,0 +1,58 @@
+{
+  "package": "B_prime_r2_package",
+  "prepared_utc": "2026-08-11T01:50:00Z",
+  "repository": "sbtheg17-market/foot",
+  "transport_only": true,
+  "applied_remotely": false,
+  "publication_window_opened": false,
+  "publication_approval": "NOT GRANTED - separate named approval required",
+  "candidate": {
+    "key": "B_prime_r2",
+    "title": "feat(web): provider portal sign-out (re-derived on post-C-prime tip)",
+    "commit": "9e0bbd451e9341729052db9c74d5e2ad526cf41b",
+    "parent": "e2406942b4206f877468e1b0f4c3c331ec151da9",
+    "tree": "c7e136a43853ae906617266ada831835188a4587",
+    "base_main": "e2406942b4206f877468e1b0f4c3c331ec151da9",
+    "branch": "candidate/B-prime-r2-provider-signout",
+    "author": "E2 Agent (Emergent) <github@emergent.sh>",
+    "authored_utc": "2026-08-11T01:36:34Z",
+    "changed_files": [
+      "artifacts/web/src/components/layout/provider-layout.tsx"
+    ],
+    "diffstat": "+40 -2 (one file)",
+    "patch_file": "B-prime-r2-provider-signout.patch",
+    "patch_sha256": "af55ecf502c7828dec8b78b75cfefd0404bbdf00e4be6531948c5303c09e5a48"
+  },
+  "supersedes": {
+    "old_identity": "e6380bf7b01b993b541bdbafe50ffdd6e51fc7ae",
+    "old_parent": "3e76114ce8ff8908a955d4beac38d6b3cde5dd6a",
+    "old_patch_sha256": "dfbf9e18b643004316cdcfe4db2c7175ace9c7506c57a2915932af0437742093",
+    "note": "old identity RETIRED and used only as recorded source evidence (BD-002); never push the old commit"
+  },
+  "validation": {
+    "1_typecheck": {"status": "PASS", "ledger": "BD-005"},
+    "2_web_build": {"status": "PASS", "ledger": "BD-006"},
+    "3_desktop_browser_signout": {"status": "PASS 6/6", "ledger": "BD-010 (supersedes BD-009 test-timing FAIL)"},
+    "4_mobile_responsive_signout_390px": {"status": "PASS 6/6", "ledger": "BD-011"},
+    "5_session_token_clearing": {"status": "PASS (asserted in both BD-010 and BD-011: oncallfoot_token present after login, null after sign-out)", "ledger": "BD-010, BD-011"},
+    "6_protected_routes_after_signout": {"status": "PASS 8/8 (4 provider routes land on /login; /api/auth/me returns 401 without bearer; no protected content rendered)", "ledger": "BD-012"},
+    "7_real_reviewed_approve_web_ui_rationale": {"status": "PRESENT - real reviewed, clearly distinguished from retired draft", "file": "APPROVE_WEB_UI_RATIONALE_B_prime_r2.md", "ledger": "BD-014"},
+    "8_publication_gate": {"status": "PASS 12/12 incl. tree identity + patch checksum + audited WEB-UI APPROVAL record", "ledger": "BD-014"},
+    "9_patch_application_checksum": {"status": "PASS (git am onto pristine e2406942 reproduces exact tree c7e136a4; sha256 re-verified)", "ledger": "BD-015"},
+    "10_secret_scan": {"status": "PASS - zero hits", "ledger": "BD-016"}
+  },
+  "environment": {
+    "node": "v20.20.2",
+    "pnpm": "10.18.3 (corepack 0.34.6)",
+    "postgresql": "15.18 (ephemeral scratch cluster, local only)",
+    "browser": "system chrome via playwright-python, headless, 1920x800 and 390x844",
+    "ledger_setup_records": ["BD-001", "BD-004", "BD-008 (supersedes BD-007)"]
+  },
+  "blockers_before_publication": [
+    "explicit per-candidate publication approval naming candidate 9e0bbd451e9341729052db9c74d5e2ad526cf41b and target ref refs/heads/main",
+    "new bounded repository-scoped write credential (never an audit credential)",
+    "live main must still equal e2406942b4206f877468e1b0f4c3c331ec151da9 at push time (re-verify; if moved, re-derive again)",
+    "publish alone - never in the same window as any other candidate",
+    "post-push independent verification: remote SHA, parent, tree c7e136a4, one-file scope, pnpm-lock.yaml untouched; then revoke credential"
+  ]
+}

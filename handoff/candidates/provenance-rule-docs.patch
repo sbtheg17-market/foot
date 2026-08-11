@@ -1,0 +1,64 @@
+From b85f71f32202c293c1d7c240ec4af151b22c2c41 Mon Sep 17 00:00:00 2001
+From: "E2 Agent (Emergent)" <github@emergent.sh>
+Date: Mon, 10 Aug 2026 23:02:33 +0000
+Subject: [PATCH] =?UTF-8?q?docs(agents):=20Rule=2012=20=E2=80=94=20evidenc?=
+ =?UTF-8?q?e=20and=20provenance:=20every=20setup/build/test/gate/reconstru?=
+ =?UTF-8?q?ction/handoff=20action=20must=20persist=20a=20machine-readable,?=
+ =?UTF-8?q?=20append-only=20record=20(command,=20environment,=20exit=20cod?=
+ =?UTF-8?q?e,=20counts,=20duration,=20artifact=20path=20+=20checksum,=20re?=
+ =?UTF-8?q?mote-state=20effect)=20classified=20PASS/FAIL/BLOCKED/UNRECORDE?=
+ =?UTF-8?q?D/NOT=5FRUN;=20lost=20output=20is=20UNRECORDED=20and=20must=20b?=
+ =?UTF-8?q?e=20rerun=20after=20searching=20prior=20evidence;=20secrets=20a?=
+ =?UTF-8?q?re=20never=20recorded=20and=20output=20is=20redacted=20before?=
+ =?UTF-8?q?=20persistence?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .agents/AGENT-RULES.md | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)
+
+diff --git a/.agents/AGENT-RULES.md b/.agents/AGENT-RULES.md
+index 51e3b77..4d8cefa 100644
+--- a/.agents/AGENT-RULES.md
++++ b/.agents/AGENT-RULES.md
+@@ -92,3 +92,35 @@ Application code (anything under `artifacts/api-server/` and the future `artifac
+ ## 11. Keep This File and the Log Portable
+ 
+ `.agents/LOG.md` and `.agents/AGENT-RULES.md` are committed to the repository. They must remain plaintext Markdown, with no Replit-specific tooling required to read them. Any agent, on any platform, must be able to read and append to them with a standard text editor or file write tool.
++
++---
++
++## 12. Evidence and Provenance — Do Not Rely on "I Ran It"
++
++> Do not rely on "I ran it" as evidence. Persist the command, environment, exit
++> code, counts, duration, artifact path, checksum, and remote-state effect. If
++> stdout or exit status is lost, classify the result as UNRECORDED and rerun it.
++> Before rerunning, search the handoff logs and artifact index so an already
++> captured successful result is not repeated unnecessarily.
++
++For every setup, build, test, gate, reconstruction, or handoff action, append one
++machine-readable record (JSONL preferred, append-only or versioned) containing:
++UTC timestamp; agent/session/workspace identifier; repository, branch, and exact
++commit (plus parent, tree, and patch checksum when applicable); runtime versions
++(Node, pnpm, PostgreSQL, OS/container); the exact command or tool action; the
++test/gate name; duration; exit code; test counts and failed-test details; the
++artifact/log path and its checksum; whether the action changed files, refs, or
++remote state; whether the result is reproducible; and the next action plus
++whether approval is required. Keep a concise human-readable summary alongside.
++
++Classify every result as exactly one of:
++
++- **PASS** — captured and reproducible
++- **FAIL** — captured with diagnosis
++- **BLOCKED** — external prerequisite missing
++- **UNRECORDED** — output lost or tool timeout; must rerun
++- **NOT_RUN** — deliberately not executed
++
++Never record tokens, passwords, database URLs, private keys, secrets, or
++unnecessary personal data; redact command output before persistence (this
++extends Rule 9 to captured evidence).
+-- 
+2.39.5
+
