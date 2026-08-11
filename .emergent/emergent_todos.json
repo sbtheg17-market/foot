@@ -1,26 +1,26 @@
 [
   {
     "content": "Task 1: Comfort Profile API — six contract routes + node:test suite → PHASE_4C_comfort-profile-api.patch",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "content": "Task 2: Provider Projection Card — read-only card, renders nothing on 404 → PHASE_4C_provider-projection-card.patch",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Task 3: Patient Auth — sign-in + hardened logout (always clears session) → AUTH_patient-signin-logout.patch",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Task 4: Patch Index Page — name/commit/files/evidence listing → C3_patch-index-page.patch",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Comprehensive end-to-end validation via testing agent + fix all issues",
-    "status": "pending"
+    "status": "completed"
   },
   {
     "content": "Record all patches + INDEX evidence in final process commit + LOG entries",
-    "status": "pending"
+    "status": "completed"
   }
 ]
