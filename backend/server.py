@@ -69,6 +69,10 @@ async def get_status_checks():
 # Include the router in the main app
 app.include_router(api_router)
 
+# Phase 4C — Comfort Profile API (contract module boundary)
+from comfort_profile import router as comfort_router  # noqa: E402
+app.include_router(comfort_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

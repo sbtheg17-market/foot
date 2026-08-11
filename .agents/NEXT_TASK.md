@@ -11,6 +11,23 @@
 
 ## Task 1 — Restore Phase 4C comfort-profile contract + shell
 STATUS: DONE + VERIFIED (LOG ENTRY-004, ENTRY-005 — 16/16 automated checks passed)
+PATCH: patches/PHASE_4C_restoration.patch
+
+## Task A — Comfort Profile API (operator priority 1)
+STATUS: DONE + VERIFIED (LOG ENTRY-007 — 12/12 node:test checks passed)
+PATCH: patches/PHASE_4C_comfort-profile-api.patch
+
+## Task B — Provider Projection Card (operator priority 2)
+STATUS: NEXT
+- Read-only provider card; calls projection endpoint; renders NOTHING on 404/null.
+
+## Task C — Patient Auth (operator priority 3)
+STATUS: QUEUED
+- Sign-in + hardened logout (always clears session even on request failure).
+
+## Task D — Patch Index Page (operator priority 4)
+STATUS: QUEUED
+- Lists patch name, commit hash, files touched, test evidence.
 - `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` present.
 - `ComfortPreferencesShell` present, props-driven, aligned with contract §5.
 - Shell visible at `/phase-4c/shell-preview` (presentation-only harness).

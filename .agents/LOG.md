@@ -91,3 +91,23 @@ Format: ENTRY-XXX | date | actor | action | evidence
   contains the verbatim-copy constant. Evidence: command output in session transcript.
 - Main branch: App.js route wiring restored in commit `b1d9bce` after the baseline snapshot.
 - Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-007 | 2026-08-11 | Neo (E2) | Task: Comfort Profile API — six contract routes implemented
+- Operator authorization: implement the six Phase 4C consent routes exactly per
+  PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md; wire to persistence; NO UI changes; forbidden:
+  schema beyond the two additive stores, new events/analytics.
+- Implemented `backend/comfort_profile.py` (contract/module boundary):
+  grantConsent 201/400/401 · withdrawConsent 200/404/401 · deleteComfortProfile 204/404/401 ·
+  getComfortProfile 200/401 · updateComfortPreferences 200/400/409/401 ·
+  getProviderProjection 200/404-only/401 (no 403 branch exists in the module).
+- `build_provider_projection` encodes the four conditions + ["ACTIVE"] allow-list;
+  `isConsentActive` from latest row (ns-timestamp ordering); withdraw appends WITHDRAWN row and
+  never touches profile data.
+- Persistence: exactly TWO additive Mongo collections — `comfort_consents` (append-only),
+  `comfort_profiles`. No existing collections modified. No events/analytics/economics.
+- Identity: Task-1 stub via `X-Patient-Id` / `X-Provider-Id` headers (401 when missing);
+  AUTH task will layer Bearer tokens on top (stub retained as documented test bypass).
+- Test evidence (contract §8 convention — node:test, fetch-against-BASE):
+  `tests/comfort-profile.api.test.mjs` — **12/12 PASS** covering the full status matrix,
+  hide-without-delete, re-grant latest-row rule, scope filtering, and the projection 404 matrix.
+- Approval record: approved and logical — per operator policy (ENTRY-002).
