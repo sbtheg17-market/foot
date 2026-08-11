@@ -64,6 +64,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Publication review-gate UI-approval flag | ✅ PUBLISHED at `47df77e` | `scripts/verify-publication.sh` check 5 split into two tiers: hard-forbidden paths (`.emergent/`, lockfiles, `lib/db/src/schema/`, generated clients, `artifacts/mobile/`, `attached_assets/`, `.patch`/`.bundle`) are never overridable; `artifacts/web/**` alone may be explicitly authorized for a reviewed UI publication via `--approve-web-ui "<approver>: <reason>"`, with the approval text and each authorized web file printed as the audit record. All other checks (parent identity, fast-forward-only ancestry, single non-merge commit, allow-list scope, tree identity, patch checksum, session numbering, wording) are unchanged. Functionally re-verified from the published tree in Session 061. |
 | GitHub sync | ✅ Synchronized (read-only takeover baseline) | New-account takeover verified `origin/main` = `3e76114` (Session 062 live; tree `bc67dd6…`) via anonymous read-only clone; full ref inventory (18 `conflict_*` snapshots) and `.agents` checksums recorded in the local takeover packet. This workspace holds NO GitHub credential and never pushes; Session 063 exists as a local traceability commit with a recorded patch checksum, handed off for separately approved publication. |
 | Neo handoff scope | ✅ Mismatch documented; implementation stopped | This workspace is the OnCall Foot `sbtheg17-market/foot` Node/PostgreSQL monorepo at `d2ad54c`; the uploaded Neo report targets a separate Comfort-Wiring FARM/FastAPI/MongoDB repository whose recovery artifacts are absent. See `docs/neo-handoff-scope.md`. |
+| Phase 4C / B-prime handoff audit | ✅ Read-only audit complete | Corepack-pinned `pnpm 10.18.3` frozen install, typecheck, build, 63 booking unit tests, four workflows, API/web health, and 390px web preview pass. The referenced Phase 4C contract and `ComfortPreferencesShell` are absent; provider sign-out is present and mirrors client logout. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
 
@@ -2250,6 +2251,32 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Build state at end:** OnCall Foot application code and runtime configuration are unchanged. No tests or workflows were run because this was an intentional documentation-only mismatch record. The actual checkout was synchronized with `origin/main` before the documentation edit.
 
 **Next best action:** For Comfort-Wiring work, provide its actual repository URL, archive, or complete recovery artifact set in a separately scoped handoff. Until then, do not reconstruct Comfort-Wiring inside OnCall Foot; resume only an explicitly approved OnCall Foot task.
+
+---
+
+### Session 065 — 2026-08-11
+**Agent:** Replit Main Agent
+**Scope:** `S`
+**Triggered by:** User supplied an OnCall Foot Phase 4C prep / B-prime / C-prime handoff requesting inspection and a Neo Entry report only.
+
+**What was done:**
+- Verified the target as `sbtheg17-market/foot`, branch `main`, with `HEAD == origin/main` at `184833bd`; no source changes were present before or after inspection.
+- Confirmed C-prime with `corepack pnpm --version` → `10.18.3` and `corepack pnpm install --frozen-lockfile` → success. The default shell `pnpm` is `10.26.1`; Corepack is required to exercise the repository pin exactly.
+- Confirmed `.agents/SETUP.md` documents Node 24+ / pnpm 10.5+ and the package pin, while `package.json` keeps broader runtime engines (`node >=20`, `pnpm >=9`). Actual Node 20.20.0 passed the checks, but the documented Node 24+ baseline remains the safer continuation target.
+- Confirmed full `pnpm run typecheck` and `pnpm run build` pass, plus `@workspace/api-server` booking state tests: 63/63. The root `pnpm test` command is not defined; focused tests must be invoked through the API package scripts.
+- Restarted and verified all four managed workflows: API, web, mockup sandbox, and Expo are running. API and web root requests returned HTTP 200. A 390px web preview rendered the login screen; unauthenticated protected API calls returned expected 401 responses. The browser also reported a pre-existing password `autocomplete` advisory.
+- Confirmed the handoff’s Phase 4C contract path `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` is missing, and no `ComfortPreferencesShell`, comfort-profile, preference, or Phase 4C source artifact exists in `docs/` or `artifacts/`. Therefore contract/shell alignment cannot be verified.
+- Confirmed no current schema, migration, OpenAPI, API route, or routing artifact tied to Phase 4C was found, and the working tree remains clean after the read-only audit.
+- Confirmed B-prime provider logout uses the generated `useLogout` mutation for `POST /api/auth/logout`, removes `oncallfoot_token` on success, and redirects to `ROUTES.login`. The client layout uses the same mutation and token removal. Provider buttons are disabled while pending.
+- Recorded the provider logout caveat: failed/expired logout responses do not clear the local token or show an error state because cleanup is inside `onSuccess` only. This was not changed under the report-only scope.
+- Identified traceability drift: `.agents/NEXT_TASK.md` and older current-state rows in `.agents/LOG.md` still cite the prior `3e76114` / `c02a308` takeover baselines even though the verified current checkout is `184833b` and Session 064 is already recorded.
+
+**Files changed:**
+- `.agents/LOG.md`
+
+**Build state at end:** Inspection-only handoff complete. No application code, schema, migration, OpenAPI, generated client, dependency manifest, workflow configuration, or database changes were made. Corepack frozen install, typecheck, build, focused API tests, workflow startup, API/web health, and mobile-width preview verification passed.
+
+**Next best action:** Before Phase 4C implementation, supply the missing contract and shell artifacts with explicit implementation approval, resolve the canonical baseline drift in the handoff documents, and satisfy the managed-database/Gate B precondition recorded in the existing continuation policy.
 
 ---
 
