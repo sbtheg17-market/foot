@@ -79,3 +79,32 @@ git push origin feature/client-booking-lifecycle-slice ; open PR ; squash-merge 
 
 Forbidden throughout: merging/deleting any `conflict_*` branch, force-push, direct pushes
 to `main`, Gate B without the managed `DATABASE_URL`.
+
+---
+
+## Final session status (recorded per operator instruction)
+
+```text
+Session 070 implementation complete.
+Three patch deliverables ready.
+No further Neo implementation requested.
+Publication pending through trusted GitHub channel.
+Gate B remains BLOCKED.
+```
+
+## PR 3 verification checklist (read-only audit of commit 4810c3d, performed post-freeze)
+
+| Check | Result |
+| --- | --- |
+| POST /bookings duplicate protection returning 409 | PASS — bookings.ts line 249: `409 { error, bookingId }` |
+| Server-side protection, not only button disabling | PASS — enforced in the Express route before insert |
+| Cancellation confirmation on both list and detail views | PASS — AlertDialog + data-testids present in both pages |
+| No use of window.confirm | PASS — zero matches in artifacts/web/src at 4810c3d |
+| Booking modal 409 → info toast + redirect | PASS — booking-modal.tsx: status===409 → toast.info → setLocation('/bookings') |
+| One review per completed booking | PASS — backend rule pre-existing on main; PR3 test asserts duplicate review → 409 |
+| No Provider Portal behavior changes | PASS — no provider/admin/mobile files in the 13-file diff |
+| No Admin Portal behavior changes | PASS — same |
+| No Comfort-Wiring files | PASS — no FastAPI/Mongo/foreign-stack files |
+| No secrets or environment files | PASS — none in diff |
+| Gate B still marked blocked | PASS — LOG.md Session 070 entry states BLOCKED/UNVERIFIED |
+| Duplicate protection level | **Application/API-level ONLY** — `lib/db` untouched; NO partial unique index exists yet; database-level race-proofing is NOT claimed and remains a future post-Gate-B schema task |
