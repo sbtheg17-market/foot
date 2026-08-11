@@ -42,6 +42,28 @@ class StatusCheckCreate(BaseModel):
 async def root():
     return {"message": "Hello World"}
 
+# --- Recovery export download (read-only file serving) ---
+from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi import HTTPException
+
+EXPORTS_DIR = Path("/app/recovery/exports")
+EXPORT_ARCHIVE = "foot-handoff-bundle-sealed-2026-08-11.tar.gz"
+
+@api_router.get("/recovery/export")
+async def download_sealed_bundle():
+    path = EXPORTS_DIR / EXPORT_ARCHIVE
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="export archive not found")
+    return FileResponse(path, media_type="application/gzip", filename=EXPORT_ARCHIVE)
+
+@api_router.get("/recovery/export.sha256", response_class=PlainTextResponse)
+async def download_sealed_bundle_checksum():
+    path = EXPORTS_DIR / (EXPORT_ARCHIVE + ".sha256")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="checksum file not found")
+    return path.read_text()
+
+
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
     status_dict = input.model_dump()

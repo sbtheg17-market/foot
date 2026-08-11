@@ -109,27 +109,6 @@ verify okay, 5 refs; commit/parent/tree verified against handoff-downloads JSON:
 r2 commit objects 9e0bbd45 (B′ r2), 396040ea (P4C r2), e5919bd4 (Rule12 r2): ABSENT from both
 ODBs — r2 patches retained as evidence only; NOT publication-ready; NOT re-derived.
 
-### Session 2026-08-11 (post-acceptance authorized work)
-- EXPORT: sealed handoff-bundle archived → /app/recovery/exports/foot-handoff-bundle-sealed-2026-08-11.tar.gz
-  (SHA-256 e6385b3c1ad972d16c1672efbbd4a6ff4df432cafb966f1ef4ddd2ca06611d8d); extract-verified 22/22;
-  served read-only at GET /api/recovery/export (+ .sha256), download re-verified byte-identical.
-- CANONICAL BASELINE REPORT: repo = OnCall Foot (pnpm workspace); main tip d2ad54cd
-  ("feat(web): provider portal sign-out", 2026-08-11 01:56:31 +0000, tree c7e136a4);
-  worktree checkout clean (0 modified); mirror refs identical to verified foot-all-refs.txt
-  (29 refs, no unexpected); 22 conflict_* branches preserved untouched; zero credentials used
-  (bundle-only supply chain).
-- PHASE 4C RE-DERIVATION (r3): recovered r2 patch (sha db071702..., byte-identical to manifest)
-  applied clean via git am onto d2ad54cd → NEW candidate commit d9195dfab83a211dd2d79e7836348693a9748bc8
-  (parent d2ad54cd, tree 2b1a3f7d) on LOCAL-ONLY branch candidate/phase4c-nonschema-prep-r3.
-  Validation (new evidence, labeled): frozen install PASS; test:comfort-contract PASS 38/38;
-  workspace typecheck PASS; web production build PASS; tracked tree clean; patch secret-scan clean.
-  Package: /app/recovery/candidates-r3/phase4c_r3/ (patch + PROVENANCE.md + 4 evidence logs +
-  CHECKSUMS.sha256 self-hash a34754ef...). Historical r2 commit 396040ea remains absent and unclaimed.
-- GATE B: NOT run here — requires managed environment with runtime-injected DATABASE_URL;
-  no credentials requested/used. Remains owner-run.
-- BLOCKS UNCHANGED: schema, migrations, storage, economics, production events, publication,
-  Rule 12 r2 re-derivation. Missing-file import remains optional owner-supplied recovery only.
-
 ### Acceptance layer (2026-08-11, post-recovery)
 - Evidence ceiling declared in acceptance/ACCEPTANCE_RECORD.md (90/149 + 64/80; 55 missing;
   no 149/149 or 80/80 claim; no rebuild; no regeneration; r2 candidates blocked).

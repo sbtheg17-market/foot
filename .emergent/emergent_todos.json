@@ -1,0 +1,30 @@
+[
+  {
+    "content": "Export sealed handoff-bundle as one downloadable archive + checksum + download link",
+    "status": "completed"
+  },
+  {
+    "content": "Canonical-baseline report: repo identity, main=d2ad54cd, clean tree, refs audit, 22 conflict branches, no credentials",
+    "status": "completed"
+  },
+  {
+    "content": "Inspect d2ad54cd tree + recovered phase4c r2 patch; check applicability",
+    "status": "completed"
+  },
+  {
+    "content": "Re-derive Phase 4C non-schema candidate on d2ad54cd (OpenAPI draft, fixtures, contract tests, unwired UI shells) - local commit only, no push",
+    "status": "completed"
+  },
+  {
+    "content": "Run comfort-profile contract tests as validation evidence for the new candidate",
+    "status": "completed"
+  },
+  {
+    "content": "Package new candidate: patch + checksums + new evidence logs (clearly labeled new, not historical)",
+    "status": "completed"
+  },
+  {
+    "content": "Record Gate B as blocked in this environment (owner-run, managed env, runtime DATABASE_URL)",
+    "status": "completed"
+  }
+]
