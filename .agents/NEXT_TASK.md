@@ -1,5 +1,20 @@
 # Next product task — read `docs/roadmap/NEO_EAGLE_VIEW.md` first
 
+## Publication record — Session 068 is PUBLISHED (2026-08-11)
+
+- **Session 068 landed on `main`:** squash-merge of PR #1 → `origin/main` =
+  `36b5880743d4bd71c8ab566c0c832890eff33840` (single non-merge commit, parent
+  `b20087d…`, no history rewrite, all 26 `conflict_*` refs untouched).
+- **Content verification:** all five approved documentation files on `main` are
+  byte-identical to the reviewed Session 068 commit (per-blob hash match).
+- **Recorded discrepancy (environment-only):** the squash carried one out-of-scope
+  file, `.replit` (+`"python-base-3.13"` in dev modules, added by the Replit Agent
+  during the PR window). No application behavior is affected; same class as the
+  Session 050 environment-only `.replit` marker. Main tree is `61061e9…` instead of
+  the reviewed `c2e0409f…` solely because of this one line.
+- The Eagle View (`docs/roadmap/NEO_EAGLE_VIEW.md`), root `AGENTS.md`, and Branch
+  Inventory V7 are now canonical on `main`. Next agents: start there.
+
 ## Current active state — Session 068 (2026-08-11, eagle view + inventory v7)
 
 - **Canonical remote baseline:** `origin/main` = `b20087d13eb77ad3da0b60efc88d4e768f68134d`

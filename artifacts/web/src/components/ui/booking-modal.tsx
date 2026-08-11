@@ -57,7 +57,23 @@ export default function BookingModal({ providerId, providerName, service, onClos
           setLocation('/bookings');
         },
         onError: (err: unknown) => {
-          const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not create booking. Please try again.';
+          const apiError = err as {
+            status?: number;
+            data?: { error?: string; bookingId?: number } | null;
+          };
+          // Duplicate-submit protection: the identical active request already
+          // exists — treat as information, close the sheet, and show the client
+          // their bookings instead of surfacing a scary failure.
+          if (apiError.status === 409 && typeof apiError.data?.bookingId === 'number') {
+            toast.info(
+              apiError.data.error ??
+                'You already have an active request for this appointment — showing your bookings.',
+            );
+            onClose();
+            setLocation('/bookings');
+            return;
+          }
+          const msg = apiError.data?.error ?? 'Could not create booking. Please try again.';
           toast.error(msg);
         },
       }

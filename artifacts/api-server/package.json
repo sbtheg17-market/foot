@@ -12,6 +12,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx/esm --test src/__tests__/booking-state-machine.test.ts",
     "test:integration": "node --import tsx/esm --test src/__tests__/booking-concurrency.test.ts",
+    "test:lifecycle": "node --import tsx/esm --test src/__tests__/client-booking-lifecycle.integration.test.ts",
     "test:reviews": "node --import tsx/esm --test src/__tests__/review.integration.test.ts",
     "test:care-history": "node --import tsx/esm --test src/__tests__/care-history.integration.test.ts",
     "test:role-state": "node --import tsx/esm --test src/__tests__/role-state.integration.test.ts",
