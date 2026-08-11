@@ -35,6 +35,7 @@ import type {
   CreateReviewRequest,
   CreateServiceRequest,
   CreateTravelZoneRequest,
+  DuplicateBookingConflictResponse,
   EarningsExportResponse,
   EarningsSummaryResponse,
   ForbiddenResponse,
@@ -3641,7 +3642,7 @@ export const createBooking = async (createBookingRequest: CreateBookingRequest, 
 
 
 
-export const getCreateBookingMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+export const getCreateBookingMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | DuplicateBookingConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBooking>>, TError,{data: BodyType<CreateBookingRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createBooking>>, TError,{data: BodyType<CreateBookingRequest>}, TContext> => {
 
@@ -3670,12 +3671,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateBookingMutationResult = NonNullable<Awaited<ReturnType<typeof createBooking>>>
     export type CreateBookingMutationBody = BodyType<CreateBookingRequest>
-    export type CreateBookingMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type CreateBookingMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | DuplicateBookingConflictResponse>
 
     /**
  * @summary Create a booking request (client only)
  */
-export const useCreateBooking = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+export const useCreateBooking = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | DuplicateBookingConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBooking>>, TError,{data: BodyType<CreateBookingRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createBooking>>,

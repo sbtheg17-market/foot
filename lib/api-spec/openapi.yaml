@@ -180,7 +180,6 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
-
     post:
       operationId: createProviderApplication
       tags: [providers]
@@ -1307,6 +1306,12 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: An identical active booking request already exists for this client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DuplicateBookingConflictResponse"
 
   /bookings/history:
     get:
@@ -2816,6 +2821,19 @@ components:
           $ref: "#/components/schemas/Booking"
       required:
         - booking
+
+    DuplicateBookingConflictResponse:
+      type: object
+      description: Returned when the client already has an active (requested, confirmed, or rescheduled) booking for the same provider, service, and scheduled time.
+      properties:
+        error:
+          type: string
+        bookingId:
+          type: integer
+          description: The id of the already-existing active booking
+      required:
+        - error
+        - bookingId
 
     BookingListResponse:
       type: object

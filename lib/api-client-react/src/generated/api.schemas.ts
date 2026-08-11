@@ -674,6 +674,15 @@ export interface BookingResponse {
   booking: Booking;
 }
 
+/**
+ * Returned when the client already has an active (requested, confirmed, or rescheduled) booking for the same provider, service, and scheduled time.
+ */
+export interface DuplicateBookingConflictResponse {
+  error: string;
+  /** The id of the already-existing active booking */
+  bookingId: number;
+}
+
 export interface BookingListResponse {
   bookings: Booking[];
   total: number;

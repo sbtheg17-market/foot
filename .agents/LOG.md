@@ -43,11 +43,11 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | JWT_SECRET | ✅ Available to managed workflow | Added by the user through the development/shared Secrets panel; value was never inspected, printed, logged, committed, or exposed. |
 | Seed script | ✅ Self-contained role state | `pnpm run seed` creates 5 demo accounts, `account_roles` memberships, approved `provider_applications` for both demo providers, and full sample data on a fresh database; a second run skips every existing record without duplicates. `test:authorization` passes on a freshly seeded database without manual inserts or the legacy backfill script. |
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/me/readiness, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
-| Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/history, GET /bookings/:id, PATCH /bookings/:id/status — client-safe bounded history, strict state machine, auto-invoice on confirm |
+| Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/history, GET /bookings/:id, PATCH /bookings/:id/status — client-safe bounded history, strict state machine, auto-invoice on confirm; POST duplicate-submit protection returns 409 + existing `bookingId` for identical active requests (Session 070). |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, booking-scoped client review lookup, GET /invoices, GET /invoices/:id — role-scoped; completed-booking review validation and duplicate races return safe conflicts |
 | React frontend | ✅ Phase 4 onboarding surfaces running | Provider portal plus client discovery, public profiles, booking lifecycle, shared `/signup`, `/register` compatibility redirect, server-confirmed role-aware redirects, provider onboarding/application-status routes, and owner-scoped application form; 390px preview verified. |
 | Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
-| Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; client list/detail refresh on mount/focus/reconnect and server-status feedback are live. |
+| Web booking flow | ✅ Authenticated API flow verified | Client → provider profile/service → booking request → provider visibility → client cancellation passed against restored seeded data; client list/detail refresh on mount/focus/reconnect and server-status feedback are live. Session 070: in-app cancellation confirmation dialogs (list + detail, replacing `window.confirm`) and booking-modal duplicate-409 handling (info toast + redirect to /bookings) verified at 390px. |
 | Expo mobile app | ✅ Phase 4 onboarding surfaces running | Discover, Bookings, Account, Provider Profile, Login, shared role-intent Register, mobile booking detail, bounded client care history, provider onboarding/application-status routes, client "Become a provider" entry point, and existing booking/review flows; 390px preview verified |
 | Booking state machine | ✅ Tested | Extracted to `artifacts/api-server/src/lib/booking-state-machine.ts`; 63 unit tests, all passing |
 | OpenAPI spec | ✅ Phase 2 readiness contract generated | Auth role intent, owner-scoped provider application, and owner-scoped provider readiness contracts are generated into the React and Zod clients; generated files were not edited manually. |
@@ -2376,6 +2376,33 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Build state at end:** Docs-only publication record on top of `origin/main` `36b5880`; worktree clean after commit. No runtime surface changed; Session 065 validation evidence remains the latest. Eagle View, `AGENTS.md`, and Branch Inventory V7 are now canonical on `main`.
 
 **Next best action:** Priority 2 — the client booking-lifecycle completion slice (cancellation confirmation, duplicate-submit protection, one-review-per-completed-booking UI) as its own scoped task; attempt Gate B only when a managed `DATABASE_URL` is provided; Phase 4C stack-native port plan afterward.
+
+---
+
+### Session 070 — 2026-08-11
+**Agent:** Replit Main Agent
+**Scope:** `S`
+**Triggered by:** User supplied the three Session 069/070 patch artifacts and requested that all three be installed in the correct locations and verified.
+
+**What was done:**
+- Installed the Session 069 publication record in `.agents/LOG.md` and `.agents/NEXT_TASK.md`.
+- Installed the Session 070 forensic resume report and worktree evidence under `docs/roadmap/`.
+- Installed the Session 070 client booking lifecycle slice: API duplicate-submit protection, OpenAPI 409 contract, generated client types, lifecycle integration coverage, in-app cancellation dialogs on the list/detail pages, and booking-modal 409 redirect UX.
+- Reconciled the supplied OpenAPI hunk to the actual `POST /bookings` operation; the initial patch context matched a neighboring provider operation in this checkout.
+- Preserved the required caveat: duplicate protection is application/API-level only; no database partial unique index or other Gate B schema work was added.
+
+**Files changed:**
+- `attached_assets/SESSION_069_publication-record_1786481897204.patch` (source artifact; checksum `d955fd4c…`)
+- `attached_assets/SESSION_070_forensic-resume-report_1786481897204.patch` (source artifact; checksum `a6e00657…`)
+- `attached_assets/SESSION_070_client-booking-lifecycle-slice_1786481897203.patch` (source artifact; checksum `624554b1…`)
+- `.agents/LOG.md`, `.agents/NEXT_TASK.md`
+- `docs/roadmap/SESSION_070_INTERRUPTED_TASK_RESUME.md`
+- `docs/roadmap/SESSION_070_RECON_FOOT_WORKTREE.evidence.md`
+- `artifacts/api-server/`, `artifacts/web/`, `lib/api-spec/`, `lib/api-client-react/`, `lib/api-zod/`
+
+**Build state at end:** Implementation is installed; verification is being run in this continuation. Gate B remains BLOCKED/UNVERIFIED, and the application-level race-proofing caveat remains explicit.
+
+**Next best action:** Complete the focused and workspace verification, restart the API/web workflows, inspect the 390px web preview, then publish only through the trusted review channel.
 
 ---
 
