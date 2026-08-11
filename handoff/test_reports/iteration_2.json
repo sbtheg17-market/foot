@@ -1,0 +1,55 @@
+{
+  "summary": "Completed comprehensive testing of governance/provenance evidence ledger system. All 17 test categories passed: ledger integrity (37 records, all valid JSON with required fields), status taxonomy validation, FAIL/BLOCKED record diagnosis verification, artifact checksum verification (3 samples), secret scanning (no forbidden patterns), redaction functionality, validation refusal, tamper detection, append-only protection, search/summary subcommands, standing instructions content, and cross-check of 3 sample records for truthfulness.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "LEDGER.jsonl has exactly 37 lines",
+    "All 37 lines parse as valid JSON",
+    "All records have ALL required fields (schema_version, id, timestamp_utc, agent{name,session,workspace}, repo{repository,branch,commit}, runtime{node,pnpm,postgresql,os_container}, action{type,name,command}, duration_seconds, exit_code, status, tests, artifacts, effects{files_changed,refs_changed,remote_changed}, reproducible, next_action, approval_required, backfilled, notes)",
+    "All status values are from taxonomy {PASS,FAIL,BLOCKED,UNRECORDED,NOT_RUN}",
+    "All timestamps are UTC (end with 'Z')",
+    "2 FAIL records (BF-014, BF-026) have concrete diagnoses in notes/failed_details",
+    "5 BLOCKED records (BF-033..BF-037) name missing external prerequisites",
+    "python3 record_action.py verify exits 0 and prints 'VERIFY PASS'",
+    "Artifact checksums verified for 3 samples: gate_A.log, iteration_1.json, phase4c-demo-wiring.patch - all match",
+    "Secret scan: no credentialed URLs (://user:pass@), no GitHub tokens, no AWS keys, no private key blocks, no JWT tokens",
+    "Found 2 <REDACTED> markers confirming redaction is working",
+    "Redaction on append: tested in sandbox with DATABASE_URL, JWT_SECRET, Bearer token, GitHub token - all redacted correctly",
+    "Validation refusal: invalid status 'MAYBE' rejected with exit 1",
+    "Validation refusal: missing 'effects' field rejected with exit 1",
+    "Tamper detection: corrupted artifact checksum detected and reported",
+    "Tamper detection: invalid status value detected and reported",
+    "Append-only protection: backfill_2026_08_10.py refuses to run twice (REFUSED message, exit 1, line count still 37)",
+    "Search subcommand: returns matching records with test counts",
+    "Search is case-insensitive (tested 'battery' and 'BATTERY')",
+    "Summary subcommand: regenerates LEDGER_SUMMARY.md with 37 data rows",
+    "Summary contains status totals: BLOCKED=5, FAIL=2, PASS=30",
+    "Summary contains classification key with all 5 taxonomy states including UNRECORDED",
+    "Standing instructions contain owner's verbatim rule starting 'Do not rely on \"I ran it\" as evidence.' and ending 'not repeated unnecessarily.'",
+    "Standing instructions contain all 5 taxonomy states (PASS, FAIL, BLOCKED, UNRECORDED, NOT_RUN)",
+    "Standing instructions contain redaction hard rule",
+    "Cross-check BF-017: tests.passed=142 matches claim, all 13 per-suite logs exist on disk",
+    "Cross-check BF-031: references iteration_1.json which confirms 12/12 pass",
+    "Cross-check BF-029: commit 7009ce66 exists in git with matching tree 91518027"
+  ],
+  "test_report_links": [
+    "/app/test_cross_check.py"
+  ],
+  "action_item_for_main_agent": "",
+  "updated_files": [
+    "/app/test_cross_check.py"
+  ],
+  "success_percentage": {
+    "backend": "100% (17/17 test categories passed)",
+    "frontend": "N/A (frontend testing explicitly skipped per testing_type)"
+  },
+  "should_call_test_agent_after_fix": "false",
+  "should_main_agent_test_itself": "false"
+}
