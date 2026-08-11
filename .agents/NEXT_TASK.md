@@ -18,11 +18,11 @@ STATUS: DONE + VERIFIED (LOG ENTRY-007 — 12/12 node:test checks passed)
 PATCH: patches/PHASE_4C_comfort-profile-api.patch
 
 ## Task B — Provider Projection Card (operator priority 2)
-STATUS: NEXT
-- Read-only provider card; calls projection endpoint; renders NOTHING on 404/null.
+STATUS: DONE (LOG ENTRY-008) — interaction matrix queued for comprehensive test run
+PATCH: patches/PHASE_4C_provider-projection-card.patch
 
 ## Task C — Patient Auth (operator priority 3)
-STATUS: QUEUED
+STATUS: NEXT
 - Sign-in + hardened logout (always clears session even on request failure).
 
 ## Task D — Patch Index Page (operator priority 4)

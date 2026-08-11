@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import axios from "axios";
 import { HOME } from "@/constants/testIds";
 import ComfortShellPreview from "@/pages/ComfortShellPreview";
+import ProviderPortal from "@/pages/ProviderPortal";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -42,6 +43,13 @@ const Home = () => {
         >
           Phase 4C — Comfort shell preview
         </Link>
+        <Link
+          to="/provider"
+          data-testid="home-provider-portal-link"
+          className="mt-3 rounded-full border border-indigo-500/40 px-5 py-2 text-base text-indigo-300 transition-colors hover:bg-indigo-500/10"
+        >
+          Provider portal
+        </Link>
       </header>
     </div>
   );
@@ -54,6 +62,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/phase-4c/shell-preview" element={<ComfortShellPreview />} />
+          <Route path="/provider" element={<ProviderPortal />} />
         </Routes>
       </BrowserRouter>
     </div>

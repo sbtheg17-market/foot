@@ -111,3 +111,17 @@ Format: ENTRY-XXX | date | actor | action | evidence
   `tests/comfort-profile.api.test.mjs` — **12/12 PASS** covering the full status matrix,
   hide-without-delete, re-grant latest-row rule, scope filtering, and the projection 404 matrix.
 - Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-008 | 2026-08-11 | Neo (E2) | Task: Provider Projection Card
+- `frontend/src/components/comfort-profile/ProviderComfortCard.jsx` — pure props-driven
+  presentation; returns null (renders NOTHING — no skeleton, no error chrome) when projection is
+  null/empty (contract §1.11); displays only server-filtered, scope-granted, non-null fields.
+- `frontend/src/pages/ProviderPortal.jsx` — container at `/provider`: fetches
+  GET /api/provider/comfort-projection/{patientId} with X-Provider-Id header stub; 404 → null
+  projection (card absent, neutral non-leaking hint shown by the PAGE, not the card); 401 and
+  network errors surfaced as container messages.
+- App.js: `/provider` route + home link. No backend changes in this task.
+- Live verification: seeded patient demo-patient-777 via real API (grant 201, PUT 200) with scope
+  [temperature, noise, notes]; portal page renders; full interaction matrix queued for the
+  comprehensive test run.
+- Approval record: approved and logical — per operator policy (ENTRY-002).
