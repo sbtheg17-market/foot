@@ -5,3 +5,4 @@
 - [GitHub push authentication](github-push-auth.md) — shell pushes can reject stale credentials and the managed push worker may fail before execution
 - [Drizzle unique-error wrapping](drizzle-unique-error-wrapping.md) — duplicate PostgreSQL violations can be nested inside Drizzle errors and must be unwrapped before mapping to 409
 - [Role-intent onboarding](role-intent-onboarding.md) — signup intent may create onboarding state, but only server-confirmed database state grants provider operations
+- [Supabase session pooler URI](supabase-session-pooler.md) — direct Supabase URIs cannot substitute for the complete tenant-bearing Session pooler URI
