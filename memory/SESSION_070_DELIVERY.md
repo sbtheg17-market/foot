@@ -108,3 +108,29 @@ Gate B remains BLOCKED.
 | No secrets or environment files | PASS — none in diff |
 | Gate B still marked blocked | PASS — LOG.md Session 070 entry states BLOCKED/UNVERIFIED |
 | Duplicate protection level | **Application/API-level ONLY** — `lib/db` untouched; NO partial unique index exists yet; database-level race-proofing is NOT claimed and remains a future post-Gate-B schema task |
+
+---
+
+## CLOSURE VERIFICATION — publication confirmed on origin (read-only audit + test run)
+
+Origin advanced while this session was frozen: `origin/main` = `f17bdcec6e0f22ef37f37b2707cc73e7630788ad`
+(commits "opdating 069 - 70", "updated 069 -70", "Update replit configuration settings" — the operator's
+trusted channel installed all three patch deliverables directly).
+
+Content audit of published main:
+- PR 1 content LANDED — Session 069 ledger entry present in `.agents/LOG.md`
+- PR 2 content LANDED — `SESSION_070_INTERRUPTED_TASK_RESUME.md` + `SESSION_070_RECON_FOOT_WORKTREE.evidence.md` under `docs/roadmap/`
+- PR 3 content LANDED — duplicate 409 in `bookings.ts`, zero `window.confirm` in web src, lifecycle test present,
+  OpenAPI 409 verified on the CORRECT `createBooking` operation (the channel's reconciliation note checked out;
+  `createProviderApplication`'s 409 is the pre-existing generic Conflict, unchanged vs 36b5880)
+- Deviations from this session's exact commits: benign (trusted channel replaced the Session 070 LOG entry with its
+  installation record; NEXT_TASK reworded to "verification in progress"; test-file trailing newline; one blank line in yaml)
+- Race-proofing caveat PRESERVED on main: application/API-level only; no partial unique index; Gate B still BLOCKED
+
+Verification suite RE-RUN against published main `f17bdce` (fresh worktree, local dev PostgreSQL — NOT Gate B):
+- test:lifecycle 7/7 · state machine 63/63 · test:reviews 7/7 · test:integration 16/16
+- full workspace typecheck clean · web production build passes
+
+STATUS: Session 070 fully published and verified on origin/main. Roadmap may advance to:
+1) Race-proof partial unique index — ONLY after managed DATABASE_URL is available (Gate B)
+2) Phase 4C stack-native port PLAN (plan only), then the port itself as one-task → one-commit → one-patch work
