@@ -1,0 +1,34 @@
+[
+  {
+    "content": "Clone repo & enumerate all branches with metadata (SHA, date, author, message, merge-base)",
+    "status": "completed"
+  },
+  {
+    "content": "Inspect main branch: HEAD SHA, structure, stack, docs, logs, patches",
+    "status": "completed"
+  },
+  {
+    "content": "Inspect every conflict branch: tree, stack, project identity, classification",
+    "status": "completed"
+  },
+  {
+    "content": "Read all handoffs, agent logs, roadmaps, patches, test reports across branches",
+    "status": "completed"
+  },
+  {
+    "content": "Audit auth/RBAC & search for test bypasses (X-Patient-Id, skip auth, etc.)",
+    "status": "completed"
+  },
+  {
+    "content": "Assess Provider Portal, Client Portal, Admin Portal feature status",
+    "status": "completed"
+  },
+  {
+    "content": "Build current-state matrix, approved-build synopsis, chronology",
+    "status": "completed"
+  },
+  {
+    "content": "Produce final Neo Entry Report deliverable",
+    "status": "completed"
+  }
+]
