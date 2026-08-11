@@ -1,0 +1,87 @@
+{
+  "total": 16,
+  "passed": 10,
+  "failed": 6,
+  "results": [
+    {
+      "test": "Duplicate protection - first booking creation",
+      "status": "PASS",
+      "message": ""
+    },
+    {
+      "test": "Duplicate protection - reject duplicate with 409",
+      "status": "FAIL",
+      "message": "Expected 409, got None"
+    },
+    {
+      "test": "Duplicate protection - different time allowed",
+      "status": "PASS",
+      "message": "Got 201"
+    },
+    {
+      "test": "Cancellation - create test booking",
+      "status": "PASS",
+      "message": ""
+    },
+    {
+      "test": "Cancellation - reject without reason (400)",
+      "status": "FAIL",
+      "message": "Got None"
+    },
+    {
+      "test": "Cancellation - accept with reason (200)",
+      "status": "PASS",
+      "message": "Got 200"
+    },
+    {
+      "test": "Cancellation - reject double-cancel (409)",
+      "status": "FAIL",
+      "message": "Got None"
+    },
+    {
+      "test": "Cancellation - allow re-request after cancel",
+      "status": "PASS",
+      "message": "Got 201"
+    },
+    {
+      "test": "Foreign client - create Jane's booking",
+      "status": "PASS",
+      "message": ""
+    },
+    {
+      "test": "Foreign client - reject Tom cancelling Jane's booking (403/404)",
+      "status": "FAIL",
+      "message": "Got None"
+    },
+    {
+      "test": "Review - create booking",
+      "status": "PASS",
+      "message": ""
+    },
+    {
+      "test": "Review - provider confirms",
+      "status": "PASS",
+      "message": "Got 200"
+    },
+    {
+      "test": "Review - provider completes",
+      "status": "PASS",
+      "message": "Got 200"
+    },
+    {
+      "test": "Review - first review accepted (201)",
+      "status": "PASS",
+      "message": "Got 201"
+    },
+    {
+      "test": "Review - duplicate rejected (409)",
+      "status": "FAIL",
+      "message": "Got None"
+    },
+    {
+      "test": "Review - reject on non-completed booking (400/409)",
+      "status": "FAIL",
+      "message": "Got None"
+    }
+  ]
+}
