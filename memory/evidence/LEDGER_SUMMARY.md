@@ -1,7 +1,7 @@
 # Evidence Ledger — Human Summary
-Generated 2026-08-11T01:49:20Z from LEDGER.jsonl (append-only; 115 records).
+Generated 2026-08-11T02:02:05Z from LEDGER.jsonl (append-only; 119 records).
 
-Status totals: BLOCKED=7, FAIL=8, NOT_RUN=1, PASS=99
+Status totals: BLOCKED=8, FAIL=8, NOT_RUN=1, PASS=102
 
 | # | UTC time | Type | Action | Status | Exit | Tests | Key artifact |
 |---|---|---|---|---|---|---|---|
@@ -120,6 +120,10 @@ Status totals: BLOCKED=7, FAIL=8, NOT_RUN=1, PASS=99
 | BD-017 | 2026-08-11T01:48:30Z | handoff | B-prime r2 package assembled at /app/handoff/downloads/B_prime_r2_package: patch + MANIFEST.json (full identity, validation matrix, blockers) + APPLICATION_GUIDE.md + PROVENANCE_SUMMARY.md + real reviewed rationale + 9 capture logs + ledger extract + 5 screenshots + CHECKSUMS.sha256 (self-verified); publication NOT approved, window CLOSED | PASS | 0 | — | memory/evidence/logs/BD-017_b_prime_r2_package_assembled_at__app_han.log |
 | BD-018 | 2026-08-11T01:48:50Z | verification | supersedes BD-017 checksum note: CHECKSUMS.sha256 had hashed its own empty placeholder (shell redirect ordering), 1 self-referential mismatch; regenerated excluding itself - 19/19 files verify OK, package contents unchanged | PASS | 0 | — | memory/evidence/logs/BD-018_supersedes_bd_017_checksum_note__checksu.log |
 | BD-019 | 2026-08-11T01:49:20Z | handoff | B-prime r2 session close: package complete and STOPPED for explicit publication approval; zero remote writes this session (clones/fetches read-only); all 21 conflict_* branches untouched; no schema/migration/storage/production-event/economics work; handoff manifest regenerates AFTER this final record per convention | PASS | 0 | — | memory/evidence/logs/BD-019_b_prime_r2_session_close__package_comple.log |
+| PB-003 | 2026-08-11T02:00:17Z | verification | B-prime publication verified read-only: origin/main fast-forward e2406942 -> d2ad54cd (committer sbtheg17-market 2026-08-11T01:56:31Z); parent exact e2406942; tree EXACT c7e136a43853ae906617266ada831835188a4587; git diff candidate 9e0bbd45 vs published d2ad54cd = 0 lines; scope exactly provider-layout.tsx; lockfile blob 8a5e0392 unchanged; all 21 conflict_* tips identical; cosmetic metadata note: published author date 2026-08-10T20:31:23Z matches original B-prime authorship (managed channel applied source diff; commit-hash difference expected per protocol - tree identity is the standard) | PASS | 0 | — | memory/evidence/logs/PB-003_b_prime_publication_verified_read_only__.log |
+| PB-004 | 2026-08-11T02:00:17Z | publication | B-prime publication window: bounded write credential revocation confirmation | BLOCKED | — | — | — |
+| PB-005 | 2026-08-11T02:01:09Z | handoff | B-prime publication verification session close: state matrix v6 written; A-prime/C-prime/B-prime sequence COMPLETE on canonical main d2ad54cd; zero remote writes from this workspace; handoff manifest regenerates after this record | PASS | 0 | — | memory/evidence/logs/PB-005_b_prime_publication_verification_session.log |
+| PB-006 | 2026-08-11T02:02:05Z | verification | correction to PB-005 artifact: state matrix v6 ledger-count typo fixed (said 119, actual 118 at close); corrected file checksum recorded here and supersedes the PB-005 artifact checksum; no other content changed | PASS | 0 | — | memory/evidence/logs/PB-006_correction_to_pb_005_artifact__state_mat.log |
 
 Classification key: PASS = captured and reproducible · FAIL = captured with diagnosis · BLOCKED = external prerequisite missing · UNRECORDED = output lost, must rerun · NOT_RUN = deliberately not executed.
 
