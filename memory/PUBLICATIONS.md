@@ -16,7 +16,19 @@
                          revocation must be executed/confirmed by the channel owner
                          (ledger PB-002, BLOCKED).
 
-## C′ r2 — READY, STOPPED FOR APPROVAL (not pushed)
+## C′ r2 — APPROVED; PRE-PUSH VERIFIED; PUSH BLOCKED (no credential in workspace)
+- approval:              C′ publication explicitly approved 2026-08-11 as next separate publication
+- pre-push verification: CP-001 package 9/9 + secret scan clean; CP-002 live main == 0938c440
+                         fresh + 21 heads; CP-003 anatomy (parent/tree/patch-sha/scope/lockfile);
+                         CP-004 FAIL (grep formatting, superseded); CP-005 gate 12/12 + CD-005
+                         battery evidence confirmed; CP-006 independent testing-agent 8/8 PASS
+                         (/app/test_reports/iteration_1.json)
+- push status:           CP-007 BLOCKED — no bounded write credential was provided to this
+                         workspace (request skipped). Steps 6–8 must execute via the Replit
+                         channel with the NEW bounded credential, using
+                         /app/handoff/downloads/C_prime_r2_package (guide steps 1–9).
+                         On landing report: this workspace verifies remote SHA/parent/tree/
+                         scope/lockfile read-only, then owner revokes the credential.
 - retired old identity:  2c6d0248569b9c3f99213a19a40eaade81e69a4a (base 3e76114) — never apply
 - r2 candidate commit:   f905a1518803342a4e3bc5c20a92660443fd005b
 - parent/base:           0938c440c7defafed7fdbeaa3839616e231ec9f4

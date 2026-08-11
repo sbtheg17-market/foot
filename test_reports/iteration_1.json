@@ -1,0 +1,28 @@
+{
+  "summary": "Completed independent read-only verification of C-prime r2 publication candidate package. All 8 verification checks PASSED with zero findings.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "CHECK 1: Package integrity - 9/9 checksums PASS (sha256sum -c CHECKSUMS.sha256)",
+    "CHECK 2: Archive checksums match - .tar.gz=fe771db28d90de2dede5552911f872dccd55a5d121d7e5246ae599125b3b1df8, .zip=3148fd2fa336275748698f64820cb93e065dc42098e865929757a609007a6871",
+    "CHECK 3: Patch checksum match - ea3eb8ed962753db7b5d6846c9b90bd7d2b5da7cecc397f9be088e49da8d3456",
+    "CHECK 4: Candidate anatomy - parent=0938c440c7defafed7fdbeaa3839616e231ec9f4, tree=bc28a5c1571af56c25394ac907e440d928a780dc, scope=.agents/SETUP.md+package.json (2 files, pnpm-lock.yaml NOT included)",
+    "CHECK 5: Live remote state - main=0938c440c7defafed7fdbeaa3839616e231ec9f4, 21 refs (main+20 conflict branches), f905a151 NOT on remote",
+    "CHECK 6: Patch applies cleanly - git apply --check succeeded, git write-tree produced bc28a5c1571af56c25394ac907e440d928a780dc",
+    "CHECK 7: Evidence ledger consistency - valid JSONL, CD-005 (229/0), CD-006, CP-001, CP-002, CP-003, CP-005 all PASS; CP-004 FAIL (correct superseded record)",
+    "CHECK 8: Secret scan clean - no ghp_/github_pat_/AKIA/BEGIN PRIVATE KEY/sk- patterns, allowlisted test-DB URL not present"
+  ],
+  "test_report_links": [],
+  "action_item_for_main_agent": "",
+  "updated_files": [],
+  "success_percentage": "100% (8/8 checks passed)",
+  "should_call_test_agent_after_fix": "false",
+  "should_main_agent_test_itself": "false"
+}

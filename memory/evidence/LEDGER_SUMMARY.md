@@ -1,7 +1,7 @@
 # Evidence Ledger — Human Summary
-Generated 2026-08-11T00:42:33Z from LEDGER.jsonl (append-only; 80 records).
+Generated 2026-08-11T01:03:16Z from LEDGER.jsonl (append-only; 87 records).
 
-Status totals: BLOCKED=6, FAIL=4, NOT_RUN=1, PASS=69
+Status totals: BLOCKED=7, FAIL=5, NOT_RUN=1, PASS=74
 
 | # | UTC time | Type | Action | Status | Exit | Tests | Key artifact |
 |---|---|---|---|---|---|---|---|
@@ -85,6 +85,13 @@ Status totals: BLOCKED=6, FAIL=4, NOT_RUN=1, PASS=69
 | CD-006 | 2026-08-11T00:40:31Z | gate | C_prime r2 publication gate: verify-publication.sh on candidate f905a151 vs origin/main 0938c440 (local mirror origin) | PASS | 0 | — | memory/evidence/logs/CD-006_c_prime_r2_publication_gate__verify_publ.log |
 | CD-007 | 2026-08-11T00:41:29Z | handoff | C_prime r2 package assembly (patch + manifest + evidence + secret scan) | PASS | 0 | — | memory/evidence/logs/CD-007_c_prime_r2_package_assembly__patch___man.log |
 | CD-008 | 2026-08-11T00:42:33Z | handoff | C_prime r2 export finalized + session close: package checksums self-verified; archives created; STOPPED for separate C_prime approval; manifests regenerate after this record | PASS | 0 | — | memory/evidence/logs/CD-008_c_prime_r2_export_finalized___session_cl.log |
+| CP-001 | 2026-08-11T00:58:26Z | verification | C_prime pre-push step 1: transport package checksums re-verified (9/9) + secret scan re-run clean | PASS | 0 | — | memory/evidence/logs/CP-001_c_prime_pre_push_step_1__transport_packa.log |
+| CP-002 | 2026-08-11T00:58:26Z | verification | C_prime pre-push step 2: live main equals required base 0938c440 (fresh ls-remote); 20 conflict branches; no unexpected refs | PASS | 0 | — | memory/evidence/logs/CP-002_c_prime_pre_push_step_2__live_main_equal.log |
+| CP-003 | 2026-08-11T00:58:42Z | verification | C_prime pre-push step 3: candidate parent==0938c440, tree==bc28a5c1, patch sha256==ea3eb8ed, scope exactly package.json+.agents/SETUP.md, pnpm-lock.yaml NOT in scope | PASS | 0 | — | memory/evidence/logs/CP-003_c_prime_pre_push_step_3__candidate_paren.log |
+| CP-004 | 2026-08-11T00:58:42Z | gate | C_prime pre-push step 4: publication gate re-run fresh (12/12) + ledger search confirms 17-suite battery evidence CD-005 (229/229) already captured (no rerun needed) | FAIL | 1 | — | memory/evidence/logs/CP-004_c_prime_pre_push_step_4__publication_gat.log |
+| CP-005 | 2026-08-11T00:59:00Z | gate | supersedes CP-004: FAIL was a grep spacing mismatch in the ledger-search step, not a gate failure (gate printed 12/12 RESULT PASS inside CP-004 log); re-run: gate 12/12 PASS + ledger confirms CD-005 battery 229/229 captured | PASS | 0 | — | memory/evidence/logs/CP-005_supersedes_cp_004__fail_was_a_grep_spaci.log |
+| CP-006 | 2026-08-11T01:03:16Z | verification | independent testing-agent verification of C_prime pre-push state: 8/8 checks PASS 100% zero findings (report /app/test_reports/iteration_1.json) - package 9/9, archives, patch sha, anatomy, live remote 0938c440 + 21 heads, clean apply reproduces tree, ledger consistent, secrets clean | PASS | 0 | — | memory/evidence/logs/CP-006_independent_testing_agent_verification_o.log |
+| CP-007 | 2026-08-11T01:03:16Z | publication | C_prime publication window: push execution | BLOCKED | — | — | — |
 
 Classification key: PASS = captured and reproducible · FAIL = captured with diagnosis · BLOCKED = external prerequisite missing · UNRECORDED = output lost, must rerun · NOT_RUN = deliberately not executed.
 
