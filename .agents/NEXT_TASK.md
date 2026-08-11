@@ -1,4 +1,4 @@
-# Next product task — Web notification feed PUBLISHED (`a98e1a3`); Provider Activation & First Booking Conversion IN PROGRESS (Phases 1–3 done; Phase 3 PUBLISHED at `cf689b5`); Mobile feed sequenced after
+# Next product task — Provider Activation & First Booking Conversion remains gated; current handoff is documentation-synchronized, not an implementation checkpoint
 
 ## Handoff scope notice — 2026-08-11
 
@@ -13,7 +13,19 @@ handoff must provide its actual repository URL, archive, or complete recovery
 bundle and name that repository as the target. Until then, continue only with a
 separately approved OnCall Foot task.
 
-## Current state — Session 063 (2026-08-10, takeover workspace)
+## Current active state — Session 066 (2026-08-11, documentation synchronization)
+
+- **Canonical remote baseline:** `origin/main` is `184833b` (`184833bd87271742cbbc1b2f0b8604902e97ff77`) on `main`.
+- **Local continuation:** `fe3462b` is the existing docs-only activity-log commit on top of that baseline; this synchronization is another docs-only continuation and must not be confused with an application checkpoint.
+- **Merge boundary:** no `conflict_*` branch has been merged, used as a base, deleted, or modified. Do not force-push, rewrite history, or merge archival branches. Any publication must be a reviewed fast-forward through the approved managed channel.
+- **Runtime/source scope:** application code, schema, migrations, OpenAPI, generated clients, dependencies, workflows, and database remain unchanged by the Phase 4C/B-prime/C-prime audit and this documentation synchronization.
+- **Phase 4C status:** blocked for implementation because `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` and `ComfortPreferencesShell` are absent from this checkout. Do not reconstruct either from report prose or summaries.
+- **B-prime status:** provider sign-out is implemented through the shared authenticated logout mutation, local token removal, and login redirect; failed logout cleanup remains a documented edge case, not an approved change.
+- **Validation evidence:** Corepack-pinned frozen install, full typecheck, production build, 63 booking tests, all four managed workflows, API/web HTTP 200 health, expected unauthenticated 401s, and a 390px web preview were verified in Session 065.
+- **Follow-up status:** the proposed follow-ups for missing Phase 4C artifacts, stale baseline cleanup, and logout failure handling were canceled. They are not implementation authorization.
+- **Next checkpoint preconditions:** recover and approve the exact Phase 4C contract/shell, define its API/schema/test scope, clear managed database Gate B, and authorize a separate implementation checkpoint.
+
+## Historical state — Session 063 (2026-08-10, takeover workspace)
 
 - **Baseline:** canonical `origin/main` = `3e76114` (verified anonymous clone; tree `bc67dd6…`).
   **18** `conflict_*` branches exist (inventory v5) — all archival snapshots, never merged,

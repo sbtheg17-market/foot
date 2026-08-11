@@ -10,7 +10,8 @@
 | Repository identity | `sbtheg17-market/foot` |
 | Canonical remote | `https://github.com/sbtheg17-market/foot` |
 | Branch | `main` |
-| Current checkout | `d2ad54cd8e450fcc3bf8fab28aed257d67e73b42` |
+| Verified remote baseline | `184833bd87271742cbbc1b2f0b8604902e97ff77` |
+| Local continuation | `fe3462b` plus the current documentation-only synchronization |
 | Workspace product | OnCall Foot |
 | Expected stack | pnpm monorepo, Node/Express/TypeScript, PostgreSQL/Drizzle, React/Vite, Expo |
 | In-scope artifacts | `artifacts/api-server`, `artifacts/web`, `artifacts/mobile`, shared `lib/`, and repository documentation |
@@ -45,3 +46,16 @@ To resume Comfort-Wiring work, provide its actual repository URL, archive, or
 complete `/recovery/` artifact set in a handoff that names Comfort-Wiring as its
 repository target. Until then, OnCall Foot remains the only in-scope project and
 its code is intentionally unchanged by this mismatch review.
+
+## Merge and publication boundary
+
+The current OnCall Foot repository is the only valid merge target. The archived
+`conflict_*` refs are not recovery sources for Comfort-Wiring and must not be
+merged, used as a base, deleted, or modified as part of this handoff.
+
+The verified remote baseline is `origin/main` at `184833b`. The local continuation
+contains documentation-only traceability work on top of that baseline. No
+application, schema, migration, generated-client, OpenAPI, dependency, workflow,
+or database changes are part of this synchronization. If publication is approved,
+it must be a reviewed fast-forward with post-publication commit, tree, and
+changed-file-scope verification; never force-push or rewrite published history.

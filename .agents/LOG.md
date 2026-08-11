@@ -62,9 +62,10 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Provider readiness web UI (Phase 4B) | ✅ PUBLISHED at `b3937a7` | Canonical `/provider/readiness` page + `ReadinessChecklist` consuming the existing generated `GET /providers/me/readiness` hook; server C1–C7 values and reason codes rendered verbatim (never re-derived); centralized plain-language reason-code labels with button-styled fix actions aligned to the approved C1–C7 action table; progress summary + "Ready for clients" state; loading/error/401/403/empty states (403 is actionable: "Become a provider" → existing onboarding flow); compact dashboard card; amber nav progress badge showing server-reported `missing.length`; stable `data-testid`s. Nine files, all `artifacts/web/src/**`; patch SHA-256 `31cbfcf1…`. Validation: full typecheck, web+api builds, readiness 14/14 + marketplace-events 12/12 (local DB) + booking unit 63/63, provider/client/admin role behavior, forced-500 (recoverable, no raw error leaked), forced-empty (fail-safe, never marked ready), forced-401, fix-link navigation, desktop+mobile-width screenshots. Review correction included: new `/provider/travel-zones` management surface over the existing contract (list/add/remove; no update endpoint exists) is C5's direct fix destination, verified end-to-end in both directions (add → C5 done, remove → C5 missing; server-reported). Published fast-forward with the recorded one-time human UI-scope approval covering the gate's intentional `artifacts/web/**` rule (no gate changes). Post-publication verification re-confirmed the C5 travel-zone flow in both directions from the published tree. See Sessions 059–060. |
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
 | Publication review-gate UI-approval flag | ✅ PUBLISHED at `47df77e` | `scripts/verify-publication.sh` check 5 split into two tiers: hard-forbidden paths (`.emergent/`, lockfiles, `lib/db/src/schema/`, generated clients, `artifacts/mobile/`, `attached_assets/`, `.patch`/`.bundle`) are never overridable; `artifacts/web/**` alone may be explicitly authorized for a reviewed UI publication via `--approve-web-ui "<approver>: <reason>"`, with the approval text and each authorized web file printed as the audit record. All other checks (parent identity, fast-forward-only ancestry, single non-merge commit, allow-list scope, tree identity, patch checksum, session numbering, wording) are unchanged. Functionally re-verified from the published tree in Session 061. |
-| GitHub sync | ✅ Synchronized (read-only takeover baseline) | New-account takeover verified `origin/main` = `3e76114` (Session 062 live; tree `bc67dd6…`) via anonymous read-only clone; full ref inventory (18 `conflict_*` snapshots) and `.agents` checksums recorded in the local takeover packet. This workspace holds NO GitHub credential and never pushes; Session 063 exists as a local traceability commit with a recorded patch checksum, handed off for separately approved publication. |
-| Neo handoff scope | ✅ Mismatch documented; implementation stopped | This workspace is the OnCall Foot `sbtheg17-market/foot` Node/PostgreSQL monorepo at `d2ad54c`; the uploaded Neo report targets a separate Comfort-Wiring FARM/FastAPI/MongoDB repository whose recovery artifacts are absent. See `docs/neo-handoff-scope.md`. |
+| GitHub sync | ✅ Local docs-only continuation synchronized to verified remote baseline | Verified `origin/main` = `184833b` before this sync. Local `fe3462b` is a docs-only activity-log continuation on top of that remote; this session adds more docs-only reconciliation. No force-push, history rewrite, or `conflict_*` merge is permitted. |
+| Neo handoff scope | ✅ Mismatch documented; implementation stopped | This workspace is the OnCall Foot `sbtheg17-market/foot` Node/PostgreSQL monorepo. The uploaded Neo report targets a separate Comfort-Wiring FARM/FastAPI/MongoDB repository whose recovery artifacts are absent. The mismatch and merge boundary are recorded in `docs/neo-handoff-scope.md`. |
 | Phase 4C / B-prime handoff audit | ✅ Read-only audit complete | Corepack-pinned `pnpm 10.18.3` frozen install, typecheck, build, 63 booking unit tests, four workflows, API/web health, and 390px web preview pass. The referenced Phase 4C contract and `ComfortPreferencesShell` are absent; provider sign-out is present and mirrors client logout. |
+| Merge/publication safety | ✅ Clean and unmerged | Only `.agents/LOG.md` was previously committed locally; this sync remains documentation-only. Application code, schema, migrations, generated clients, OpenAPI, dependencies, workflows, database, and all `conflict_*` refs remain untouched. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
 
@@ -2277,6 +2278,30 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Build state at end:** Inspection-only handoff complete. No application code, schema, migration, OpenAPI, generated client, dependency manifest, workflow configuration, or database changes were made. Corepack frozen install, typecheck, build, focused API tests, workflow startup, API/web health, and mobile-width preview verification passed.
 
 **Next best action:** Before Phase 4C implementation, supply the missing contract and shell artifacts with explicit implementation approval, resolve the canonical baseline drift in the handoff documents, and satisfy the managed-database/Gate B precondition recorded in the existing continuation policy.
+
+---
+
+### Session 066 — 2026-08-11
+**Agent:** Replit Main Agent
+**Scope:** `S`
+**Triggered by:** User requested that the logs and merge-relevant handoff information be synchronized into the repository.
+
+**What was done:**
+- Reconciled active handoff references against the verified repository state: `origin/main` was `184833b`; the existing local activity-log commit was `fe3462b`.
+- Updated the active log state to distinguish the canonical remote baseline from local docs-only continuation history. Older `3e76114`, `c02a308`, and related publication references remain historical rather than being silently rewritten.
+- Recorded the merge boundary: no `conflict_*` branch was merged, used as a base, deleted, or modified; no force-push or history rewrite is authorized; future publication must be a reviewed fast-forward through the approved channel.
+- Preserved the Phase 4C finding that the referenced contract and `ComfortPreferencesShell` are absent, the B-prime provider logout implementation is present, and the logout failure caveat remains unimplemented under the inspection-only scope.
+- Recorded that follow-up task proposals for restoring Phase 4C artifacts, correcting stale baselines, and hardening logout failure handling were canceled; cancellation does not authorize implementation.
+- Kept this synchronization limited to agent documentation. No application code, schema, migration, OpenAPI, generated client, dependency, workflow, or database changes were made.
+
+**Files changed:**
+- `.agents/LOG.md`
+- `.agents/NEXT_TASK.md`
+- `docs/neo-handoff-scope.md`
+
+**Build state at end:** Documentation synchronization only. The previously verified frozen install, typecheck, build, focused API tests, four workflow startups, API/web health checks, and 390px preview remain the latest validation evidence. The working tree must be checked for docs-only scope before committing.
+
+**Next best action:** Review and publish this documentation-only continuation as a fast-forward if authorized. The next implementation checkpoint remains blocked until the actual Phase 4C contract/shell are recovered and approved and Gate B is cleared.
 
 ---
 
