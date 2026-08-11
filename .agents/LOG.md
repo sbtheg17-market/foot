@@ -66,6 +66,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Neo handoff scope | ✅ Mismatch documented; implementation stopped | This workspace is the OnCall Foot `sbtheg17-market/foot` Node/PostgreSQL monorepo. The uploaded Neo report targets a separate Comfort-Wiring FARM/FastAPI/MongoDB repository whose recovery artifacts are absent. The mismatch and merge boundary are recorded in `docs/neo-handoff-scope.md`. |
 | Phase 4C / B-prime handoff audit | ✅ Read-only audit complete | Corepack-pinned `pnpm 10.18.3` frozen install, typecheck, build, 63 booking unit tests, four workflows, API/web health, and 390px web preview pass. The referenced Phase 4C contract and `ComfortPreferencesShell` are absent; provider sign-out is present and mirrors client logout. |
 | Merge/publication safety | ✅ Clean and unmerged | Only `.agents/LOG.md` was previously committed locally; this sync remains documentation-only. Application code, schema, migrations, generated clients, OpenAPI, dependencies, workflows, database, and all `conflict_*` refs remain untouched. |
+| Conflict-branch inventory | ✅ v6 accepted (2026-08-11) | 25 `conflict_*` branches re-verified against `origin/main` `401a9d7`: 24 are unrelated Emergent FARM lineages (no merge base — reference only, never merge); only `conflict_070826_mc2` is real foot history and remains superseded (its feature commit `5f9992e` is patch-equivalent on `main`). No unique unrecovered application code exists on any conflict branch. Prior 9-branch cleanup authorization is stale and must be re-authorized against `docs/conflict-branch-inventory-2026-08-11.md`. An owner-installed repo-scoped deploy key now provides an authenticated publication channel (write access verified via a temporary ref, created and deleted; `main` untouched). |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
 
@@ -2302,6 +2303,29 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Build state at end:** Documentation synchronization only. The previously verified frozen install, typecheck, build, focused API tests, four workflow startups, API/web health checks, and 390px preview remain the latest validation evidence. The working tree must be checked for docs-only scope before committing.
 
 **Next best action:** Review and publish this documentation-only continuation as a fast-forward if authorized. The next implementation checkpoint remains blocked until the actual Phase 4C contract/shell are recovered and approved and Gate B is cleared.
+
+---
+
+### Session 067 — 2026-08-11
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Owner requested a full-roadmap reconnaissance of the repository and approved publishing the conflict-branch reconnaissance logs to their correct repository locations.
+
+**What was done:**
+- Established an authenticated publication channel: the owner installed a repo-scoped deploy key (write-enabled) on `sbtheg17-market/foot`. Channel verified end-to-end — SSH auth, `ls-remote` read, and a write test via a temporary ref (`neo-connector-write-test`) pointed at the existing `main` tip, then deleted. Zero content change; `main` untouched. This resolves the Session 059–060 cleanup blocker "no authenticated GitHub channel in the working container" (cleanup itself remains a separately authorized operation).
+- Re-enumerated all remote `conflict_*` branches against verified `origin/main` `401a9d7`: **25 branches now exist**, superseding the 18-branch inventory of Sessions 058/063. Seven newer snapshots (`conflict_100826_1738` through `conflict_110826_1134`) were added since the prior inventory.
+- Classified every branch by ancestry (`git merge-base`) and stack fingerprint: 24 have no merge base with `main` and are Emergent FARM (FastAPI/MongoDB) lineages of the Comfort-Wiring family — reference only, never merge (consistent with `docs/neo-handoff-scope.md`). `conflict_110826_0846` carries `recovery/COMFORT_WIRING_PLAN.md`, confirming the Comfort-Wiring recovery lineage.
+- Re-verified `conflict_070826_mc2` (the only real foot lineage) commit by commit with `git cherry`: its single production commit `5f9992e` (provider application status API) is patch-equivalent on `main`; the remaining 4 commits are patch artifacts and handoff notes only. `main` supersedes the branch (~790-line evolution in `providers.ts` since). Optional docs-only salvage candidate recorded: `docs/phase1-mc2-handoff.md` (absent from `main`).
+- Published the full inventory as `docs/conflict-branch-inventory-2026-08-11.md` (inventory v6) and recorded that the prior 9-branch cleanup authorization is stale and must be re-authorized against the 25-branch list before any deletion.
+- Absorbed the full roadmap state (`docs/NEXT-STEPS.md`, `.agents/NEXT_TASK.md`, `docs/PRD.md`, `docs/product-vision.md`, `replit.md`) prior to writing; no application code, schema, migration, OpenAPI, generated-client, dependency, workflow, or database changes were made.
+
+**Files changed:**
+- `docs/conflict-branch-inventory-2026-08-11.md` (new)
+- `.agents/LOG.md`
+
+**Build state at end:** Documentation-only continuation on top of `origin/main` `401a9d7`. No tests or workflows were run because no runtime surface changed; the Session 065 validation evidence remains the latest. All `conflict_*` refs remain untouched. Current Build State table updated with the inventory v6 row.
+
+**Next best action:** Re-authorize conflict-branch handling (export and/or cleanup) against inventory v6 through the authenticated channel, then resume the gated implementation track: recover and approve the Phase 4C contract/shell and clear the managed-database Gate B precondition before the next implementation checkpoint.
 
 ---
 
