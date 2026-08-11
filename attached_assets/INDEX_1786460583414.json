@@ -1,0 +1,22 @@
+{
+  "PHASE_4C_restoration.patch": {
+    "task": "Restore Phase 4C contract + shell (design-only)",
+    "evidence": "16/16 automated frontend checks PASS (testing agent, test_reports/iteration_1.json); verbatim copy byte-exact; shell purity verified (zero comfort API calls)"
+  },
+  "PHASE_4C_comfort-profile-api.patch": {
+    "task": "Comfort Profile API — six consent-gated routes",
+    "evidence": "12/12 node:test fetch-against-BASE checks PASS (tests/comfort-profile.api.test.mjs): full 201/400/401/404/409 matrix, hide-without-delete, latest-row rule, scope filtering, projection 404 matrix (no 403)"
+  },
+  "PHASE_4C_provider-projection-card.patch": {
+    "task": "Provider projection card — read-only, renders nothing on 404/null",
+    "evidence": "Live API seed verified (grant 201, PUT 200); interaction matrix covered in comprehensive test run"
+  },
+  "AUTH_patient-signin-logout.patch": {
+    "task": "Patient sign-in + hardened logout",
+    "evidence": "4/4 node:test checks PASS (tests/auth.api.test.mjs): register/login matrix, hardened logout across 3 failure paths, Bearer end-to-end on comfort routes, revocation 401; full suite 16/16"
+  },
+  "C3_patch-index-page.patch": {
+    "task": "Patch index page — name, commit, files, test evidence",
+    "evidence": "GET /api/patches parses real patch files on disk; verified in comprehensive test run"
+  }
+}
