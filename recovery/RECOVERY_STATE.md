@@ -109,6 +109,19 @@ verify okay, 5 refs; commit/parent/tree verified against handoff-downloads JSON:
 r2 commit objects 9e0bbd45 (B′ r2), 396040ea (P4C r2), e5919bd4 (Rule12 r2): ABSENT from both
 ODBs — r2 patches retained as evidence only; NOT publication-ready; NOT re-derived.
 
+### Session 2026-08-11 (plan v1.1 accepted)
+- OWNER ACCEPTANCE recorded (AC-021, PLAN_V1.1_ACCEPTANCE.md): plan v1.1 accepted as the
+  reviewed design with the four corrections (grant 201/+400; withdraw+delete 404;
+  loading/error/unauthorized added at C-3; node:test + fetch-against-BASE).
+  Design acceptance only — NOT implementation or publication approval.
+- C-1 PRECONDITIONS: 1/4 satisfied (acceptance recorded). Pending: Gate B PASS
+  (managed env, runtime-injected DATABASE_URL — the next EXTERNAL action),
+  additive-table scope confirmation, OpenAPI/codegen boundary review.
+- ENDPOINT ISSUE: CLOSED as tooling limitation (AC-020, 7/7 independent PASS);
+  no further URL debugging.
+- NOTHING IMPLEMENTED: no codegen, no tables, no schema/migrations, no persistence
+  wiring, no economics, no publications, no credentials; 22 conflict branches preserved.
+
 ### Session 2026-08-11 (formal review gate)
 - WIRING PLAN REVIEW (AC-016): section-by-section against real artifacts —
   8 ACCEPTED, 2 CHANGE REQUESTED, 0 UNRESOLVED. Findings: grant returns 201(+400) not 200;
