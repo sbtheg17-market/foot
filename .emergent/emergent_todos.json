@@ -1,0 +1,26 @@
+[
+  {
+    "content": "Regenerate AC-00x transport-validation logs for all 5 candidates via capture.py (RG-001..005)",
+    "status": "completed"
+  },
+  {
+    "content": "Regenerate A′ publish:gate evidence (gate_A.log) in scratch clone via capture.py",
+    "status": "completed"
+  },
+  {
+    "content": "Reproduce A′ patch via git format-patch --binary, confirm byte-identity",
+    "status": "completed"
+  },
+  {
+    "content": "Rebuild patch_package metadata (MANIFEST evidence entries, CHECKSUMS.sha256, provenance note)",
+    "status": "completed"
+  },
+  {
+    "content": "Build A′ downloadable export package + tar.gz/zip + DOWNLOADS.sha256",
+    "status": "completed"
+  },
+  {
+    "content": "Secret scan package, record via capture.py, refresh MANIFEST.sha256 + ledger sync",
+    "status": "completed"
+  }
+]

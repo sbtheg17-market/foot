@@ -1,7 +1,7 @@
 # Evidence Ledger — Human Summary
-Generated 2026-08-11T00:05:20Z from LEDGER.jsonl (append-only; 59 records).
+Generated 2026-08-11T00:18:01Z from LEDGER.jsonl (append-only; 70 records).
 
-Status totals: BLOCKED=5, FAIL=2, NOT_RUN=1, PASS=51
+Status totals: BLOCKED=5, FAIL=3, NOT_RUN=1, PASS=61
 
 | # | UTC time | Type | Action | Status | Exit | Tests | Key artifact |
 |---|---|---|---|---|---|---|---|
@@ -64,6 +64,17 @@ Status totals: BLOCKED=5, FAIL=2, NOT_RUN=1, PASS=51
 | NA-003 | 2026-08-11T00:04:05Z | verification | handoff package checksum verification (patch_package 12/12 present OK; AC-00x evidence logs absent from snapshot) | PASS | 0 | — | memory/evidence/logs/NA-003_handoff_package_checksum_verification__p.log |
 | NA-004 | 2026-08-11T00:04:05Z | verification | candidate bundle verify + restore-test (5 refs exact tips) | PASS | 0 | — | memory/evidence/logs/NA-004_candidate_bundle_verify___restore_test__.log |
 | NA-005 | 2026-08-11T00:05:20Z | handoff | state matrix v4 written (local-only, zero remote writes) | PASS | 0 | — | memory/evidence/logs/NA-005_state_matrix_v4_written__local_only__zer.log |
+| RG-001 | 2026-08-11T00:13:31Z | verification | regenerated transport validation A_prime (original AC log lost from durable snapshot) | PASS | 0 | 6/6 | memory/evidence/logs/RG-001_regenerated_transport_validation_a_prime.log |
+| RG-002 | 2026-08-11T00:13:31Z | verification | regenerated transport validation C_prime (original AC log lost from durable snapshot) | PASS | 0 | 6/6 | memory/evidence/logs/RG-002_regenerated_transport_validation_c_prime.log |
+| RG-003 | 2026-08-11T00:13:32Z | verification | regenerated transport validation B_prime (original AC log lost from durable snapshot) | PASS | 0 | 6/6 | memory/evidence/logs/RG-003_regenerated_transport_validation_b_prime.log |
+| RG-004 | 2026-08-11T00:13:32Z | verification | regenerated transport validation phase4c_prep (original AC log lost from durable snapshot) | PASS | 0 | 6/6 | memory/evidence/logs/RG-004_regenerated_transport_validation_phase4c.log |
+| RG-005 | 2026-08-11T00:13:32Z | verification | regenerated transport validation rule12_provenance (original AC log lost from durable snapshot) | PASS | 0 | 6/6 | memory/evidence/logs/RG-005_regenerated_transport_validation_rule12_.log |
+| RG-006 | 2026-08-11T00:13:57Z | gate | regenerated publish:gate A_prime (gate_A.log lost from durable snapshot; git-only gate, local origin) | PASS | 0 | — | memory/evidence/logs/RG-006_regenerated_publish_gate_a_prime__gate_a.log |
+| RG-007 | 2026-08-11T00:15:01Z | handoff | patch_package metadata rebuild (MANIFEST evidence entries + CHECKSUMS over actual contents) | PASS | 0 | — | memory/evidence/logs/RG-007_patch_package_metadata_rebuild__manifest.log |
+| RG-008 | 2026-08-11T00:16:25Z | handoff | A_prime standalone package assembly (patch + manifest + evidence + secret scan) | PASS | 0 | — | memory/evidence/logs/RG-008_a_prime_standalone_package_assembly__pat.log |
+| RG-009 | 2026-08-11T00:17:27Z | handoff | A_prime export finalization: package CHECKSUMS 7/7, DOWNLOADS.sha256 22/22, handoff MANIFEST.sha256 67/67, archives sha256 recorded | FAIL | 1 | — | memory/evidence/logs/RG-009_a_prime_export_finalization__package_che.log |
+| RG-010 | 2026-08-11T00:17:28Z | verification | post-export read-only remote re-check: main unchanged, 20 conflict branches, zero remote writes this session | PASS | 0 | — | memory/evidence/logs/RG-010_post_export_read_only_remote_re_check__m.log |
+| RG-011 | 2026-08-11T00:18:01Z | verification | supersedes RG-009: FAIL was ledger-copy staleness from manifest-before-ledger-close ordering, not corruption; A_prime package re-verified 7/7 + archives present; manifests regenerate AFTER this final ledger record | PASS | 0 | — | memory/evidence/logs/RG-011_supersedes_rg_009__fail_was_ledger_copy_.log |
 
 Classification key: PASS = captured and reproducible · FAIL = captured with diagnosis · BLOCKED = external prerequisite missing · UNRECORDED = output lost, must rerun · NOT_RUN = deliberately not executed.
 

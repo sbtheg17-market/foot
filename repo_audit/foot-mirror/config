@@ -3,6 +3,6 @@
 	filemode = true
 	bare = true
 [remote "origin"]
-	url = https://github.com/sbtheg17-market/foot
+	url = https://github.com/sbtheg17-market/foot.git
 	fetch = +refs/*:refs/*
 	mirror = true
