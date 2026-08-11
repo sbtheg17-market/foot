@@ -1,0 +1,6 @@
+# pack-refs with: peeled fully-peeled sorted 
+f4a5dfeca5af222aeb9dcb1a6da822415397f902 refs/heads/candidate/A-prime-session063
+e6380bf7b01b993b541bdbafe50ffdd6e51fc7ae refs/heads/candidate/B-prime-provider-signout
+2c6d0248569b9c3f99213a19a40eaade81e69a4a refs/heads/candidate/C-prime-lockfile
+b85f71f32202c293c1d7c240ec4af151b22c2c41 refs/heads/candidate/provenance-rule-docs
+7009ce66d7c6c888592279ce0f0ff3d9af023d11 refs/heads/phase4c/non-schema-prep

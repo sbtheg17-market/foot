@@ -1,0 +1,283 @@
+{
+  "package": "transport-only patch package \u2014 sbtheg17-market/foot",
+  "generated_utc": "2026-08-10T23:20:09Z",
+  "baseline": {
+    "repository": "sbtheg17-market/foot",
+    "main": "3e76114ce8ff8908a955d4beac38d6b3cde5dd6a",
+    "conflict_branches_preserved": 19,
+    "remote_writes_authorized": 0
+  },
+  "transport_only": true,
+  "applied_remotely": false,
+  "publication_window_opened": false,
+  "bounded_write_credential_created": false,
+  "validation": "all candidates validated via capture.py against 3e76114 in a dedicated worktree; ledger records AC-001..AC-005 (+AC-006 NOT_RUN browser, AC-007 contract tests); ledger /app/memory/evidence/LEDGER.jsonl",
+  "application_order": [
+    "1: A_prime (only after its individual approval + evidence exports)",
+    "2: C_prime \u2014 RE-DERIVED on the new main tip (new identity)",
+    "3: B_prime \u2014 RE-DERIVED, with real reviewed --approve-web-ui rationale",
+    "separate (unordered, own approvals): phase4c_prep, rule12_provenance"
+  ],
+  "candidates": [
+    {
+      "key": "A_prime",
+      "order": 1,
+      "title": "A' Session 063 traceability",
+      "patch": "patches/A-prime-session063-traceability.patch",
+      "source_branch": "candidate/A-prime-session063",
+      "commit": "f4a5dfeca5af222aeb9dcb1a6da822415397f902",
+      "parent": "3e76114ce8ff8908a955d4beac38d6b3cde5dd6a",
+      "tree": "63dcfbe3080dae65a478c55d8e4bdbebb1832838",
+      "changed_files": [
+        ".agents/LOG.md",
+        ".agents/NEXT_TASK.md"
+      ],
+      "validation_record": "AC-001",
+      "validation_checks": "6/6 PASS (sha256, apply-check, tree, scope, lockfile, commit-identity reproduction)",
+      "gate": "publish:gate 12/12 PASS (evidence/A_prime/gate_A.log)",
+      "tests": "n/a (docs-only); gate covers integrity",
+      "approval_status": "INTENDED FIRST PUBLICATION CANDIDATE \u2014 BLOCKED: requires branch-protection export + 16:35Z-21:40Z audit export + owner approval + bounded write credential",
+      "rederivation": "applies as-is while main == 3e76114",
+      "commit_identity_reproducible": true,
+      "patch_sha256": "dbb5abd618668354731a0e23ccc14ca00f875cb65e13678a73eb05d6d21a3ca9",
+      "applies_cleanly_to_3e76114": true,
+      "application_reproduces_expected_tree": true,
+      "remote_state_effect": "NONE",
+      "evidence_artifacts": [
+        {
+          "path": "evidence/A_prime/AC-001_transport_validation_a_prime.log",
+          "sha256": "c1d13006879369af94675b4b5456e53c30e38ce3ff3f38ce492824508e9c8088"
+        },
+        {
+          "path": "evidence/A_prime/gate_A.log",
+          "sha256": "b49b78b9d280aabeec16a2ea254a8a9d69c0a8ae1f3fb5e055645a5321b49661"
+        }
+      ]
+    },
+    {
+      "key": "C_prime",
+      "order": 2,
+      "title": "C' lockfile reproducibility",
+      "patch": "patches/C-prime-lockfile-reproducibility.patch",
+      "source_branch": "candidate/C-prime-lockfile",
+      "commit": "2c6d0248569b9c3f99213a19a40eaade81e69a4a",
+      "parent": "3e76114ce8ff8908a955d4beac38d6b3cde5dd6a",
+      "tree": "093a2c22856ba93e31a002e79486bdb9751fbdd4",
+      "changed_files": [
+        "package.json",
+        ".agents/SETUP.md"
+      ],
+      "validation_record": "AC-002",
+      "validation_checks": "6/6 PASS incl. pnpm-lock.yaml byte-identical",
+      "gate": "publish:gate PASS with --allow package.json --allow .agents/SETUP.md (evidence/C_prime/gate_C.log)",
+      "tests": "frozen install PASS (frozen_install.log, lockfile sha unchanged); full battery 13/13 suites 205 pass / 0 fail on node v20.20.2 + pnpm 10.18.3 (per-suite logs + _meta.txt + _exits.txt)",
+      "approval_status": "BLOCKED \u2014 sequenced SECOND; MUST be re-derived on the new main tip after A' lands (new identity; rerun frozen install + lockfile diff + battery + gate)",
+      "rederivation": "MANDATORY after A' publication; do not reuse 2c6d0248 in a push after main moves",
+      "commit_identity_reproducible": true,
+      "patch_sha256": "1dfbfb13c932b240a8caaa8aa82a7691f700b1ab567e055c43dbed1b881b6e31",
+      "applies_cleanly_to_3e76114": true,
+      "application_reproduces_expected_tree": true,
+      "remote_state_effect": "NONE",
+      "evidence_artifacts": [
+        {
+          "path": "evidence/C_prime/AC-002_transport_validation_c_prime.log",
+          "sha256": "382090aa7fcbfaf610bb5bf355c4636d5b24b4bad6220bf839730a2cd212ba6a"
+        },
+        {
+          "path": "evidence/C_prime/_exits.txt",
+          "sha256": "f40513110866d9e416fb8982bf3ba695aa17b340b06f695d8c9ee467d9b67c54"
+        },
+        {
+          "path": "evidence/C_prime/_meta.txt",
+          "sha256": "e79a37290c944cdb669f2ca0ba895bfe071e68bd5826e8be43701d1770601edf"
+        },
+        {
+          "path": "evidence/C_prime/frozen_install.log",
+          "sha256": "4df3b39cf0fee5c9dc8a0ddabca5a0fc511e20620cb1ab2a32ad44dc78a0fa4b"
+        },
+        {
+          "path": "evidence/C_prime/gate_C.log",
+          "sha256": "814242546658fbd14ddd36fe794734e4db61ece1775f6efdf9db46134d1ad551"
+        },
+        {
+          "path": "evidence/C_prime/test.log",
+          "sha256": "3bc0ad967e1a6b888d5863e16310a4de7cd4733f6b81a2dce47b1bcdd9f36980"
+        },
+        {
+          "path": "evidence/C_prime/test_authorization.log",
+          "sha256": "e57b3c7e84c46f03c9c3a5479d9d9e31f9a1aef0d1a4d63a0ab25f18fcad8087"
+        },
+        {
+          "path": "evidence/C_prime/test_availability.log",
+          "sha256": "466136c64826f3586d960484482b3274ea5f2af78758bef668d2a29777968bd8"
+        },
+        {
+          "path": "evidence/C_prime/test_integration.log",
+          "sha256": "6e9df5d06e28e8d9b8cd31d3b68d948b14e6f9060d670363b201bbac02c4ab02"
+        },
+        {
+          "path": "evidence/C_prime/test_marketplace-events.log",
+          "sha256": "d8d0c9cad830b4a99a2bc7d029e0b9a5c924f4ac2d268c3c139ef155659dc6ad"
+        },
+        {
+          "path": "evidence/C_prime/test_onboarding.log",
+          "sha256": "067a9cfcbcd837921e010d0231763512d4f2fa4638505bd6e830128a6fbe3bd6"
+        },
+        {
+          "path": "evidence/C_prime/test_pressure.log",
+          "sha256": "dba3884f5ace9348153424db70a5baa0640a498f83c13bc535ab43e31657083d"
+        },
+        {
+          "path": "evidence/C_prime/test_provider-application.log",
+          "sha256": "f1796f5ec3d23d1d0721a82d24b63dca5190fba9552763de09eb660a40045456"
+        },
+        {
+          "path": "evidence/C_prime/test_provider-notifications.log",
+          "sha256": "5f51f2ec18c9ca4a6f5a51ea1b89ba499600b1143838800848b0bd210c8e8eb3"
+        },
+        {
+          "path": "evidence/C_prime/test_provider-readiness.log",
+          "sha256": "09d95b741b477b6ab4220914c940f8eb22a9c42404f571cdf97836fc9dd3f0db"
+        },
+        {
+          "path": "evidence/C_prime/test_provider-resubmission.log",
+          "sha256": "28d07cd5a2d83bacdce61ed392fcaba7d383bd2af07b8e4fa38b538675e6121d"
+        },
+        {
+          "path": "evidence/C_prime/test_provider-status.log",
+          "sha256": "c5c37d7cd8486ace72510920713510945c8343afb18feec4a2714c6869a54f85"
+        },
+        {
+          "path": "evidence/C_prime/test_reviewer-decisions.log",
+          "sha256": "8a845ac6546e60658d751788106f79c7dc4fbf22c1abeed435a6c39c7e3f2f37"
+        }
+      ]
+    },
+    {
+      "key": "B_prime",
+      "order": 3,
+      "title": "B' provider sign-out",
+      "patch": "patches/B-prime-provider-signout.patch",
+      "source_branch": "candidate/B-prime-provider-signout",
+      "commit": "e6380bf7b01b993b541bdbafe50ffdd6e51fc7ae",
+      "parent": "3e76114ce8ff8908a955d4beac38d6b3cde5dd6a",
+      "tree": "c6e8c1f2cd7d6ec7f24f0ac0908eb45bd2405321",
+      "changed_files": [
+        "artifacts/web/src/components/layout/provider-layout.tsx"
+      ],
+      "validation_record": "AC-003",
+      "validation_checks": "6/6 PASS",
+      "gate": "publish:gate PASS with DRAFT-VERIFICATION rationale \u2014 NOT an approval (evidence/B_prime/gate_B.log + DRAFT_approve-web-ui_rationale.md)",
+      "tests": "typecheck EXIT=0 + web build EXIT=0 (bprime_typecheck.log, bprime_webbuild.log); browser verification NOT_RUN in this workspace (ledger AC-006, deferred to publication window)",
+      "approval_status": "BLOCKED \u2014 sequenced THIRD; requires re-derivation on new tip AND real reviewed --approve-web-ui rationale",
+      "rederivation": "MANDATORY after A' and C' publications",
+      "commit_identity_reproducible": true,
+      "patch_sha256": "dfbf9e18b643004316cdcfe4db2c7175ace9c7506c57a2915932af0437742093",
+      "applies_cleanly_to_3e76114": true,
+      "application_reproduces_expected_tree": true,
+      "remote_state_effect": "NONE",
+      "evidence_artifacts": [
+        {
+          "path": "evidence/B_prime/AC-003_transport_validation_b_prime.log",
+          "sha256": "3b47929acba6e02d56f1d7e28f34d6954f4ff08f5fb7223f730f929e6d9083e3"
+        },
+        {
+          "path": "evidence/B_prime/DRAFT_approve-web-ui_rationale.md",
+          "sha256": "004c9fd29b12c00e8122e2eefa4172d37f645ac553fe90c465481bb713cf92a0"
+        },
+        {
+          "path": "evidence/B_prime/bprime_typecheck.log",
+          "sha256": "24cfb733c8b0382c2c1d19b6aa90ff52593822a844cf2555c0bebb084757858f"
+        },
+        {
+          "path": "evidence/B_prime/bprime_webbuild.log",
+          "sha256": "8fe34f4a21ff7b66d076c15a0db6a9baafd16c9ab52f4e9bd79f88dca607313b"
+        },
+        {
+          "path": "evidence/B_prime/gate_B.log",
+          "sha256": "dea48e1f51515efee2e55b7b275c0b84a063b258420f4ae0a55c52b2de266988"
+        }
+      ]
+    },
+    {
+      "key": "phase4c_prep",
+      "order": null,
+      "title": "Phase 4C non-schema preparation (separate candidate \u2014 NOT part of the traceability sequence)",
+      "patch": "patches/phase4c-nonschema-prep.patch",
+      "source_branch": "phase4c/non-schema-prep",
+      "commit": "2dc23539b21eb688526fe438b7fb9eaac0cc324b",
+      "parent": "3e76114ce8ff8908a955d4beac38d6b3cde5dd6a",
+      "tree": "56d34d2b5062bcb770008c1d62c109563b45dd53",
+      "changed_files": [
+        "docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md",
+        "docs/comfort-profile/WIRING_NOTES.md",
+        "docs/comfort-profile/openapi.draft.yaml",
+        "artifacts/api-server/package.json",
+        "artifacts/api-server/src/contracts/comfort-profile.contract.ts",
+        "artifacts/api-server/src/__tests__/comfort-profile.contract.test.ts",
+        "artifacts/api-server/src/__tests__/fixtures/comfort-profile.fixtures.ts",
+        "artifacts/web/src/pages/comfort/comfort-preferences-shell.tsx",
+        "artifacts/web/src/components/comfort/provider-comfort-card-shell.tsx"
+      ],
+      "validation_record": "AC-004",
+      "validation_checks": "6/6 PASS",
+      "gate": "not gated for publication (not queued); workspace typecheck EXIT=0 (phase4c_typecheck.log)",
+      "tests": "contract tests 38/38 PASS, fresh capture AC-007 (contract_tests_38of38.log); regression 63/63 (ledger BF-025)",
+      "approval_status": "SEPARATE candidate; local review only; contains NO schema/migrations/storage/codegen/production events/economics; UI shells UNWIRED in this patch (demo-wiring commit 7009ce66 intentionally EXCLUDED from the transport package per scope instruction; preserved in branches bundle only)",
+      "rederivation": "re-derive on new tip when eventually reviewed for publication",
+      "commit_identity_reproducible": false,
+      "patch_sha256": "528b9bac839473859a0c91ac874bfc3c6346a959023d65f147a6ce317530ad1d",
+      "applies_cleanly_to_3e76114": true,
+      "application_reproduces_expected_tree": true,
+      "remote_state_effect": "NONE",
+      "evidence_artifacts": [
+        {
+          "path": "evidence/phase4c_prep/AC-004_transport_validation_phase4c_prep.log",
+          "sha256": "dcc45e82ef6edba7f686dd95db763ba194635a677a8c8d03e53075a4eefc52d1"
+        },
+        {
+          "path": "evidence/phase4c_prep/contract_tests_38of38.log",
+          "sha256": "a2626693b193e3d3326f31e4675c8c09ef7c7b7eeab2fc90a5f4bef4dfeb7543"
+        },
+        {
+          "path": "evidence/phase4c_prep/phase4c_typecheck.log",
+          "sha256": "9bb10b8717a29211aa5fe1f8dbe02ce8bcb8c23bc42721694d6d56c1dc9eefa5"
+        }
+      ]
+    },
+    {
+      "key": "rule12_provenance",
+      "order": null,
+      "title": "Rule 12 provenance documentation (separate candidate \u2014 do NOT merge into A')",
+      "patch": "patches/rule12-provenance-docs.patch",
+      "source_branch": "candidate/provenance-rule-docs",
+      "commit": "b85f71f32202c293c1d7c240ec4af151b22c2c41",
+      "parent": "3e76114ce8ff8908a955d4beac38d6b3cde5dd6a",
+      "tree": "a4091ce232f5521a7407a95f4eb63a902d6ab582",
+      "changed_files": [
+        ".agents/AGENT-RULES.md"
+      ],
+      "validation_record": "AC-005",
+      "validation_checks": "6/6 PASS",
+      "gate": "publish:gate PASS with --allow .agents/AGENT-RULES.md (evidence/rule12_provenance/gate_provenance.log)",
+      "tests": "n/a (docs-only)",
+      "approval_status": "SEPARATE candidate; NOT to be published as part of A'; publication requires its own approval; re-derive on new tip if published after A'",
+      "rederivation": "re-derive on new tip if any earlier candidate lands first",
+      "commit_identity_reproducible": false,
+      "patch_sha256": "fca9c42183636ffa9d3d02057f998a31cead3ed37b838a058f1cdadce4a3b120",
+      "applies_cleanly_to_3e76114": true,
+      "application_reproduces_expected_tree": true,
+      "remote_state_effect": "NONE",
+      "evidence_artifacts": [
+        {
+          "path": "evidence/rule12_provenance/AC-005_transport_validation_rule12_provenance.log",
+          "sha256": "ca340d87021a1a99e0223b09aaa7b9e336efb9454f22b70d918c8dabb67dbb4b"
+        },
+        {
+          "path": "evidence/rule12_provenance/gate_provenance.log",
+          "sha256": "b774d95f366ab6fb87ec13eec2eede8d87c8b7a2b734995e23b0fa301ead00fe"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+# pack-refs with: peeled fully-peeled sorted 
+d489aaed98764fbb7d4a40d3f03db1ed78ae7f66 refs/heads/main
+9682040bd5111691ebd73f63d439984a911de800 refs/heads/replit-agent
+9682040bd5111691ebd73f63d439984a911de800 refs/replit/agent-ledger
