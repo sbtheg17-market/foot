@@ -22,11 +22,13 @@ STATUS: DONE (LOG ENTRY-008) — interaction matrix queued for comprehensive tes
 PATCH: patches/PHASE_4C_provider-projection-card.patch
 
 ## Task C — Patient Auth (operator priority 3)
-STATUS: NEXT
-- Sign-in + hardened logout (always clears session even on request failure).
+STATUS: DONE + VERIFIED (LOG ENTRY-009 — 4/4 auth checks; full suite 16/16)
+PATCH: patches/AUTH_patient-signin-logout.patch
+- Hardened logout DONE in this checkout: token cleared in `finally`, "You've been signed out"
+  feedback, server logout always 200. The monorepo B-prime caveat criteria are met here.
 
 ## Task D — Patch Index Page (operator priority 4)
-STATUS: QUEUED
+STATUS: NEXT
 - Lists patch name, commit hash, files touched, test evidence.
 - `docs/comfort-profile/PHASE_4C_COMFORT_PROFILE_CONTRACT_V3.md` present.
 - `ComfortPreferencesShell` present, props-driven, aligned with contract §5.

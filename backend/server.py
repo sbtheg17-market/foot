@@ -73,6 +73,11 @@ app.include_router(api_router)
 from comfort_profile import router as comfort_router  # noqa: E402
 app.include_router(comfort_router)
 
+# Patient Auth — sign-in + hardened logout; installs Bearer identity resolution
+from auth import router as auth_router, resolve_patient  # noqa: E402
+app.include_router(auth_router)
+app.state.resolve_patient = resolve_patient
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

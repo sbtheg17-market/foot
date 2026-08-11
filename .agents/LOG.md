@@ -125,3 +125,21 @@ Format: ENTRY-XXX | date | actor | action | evidence
   [temperature, noise, notes]; portal page renders; full interaction matrix queued for the
   comprehensive test run.
 - Approval record: approved and logical — per operator policy (ENTRY-002).
+
+## ENTRY-009 | 2026-08-11 | Neo (E2) | Task: Patient Auth — sign-in + hardened logout
+- Backend `backend/auth.py`: register 201/400/409 (bcrypt hashes), login 200/401,
+  me 200/401, logout ALWAYS 200 (idempotent — invalid/expired/missing tokens still succeed so
+  clients can always finish local sign-out). Opaque bearer tokens in `auth_sessions`; accounts
+  in `patients` (additive collections, auth scope — separate from the comfort two-store boundary).
+- Identity resolution: `resolve_patient` installed on `app.state` — comfort routes now accept
+  Bearer tokens (revoked token → 401). `X-Patient-Id` header retained as DOCUMENTED TEST BYPASS —
+  remove before deploy (recorded in memory/test_credentials.md).
+- Frontend: `/signin` (login/register, expired + signed-out banners), `/portal` (container wiring
+  ComfortPreferencesShell to the real API — shell stays pure presentation; 409→"consent not
+  active" toast; 401→session-expired redirect). HARDENED LOGOUT: token cleared in `finally`
+  regardless of request outcome + "You've been signed out" feedback — fixes the onSuccess-only
+  caveat from the B-prime review.
+- Test evidence: tests/auth.api.test.mjs — 4/4 PASS (register/login matrix, hardened logout
+  x3 paths, Bearer end-to-end on comfort routes, revocation → 401). Full suite 16/16 PASS
+  (no regression on comfort matrix).
+- Approval record: approved and logical — per operator policy (ENTRY-002).
