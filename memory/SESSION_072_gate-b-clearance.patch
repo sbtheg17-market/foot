@@ -1,0 +1,82 @@
+From 6516db06602d6ca6c0df19323e47b749af808810 Mon Sep 17 00:00:00 2001
+From: "Neo (E2)" <neo-e2@oncallfoot.local>
+Date: Tue, 11 Aug 2026 22:53:18 +0000
+Subject: [PATCH] =?UTF-8?q?docs:=20record=20Session=20072=20Gate=20B=20cle?=
+ =?UTF-8?q?arance=20=E2=80=94=20reconciles=20Session=20071;=20approved=20O?=
+ =?UTF-8?q?ption=20B=20migration=20verified=2018/18=20on=20the=20managed?=
+ =?UTF-8?q?=20database?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .agents/LOG.md       | 26 ++++++++++++++++++++++++++
+ .agents/NEXT_TASK.md | 15 ++++++++++++---
+ 2 files changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/.agents/LOG.md b/.agents/LOG.md
+index 57f253b..86cf1aa 100644
+--- a/.agents/LOG.md
++++ b/.agents/LOG.md
+@@ -2431,6 +2431,32 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
+ 
+ ---
+ 
++### Session 072 — 2026-08-11 (Gate B CLEARED — reconciles Session 071)
++**Agent:** E2 Agent (Emergent, Neo)
++**Scope:** `S` (managed-database verification + one operator-approved schema migration + documentation; zero repository application/schema file changes)
++**Triggered by:** Operator supplied the managed Supabase `DATABASE_URL` and ran the full Gate B sequence in the Emergent continuation environment: read-only verification first, then a reviewed authorization packet, then an explicitly approved migration, then the clearance re-check.
++
++**Reconciliation with Session 071 (Replit environment):** Session 071's pooler attempt failed with `no tenant identifier provided` because it reused the direct-URI credential components (user `postgres`) against `aws-1-us-west-2`. This session confirmed the same root cause independently: `aws-1-us-west-2` rejected the proper pooler tenant too (`ENOTFOUND tenant/user`); the project's actual tenant-specific endpoint is **`aws-0-us-west-2.pooler.supabase.com:5432`** with pooler user `postgres.<project-ref>`, where authentication succeeded. Session 071's honest non-PASS disposition for its own run remains correct and untouched; this entry supersedes only the *gate status*.
++
++**What was done (all evidence in the Emergent workspace memory `GATE_B_RUN_2026-08-11.md`):**
++- **Run 1 — direct host:** BLOCKED by environment — direct host publishes only an AAAA (IPv6) record; container has zero IPv6 interfaces; raw TCP proof recorded. No local substitution; no fabricated result.
++- **Run 2 — operator-authorized session pooler (read-only):** connection PASS (session forced `transaction_read_only=on`); identity/version recorded (database `postgres`, **PostgreSQL 17.6**, UTF8, UTC, primary); **Supabase-managed CONFIRMED** (marker roles 3/3, marker schemas 4/4); extensions PASS (`pg_stat_statements`, `pgcrypto`, `plpgsql`, `supabase_vault`, `uuid-ossp`); migration state NONE (expected); catalog EMPTY → pinned comparison **0/18** = "schema absent — pending separately authorized migration". Honest interim verdict: environment VERIFIED, gate NOT CLEARED.
++- **Authorization packet (no execution):** exact non-secret target; same-tenant confirmation; pinned schema provenance (main `f17bdcec…` at packet time; schema dir tree `2c5feac6160deee7c4ce13496b0304f02eec0ea0`; source sha256 `2af45e443ff41e61ada7b1a7d7f130e9ba5ca561b60ebe55856e64ba79aeec37`; 18 tables); offline-generated full SQL plan (18 CREATE TABLE · 14 CREATE TYPE · 12 indexes · 34 FKs · **0 destructive statements**; plan sha256 `f765cf97bde2c89bd49c3e33b93c4d8012206bcc9cb42d4569d502e80ec39f67`); read-only writability confirmation. Held for explicit approval.
++- **Operator approval (verbatim scope):** "Create the 18 pinned OnCall Foot tables in the verified managed Supabase database — Option B approved" — excluding application changes, seed data, RLS, auth configuration, extra extensions, and the Race-Proof partial unique index.
++- **Option B execution:** plan hash re-verified programmatically (abort-on-mismatch), reviewed SQL applied byte-for-byte in ONE transaction — COMMITTED.
++- **Clearance re-check (read-only):** **18/18 pinned tables present, 0 absent, 0 unexpected — FULL MATCH**; scope audit exactly 14 enum types, 12 non-constraint indexes, 34 FKs, **0 rows** (no seed). **Independent verification: 16/16 checks passed** (separate testing agent; exact table-set match, object counts, structural spot-checks, read-only + rollback, secret hygiene).
++- Secret kept in a mode-600 env file outside the git tree; never printed, logged, committed, or patched. The lost pinned verifier (`df1465bb…`) was never reconstructed; all verifiers and hashes are new and clearly labeled.
++
++**Files changed:**
++- `.agents/LOG.md` (this entry)
++- `.agents/NEXT_TASK.md` (Priority 1 → CLEARED)
++
++**Build state at end:** **GATE B: CLEARED on an actual 18/18 result.** The managed Supabase database holds exactly the pinned OnCall Foot schema and nothing else (no data, no RLS, no auth config, no extra extensions, no race-proof index). Repository application and schema files untouched. Correct connection path for future runs: Supabase **Connect → Session pooler → URI** for this project (`aws-0-us-west-2`, tenant-bearing user), per `.agents/memory/supabase-session-pooler.md`.
++
++**Next best action:** (1) Race-Proof partial unique index on bookings as its own authorization + reviewed migration task (now unblocked); (2) managed-database seed policy decision through its own approval; (3) Phase 4C stack-native port PLAN (plan only). Activation phases / production event writes remain subject to their own approvals.
++
++---
++
+ ## New Session Template
+ 
+ Copy and append below the last entry:
+diff --git a/.agents/NEXT_TASK.md b/.agents/NEXT_TASK.md
+index 99e489d..22c98ac 100644
+--- a/.agents/NEXT_TASK.md
++++ b/.agents/NEXT_TASK.md
+@@ -56,9 +56,18 @@
+ ## Priority order (recorded in the Eagle View §7)
+ 
+ 1. **Gate B clearance** — verify managed PostgreSQL `DATABASE_URL` (managed DB only; no
+-   local substitute; no fabricated PASS; record exactly what ran). Currently
+-   **BLOCKED/UNVERIFIED**. Blocks: activation Phases 4–7, production event writes, all
+-   migrations (incl. any future 4C schema).
++   local substitute; no fabricated PASS; record exactly what ran).
++   **Status (Session 072): CLEARED — actual 18/18.** Managed Supabase environment
++   verified read-only (PostgreSQL 17.6, Supabase-managed confirmed, extensions PASS,
++   catalog initially EMPTY 0/18); operator then reviewed an authorization packet and
++   approved the Option B migration (reviewed SQL plan sha256 `f765cf97…`, one
++   transaction, 0 destructive statements); execution committed; immediate read-only
++   re-check **18/18 pinned tables, 14 enums, 12 indexes, 34 FKs, 0 rows**; independently
++   re-verified 16/16. Correct endpoint: Supabase Session pooler URI for this project
++   (`aws-0-us-west-2`, tenant-bearing user) — see Session 072 in `.agents/LOG.md`.
++   Now unblocked (each still needs its own approval): Race-Proof partial unique index
++   (separate reviewed schema task), managed-database seed policy, activation Phases 4–7 /
++   production event writes.
+ 2. **Client booking lifecycle completion slice** — cancellation confirmation,
+    duplicate-submit protection, one-review-per-completed-booking UI; reuse existing APIs;
+    tests for repeat submissions and invalid states. Next feature slice after (or while
+-- 
+2.39.5
+
