@@ -73,3 +73,21 @@ Format: ENTRY-XXX | date | actor | action | evidence
   - Shell purity: ZERO network calls to any `/api/comfort*` endpoint during all interactions.
   - No console errors; preview route reachable from home.
 - No fixes required. Task 1 status: DONE + VERIFIED.
+
+## ENTRY-006 | 2026-08-11 | Neo (E2) | Adopted one-task→one-patch workflow; PHASE_4C_restoration.patch produced
+- Workflow documented in `.agents/SETUP.md` (commands, naming convention, verification steps,
+  publish flow). Operator directive: every approved change = 1 commit + 1 patch + recorded tests,
+  published via Replit/coordination channel.
+- History note: `9f9394f` is a platform auto-checkpoint mixing template + Phase 4C work; treated
+  as HISTORICAL for patch purposes (append-only policy — nothing rewritten or squashed).
+- Clean patch pair constructed on branch `patch-build/phase4c-restoration`:
+  - baseline `6582133ed19ddb4e33570e9ee6906f75279ac295` (template without Phase 4C artifacts)
+  - task commit `c8a778fd4d7c94116e3aeee0a8d5882799d865d6`
+    ("Phase 4C — restore contract + shell (design-only)")
+- Product: `patches/PHASE_4C_restoration.patch` — exactly 6 files, 775 insertions:
+  contract MD, ComfortPreferencesShell, ComfortShellPreview, App.js route wiring,
+  .agents/LOG.md, .agents/NEXT_TASK.md.
+- Verification: `git apply --check` PASSED on the clean baseline via temp worktree; applied copy
+  contains the verbatim-copy constant. Evidence: command output in session transcript.
+- Main branch: App.js route wiring restored in commit `b1d9bce` after the baseline snapshot.
+- Approval record: approved and logical — per operator policy (ENTRY-002).
