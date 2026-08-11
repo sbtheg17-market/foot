@@ -1,0 +1,30 @@
+[
+  {
+    "content": "Read-only: clone repo to audit workspace (no remote writes)",
+    "status": "completed"
+  },
+  {
+    "content": "Verify main == e2406942, A′/C′ ancestry and changed-file scope, pnpm-lock invariant",
+    "status": "completed"
+  },
+  {
+    "content": "Inventory conflict_* branches; flag 21-vs-20 discrepancy",
+    "status": "completed"
+  },
+  {
+    "content": "Read .agents logs, handoff state, locate durable handoff bundle, verify checksums",
+    "status": "completed"
+  },
+  {
+    "content": "Search provenance ledger; check old B′ commit e6380bf7 recoverability",
+    "status": "completed"
+  },
+  {
+    "content": "Record inspections via capture.py (TO-001..TO-009, ledger 96 records)",
+    "status": "completed"
+  },
+  {
+    "content": "Produce required first report: state matrix, no remote write",
+    "status": "completed"
+  }
+]

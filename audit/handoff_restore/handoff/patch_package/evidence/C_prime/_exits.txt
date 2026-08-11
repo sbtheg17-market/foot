@@ -1,0 +1,13 @@
+test:integration EXIT=0
+test:pressure EXIT=0
+test:availability EXIT=0
+test:provider-application EXIT=0
+test:provider-status EXIT=0
+test:onboarding EXIT=0
+test:authorization EXIT=0
+test:provider-readiness EXIT=0
+test:provider-notifications EXIT=0
+test:reviewer-decisions EXIT=0
+test:provider-resubmission EXIT=0
+test:marketplace-events EXIT=0
+DONE

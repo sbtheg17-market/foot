@@ -1,0 +1,40 @@
+{
+  "summary": "Completed comprehensive validation of transport-only patch package for sbtheg17-market/foot governance workspace. All 74 validation tests passed (100% success rate). Package integrity verified: 5 patches independently applicable to baseline 3e76114, commit reproduction successful, evidence complete, security clean, remote repository untouched.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Package integrity: CHECKSUMS.sha256 validates 39 files with exit 0",
+    "MANIFEST.json: valid JSON with 5 candidates, all transport flags correct (transport_only=true, applied_remotely=false, publication_window_opened=false, bounded_write_credential_created=false)",
+    "Patch identity: All 5 patches (A', C', B', Phase4C, Rule12) SHA256 hashes match declared values and MANIFEST entries",
+    "Independent applicability: All 5 patches apply cleanly to baseline 3e76114 in fresh /tmp sandbox, reproduce expected trees exactly (A'=63dcfbe, C'=093a2c2, B'=c6e8c1f, 4C=56d34d2, Rule12=a4091ce)",
+    "Changed files: All patches modify only files listed in MANIFEST, pnpm-lock.yaml never modified",
+    "Commit reproduction: A' git am with recorded metadata reproduces commit f4a5dfeca5af222aeb9dcb1a6da822415397f902 byte-identically",
+    "Evidence presence: A' gate_A.log PASS, C' has 13 suite logs with 205 passes/0 fails + frozen_install.log + _meta.txt + _exits.txt + gate_C.log, B' has typecheck/webbuild logs + gate_B.log + DRAFT rationale (explicitly NOT an approval, browser verification NOT_RUN), Phase4C contract_tests_38of38.log shows 38 passes, Rule12 gate_provenance.log PASS",
+    "APPLICATION_GUIDE.md: Contains all required statements (transport artifacts only, no remote changes, 5 separate candidates, C'/B' re-derivation required, B' needs real --approve-web-ui rationale, no patch applied until individual approval)",
+    "Rule12 separation: MANIFEST records full 40-char commit b85f71f32202c293c1d7c240ec4af151b22c2c41, approval_status forbids merging with A'",
+    "Ledger capture: AC-001 through AC-005 status PASS with 6/6 tests, AC-006 NOT_RUN (B' browser verification), AC-007 PASS with 38/38 tests, LV-009 handoff record with remote_changed=false, record_action.py verify -> VERIFY PASS with 53 records",
+    "Security: Zero credential findings (no user:pass@ URLs, no ghp_/github_pat_ tokens, no AKIA keys, no PRIVATE KEY blocks, no JWT tokens, no .env files)",
+    "Remote untouched: git ls-remote confirms main still at 3e76114ce8ff8908a955d4beac38d6b3cde5dd6a, exactly 21 refs (HEAD + main + 19 conflict_*)",
+    "Governance worktree: main_worktree clean status on branch phase4c/non-schema-prep, validate_worktree at 3e76114 with clean status"
+  ],
+  "test_report_links": [
+    "/app/backend_test.py"
+  ],
+  "success_percentage": {
+    "backend": "100% (74/74 CLI/file-integrity tests passed)",
+    "frontend": "N/A (no web frontend - CLI/file-integrity testing only per requirements)"
+  },
+  "updated_files": [
+    "/app/backend_test.py"
+  ],
+  "action_item_for_main_agent": "",
+  "should_call_test_agent_after_fix": "false",
+  "should_main_agent_test_itself": "false"
+}
