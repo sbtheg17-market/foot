@@ -1,0 +1,79 @@
+{
+  "timestamp": "2026-08-11T20:13:15.501196",
+  "total_tests": 14,
+  "passed": 14,
+  "failed": 0,
+  "success_rate": "100.0%",
+  "test_results": [
+    {
+      "test": "First booking creation returns 201",
+      "passed": true,
+      "details": "Booking ID: 58"
+    },
+    {
+      "test": "Duplicate booking returns 409 with original bookingId",
+      "passed": true,
+      "details": "Returned bookingId: 58"
+    },
+    {
+      "test": "Different scheduledAt times both return 201",
+      "passed": true,
+      "details": "Booking IDs: 59, 60"
+    },
+    {
+      "test": "Different client booking same slot returns 201",
+      "passed": true,
+      "details": "Jane's booking: 61, Tom's booking: 62"
+    },
+    {
+      "test": "Setup: Create booking for cancellation test",
+      "passed": true,
+      "details": "Booking ID: 63"
+    },
+    {
+      "test": "Cancel without cancellationReason returns 400",
+      "passed": true,
+      "details": "Error: cancellationReason is required when cancelling."
+    },
+    {
+      "test": "Cancel with cancellationReason returns 200",
+      "passed": true,
+      "details": "Booking 63 cancelled"
+    },
+    {
+      "test": "Repeat cancel returns 409",
+      "passed": true,
+      "details": "Error: Cannot move booking from 'cancelled' to 'cancelled' \u2014 the status may have changed. Please refresh and try again."
+    },
+    {
+      "test": "Re-booking same slot after cancellation returns 201",
+      "passed": true,
+      "details": "New booking ID: 64"
+    },
+    {
+      "test": "Setup: Create booking for review test",
+      "passed": true,
+      "details": "Booking ID: 65"
+    },
+    {
+      "test": "Provider confirms booking",
+      "passed": true,
+      "details": "Booking 65 confirmed"
+    },
+    {
+      "test": "Provider completes booking",
+      "passed": true,
+      "details": "Booking 65 completed"
+    },
+    {
+      "test": "First review returns 201",
+      "passed": true,
+      "details": "Review ID: 16"
+    },
+    {
+      "test": "Duplicate review returns 409",
+      "passed": true,
+      "details": "Error: A review for this booking already exists."
+    }
+  ]
+}
