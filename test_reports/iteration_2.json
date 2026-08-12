@@ -1,0 +1,45 @@
+{
+  "summary": "POST-MERGE VERIFICATION of PR #6 'Race Notice UI' completed successfully. All core requirements verified: duplicate booking returns HTTP 409 with numeric bookingId, frontend shows exact toast message, modal stays open with form data intact, no SQL internals exposed.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Login as client tom@oncallfoot.com - SUCCESS",
+    "Navigate to provider Sarah Chen (id 1) - SUCCESS",
+    "Select service 'Comprehensive Foot Care Assessment' - SUCCESS",
+    "Create first booking for 2026-10-02 11:00 at '7 Merge Ave, Toronto' - SUCCESS (HTTP 201, redirected to /bookings)",
+    "Attempt duplicate booking with same provider/service/datetime - SUCCESS (HTTP 409 detected)",
+    "CORE: Toast shows EXACT message 'That time was just taken by another booking. Please choose another available time.' - SUCCESS",
+    "CORE: Modal stays open (no redirect to /bookings) - SUCCESS",
+    "CORE: Form data remains intact after 409 error - SUCCESS",
+    "CORE: No SQL error messages (23505, duplicate key, bookings_active_booking_unique_idx) visible in UI - SUCCESS",
+    "Backend curl test: POST /api/bookings duplicate returns HTTP 409 - SUCCESS",
+    "Backend curl test: Response includes numeric bookingId field - SUCCESS",
+    "Backend curl test: Response includes friendly error message - SUCCESS",
+    "Backend curl test: No SQL internals exposed in API response - SUCCESS"
+  ],
+  "test_report_links": [],
+  "action_item_for_main_agent": "",
+  "updated_files": [],
+  "success_percentage": {
+    "backend": "100% (4/4 tests passed)",
+    "frontend": "100% (9/9 tests passed)",
+    "overall": "100% (13/13 tests passed)"
+  },
+  "should_call_test_agent_after_fix": "false",
+  "should_main_agent_test_itself": "false",
+  "notes": {
+    "infrastructure_setup": "PostgreSQL was not running initially. Started PostgreSQL service, created database 'foot_local' with user 'foot', ran db:push to create schema, and ran seed script to populate test data. This was necessary infrastructure setup, not a bug in the application.",
+    "test_environment": "Local scratch PostgreSQL database at localhost:5432/foot_local. API server running at http://localhost:8099. Web client served by same server.",
+    "pr_verification": "This is a post-merge verification of PR #6 'Race Notice UI' on canonical main branch (commit 805cc68). All race condition handling behavior specified in the PR is working correctly.",
+    "backend_behavior": "Backend returns HTTP 409 with JSON {error: 'friendly message', bookingId: <number>} for duplicate active bookings. The friendly message from backend is: 'You already have an active request for this provider, service, and time. Check your bookings before submitting again.'",
+    "frontend_behavior": "Frontend detects HTTP 409 + numeric bookingId and shows its own hardcoded message: 'That time was just taken by another booking. Please choose another available time.' The modal stays open via early return (no onSuccess/setLocation call), preserving form state for user to choose a different time.",
+    "message_discrepancy": "Backend and frontend use different messages (backend: 'You already have an active request...', frontend: 'That time was just taken...'). This is intentional - frontend ignores backend error text and shows its own approved race-notice message. Both are user-friendly and no SQL internals are exposed."
+  }
+}
