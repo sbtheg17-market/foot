@@ -109,3 +109,16 @@ UNKNOWN). All 25 no-merge-base tips carry subject “Auto-generated changes” b
    repository/archive first (newest-richest order: #1, #2, #3, #4).
 4. Comfort-Wiring functionality reaches OnCall Foot ONLY via a stack-native port
    (see `docs/roadmap/NEO_EAGLE_VIEW.md` §4, §7 Priority 3).
+
+## Addendum — 2026-08-12 (Session 078, docs-only note; no re-inventory)
+
+- **`conflict_120826_0317` — historical Emergent snapshot only; contains no unpublished
+  OnCall Foot working-tree changes.** Auto-snapshot chain of the 2026-08-12 Emergent
+  job's template workspace (tip `d76a9ab756e45730c6df97a302085be3417dd451`; report
+  commit `8a3c7d6930dd3d6c8c5e07448cd9d5e15af0310d`). The Session 077 implementation it
+  reports as "STOPPED before commit" was committed 3m42s later as
+  `3ab6cb7329e54ff97c6e2c633b66fe0fecf1448d` and merged to `main` via PR #4 — verified
+  by exact diff-stat match (2 files, +253/−32). The snapshots hold no `foot/`
+  working-tree content. Same non-mergeable HISTORICAL-ONLY class as branches #5–#16.
+  This addendum records one new snapshot branch; it does not re-inventory the 26 V7
+  branches and authorizes no cleanup.

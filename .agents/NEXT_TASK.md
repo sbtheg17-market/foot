@@ -34,11 +34,12 @@
   application 409 check is the fast path, not the only defense.
 - Gated follow-ups (separate approvals): mirror declaration in
   `lib/db/src/schema/bookings.ts` BEFORE any future `drizzle-kit push` (index-drop
-  hazard) — **DONE (Session 074, commit `f12bd05e1d57f17d5cfc1ec8b83b26b9968e174c`,
-  branch `publish/session-074-index-mirror` published to GitHub 2026-08-12, PR review
-  pending)**; map 23505 → 409 in the API insert path per
-  `.agents/memory/drizzle-unique-error-wrapping.md` — **DONE (Session 077, commit
-  `3ab6cb7329e54ff97c6e2c633b66fe0fecf1448d`, local-only, pending publication)**;
+  hazard) — **DONE & PUBLISHED (Session 074, commit `f12bd05e1d57f17d5cfc1ec8b83b26b9968e174c`,
+  branch `publish/session-074-index-mirror`; PR #3 merged 2026-08-12 as
+  `11117fbf2e362a24127c23230762263876ec2406`)**; map 23505 → 409 in the API insert path per
+  `.agents/memory/drizzle-unique-error-wrapping.md` — **DONE & PUBLISHED (Session 077,
+  commit `3ab6cb7329e54ff97c6e2c633b66fe0fecf1448d`; PR #4 merged 2026-08-12; canonical
+  `main` (`f65542753cafa46692862fbe241e59a044539b6a`) contains the work)**;
   next: provider-facing booking-race notice built on the friendly 409 contract
   (never raw database errors). Operator rule:
   any future push proposing DROP/CREATE for this index is a hard STOP requiring a
