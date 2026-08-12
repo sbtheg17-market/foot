@@ -34,8 +34,12 @@
   application 409 check is the fast path, not the only defense.
 - Gated follow-ups (separate approvals): mirror declaration in
   `lib/db/src/schema/bookings.ts` BEFORE any future `drizzle-kit push` (index-drop
-  hazard); map 23505 → 409 in the API insert path per
-  `.agents/memory/drizzle-unique-error-wrapping.md`.
+  hazard) — **DONE (Session 074, commit `f12bd05e1d57f17d5cfc1ec8b83b26b9968e174c`,
+  branch `publish/session-074-index-mirror` published to GitHub 2026-08-12, PR review
+  pending)**; map 23505 → 409 in the API insert path per
+  `.agents/memory/drizzle-unique-error-wrapping.md` — next (Task 2). Operator rule:
+  any future push proposing DROP/CREATE for this index is a hard STOP requiring a
+  separately reviewed migration.
 
 ## Architecture rule — 2026-08-12 — recorded for ALL future work (operator-issued)
 
