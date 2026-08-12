@@ -1,0 +1,52 @@
+{
+  "summary": "Analytics Step 2 Part 1: Prevented booking events recording - comprehensive testing completed. All backend functionality verified through focused test suite (9/9), regression tests (93/93), and independent curl verification. Server-generated correlation UUIDs confirmed, no SQL internals exposed in 409 responses, idempotency working correctly.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Duplicate booking toast message verification",
+        "issue": "Unable to fully verify toast message 'That time was just taken by another booking. Please choose another available time.' appears and modal stays open due to session/navigation complexity in browser automation",
+        "note": "Backend 409 response with correct message verified via curl. UI loads and booking flow accessible.",
+        "affected_selectors": ["[role='alert']", "[class*='toast']"],
+        "fix_priority": "LOW"
+      }
+    ],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "New focused test suite: prevented-booking-events.integration.test.ts (9/9 tests passed)",
+    "Regression: booking-state-machine.test.ts (63/63 tests passed)",
+    "Regression: booking-concurrency.test.ts (16/16 tests passed)",
+    "Regression: client-booking-lifecycle.integration.test.ts (14/14 tests passed)",
+    "Preflight 409 recording: exactly one complete row with marketplace_id=1, path='preflight', server-generated UUID correlation_id",
+    "Server-generated correlation IDs: repeated client X-Request-Id values produce distinct row correlation_ids (not using client header)",
+    "Malformed/oversized X-Request-Id headers safely ignored",
+    "Counting rule under concurrency: 8 simultaneous POSTs, row count equals 409 count",
+    "Lock-amplified deterministic race: records path='index_violation'",
+    "201 success records nothing (no false positives)",
+    "Idempotency: same correlation_id inserted twice yields exactly one row",
+    "Failure isolation: recording-table outage never changes or fails client's 409",
+    "Independent curl verification: login successful, booking creation (201), duplicate (409 with bookingId, no SQL internals)",
+    "DB verification: prevented_booking_records table has correct data (marketplace_id=1, path='preflight', correlation_id is valid UUID)",
+    "X-Request-Id header test: correlation_id is server-generated UUID, NOT client header value",
+    "UI loads successfully, provider discovery works, provider detail page accessible, booking form accessible"
+  ],
+  "test_report_links": [
+    "/app/foot/artifacts/api-server/src/__tests__/prevented-booking-events.integration.test.ts",
+    "/app/foot/artifacts/api-server/src/__tests__/booking-state-machine.test.ts",
+    "/app/foot/artifacts/api-server/src/__tests__/booking-concurrency.test.ts",
+    "/app/foot/artifacts/api-server/src/__tests__/client-booking-lifecycle.integration.test.ts"
+  ],
+  "action_item_for_main_agent": "",
+  "updated_files": [],
+  "success_percentage": {
+    "backend": "100% (102/102 tests passed: 9 new focused + 93 regression)",
+    "frontend": "95% (UI functional, toast message verification incomplete in automation but backend 409 response verified)"
+  },
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_test_itself": false
+}
