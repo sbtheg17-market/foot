@@ -1,5 +1,28 @@
 # Next product task — read `docs/roadmap/NEO_EAGLE_VIEW.md` first
 
+## Analytics Step 2 Part 1 — 2026-08-12 — WORKING TREE LOST / Path A recovery pending (Session 081)
+
+- Analytics Design V1 is published and merged (PR #9, reviewed commit `7a1cbfa…`;
+  canonical `main` = `21b282b4db59c504ddd7c8347cdd9677f2c91391`). The approved Step 2
+  Part 1 implementation (durable prevented-booking recording, exact 7-file scope) was
+  completed and tested in a prior workspace but was **stopped before commit**; that
+  working tree is absent from all currently accessible containers and from all 44
+  GitHub branches (read-only `git ls-tree` search of every head, Session 081).
+- `conflict_120826_1319` holds only report/validation artifacts
+  (`foot-validation-prevented-ddl.sql`, `foot-validation-schema-v2.sql`,
+  `test_reports/iteration_3.json`) plus workspace-metadata commits — it is NOT the
+  implementation and must never be merged, PR'd, or used as a code source; its SQL
+  must never be applied.
+- No reconstruction from narrative reports and no database changes were performed;
+  Supabase/managed DB untouched throughout the investigation.
+- **Fresh reimplementation remains UNAPPROVED while Path A (re-opening the original
+  Emergent session/workspace, the only remaining possible recovery location) is
+  pending.** If Path A fails, reimplementation requires new explicit operator
+  authorization on `feat/analytics-prevented-bookings-part1` (local scratch
+  PostgreSQL only; full validation matrix re-run from scratch).
+- Branch archival deferred: read-only inventory only; no `conflict_*` ref may be
+  deleted, archived, or modified.
+
 ## Publication record — Session 068 is PUBLISHED (2026-08-11)
 
 - **Session 068 landed on `main`:** squash-merge of PR #1 → `origin/main` =
