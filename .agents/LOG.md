@@ -2629,6 +2629,34 @@ Copy and append below the last entry:
 
 ---
 
+### Session 079 — 2026-08-12
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `S` (2 UI files) + this docs-only ledger entry (separate reviewed commit)
+**Triggered by:** Operator approval of Task 2 (Race Notice UI) after the Session 078 ledger cleanup merged (PR #5).
+
+**What was done:**
+- **Race Notice UI implemented (application commit, published):** provider-facing booking-race notice on the friendly duplicate-booking 409 contract. Strict trigger: **HTTP 409 + numeric `bookingId`** — nothing else. Exact approved copy: "That time was just taken by another booking. Please choose another available time."
+  - **Web** (`artifacts/web/src/components/ui/booking-modal.tsx`): info toast with the exact copy; the booking sheet now **stays open** with form state intact so the client can choose another time (operator-approved replacement of the Session 070 close-and-redirect behavior on this specific path). All unrelated errors keep their prior behavior (`toast.error` with server text/fallback).
+  - **Mobile** (`artifacts/mobile/app/provider/[id].tsx`): native Alert ("Time unavailable" + exact copy); form stays open; the pre-existing generic error Alert is unchanged for all other errors.
+- **Publication:** exact 2-file scope (+22/−8), commit `91d448046a3c16a915cf6acd96e4786affc5a0da` on branch `feat/session-079-race-notice-ui`; **PR #6 merged 2026-08-12** as `805cc68df75f3ff35da90cce47c5d3fe2a29bd1e` (current canonical `main`). Merged tree verified byte-identical to the reviewed commit.
+- **Focused validation (pre-merge):** typecheck PASS (libs, `@workspace/web`, `@workspace/mobile`, exit 0 each); curl contract PASS (first booking 201 → duplicate 409 + numeric `bookingId` + friendly text, zero SQL internals); independent testing-agent browser verification **16/16 PASS** (exact copy character-for-character, sheet-open, form persistence, no `23505`/index-name/`duplicate key` in UI).
+- **Post-merge verification (merged build from `805cc68`):** typecheck PASS again; independent testing-agent re-verification **13/13 PASS**; strict trigger and exact copy confirmed present on `main` at both sites; unrelated-error paths confirmed unchanged; no API, schema, migration, dependency, auth, analytics, or `.replit` changes in the merge diff.
+- **Environment disclosure:** all runtime validation used a **local scratch PostgreSQL 15** (`localhost/foot_local`) built from offline `drizzle-kit export` DDL (18/18 tables + `bookings_active_booking_unique_idx` present) and seeded demo data; between sessions a pod restart stopped local Postgres and the testing agent re-provisioned the **local scratch DB only** (including a local-only `db:push` + seed). **Supabase/managed DB was never accessed at any point.** `.env` (gitignored, never committed) contained only the local DATABASE_URL.
+
+**Files changed (application commit `91d4480`):**
+- `artifacts/web/src/components/ui/booking-modal.tsx`
+- `artifacts/mobile/app/provider/[id].tsx`
+
+**Files changed (this docs-only ledger commit):**
+- `.agents/LOG.md` (this entry)
+- `.agents/NEXT_TASK.md` (Race Notice status; blueprint + analytics queue state)
+
+**Build state at end:** `main` = `805cc68df75f3ff35da90cce47c5d3fe2a29bd1e`; worktree clean apart from this reviewed ledger diff and the separately-reviewed untracked blueprint document. Nothing merged without operator review; append-only ledger discipline maintained.
+
+**Next best action:** Operator reviews this ledger diff (stop before commit); the extensibility blueprint (`docs/roadmap/EXTENSIBILITY_BLUEPRINT_V1.md`, approved in principle) lands as its own separate reviewed docs-only commit; analytics stays QUEUED under the approved counting rule (one prevented-booking event = one API request returning HTTP 409 with numeric `bookingId`) until the event/projection design is separately approved.
+
+---
+
 ## Cross-Platform Notes
 
 This log is committed to the repository and works on any host:

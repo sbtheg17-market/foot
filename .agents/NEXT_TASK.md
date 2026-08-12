@@ -41,7 +41,15 @@
   commit `3ab6cb7329e54ff97c6e2c633b66fe0fecf1448d`; PR #4 merged 2026-08-12; canonical
   `main` (`f65542753cafa46692862fbe241e59a044539b6a`) contains the work)**;
   next: provider-facing booking-race notice built on the friendly 409 contract
-  (never raw database errors). Operator rule:
+  (never raw database errors) — **DONE & PUBLISHED (Session 079, commit
+  `91d448046a3c16a915cf6acd96e4786affc5a0da`; PR #6 merged 2026-08-12 as
+  `805cc68df75f3ff35da90cce47c5d3fe2a29bd1e`; exact 2-file UI scope; independent
+  merged-build verification 13/13 PASS)**; next: extensibility blueprint
+  (design-only, `docs/roadmap/EXTENSIBILITY_BLUEPRINT_V1.md`, approved in
+  principle, separate reviewed docs-only commit pending); analytics tile QUEUED —
+  approved counting rule: one prevented-booking event = one booking request that
+  reaches the API and returns HTTP 409 with a numeric `bookingId` (implementation
+  awaits separately approved event/projection design). Operator rule:
   any future push proposing DROP/CREATE for this index is a hard STOP requiring a
   separately reviewed migration.
 
