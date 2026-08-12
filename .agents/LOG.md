@@ -38,8 +38,8 @@ Since agent credit balances cannot be read programmatically, each session entry 
 |---|---|---|
 | DB schema | ✅ Phase 3 authorization state verified in development | Existing schema remains intact; `account_roles` and `provider_applications` are now read by authorization middleware. `users.role` and provider verification state remain compatibility fields. |
 | Gate B — Supabase managed catalog | ✅ RE-VERIFIED / PASS (2026-08-12) | Read-only re-verification over the tenant-specific `aws-0-us-west-2` session pooler: PostgreSQL 17.6, `in_recovery=false`, UTF8, UTC, required extensions present; live catalog is an exact 18/18-table, 14/14-enum, 12/12-index, 34/34-FK match to the pinned Drizzle schema with 0 rows; `bookings_active_booking_unique_idx` confirmed absent; no DDL/write ran (`transaction_read_only=on` throughout). Evidence: `memory/GATE_B_REVERIFICATION_2026-08-12.md` (container-local). |
-| Race-Proof booking index | ✅ APPLIED & CONCURRENCY-VERIFIED (2026-08-12) | `bookings_active_booking_unique_idx` — partial unique index on `bookings (client_id, provider_id, service_id, scheduled_at) WHERE status IN ('requested','confirmed','rescheduled')`; applied byte-for-byte (SQL SHA-256 `aece832e…`) in one transaction after read-only preflight; post-verification exact-definition PASS; live concurrency test: one simultaneous duplicate COMMITTED, the other rejected with SQLSTATE 23505 citing this index; all transient test rows removed, 18 tables back to 0 rows. Follow-ups gated separately: mirror declaration in `bookings.ts` before any future `drizzle-kit push` — **DONE (Session 074, commit `f12bd05e1d57f17d5cfc1ec8b83b26b9968e174c`, local-only, pending publication)**; map 23505→409 in the API insert path. Operator rule: any future push proposing DROP/CREATE for this index is a hard STOP. |
-| Session 074 publication | ⚠️ Recovered locally; GitHub push/PR blocked by authentication | Bundle tip `7a46801401698339c9a8461aa335622943424e73` and ancestry `41e6973 → f12bd05 → 7a46801` verified; the recovered diff contains exactly `lib/db/src/schema/bookings.ts`, `.agents/LOG.md`, and `.agents/NEXT_TASK.md`. HTTPS credentials were rejected, GitHub CLI has no login, and SSH has no authorized key. |
+| Race-Proof booking index | ✅ APPLIED & CONCURRENCY-VERIFIED (2026-08-12) | `bookings_active_booking_unique_idx` — partial unique index on `bookings (client_id, provider_id, service_id, scheduled_at) WHERE status IN ('requested','confirmed','rescheduled')`; applied byte-for-byte (SQL SHA-256 `aece832e…`) in one transaction after read-only preflight; post-verification exact-definition PASS; live concurrency test: one simultaneous duplicate COMMITTED, the other rejected with SQLSTATE 23505 citing this index; all transient test rows removed, 18 tables back to 0 rows. Follow-ups gated separately: mirror declaration in `bookings.ts` before any future `drizzle-kit push` — **DONE (Session 074, commit `f12bd05e1d57f17d5cfc1ec8b83b26b9968e174c`; branch `publish/session-074-index-mirror` published to GitHub 2026-08-12, PR review pending)**; map 23505→409 in the API insert path. Operator rule: any future push proposing DROP/CREATE for this index is a hard STOP. |
+| Session 074 publication | ✅ Branch published (2026-08-12); PR review pending | `publish/session-074-index-mirror` pushed to GitHub at frozen tip `7a46801401698339c9a8461aa335622943424e73` (ancestry `41e6973 → f12bd05 → 7a46801`, byte-identical, via a temporary write-scoped deploy key). The earlier authentication failure is preserved as history in the Session 075 entry. Branch since carries the main-merge conflict resolution and the bundle-artifact removal; merge to `main` only through the reviewed PR. |
 | API server workflow | ✅ Running with Phase 2 readiness API | `artifacts/api-server: API Server` builds and serves on port 8080; database-backed role guards, approved-provider gates, owner-scoped provider applications, public discovery, admin routes, and owner-scoped provider readiness are verified. |
 | Auth routes | ✅ Shared role-intent flow added | Registration accepts additive `roleIntent`, creates provider membership/profile/application transactionally for provider intent, and preserves database-backed authorization. Login/signup routing uses server-confirmed application state. |
 | JWT middleware | ✅ Database-backed | `requireAuth` confirms active user/context from PostgreSQL; `requireRole` checks `account_roles`; approved-provider middleware checks application/profile ownership and approval. JWT claims remain unchanged. |
@@ -2561,6 +2561,28 @@ Copy and append below the last entry:
 **Build state at end:** The exact publication branch is ready locally, but GitHub authentication is unavailable in this Repl. The remote branch and PR remain pending user authentication.
 
 **Next best action:** Authenticate GitHub in this Repl, then push `publish/session-074-index-mirror` and open the requested PR against `main` without merging it.
+
+---
+
+### Session 076 — 2026-08-12
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `XS`
+**Triggered by:** Operator added a temporary write-scoped repository deploy key (public key only shared; private key container-local, never printed) and approved the PR pre-merge cleanup plan.
+
+**What was done:**
+- **Published the frozen branch:** pushed `publish/session-074-index-mirror` over SSH at exactly `7a46801401698339c9a8461aa335622943424e73` (ancestry `41e6973 → f12bd05 → 7a46801`, byte-identical, ls-remote verified). `main` was not pushed to.
+- **Merged `main` into the branch** (normal merge commit, no rebase, frozen commits unchanged): resolved the single `.agents/LOG.md` build-state conflict by keeping the Session 074 mirror-DONE row and the Replit Session-074-publication row beneath it.
+- **Removed the accidentally committed bundle artifact** `attached_assets/SESSION_074_index_mirror_1786506442841.bundle` in a normal deletion commit (both `attached_assets/` and `.bundle` are hard-forbidden publication paths per `scripts/verify-publication.sh` check 5). No history rewrite; the file remains in prior history as record.
+- **Corrected the stale "publication blocked" wording** (this docs-only commit): the Session 074 publication build-state row now records the published branch; the Session 075 entry documenting the original authentication failure is preserved verbatim as history.
+- Validation on the branch tip: `git diff --check` clean; secret scan clean; changed-file review confined to the merge, the bundle deletion, and the two ledger files. `scripts/verify-publication.sh` intentionally FAILS on this branch — it gates single docs-only fast-forward commits and hard-forbids `lib/db/src/schema/` — recorded honestly; this publication instead goes through the operator-reviewed PR path with explicit schema-scope approval (Task 1).
+
+**Files changed:**
+- `.agents/LOG.md` (Session 074 publication row + Race-Proof follow-up wording + this entry)
+- `.agents/NEXT_TASK.md` (mirror follow-up wording)
+
+**Build state at end:** PR branch in clean final state: schema mirror (frozen commits) + main merge + bundle removal + ledger correction. Awaiting operator PR review and merge; no automatic merge. Database, application code, migrations, seeds, and `.replit` untouched throughout.
+
+**Next best action:** Operator opens/reviews the PR (`publish/session-074-index-mirror` → `main`), merges after review, then deletes the temporary deploy key from repository settings; post-merge read-only verification follows.
 
 ---
 
