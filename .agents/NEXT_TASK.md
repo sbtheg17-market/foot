@@ -37,7 +37,10 @@
   hazard) — **DONE (Session 074, commit `f12bd05e1d57f17d5cfc1ec8b83b26b9968e174c`,
   branch `publish/session-074-index-mirror` published to GitHub 2026-08-12, PR review
   pending)**; map 23505 → 409 in the API insert path per
-  `.agents/memory/drizzle-unique-error-wrapping.md` — next (Task 2). Operator rule:
+  `.agents/memory/drizzle-unique-error-wrapping.md` — **DONE (Session 077, commit
+  `3ab6cb7329e54ff97c6e2c633b66fe0fecf1448d`, local-only, pending publication)**;
+  next: provider-facing booking-race notice built on the friendly 409 contract
+  (never raw database errors). Operator rule:
   any future push proposing DROP/CREATE for this index is a hard STOP requiring a
   separately reviewed migration.
 
