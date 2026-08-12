@@ -2657,6 +2657,28 @@ Copy and append below the last entry:
 
 ---
 
+### Session 081 — 2026-08-12
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `XS` (docs-only)
+**Triggered by:** Operator-directed continuity takeover in a fresh workspace: account-level SSH key added (public key only shared; private key container-local, never printed), read-only SSH clone verification, and a formal loss-and-investigation record for the Analytics Step 2 Part 1 working tree.
+
+**What was done:**
+- **Read-only clone verification (PASS):** SSH handshake authenticated as `sbtheg17-market`; fresh SSH clone of `sbtheg17-market/foot`; `origin/main` = `21b282b4db59c504ddd7c8347cdd9677f2c91391` (exact match to the expected canonical SHA); worktree clean; SSH-only remote; no credentials, tokens, or secrets stored in the repository or its git config.
+- **Loss investigation (read-only, conclusive):** the approved Analytics Step 2 Part 1 implementation (durable prevented-booking recording; exact 7-file scope; reported validation 9/9 focused, 63/63 state-machine, 16/16 concurrency, 14/14 lifecycle, 102/102 independent backend verification) was completed and tested in a PRIOR workspace and was **stopped before commit**. That working tree is **absent from all currently accessible containers** (full filesystem search of the current container: zero of the seven approved files) **and absent from all 44 GitHub branches** (`git ls-tree` search of every head for `prevented-booking-records.ts`, `prevented-booking-events.ts`, `marketplace-defaults.ts`, `prevented-booking-events.integration.test.ts`: zero matches).
+- **`conflict_120826_1319` verified evidence-only:** its report commit `1e2edf9` adds only `foot-validation-prevented-ddl.sql`, `foot-validation-schema-v2.sql`, and `test_reports/iteration_3.json`; the two adjacent `Auto-generated changes` commits touch only workspace metadata (`.emergent/`, `.gitconfig`, `.gitignore`). The branch contains report/validation artifacts, NOT the implementation; it was not used as a code source, and its SQL artifacts were not copied or applied.
+- **Canonical `main` intact:** all published work verified present at `21b282b…`, including Analytics Design V1 (PR #9, `7a1cbfa`), Extensibility Blueprint V1 (PR #8, `1a13092`), Session 079 ledger (PR #7, `21056a0`), Race Notice UI (PR #6, `91d4480`), and all earlier reviewed work.
+- **No reconstruction and no database changes were performed:** no code was rebuilt from narrative reports; Supabase/managed DB was never accessed; no migration, seed, package install, push, PR, or branch operation occurred.
+
+**Files changed:**
+- `.agents/LOG.md` (this entry)
+- `.agents/NEXT_TASK.md` (Analytics Step 2 Part 1 status: working tree LOST — Path A recovery pending)
+
+**Build state at end:** `main` = `21b282b4db59c504ddd7c8347cdd9677f2c91391`, clean and canonical; this docs-only ledger diff presented to the operator uncommitted; no other working-tree changes; managed Supabase untouched.
+
+**Next best action:** Path A — operator re-opens the ORIGINAL Emergent session/workspace (the only remaining possible recovery location) and runs the read-only seven-file working-tree check there. Fresh reimplementation of Analytics Step 2 Part 1 remains UNAPPROVED while Path A recovery is pending. Branch archival remains deferred: read-only inventory only; no `conflict_*` ref may be deleted, archived, or modified.
+
+---
+
 ## Cross-Platform Notes
 
 This log is committed to the repository and works on any host:
