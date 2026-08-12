@@ -321,7 +321,22 @@ function BookingModal({
         onSuccess: () => {
           Alert.alert('Booking requested!', 'The provider will confirm within 24 hours.', [{ text: 'OK', onPress: onSuccess }]);
         },
-        onError: () => Alert.alert('Error', 'Could not create booking. Please try again.'),
+        onError: (err: unknown) => {
+          const apiError = err as { status?: number; data?: { bookingId?: number } | null };
+          // Booking-race notice (Session 079): the friendly duplicate-booking
+          // 409 contract (HTTP 409 + numeric bookingId) means this exact slot is
+          // already held by an active booking. Show the approved notice and keep
+          // the form open so the client can choose another time. Detection is
+          // strict — any other error keeps its existing behavior.
+          if (apiError.status === 409 && typeof apiError.data?.bookingId === 'number') {
+            Alert.alert(
+              'Time unavailable',
+              'That time was just taken by another booking. Please choose another available time.',
+            );
+            return;
+          }
+          Alert.alert('Error', 'Could not create booking. Please try again.');
+        },
       }
     );
   };
