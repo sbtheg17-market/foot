@@ -64,6 +64,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | GitHub portability | ✅ Account-independent continuation documented | `docs/github-continuation.md` documents clone, credential, fork, sync, and failure-recovery paths; `pnpm run git:check` verifies branch, remote reachability, hashes, and divergence; future pasted uploads are ignored. |
 | Publication review-gate UI-approval flag | ✅ PUBLISHED at `47df77e` | `scripts/verify-publication.sh` check 5 split into two tiers: hard-forbidden paths (`.emergent/`, lockfiles, `lib/db/src/schema/`, generated clients, `artifacts/mobile/`, `attached_assets/`, `.patch`/`.bundle`) are never overridable; `artifacts/web/**` alone may be explicitly authorized for a reviewed UI publication via `--approve-web-ui "<approver>: <reason>"`, with the approval text and each authorized web file printed as the audit record. All other checks (parent identity, fast-forward-only ancestry, single non-merge commit, allow-list scope, tree identity, patch checksum, session numbering, wording) are unchanged. Functionally re-verified from the published tree in Session 061. |
 | GitHub sync | ✅ Local docs-only continuation synchronized to verified remote baseline | Verified `origin/main` = `184833b` before this sync. Local `fe3462b` is a docs-only activity-log continuation on top of that remote; this session adds more docs-only reconciliation. No force-push, history rewrite, or `conflict_*` merge is permitted. |
+| GitHub ledger handoff verification | ⚠️ BLOCKED / UNVERIFIED (2026-08-12) | Read-only remote check found `origin/main` at `6f7ec67`, no advertised `conflict_110826_2139` branch, and no advertised or local object for `cb9734c134e8048cf9d6eeb37ba9f5ec68634c35`. GitHub OAuth was declined; no patch download, PR, cherry-pick, push, or merge was attempted. |
 | Neo handoff scope | ✅ Mismatch documented; implementation stopped | This workspace is the OnCall Foot `sbtheg17-market/foot` Node/PostgreSQL monorepo. The uploaded Neo report targets a separate Comfort-Wiring FARM/FastAPI/MongoDB repository whose recovery artifacts are absent. The mismatch and merge boundary are recorded in `docs/neo-handoff-scope.md`. |
 | Phase 4C / B-prime handoff audit | ✅ Read-only audit complete | Corepack-pinned `pnpm 10.18.3` frozen install, typecheck, build, 63 booking unit tests, four workflows, API/web health, and 390px web preview pass. The referenced Phase 4C contract and `ComfortPreferencesShell` are absent; provider sign-out is present and mirrors client logout. |
 | Merge/publication safety | ✅ Clean and unmerged | Only `.agents/LOG.md` was previously committed locally; this sync remains documentation-only. Application code, schema, migrations, generated clients, OpenAPI, dependencies, workflows, database, and all `conflict_*` refs remain untouched. |
@@ -2428,6 +2429,26 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Build state at end:** Application and schema unchanged. Gate B remains **BLOCKED/UNVERIFIED**. Provider/database identity, PostgreSQL version, extensions, migration state, and catalog contents were not verified because the managed pooler session did not complete. No empty-catalog success was fabricated.
 
 **Next best action:** Replace `SUPABASE_DATABASE_URL` with the complete URI copied from Supabase **Connect → Session pooler → URI** (including its pooler tenant/project user component), then rerun only the read-only Gate B catalog check. Keep Gate B and all migrations blocked until that run completes.
+
+---
+
+### Session 072 — 2026-08-12
+**Agent:** Replit Main Agent  
+**Scope:** `XS`  
+**Triggered by:** User requested recovery through the GitHub push rather than downloading a patch, with verification of the expected ledger-only commit before any PR or cherry-pick.
+
+**What was done:**
+- Performed read-only checks against the existing `origin` remote and local Git object database.
+- Confirmed the target repository remote is `https://github.com/sbtheg17-market/foot`; `origin/main` resolves to `6f7ec67bd79e7a6eb96168f4d999ffd2050a405a`.
+- Confirmed `conflict_110826_2139` is not an advertised branch and expected commit `cb9734c134e8048cf9d6eeb37ba9f5ec68634c35` is neither advertised by `origin` nor present locally.
+- GitHub integration authorization was declined, so commit-file scope could not be inspected and no PR, cherry-pick, push, merge, patch download, or application change was attempted.
+
+**Files changed:**
+- `.agents/LOG.md`
+
+**Build state at end:** GitHub ledger handoff remains **BLOCKED / UNVERIFIED**. No application, schema, generated client, secret, database, DDL, or workflow change was made by this session. The worktree already contained an unrelated `.replit` modification when checked.
+
+**Next best action:** Connect GitHub and provide the exact pushed repository/branch (or make the expected commit visible) so the two-file scope can be reviewed before opening or merging a PR into `sbtheg17-market/foot`.
 
 ---
 
