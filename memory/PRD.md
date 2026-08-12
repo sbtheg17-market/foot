@@ -63,3 +63,15 @@ explicitly authorized packet — never reconstructed from narrative reports.
 9. Independent verification each step.
 - Blueprint Step 2 (marketplaces/memberships design packet) — not started, design-only first.
 - Race Notice polish (time-field highlight) — HELD, needs separate packet.
+
+## Session 081 later actions (2026-08-12 evening)
+- PR #10 (Session 081 ledger) merged BY OPERATOR: merge 67d7ef49b4f6ef9621c2c232021b613d1bc0a1b2.
+- PR #11 (Inventory V8) merged BY OPERATOR: merge f28546f8bfddedfeb25e728242246c169c82ae0e = CURRENT CANONICAL MAIN.
+- Bundle rescue DONE (read-only): foot-all-refs.bundle extracted from conflict_110826_0846 to
+  /app/custody/ (12,051,181 bytes; SHA-256 bcaed3a2683902244f755819e0bcd4f62889a83b35e6e6fa81ada715ab706fc1;
+  triple match incl. in-branch sealed checksum; bundle verify OKAY, complete history, 29 refs, 312 commits).
+  NOT pushed, NOT committed. Durable off-workspace custody still required (workspace disk is session-bound).
+- CW Export Packet V1 PREPARED UNCOMMITTED at docs/roadmap/COMFORT_WIRING_EXPORT_PACKET_V1.md
+  (+123/-0 on main worktree, diff shown to operator, validations clean). Awaiting verdict.
+- Still held: Analytics Step 2 rebuild (Path A pending), B2/B3, replay, projection, endpoint, tile,
+  Blueprint Step 2, Race Notice highlight. No conflict/CW branch touched ever.
