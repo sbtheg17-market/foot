@@ -61,16 +61,15 @@ export default function BookingModal({ providerId, providerName, service, onClos
             status?: number;
             data?: { error?: string; bookingId?: number } | null;
           };
-          // Duplicate-submit protection: the identical active request already
-          // exists — treat as information, close the sheet, and show the client
-          // their bookings instead of surfacing a scary failure.
+          // Booking-race notice (Session 079): the friendly duplicate-booking
+          // 409 contract (HTTP 409 + numeric bookingId) means this exact slot
+          // is already held by an active booking. Show the approved notice and
+          // keep the sheet open so the client can choose another time.
+          // Detection is strict — any other error keeps its existing behavior.
           if (apiError.status === 409 && typeof apiError.data?.bookingId === 'number') {
             toast.info(
-              apiError.data.error ??
-                'You already have an active request for this appointment — showing your bookings.',
+              'That time was just taken by another booking. Please choose another available time.',
             );
-            onClose();
-            setLocation('/bookings');
             return;
           }
           const msg = apiError.data?.error ?? 'Could not create booking. Please try again.';
