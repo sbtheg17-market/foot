@@ -39,6 +39,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | DB schema | ✅ Phase 3 authorization state verified in development | Existing schema remains intact; `account_roles` and `provider_applications` are now read by authorization middleware. `users.role` and provider verification state remain compatibility fields. |
 | Gate B — Supabase managed catalog | ✅ RE-VERIFIED / PASS (2026-08-12) | Read-only re-verification over the tenant-specific `aws-0-us-west-2` session pooler: PostgreSQL 17.6, `in_recovery=false`, UTF8, UTC, required extensions present; live catalog is an exact 18/18-table, 14/14-enum, 12/12-index, 34/34-FK match to the pinned Drizzle schema with 0 rows; `bookings_active_booking_unique_idx` confirmed absent; no DDL/write ran (`transaction_read_only=on` throughout). Evidence: `memory/GATE_B_REVERIFICATION_2026-08-12.md` (container-local). |
 | Race-Proof booking index | ✅ APPLIED & CONCURRENCY-VERIFIED (2026-08-12) | `bookings_active_booking_unique_idx` — partial unique index on `bookings (client_id, provider_id, service_id, scheduled_at) WHERE status IN ('requested','confirmed','rescheduled')`; applied byte-for-byte (SQL SHA-256 `aece832e…`) in one transaction after read-only preflight; post-verification exact-definition PASS; live concurrency test: one simultaneous duplicate COMMITTED, the other rejected with SQLSTATE 23505 citing this index; all transient test rows removed, 18 tables back to 0 rows. Follow-ups gated separately: mirror declaration in `bookings.ts` before any future `drizzle-kit push`; map 23505→409 in the API insert path. |
+| Session 074 publication | ⚠️ Recovered locally; GitHub push/PR blocked by authentication | Bundle tip `7a46801401698339c9a8461aa335622943424e73` and ancestry `41e6973 → f12bd05 → 7a46801` verified; the recovered diff contains exactly `lib/db/src/schema/bookings.ts`, `.agents/LOG.md`, and `.agents/NEXT_TASK.md`. HTTPS credentials were rejected, GitHub CLI has no login, and SSH has no authorized key. |
 | API server workflow | ✅ Running with Phase 2 readiness API | `artifacts/api-server: API Server` builds and serves on port 8080; database-backed role guards, approved-provider gates, owner-scoped provider applications, public discovery, admin routes, and owner-scoped provider readiness are verified. |
 | Auth routes | ✅ Shared role-intent flow added | Registration accepts additive `roleIntent`, creates provider membership/profile/application transactionally for provider intent, and preserves database-backed authorization. Login/signup routing uses server-confirmed application state. |
 | JWT middleware | ✅ Database-backed | `requireAuth` confirms active user/context from PostgreSQL; `requireRole` checks `account_roles`; approved-provider middleware checks application/profile ownership and approval. JWT claims remain unchanged. |
@@ -2519,6 +2520,26 @@ Copy and append below the last entry:
 
 **Next best action:** [specific — name the file, route, or feature to tackle next]
 ```
+
+---
+
+### Session 075 — 2026-08-12
+**Agent:** Replit Main Agent  
+**Scope:** `XS`  
+**Triggered by:** Imported-project setup request to recover and publish the Session 074 index-mirror branch.
+
+**What was done:**
+- Validated the uploaded Git bundle and recovered `refs/remotes/bundle/publish/session-074-index-mirror` at `7a46801401698339c9a8461aa335622943424e73`.
+- Confirmed the exact parent chain `41e6973a171f927e25303cb8e8a97768c8173428 → f12bd05e1d57f17d5cfc1ec8b83b26b9968e174c → 7a46801401698339c9a8461aa335622943424e73`.
+- Confirmed the recovered branch changes exactly three paths: `lib/db/src/schema/bookings.ts`, `.agents/LOG.md`, and `.agents/NEXT_TASK.md`.
+- Attempted the requested push over HTTPS and SSH. HTTPS rejected the available credentials; SSH reached GitHub but returned `Permission denied (publickey)`. No branch was pushed and no PR was created or merged.
+
+**Files changed:**
+- `.agents/LOG.md` — recorded the local recovery and authentication blocker.
+
+**Build state at end:** The exact publication branch is ready locally, but GitHub authentication is unavailable in this Repl. The remote branch and PR remain pending user authentication.
+
+**Next best action:** Authenticate GitHub in this Repl, then push `publish/session-074-index-mirror` and open the requested PR against `main` without merging it.
 
 ---
 
