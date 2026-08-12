@@ -2608,6 +2608,27 @@ Copy and append below the last entry:
 
 ---
 
+### Session 078 — 2026-08-12
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `XS` (docs-only)
+**Triggered by:** Operator-approved ledger cleanup after the read-only recovery investigation confirmed Session 077 publication.
+
+**What was done:**
+- **Recovery investigation (read-only, recorded):** the Session 077 report snapshot `8a3c7d6930dd3d6c8c5e07448cd9d5e15af0310d` on `conflict_120826_0317` ("STOPPED before commit", 06:24:36Z) was superseded 3m42s later by commit `3ab6cb7329e54ff97c6e2c633b66fe0fecf1448d` (06:28:18Z), published via PR #4 (merge `f65542753cafa46692862fbe241e59a044539b6a`, 06:42:52Z). Exact diff-stat match: 2 files, +253/−32 (`bookings.ts` 151 changed lines; lifecycle test +134). The snapshot branch holds only the prior job's Emergent template workspace — no `foot/` working-tree content. Nothing is lost or unpublished.
+- **Ledger correction (docs-only):** replaced the stale "local-only, pending publication" Session 077 wording in `.agents/NEXT_TASK.md` with the verified published state (commit `3ab6cb7…`; PR #4 merged; canonical `main` contains the work); also corrected the adjacent stale Session 074 row ("PR review pending") to record PR #3 merged as `11117fbf2e362a24127c23230762263876ec2406` (operator-approved inclusion in this same docs-only commit). The Session 077 entry above and all prior audit records are preserved verbatim — history is appended to, never rewritten.
+- **Branch Inventory addendum:** `conflict_120826_0317` — historical Emergent snapshot only; contains no unpublished OnCall Foot working-tree changes (dated addendum in `docs/roadmap/BRANCH_INVENTORY_V7.md`; no re-inventory of the 26 V7 branches; no cleanup authorized).
+
+**Files changed:**
+- `.agents/NEXT_TASK.md` (Session 077 publication wording)
+- `docs/roadmap/BRANCH_INVENTORY_V7.md` (2026-08-12 addendum note)
+- `.agents/LOG.md` (this entry)
+
+**Build state at end:** Docs-only working-tree change presented to the operator as an exact diff; NOT committed, NOT pushed. Application code, OpenAPI, schema, migrations, seeds, database, and `.replit` untouched.
+
+**Next best action:** Operator reviews this diff for a single docs-only commit; then Task 2 — provider-facing booking-race notice on the friendly 409 contract (exact copy: "That time was just taken by another booking. Please choose another available time."). The extensibility blueprint design packet is under separate review; the analytics tile remains queued pending an approved counting definition (API 409s vs. index violations vs. deduplicated attempts).
+
+---
+
 ## Cross-Platform Notes
 
 This log is committed to the repository and works on any host:
