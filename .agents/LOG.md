@@ -38,7 +38,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 |---|---|---|
 | DB schema | ✅ Phase 3 authorization state verified in development | Existing schema remains intact; `account_roles` and `provider_applications` are now read by authorization middleware. `users.role` and provider verification state remain compatibility fields. |
 | Gate B — Supabase managed catalog | ✅ RE-VERIFIED / PASS (2026-08-12) | Read-only re-verification over the tenant-specific `aws-0-us-west-2` session pooler: PostgreSQL 17.6, `in_recovery=false`, UTF8, UTC, required extensions present; live catalog is an exact 18/18-table, 14/14-enum, 12/12-index, 34/34-FK match to the pinned Drizzle schema with 0 rows; `bookings_active_booking_unique_idx` confirmed absent; no DDL/write ran (`transaction_read_only=on` throughout). Evidence: `memory/GATE_B_REVERIFICATION_2026-08-12.md` (container-local). |
-| Race-Proof booking index | ✅ APPLIED & CONCURRENCY-VERIFIED (2026-08-12) | `bookings_active_booking_unique_idx` — partial unique index on `bookings (client_id, provider_id, service_id, scheduled_at) WHERE status IN ('requested','confirmed','rescheduled')`; applied byte-for-byte (SQL SHA-256 `aece832e…`) in one transaction after read-only preflight; post-verification exact-definition PASS; live concurrency test: one simultaneous duplicate COMMITTED, the other rejected with SQLSTATE 23505 citing this index; all transient test rows removed, 18 tables back to 0 rows. Follow-ups gated separately: mirror declaration in `bookings.ts` before any future `drizzle-kit push`; map 23505→409 in the API insert path. |
+| Race-Proof booking index | ✅ APPLIED & CONCURRENCY-VERIFIED (2026-08-12) | `bookings_active_booking_unique_idx` — partial unique index on `bookings (client_id, provider_id, service_id, scheduled_at) WHERE status IN ('requested','confirmed','rescheduled')`; applied byte-for-byte (SQL SHA-256 `aece832e…`) in one transaction after read-only preflight; post-verification exact-definition PASS; live concurrency test: one simultaneous duplicate COMMITTED, the other rejected with SQLSTATE 23505 citing this index; all transient test rows removed, 18 tables back to 0 rows. Follow-ups gated separately: mirror declaration in `bookings.ts` before any future `drizzle-kit push` — **DONE (Session 074, commit `f12bd05e1d57f17d5cfc1ec8b83b26b9968e174c`, local-only, pending publication)**; map 23505→409 in the API insert path. Operator rule: any future push proposing DROP/CREATE for this index is a hard STOP. |
 | API server workflow | ✅ Running with Phase 2 readiness API | `artifacts/api-server: API Server` builds and serves on port 8080; database-backed role guards, approved-provider gates, owner-scoped provider applications, public discovery, admin routes, and owner-scoped provider readiness are verified. |
 | Auth routes | ✅ Shared role-intent flow added | Registration accepts additive `roleIntent`, creates provider membership/profile/application transactionally for provider intent, and preserves database-backed authorization. Login/signup routing uses server-confirmed application state. |
 | JWT middleware | ✅ Database-backed | `requireAuth` confirms active user/context from PostgreSQL; `requireRole` checks `account_roles`; approved-provider middleware checks application/profile ownership and approval. JWT claims remain unchanged. |
@@ -2496,6 +2496,27 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Build state at end:** Database now carries the Race-Proof index; catalog otherwise unchanged and production-clean (0 rows). Application and schema files untouched. Gated follow-ups recorded: (1) mirror the index declaration into `lib/db/src/schema/bookings.ts` in its own approved commit BEFORE any future `drizzle-kit push` (index-drop hazard); (2) map SQLSTATE 23505 from this index to the existing 409 contract in the API insert path. Publication of Sessions 072–073 ledger records to `main` only through the trusted review path after diff review.
 
 **Next best action:** Operator reviews this combined uncommitted ledger diff; then commit and publish the corrected Gate B + index records through the trusted GitHub path (secret scan + `git diff --check` before commit). Afterwards: schema-mirror follow-up task, then the Phase 3 extensibility architecture task (marketplace/workspace ownership, capability-based roles, service-catalog abstraction, client groups, branding/landing-page content model, neutral event metadata) per the recorded architecture rule.
+
+---
+
+### Session 074 — 2026-08-12
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `XS`
+**Triggered by:** Operator approved Task 1 (index mirror) after reviewing the presented diff and validation packet; Option A (packet-literal predicate) explicitly selected.
+
+**What was done:**
+- **Mirrored the live Race-Proof index into the Drizzle schema:** `lib/db/src/schema/bookings.ts` now declares ``uniqueIndex("bookings_active_booking_unique_idx").on(clientId, providerId, serviceId, scheduledAt).where(sql`status IN ('requested','confirmed','rescheduled')`)`` via the established three-argument `pgTable` form. Declaration-only: no migration generated or run, no runtime behavior change, `insertBookingSchema` and exported types untouched (`git diff -w` confirmed the column block is indentation-only).
+- **Offline SQL verification:** `drizzle-kit export` (no config, no `DATABASE_URL`, no connection) rendered exactly `CREATE UNIQUE INDEX "bookings_active_booking_unique_idx" ON "bookings" USING btree ("client_id","provider_id","service_id","scheduled_at") WHERE status IN ('requested','confirmed','rescheduled');` — byte-identical predicate to the approved packet (SQL SHA-256 `aece832e…`), no parameter placeholders.
+- **Validation:** pinned pnpm 10.18.3 frozen install; `typecheck:libs` + full workspace typecheck PASS (api-server, web, mobile, scripts); `git diff --check` clean; secret scan clean; scope = exactly one file.
+- **No `drizzle-kit push`, no migration, no DDL, no seed, no database read or write; no Supabase credential present in the environment.**
+- **Operator rule recorded (also embedded in the schema comment):** any future `drizzle-kit push` proposing DROP INDEX or DROP/CREATE for `bookings_active_booking_unique_idx` is a hard STOP requiring a separately reviewed migration. The mirror authorizes no migration and no future push.
+
+**Files changed:**
+- `lib/db/src/schema/bookings.ts` (commit `f12bd05e1d57f17d5cfc1ec8b83b26b9968e174c`, parent `41e6973a…`, sole file)
+
+**Build state at end:** Schema file now matches the live database index; database untouched. Commit is local-only, NOT pushed — publication to `main` goes through the trusted review path. Next gated tasks: Task 2 (map SQLSTATE 23505 from this index to the existing 409 duplicate-booking contract in the API insert path), Task 3 (docs-only cleanup of the stale GitHub-handoff BLOCKED row), Task 4 (extensibility blueprint, design-only).
+
+**Next best action:** Operator reviews and approves publication of `f12bd05e…`; then Task 2 as its own reviewed commit.
 
 ---
 
