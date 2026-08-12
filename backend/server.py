@@ -1,4 +1,6 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi.responses import FileResponse
+import secrets as _secrets
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -65,6 +67,22 @@ async def get_status_checks():
             check['timestamp'] = datetime.fromisoformat(check['timestamp'])
     
     return status_checks
+
+# --- Bundle custody download (Session 081, operator-only, token-protected) ---
+CUSTODY_TOKEN = os.environ.get('CUSTODY_TOKEN', '')
+CUSTODY_BUNDLE = Path('/app/custody/foot-all-refs.bundle')
+
+@api_router.get("/custody/{token}/foot-all-refs.bundle")
+async def download_custody_bundle(token: str):
+    if not CUSTODY_TOKEN or not _secrets.compare_digest(token, CUSTODY_TOKEN):
+        raise HTTPException(status_code=403, detail="forbidden")
+    if not CUSTODY_BUNDLE.is_file():
+        raise HTTPException(status_code=404, detail="bundle not present")
+    return FileResponse(
+        path=str(CUSTODY_BUNDLE),
+        media_type="application/octet-stream",
+        filename="foot-all-refs.bundle",
+    )
 
 # Include the router in the main app
 app.include_router(api_router)
