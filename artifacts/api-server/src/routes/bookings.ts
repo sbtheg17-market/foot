@@ -174,6 +174,49 @@ router.get(
 
 // ── POST /bookings — create booking (client only) ─────────────────────────────
 
+/**
+ * Identity of the live database race guard (applied Session 073, mirrored in
+ * lib/db/src/schema/bookings.ts Session 074): partial unique index over
+ * (client_id, provider_id, service_id, scheduled_at) for ACTIVE statuses.
+ */
+const ACTIVE_BOOKING_UNIQUE_INDEX = "bookings_active_booking_unique_idx";
+
+/**
+ * Friendly duplicate-booking message — must stay byte-identical between the
+ * sequential preflight fast path and the database race path, matching the
+ * OpenAPI DuplicateBookingConflictResponse contract.
+ */
+const DUPLICATE_BOOKING_MESSAGE =
+  "You already have an active request for this provider, service, and time. Check your bookings before submitting again.";
+
+/**
+ * True only for a unique violation raised by ACTIVE_BOOKING_UNIQUE_INDEX.
+ *
+ * Per .agents/memory/drizzle-unique-error-wrapping.md, drizzle may wrap the
+ * node-postgres error so the top-level `code` is lost; the index name survives
+ * in the message/constraint/detail of the error or a nested cause. Identity is
+ * the index NAME — bare SQLSTATE 23505 or generic "duplicate key" text from
+ * any OTHER constraint must NOT be converted into a duplicate-booking 409.
+ */
+export function isActiveBookingDuplicateViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as {
+    message?: unknown;
+    constraint?: unknown;
+    detail?: unknown;
+    cause?: unknown;
+    originalError?: unknown;
+  };
+  const text = [candidate.message, candidate.constraint, candidate.detail]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+  return (
+    text.includes(ACTIVE_BOOKING_UNIQUE_INDEX) ||
+    isActiveBookingDuplicateViolation(candidate.cause) ||
+    isActiveBookingDuplicateViolation(candidate.originalError)
+  );
+}
+
 router.post(
   "/",
   requireAuth,
@@ -225,50 +268,94 @@ router.post(
 
     const scheduledAtDate = new Date(String(scheduledAt));
 
-    // Duplicate-submit protection: the same client must not be able to create a
-    // second ACTIVE request for the identical provider + service + scheduled time
-    // (double-tap, back-button resubmit, or parallel tab). Cancelled / completed /
-    // no-show bookings never block a re-request. Application-level check only — a
-    // partial unique index would require a schema migration, which stays blocked
-    // behind Gate B (managed-database verification).
+    // Duplicate-submit protection, two layers:
+    //  1. Sequential fast path (this preflight SELECT): catches double-taps,
+    //     back-button resubmits, and parallel tabs with a friendly 409 before
+    //     any insert is attempted.
+    //  2. Authoritative concurrent guard: the LIVE partial unique index
+    //     bookings_active_booking_unique_idx (applied Session 073, mirrored in
+    //     the Drizzle schema Session 074) makes a double-booking impossible at
+    //     the database level even when two requests pass this preflight
+    //     simultaneously; its rejection is mapped to the same 409 below.
+    // Cancelled / completed / no-show bookings never block a re-request.
+    const activeDuplicateWhere = and(
+      eq(bookingsTable.clientId, req.user!.sub),
+      eq(bookingsTable.providerId, Number(providerId)),
+      eq(bookingsTable.serviceId, Number(serviceId)),
+      eq(bookingsTable.scheduledAt, scheduledAtDate),
+      inArray(bookingsTable.status, ["requested", "confirmed", "rescheduled"])
+    );
+
     const [duplicate] = await db
       .select({ id: bookingsTable.id })
       .from(bookingsTable)
-      .where(
-        and(
-          eq(bookingsTable.clientId, req.user!.sub),
-          eq(bookingsTable.providerId, Number(providerId)),
-          eq(bookingsTable.serviceId, Number(serviceId)),
-          eq(bookingsTable.scheduledAt, scheduledAtDate),
-          inArray(bookingsTable.status, ["requested", "confirmed", "rescheduled"])
-        )
-      )
+      .where(activeDuplicateWhere)
       .limit(1);
 
     if (duplicate) {
       res.status(409).json({
-        error:
-          "You already have an active request for this provider, service, and time. Check your bookings before submitting again.",
+        error: DUPLICATE_BOOKING_MESSAGE,
         bookingId: duplicate.id,
       });
       return;
     }
 
-    const [booking] = await db
-      .insert(bookingsTable)
-      .values({
-        clientId: req.user!.sub,
-        providerId: Number(providerId),
-        serviceId: Number(serviceId),
-        status: "requested",
-        scheduledAt: scheduledAtDate,
-        address: String(address),
-        city: String(city),
-        postalCode: postalCode !== undefined ? String(postalCode) : null,
-        careNotes: careNotes !== undefined ? String(careNotes) : null,
-        clientNotes: clientNotes !== undefined ? String(clientNotes) : null,
-      })
-      .returning();
+    // Single-statement insert (auto-commit): PostgreSQL statement atomicity
+    // guarantees a rejected insert persists nothing — no explicit transaction
+    // or rollback handling is required on this path.
+    const insertBookingRow = async () => {
+      const [row] = await db
+        .insert(bookingsTable)
+        .values({
+          clientId: req.user!.sub,
+          providerId: Number(providerId),
+          serviceId: Number(serviceId),
+          status: "requested",
+          scheduledAt: scheduledAtDate,
+          address: String(address),
+          city: String(city),
+          postalCode: postalCode !== undefined ? String(postalCode) : null,
+          careNotes: careNotes !== undefined ? String(careNotes) : null,
+          clientNotes: clientNotes !== undefined ? String(clientNotes) : null,
+        })
+        .returning();
+      return row;
+    };
+
+    let booking: Awaited<ReturnType<typeof insertBookingRow>>;
+    try {
+      booking = await insertBookingRow();
+    } catch (error) {
+      if (!isActiveBookingDuplicateViolation(error)) {
+        throw error;
+      }
+      // The database race guard rejected a concurrent duplicate. Map it to the
+      // SAME friendly 409 contract as the preflight — never expose PostgreSQL
+      // error text, SQLSTATE codes, or index names to the client (the raw
+      // error reaches only the server logger via the global handler when
+      // rethrown, and is not rethrown here).
+      const [winner] = await db
+        .select({ id: bookingsTable.id })
+        .from(bookingsTable)
+        .where(activeDuplicateWhere)
+        .limit(1);
+
+      if (winner) {
+        res.status(409).json({
+          error: DUPLICATE_BOOKING_MESSAGE,
+          bookingId: winner.id,
+        });
+        return;
+      }
+
+      // Winner vanished before re-selection (e.g. cancelled within
+      // microseconds): the slot is genuinely free again. Retry the insert
+      // exactly once and re-enter the normal success path ONLY on a
+      // successful insert — a failed attempt never emits notifications and
+      // never fabricates a 409. If this retry throws (any error, including
+      // another race), it propagates honestly to the global error handler.
+      booking = await insertBookingRow();
+    }
 
     // Guard: if the DB insert did not return a row the write did not persist.
     // Throw so the JSON error handler returns 500 — never lie to the client.

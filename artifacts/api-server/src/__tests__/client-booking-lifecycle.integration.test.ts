@@ -17,6 +17,7 @@
 
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
+import { isActiveBookingDuplicateViolation } from "../routes/bookings.js";
 
 const PORT = process.env["PORT"] ?? "8080";
 const BASE = `http://localhost:${PORT}/api`;
@@ -147,6 +148,139 @@ describe("Duplicate-submit protection", () => {
 
     const tom = await createBooking(slot, otherClientToken);
     assert.equal(tom.status, 201, `Other client blocked: ${JSON.stringify(tom.body)}`);
+  });
+});
+
+describe("Concurrent duplicate race — database index maps to friendly 409", () => {
+  it("8 simultaneous identical POSTs: exactly one 201, seven 409s, zero 500s", async () => {
+    const slot = uniqueSlot(360);
+
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => createBooking(slot)),
+    );
+
+    const created = results.filter((r) => r.status === 201);
+    const conflicts = results.filter((r) => r.status === 409);
+    const serverErrors = results.filter((r) => r.status >= 500);
+
+    assert.equal(
+      serverErrors.length,
+      0,
+      `Race path must never 500: ${JSON.stringify(serverErrors.map((r) => r.body))}`,
+    );
+    assert.equal(created.length, 1, `Expected exactly one winner: ${JSON.stringify(results.map((r) => r.status))}`);
+    assert.equal(conflicts.length, 7, `Expected seven conflicts: ${JSON.stringify(results.map((r) => r.status))}`);
+
+    const winnerId = (created[0]!.body["booking"] as { id: number }).id;
+    for (const conflict of conflicts) {
+      assert.equal(typeof conflict.body["error"], "string", JSON.stringify(conflict.body));
+      assert.equal(conflict.body["bookingId"], winnerId, JSON.stringify(conflict.body));
+      const message = conflict.body["error"] as string;
+      assert.ok(!message.includes("23505"), "SQLSTATE must never reach the client");
+      assert.ok(
+        !message.includes("bookings_active_booking_unique_idx"),
+        "index name must never reach the client",
+      );
+      assert.ok(!/duplicate key value/i.test(message), "raw PostgreSQL text must never reach the client");
+    }
+  });
+
+  it("database index rejection reaches the friendly 409 (lock-amplified deterministic race)", async (t) => {
+    if (!process.env["DATABASE_URL"]) {
+      t.skip("DATABASE_URL not set — HTTP-only run cannot amplify the race window");
+      return;
+    }
+
+    // Hold an ACCESS EXCLUSIVE lock on bookings so every racer blocks at the
+    // preflight SELECT; on COMMIT they all resume together, all see an empty
+    // slot, and all reach INSERT — forcing the partial unique index (not the
+    // preflight) to reject the losers. Local test database only.
+    const { pool } = await import("@workspace/db");
+    const locker = await pool.connect();
+    const slot = uniqueSlot(420);
+
+    let results: Array<{ status: number; body: Record<string, unknown> }>;
+    try {
+      await locker.query("BEGIN");
+      await locker.query("LOCK TABLE bookings IN ACCESS EXCLUSIVE MODE");
+
+      const racers = Promise.all(Array.from({ length: 4 }, () => createBooking(slot)));
+      // Give every request time to reach (and block on) the preflight SELECT.
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await locker.query("COMMIT");
+
+      results = await racers;
+    } finally {
+      locker.release();
+    }
+
+    const created = results.filter((r) => r.status === 201);
+    const conflicts = results.filter((r) => r.status === 409);
+    const serverErrors = results.filter((r) => r.status >= 500);
+
+    assert.equal(
+      serverErrors.length,
+      0,
+      `DB rejection must map to 409, never 500: ${JSON.stringify(serverErrors.map((r) => r.body))}`,
+    );
+    assert.equal(created.length, 1, JSON.stringify(results.map((r) => r.status)));
+    assert.equal(conflicts.length, 3, JSON.stringify(results.map((r) => r.status)));
+
+    const winnerId = (created[0]!.body["booking"] as { id: number }).id;
+    for (const conflict of conflicts) {
+      assert.equal(typeof conflict.body["error"], "string", JSON.stringify(conflict.body));
+      assert.equal(conflict.body["bookingId"], winnerId, JSON.stringify(conflict.body));
+    }
+
+    // Database-level invariant: exactly one row persisted for the slot.
+    const { rows } = await pool.query(
+      "SELECT count(*)::int AS n FROM bookings WHERE scheduled_at = $1",
+      [slot],
+    );
+    assert.equal((rows[0] as { n: number }).n, 1, "exactly one booking row must persist");
+  });
+});
+
+describe("isActiveBookingDuplicateViolation detector", () => {
+  const INDEX = "bookings_active_booking_unique_idx";
+
+  it("matches when the index name is nested under cause chains", () => {
+    const error = {
+      message: "query failed",
+      cause: {
+        message: "insert rejected",
+        cause: { code: "23505", constraint: INDEX, message: "duplicate key value" },
+      },
+    };
+    assert.equal(isActiveBookingDuplicateViolation(error), true);
+  });
+
+  it("matches a message-only wrapped error carrying the index name (code lost)", () => {
+    const error = {
+      message: `duplicate key value violates unique constraint "${INDEX}"`,
+    };
+    assert.equal(isActiveBookingDuplicateViolation(error), true);
+  });
+
+  it("returns false for an unrelated 23505 unique violation", () => {
+    const error = {
+      code: "23505",
+      constraint: "reviews_booking_id_unique",
+      message: 'duplicate key value violates unique constraint "reviews_booking_id_unique"',
+    };
+    assert.equal(isActiveBookingDuplicateViolation(error), false);
+  });
+
+  it("returns false for generic duplicate-key text without the index name", () => {
+    const error = { code: "23505", message: "duplicate key value violates unique constraint" };
+    assert.equal(isActiveBookingDuplicateViolation(error), false);
+  });
+
+  it("returns false for null, undefined, and non-object inputs", () => {
+    assert.equal(isActiveBookingDuplicateViolation(null), false);
+    assert.equal(isActiveBookingDuplicateViolation(undefined), false);
+    assert.equal(isActiveBookingDuplicateViolation("23505"), false);
+    assert.equal(isActiveBookingDuplicateViolation(23505), false);
   });
 });
 
