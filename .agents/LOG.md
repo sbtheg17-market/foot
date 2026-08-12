@@ -37,7 +37,8 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Layer | Status | Notes |
 |---|---|---|
 | DB schema | ✅ Phase 3 authorization state verified in development | Existing schema remains intact; `account_roles` and `provider_applications` are now read by authorization middleware. `users.role` and provider verification state remain compatibility fields. |
-| Gate B — Supabase managed catalog | ❌ BLOCKED / UNVERIFIED (2026-08-11) | Exact authorized session-pooler host was attempted read-only, but the stored secret was a direct Supabase URI and the pooler rejected its credential components with `no tenant identifier provided`; no SQL completed, no catalog state was inferred, and no schema operation ran. |
+| Gate B — Supabase managed catalog | ✅ RE-VERIFIED / PASS (2026-08-12) | Read-only re-verification over the tenant-specific `aws-0-us-west-2` session pooler: PostgreSQL 17.6, `in_recovery=false`, UTF8, UTC, required extensions present; live catalog is an exact 18/18-table, 14/14-enum, 12/12-index, 34/34-FK match to the pinned Drizzle schema with 0 rows; `bookings_active_booking_unique_idx` confirmed absent; no DDL/write ran (`transaction_read_only=on` throughout). Evidence: `memory/GATE_B_REVERIFICATION_2026-08-12.md` (container-local). |
+| Race-Proof booking index | ✅ APPLIED & CONCURRENCY-VERIFIED (2026-08-12) | `bookings_active_booking_unique_idx` — partial unique index on `bookings (client_id, provider_id, service_id, scheduled_at) WHERE status IN ('requested','confirmed','rescheduled')`; applied byte-for-byte (SQL SHA-256 `aece832e…`) in one transaction after read-only preflight; post-verification exact-definition PASS; live concurrency test: one simultaneous duplicate COMMITTED, the other rejected with SQLSTATE 23505 citing this index; all transient test rows removed, 18 tables back to 0 rows. Follow-ups gated separately: mirror declaration in `bookings.ts` before any future `drizzle-kit push`; map 23505→409 in the API insert path. |
 | API server workflow | ✅ Running with Phase 2 readiness API | `artifacts/api-server: API Server` builds and serves on port 8080; database-backed role guards, approved-provider gates, owner-scoped provider applications, public discovery, admin routes, and owner-scoped provider readiness are verified. |
 | Auth routes | ✅ Shared role-intent flow added | Registration accepts additive `roleIntent`, creates provider membership/profile/application transactionally for provider intent, and preserves database-backed authorization. Login/signup routing uses server-confirmed application state. |
 | JWT middleware | ✅ Database-backed | `requireAuth` confirms active user/context from PostgreSQL; `requireRole` checks `account_roles`; approved-provider middleware checks application/profile ownership and approval. JWT claims remain unchanged. |
@@ -2449,6 +2450,52 @@ These pre-existing failures are outside the Phase 1 micro-checkpoint 1 scope and
 **Build state at end:** GitHub ledger handoff remains **BLOCKED / UNVERIFIED**. No application, schema, generated client, secret, database, DDL, or workflow change was made by this session. The worktree already contained an unrelated `.replit` modification when checked.
 
 **Next best action:** Connect GitHub and provide the exact pushed repository/branch (or make the expected commit visible) so the two-file scope can be reviewed before opening or merging a PR into `sbtheg17-market/foot`.
+
+---
+
+### Session 072 — 2026-08-12
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Operator authorized read-only Gate B re-verification against the managed Supabase database, after confirming the repository takeover (baseline `origin/main` = `6f7ec67`) and supplying the database credential to the takeover container.
+
+**What was done:**
+- **Takeover reconciliation:** cloned canonical `main` read-only; confirmed the GitHub ledger still recorded Gate B as BLOCKED (Session 071, rejected `aws-1` pooler) while the prior container's clearance evidence (`/app/memory/GATE_B_RUN_2026-08-11.md`) was lost with that environment. Nothing was reconstructed or fabricated.
+- **Gate B re-verified — PASS, live-observed:** connected via the tenant-specific **`aws-0-us-west-2` session pooler** (tenant-bearing login accepted; the Session 071 `no tenant identifier provided` failure did not recur; the IPv6-only direct host and the rejected `aws-1` pooler were NOT used). Entire session ran with `default_transaction_read_only=on` inside `BEGIN TRANSACTION READ ONLY`.
+- **Observed:** database `postgres`; PostgreSQL 17.6; `pg_is_in_recovery()=false`; UTF8; UTC; extensions `pg_stat_statements`, `pgcrypto`, `plpgsql`, `supabase_vault`, `uuid-ossp`; **18/18 tables** byte-exact to the pinned Drizzle schema; **14/14 enum types**; **12/12 non-constraint indexes** (names match); **34/34 foreign keys**; **0 rows** across all 18 tables; no drizzle/migration tracking table in `public` (only Supabase-internal `auth`/`realtime`/`storage` migration schemas) — consistent with the schema having been applied via reviewed SQL.
+- **Race-Proof index preflight fact:** `bookings_active_booking_unique_idx` confirmed **absent**, as expected before its separately gated migration.
+- **Frozen authorization packet prepared (NOT executed):** partial unique index on `public.bookings (client_id, provider_id, service_id, scheduled_at) WHERE status IN ('requested','confirmed','rescheduled')` — predicate byte-equivalent to the Session 070 application-level 409 check; SQL SHA-256 `aece832e2356eb8c70f33bacaab3e7153fcfb4637788ba85eead9348d3594612`; includes read-only preflight, single-transaction apply, rollback, and post-creation verification plan. Recorded hazard: `drizzle-kit push` would drop an index it does not know about, so the index must be applied as a reviewed byte-for-byte migration and later mirrored into `lib/db/src/schema/bookings.ts` in its own approved commit before any future `push`.
+- Secret hygiene: credential stored only in a container-local, gitignored env file outside this repository; never printed, logged, committed, or patched. `git diff --check` and a secret sweep of this ledger diff passed.
+
+**Files changed:**
+- `.agents/LOG.md` (this entry + Current Build State Gate B row)
+- `.agents/NEXT_TASK.md` (Gate B re-verification record)
+
+**Build state at end:** Application and schema untouched — this session was read-only verification plus ledger documentation. Gate B is **RE-VERIFIED / PASS (2026-08-12)**; migrations are no longer blocked by Gate B. The Race-Proof index remains NOT applied and gated behind explicit approval of the exact frozen packet. Publication of this ledger correction to `main` goes only through the trusted review path after the diff is reviewed.
+
+**Next best action:** Obtain explicit operator approval of the frozen Race-Proof packet (hash `aece832e…`), run its live preflight, apply the index byte-for-byte in one transaction, then run the read-only post-index verification and concurrency tests — each as separately auditable ledger entries.
+
+---
+
+### Session 073 — 2026-08-12
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Operator explicitly approved the frozen Race-Proof packet referencing the complete SQL SHA-256 `aece832e2356eb8c70f33bacaab3e7153fcfb4637788ba85eead9348d3594612`, including scoped transient-write concurrency testing with mandatory cleanup.
+
+**What was done:**
+- **Applied the Race-Proof partial unique index** to the managed Supabase database over the verified `aws-0` session pooler, exactly per the approved packet: read-only preflight P1–P4 PASS (identity/version/recovery; target columns; index name free; zero conflicting duplicates) → packet hash re-verified byte-exact immediately before execution → the packet file's own `BEGIN; CREATE UNIQUE INDEX bookings_active_booking_unique_idx ON public.bookings (client_id, provider_id, service_id, scheduled_at) WHERE status IN ('requested','confirmed','rescheduled'); COMMIT;` executed as one transaction. No `drizzle-kit push`; no application or schema file changed; no seeds, RLS, auth config, or unrelated indexes.
+- **Post-index verification V1–V4 PASS (read-only):** live `indexdef` matches the expected definition exactly; `indisunique=true`, `indisvalid=true`; catalog otherwise unchanged (18/18 tables, 14/14 enums, 34/34 FKs, non-constraint indexes 13 = 12 prior + this one); `bookings` at 0 rows.
+- **Concurrency test PASS (approved transient writes, self-cleaning):** minimal tagged parents (2 users, 1 provider profile, 1 service); two simultaneous identical booking inserts from separate transactions — exactly one COMMITTED and one REJECTED with SQLSTATE 23505 citing `bookings_active_booking_unique_idx`; persisted rows = 1 before cleanup; then every test row deleted and all 18 public tables live-verified back to **0 rows**. `bookings` has no non-internal triggers. Not seed data.
+- **Independent verification:** a separate testing agent re-ran the checks end-to-end (exact index definition, unique/valid flags, concurrency run, final zero-row state) — 5/5 PASS; its artifacts contain no secret material.
+- **Invariant now enforced at the database level:** at most one active (`requested`/`confirmed`/`rescheduled`) booking per `(client_id, provider_id, service_id, scheduled_at)` under concurrent requests. The Session 070 application-level 409 check remains as the fast path, no longer the only defense.
+- Secret hygiene: credential only in the container-local gitignored env file; never printed, logged, committed, or patched. `git diff --check` and secret sweep of this ledger diff passed.
+
+**Files changed:**
+- `.agents/LOG.md` (this entry + Current Build State rows for Gate B and the index)
+- `.agents/NEXT_TASK.md` (index record + architecture-rule entry, each separate)
+
+**Build state at end:** Database now carries the Race-Proof index; catalog otherwise unchanged and production-clean (0 rows). Application and schema files untouched. Gated follow-ups recorded: (1) mirror the index declaration into `lib/db/src/schema/bookings.ts` in its own approved commit BEFORE any future `drizzle-kit push` (index-drop hazard); (2) map SQLSTATE 23505 from this index to the existing 409 contract in the API insert path. Publication of Sessions 072–073 ledger records to `main` only through the trusted review path after diff review.
+
+**Next best action:** Operator reviews this combined uncommitted ledger diff; then commit and publish the corrected Gate B + index records through the trusted GitHub path (secret scan + `git diff --check` before commit). Afterwards: schema-mirror follow-up task, then the Phase 3 extensibility architecture task (marketplace/workspace ownership, capability-based roles, service-catalog abstraction, client groups, branding/landing-page content model, neutral event metadata) per the recorded architecture rule.
 
 ---
 
