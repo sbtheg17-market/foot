@@ -46,7 +46,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | JWT_SECRET | ✅ Available to managed workflow | Added by the user through the development/shared Secrets panel; value was never inspected, printed, logged, committed, or exposed. |
 | Seed script | ✅ Self-contained role state | `pnpm run seed` creates 5 demo accounts, `account_roles` memberships, approved `provider_applications` for both demo providers, and full sample data on a fresh database; a second run skips every existing record without duplicates. `test:authorization` passes on a freshly seeded database without manual inserts or the legacy backfill script. |
 | Business routes — providers | ✅ Live | GET /providers, /providers/me, /providers/me/readiness, /providers/:id, /providers/:id/services, /providers/:id/reviews + full provider portal (services CRUD, availability, travel-zones, earnings) |
-| Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/history, GET /bookings/:id, PATCH /bookings/:id/status — client-safe bounded history, strict state machine, auto-invoice on confirm; POST duplicate-submit protection returns 409 + existing `bookingId` for identical active requests (Session 070). |
+| Business routes — bookings | ✅ Live | GET/POST /bookings, GET /bookings/history, GET /bookings/:id, PATCH /bookings/:id/status — client-safe bounded history, strict state machine, auto-invoice on confirm; POST duplicate-submit protection returns 409 + existing `bookingId` for identical active requests (Session 070); concurrent duplicates rejected by `bookings_active_booking_unique_idx` now map to the same friendly 409 with the winning `bookingId` — never a 500, never PostgreSQL internals (Session 077, commit `3ab6cb7…`). |
 | Business routes — reviews/invoices | ✅ Live | POST/GET /reviews, booking-scoped client review lookup, GET /invoices, GET /invoices/:id — role-scoped; completed-booking review validation and duplicate races return safe conflicts |
 | React frontend | ✅ Phase 4 onboarding surfaces running | Provider portal plus client discovery, public profiles, booking lifecycle, shared `/signup`, `/register` compatibility redirect, server-confirmed role-aware redirects, provider onboarding/application-status routes, and owner-scoped application form; 390px preview verified. |
 | Web typecheck | ✅ Clean | 0 TS errors after fixing button-group, calendar ref, client-layout queryKey, hook signatures |
@@ -2583,6 +2583,28 @@ Copy and append below the last entry:
 **Build state at end:** PR branch in clean final state: schema mirror (frozen commits) + main merge + bundle removal + ledger correction. Awaiting operator PR review and merge; no automatic merge. Database, application code, migrations, seeds, and `.replit` untouched throughout.
 
 **Next best action:** Operator opens/reviews the PR (`publish/session-074-index-mirror` → `main`), merges after review, then deletes the temporary deploy key from repository settings; post-merge read-only verification follows.
+
+---
+
+### Session 077 — 2026-08-12
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `S`
+**Triggered by:** Operator approved Task 2 after reviewing the read-only inspection packet: map database duplicate-booking rejections (SQLSTATE 23505 from `bookings_active_booking_unique_idx`) to the existing friendly 409 contract.
+
+**What was done:**
+- **POST /bookings race path hardened:** new exported detector `isActiveBookingDuplicateViolation()` identifies unique violations strictly by the index name `bookings_active_booking_unique_idx` (nested `cause`/`originalError` traversal per `.agents/memory/drizzle-unique-error-wrapping.md`); bare 23505 or generic duplicate-key text from any other constraint is never converted. On detection: re-select the winning active booking and return the byte-identical `DuplicateBookingConflictResponse` 409 (`error` + `bookingId`); if the winner vanished, retry the insert exactly once, re-entering the success path only after a persisted insert; a failing retry propagates honestly. SSE/push notifications remain strictly post-persistence. PostgreSQL text, SQLSTATE codes, and index names never reach clients.
+- **Preflight fast path preserved** (sequential duplicates still answered before any insert); stale route comment corrected — the live index (Session 073, mirrored 074) is now documented as the authoritative concurrent guard.
+- **Tests added** (`client-booking-lifecycle.integration.test.ts`): 8-way concurrent POST race (exactly one 201, seven 409s, zero 500s, winning `bookingId` in every conflict, no internals leaked); lock-amplified deterministic race forcing the DATABASE rejection path (ACCESS EXCLUSIVE lock parks racers at the preflight; skips if `DATABASE_URL` unset) with a DB-level exactly-one-row assertion; 5 detector unit tests including unrelated-23505 → false.
+- **Validation (LOCAL PostgreSQL 15 only — Supabase untouched, no drizzle-kit push, no managed-DB access):** fresh local database built from offline `drizzle-kit export` DDL with the index present (verified precondition); seeded; lifecycle 14/14, concurrency 16/16, state-machine 63/63; full typecheck PASS; postgres server log captured **3 live `bookings_active_booking_unique_idx` rejections** during the deterministic race — all surfaced as friendly 409s; independent testing agent re-verified end-to-end 6/6 (suites, index-fire count 7→10, manual curl duplicate → friendly 409, detector specificity, scope).
+- `git diff --check` clean; secret scan clean; scope exactly two files.
+
+**Files changed:**
+- `artifacts/api-server/src/routes/bookings.ts` (commit `3ab6cb7329e54ff97c6e2c633b66fe0fecf1448d`, parent `11117fb…`)
+- `artifacts/api-server/src/__tests__/client-booking-lifecycle.integration.test.ts` (same commit)
+
+**Build state at end:** Double-booking now maps to the friendly 409 on BOTH layers — preflight (sequential) and database index (concurrent). Commit is local-only, NOT pushed; publication via the trusted review path. No OpenAPI, schema, migration, seed, auth, deployment, or `.replit` change.
+
+**Next best action:** Publish Task 2 through the reviewed PR path; then the provider-facing booking-race notice (built on this 409 contract — client copy: "That time was just taken by another booking. Please choose another available time."; never 23505/index/SQL details), then the stale GitHub-handoff row cleanup, then the extensibility blueprint (design-only, including non-time-based offerings: services, physical/digital products, educational media, recommendations, bundles/recurring plans — core-neutral, foot-care terms in the vertical adapter).
 
 ---
 
