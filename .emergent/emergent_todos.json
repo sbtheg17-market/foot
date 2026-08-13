@@ -1,42 +1,30 @@
 [
   {
-    "content": "Create branch feat/analytics-prevented-bookings-part1 from main (553605b) and place 7 verified files",
+    "content": "B2: create branch docs/analytics-b2-migration-artifact from main 993e343",
     "status": "completed"
   },
   {
-    "content": "Install workspace dependencies (pnpm install)",
+    "content": "B2: author frozen SQL artifact (plain CREATE, Gate B header, no DOWN)",
     "status": "completed"
   },
   {
-    "content": "Provision local scratch PostgreSQL + B1 schema + Race-Proof index + seed",
+    "content": "B2: apply to fresh local scratch DB in one transaction",
     "status": "completed"
   },
   {
-    "content": "Run focused prevented-booking integration suite",
+    "content": "B2: catalog-parity check vs B1 drizzle declaration",
     "status": "completed"
   },
   {
-    "content": "Run typecheck + lifecycle + concurrency + state-machine regressions",
+    "content": "B2: focused suite 9/9 against SQL-created table",
     "status": "completed"
   },
   {
-    "content": "Secret scan + scope guard + git diff --check",
+    "content": "B2: SHA-256 + scope guard + secret scan + whitespace check",
     "status": "completed"
   },
   {
-    "content": "Report full validation results, STOP before commit",
-    "status": "completed"
-  },
-  {
-    "content": "Commit 7 files + push feature branch only (confirmed by operator)",
-    "status": "completed"
-  },
-  {
-    "content": "Operator opens/reviews PR — no merge by agent",
-    "status": "pending"
-  },
-  {
-    "content": "Session 081 addendum: amend after publication when PR number exists (held)",
-    "status": "pending"
+    "content": "B2: report and STOP before commit/push (awaiting review)",
+    "status": "in_progress"
   }
 ]
