@@ -1,0 +1,75 @@
+-- ============================================================================
+-- B2 FROZEN ADDITIVE MIGRATION ARTIFACT — prevented_booking_records V1
+-- ============================================================================
+--
+-- *** WARNING — THIS IS A B2 ARTIFACT (REVIEW-ONLY UNTIL GATE B) ***
+-- DO NOT APPLY without explicit Gate B authorization (B3). Never via drizzle-kit push.
+--
+-- Mirrors the B1 schema declaration merged via PR #13:
+--   lib/db/src/schema/prevented-booking-records.ts
+-- Design: docs/roadmap/ANALYTICS_PREVENTED_BOOKINGS_V1.md (Option B dedicated
+-- append-only table; approved counting rule: one prevented-booking event = one
+-- booking request that reaches the API and returns HTTP 409 with a numeric
+-- bookingId).
+--
+-- Properties:
+--   * ADDITIVE ONLY: CREATE TYPE + CREATE TABLE + CREATE INDEX. No ALTER, no
+--     DROP, no backfill, no data statements. Zero statements touch `bookings`
+--     or the Race-Proof index `bookings_active_booking_unique_idx`; the only
+--     interaction with existing tables is declarative FK references.
+--   * Plain CREATE statements (no IF NOT EXISTS): a partial or repeated
+--     application fails loudly instead of silently diverging.
+--   * Single transaction: the BEGIN/COMMIT pair below makes application
+--     all-or-nothing.
+--   * Idempotency invariant lives in the table shape: UNIQUE correlation_id
+--     (server-generated UUID; never client input) = at most one row per
+--     API 409 decision.
+--   * `marketplace_id` is explicit NOT NULL tenancy from the first row; no FK
+--     until Blueprint Step 2 creates `marketplaces` (its additive migration
+--     must seed DEFAULT_MARKETPLACE_ID = 1, slug `oncall-foot`, and may then
+--     add the FK in its own reviewed migration).
+--   * ON DELETE SET NULL on user/booking/provider/service references: erasure
+--     anonymizes rows while counts survive (rebuildable analytics source,
+--     never booking source of truth).
+--   * NO DOWN SECTION by design: rollback DDL requires its own separately
+--     approved artifact.
+--
+-- B3 application procedure (only when separately Gate B-authorized): verify
+-- this file's SHA-256 against the operator-approved hash immediately before
+-- execution, run read-only preflight, apply exactly once over the approved
+-- managed connection, then re-verify the catalog and production-clean state.
+-- ============================================================================
+
+BEGIN;
+
+CREATE TYPE prevented_booking_path AS ENUM ('preflight', 'index_violation');
+
+CREATE TABLE prevented_booking_records (
+    id serial PRIMARY KEY,
+    marketplace_id integer NOT NULL,
+    correlation_id text NOT NULL,
+    occurred_at timestamp NOT NULL,
+    recorded_at timestamp NOT NULL DEFAULT now(),
+    actor_user_id integer,
+    subject_booking_id integer,
+    provider_id integer,
+    service_id integer,
+    scheduled_at timestamp NOT NULL,
+    path prevented_booking_path NOT NULL,
+    CONSTRAINT prevented_booking_records_actor_user_id_users_id_fk
+        FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT prevented_booking_records_subject_booking_id_bookings_id_fk
+        FOREIGN KEY (subject_booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
+    CONSTRAINT prevented_booking_records_provider_id_provider_profiles_id_fk
+        FOREIGN KEY (provider_id) REFERENCES provider_profiles(id) ON DELETE SET NULL,
+    CONSTRAINT prevented_booking_records_service_id_services_id_fk
+        FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX prevented_booking_records_correlation_unique_idx
+    ON prevented_booking_records (correlation_id);
+
+CREATE INDEX prevented_booking_records_marketplace_provider_occurred_idx
+    ON prevented_booking_records (marketplace_id, provider_id, occurred_at DESC NULLS LAST);
+
+COMMIT;
