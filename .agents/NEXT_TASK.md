@@ -1,26 +1,32 @@
 # Next product task — read `docs/roadmap/NEO_EAGLE_VIEW.md` first
 
-## Analytics Step 2 Part 1 — 2026-08-12 — WORKING TREE LOST / Path A recovery pending (Session 081)
+## Analytics Step 2 Part 1 — 2026-08-13 — RECOVERED & PUBLISHED (PR #13; supersedes the 2026-08-12 "WORKING TREE LOST" disposition)
 
-- Analytics Design V1 is published and merged (PR #9, reviewed commit `7a1cbfa…`;
-  canonical `main` = `21b282b4db59c504ddd7c8347cdd9677f2c91391`). The approved Step 2
-  Part 1 implementation (durable prevented-booking recording, exact 7-file scope) was
-  completed and tested in a prior workspace but was **stopped before commit**; that
-  working tree is absent from all currently accessible containers and from all 44
-  GitHub branches (read-only `git ls-tree` search of every head, Session 081).
-- `conflict_120826_1319` holds only report/validation artifacts
-  (`foot-validation-prevented-ddl.sql`, `foot-validation-schema-v2.sql`,
-  `test_reports/iteration_3.json`) plus workspace-metadata commits — it is NOT the
-  implementation and must never be merged, PR'd, or used as a code source; its SQL
-  must never be applied.
-- No reconstruction from narrative reports and no database changes were performed;
-  Supabase/managed DB untouched throughout the investigation.
-- **Fresh reimplementation remains UNAPPROVED while Path A (re-opening the original
-  Emergent session/workspace, the only remaining possible recovery location) is
-  pending.** If Path A fails, reimplementation requires new explicit operator
-  authorization on `feat/analytics-prevented-bookings-part1` (local scratch
-  PostgreSQL only; full validation matrix re-run from scratch).
-- Branch archival deferred: read-only inventory only; no `conflict_*` ref may be
+- Analytics Design V1 is published and merged (PR #9, reviewed commit `7a1cbfa…`). The
+  approved Step 2 Part 1 implementation (durable prevented-booking recording, exact
+  7-file scope) — lost uncommitted in the Session 080 workspace and absent from every
+  accessible container and branch (Session 081 investigation; Path A formally FAILED
+  after the original workspace was confirmed recycled/restored from its metadata-only
+  snapshot) — was **recovered from operator-supplied source files**, verified read-only
+  against the approved packet, and fully revalidated from scratch on local scratch
+  PostgreSQL 15 only (focused suite 9/9; typecheck PASS; state-machine 63/63;
+  concurrency 16/16; lifecycle 14/14; secret scan clean; scope exactly 7 files;
+  `git diff --check` clean).
+- Published: reviewed commit `05845638425d4b124c0b699669c7338e688360ed` on
+  `feat/analytics-prevented-bookings-part1`, merged into `main` through **PR #13** via
+  true merge commit `e326b2756370be9f2739289ec75d2b60d5443436` (reviewed SHA preserved;
+  no squash/rebase). Recorded in the Session 081 addendum, published through **PR #14**
+  via true merge commit `ec7f0fa50501dee30872bf0351fed7396a2b9a7f`.
+- `conflict_120826_1319` remains evidence-only (report/validation artifacts, NOT the
+  implementation; never merge, PR, or use as a code source; its SQL must never be
+  applied). `conflict_130826_1239` (the Session 080 workspace snapshot lineage) is
+  likewise evidence-only.
+- No managed database or Supabase access occurred at any stage; the merged Part 1 is
+  the B1 schema DECLARATION only. **Next gated step: B2 frozen additive migration
+  artifact (`docs/migrations/PREVENTED_BOOKING_RECORDS_V1.sql`) — planned but NOT
+  authorized; B3 managed application remains separately Gate B-gated; Part 2 replay,
+  projection, endpoint, and dashboard tile remain held.**
+- Branch archival remains deferred: read-only inventory only; no `conflict_*` ref may be
   deleted, archived, or modified.
 
 ## Publication record — Session 068 is PUBLISHED (2026-08-11)
