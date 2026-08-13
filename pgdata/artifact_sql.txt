@@ -1,0 +1,33 @@
+BEGIN;
+
+CREATE TYPE prevented_booking_path AS ENUM ('preflight', 'index_violation');
+
+CREATE TABLE prevented_booking_records (
+    id serial PRIMARY KEY,
+    marketplace_id integer NOT NULL,
+    correlation_id text NOT NULL,
+    occurred_at timestamp NOT NULL,
+    recorded_at timestamp NOT NULL DEFAULT now(),
+    actor_user_id integer,
+    subject_booking_id integer,
+    provider_id integer,
+    service_id integer,
+    scheduled_at timestamp NOT NULL,
+    path prevented_booking_path NOT NULL,
+    CONSTRAINT prevented_booking_records_actor_user_id_users_id_fk
+        FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT prevented_booking_records_subject_booking_id_bookings_id_fk
+        FOREIGN KEY (subject_booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
+    CONSTRAINT prevented_booking_records_provider_id_provider_profiles_id_fk
+        FOREIGN KEY (provider_id) REFERENCES provider_profiles(id) ON DELETE SET NULL,
+    CONSTRAINT prevented_booking_records_service_id_services_id_fk
+        FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX prevented_booking_records_correlation_unique_idx
+    ON prevented_booking_records (correlation_id);
+
+CREATE INDEX prevented_booking_records_marketplace_provider_occurred_idx
+    ON prevented_booking_records (marketplace_id, provider_id, occurred_at DESC NULLS LAST);
+
+COMMIT;

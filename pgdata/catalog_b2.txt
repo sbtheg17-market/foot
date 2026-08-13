@@ -1,0 +1,357 @@
+Output format is unaligned.
+== TABLES ==
+account_roles
+availability
+bookings
+invoices
+marketplace_events
+prevented_booking_records
+provider_application_events
+provider_application_submissions
+provider_applications
+provider_notifications
+provider_profiles
+push_tokens
+reviews
+services
+support_messages
+support_tickets
+travel_zones
+users
+verification_docs
+== COLUMNS ==
+account_roles|1|id|integer|int4|NO|nextval('account_roles_id_seq'::regclass)
+account_roles|2|user_id|integer|int4|NO|-
+account_roles|3|role|USER-DEFINED|account_role|NO|-
+account_roles|4|created_at|timestamp without time zone|timestamp|NO|now()
+account_roles|5|updated_at|timestamp without time zone|timestamp|NO|now()
+availability|1|id|integer|int4|NO|nextval('availability_id_seq'::regclass)
+availability|2|provider_id|integer|int4|NO|-
+availability|3|day_of_week|integer|int4|NO|-
+availability|4|start_time|text|text|NO|-
+availability|5|end_time|text|text|NO|-
+bookings|1|id|integer|int4|NO|nextval('bookings_id_seq'::regclass)
+bookings|2|client_id|integer|int4|NO|-
+bookings|3|provider_id|integer|int4|NO|-
+bookings|4|service_id|integer|int4|NO|-
+bookings|5|status|USER-DEFINED|booking_status|NO|'requested'::booking_status
+bookings|6|scheduled_at|timestamp without time zone|timestamp|NO|-
+bookings|7|address|text|text|NO|-
+bookings|8|city|text|text|NO|-
+bookings|9|postal_code|text|text|YES|-
+bookings|10|care_notes|text|text|YES|-
+bookings|11|client_notes|text|text|YES|-
+bookings|12|cancelled_by|integer|int4|YES|-
+bookings|13|cancellation_reason|text|text|YES|-
+bookings|14|created_at|timestamp without time zone|timestamp|NO|now()
+bookings|15|updated_at|timestamp without time zone|timestamp|NO|now()
+invoices|1|id|integer|int4|NO|nextval('invoices_id_seq'::regclass)
+invoices|2|booking_id|integer|int4|NO|-
+invoices|3|client_id|integer|int4|NO|-
+invoices|4|provider_id|integer|int4|NO|-
+invoices|5|amount_cents|integer|int4|NO|-
+invoices|6|status|USER-DEFINED|invoice_status|NO|'pending'::invoice_status
+invoices|7|paid_at|timestamp without time zone|timestamp|YES|-
+invoices|8|stripe_payment_intent_id|text|text|YES|-
+invoices|9|created_at|timestamp without time zone|timestamp|NO|now()
+invoices|10|updated_at|timestamp without time zone|timestamp|NO|now()
+marketplace_events|1|id|integer|int4|NO|nextval('marketplace_events_id_seq'::regclass)
+marketplace_events|2|event_type|USER-DEFINED|marketplace_event_type|NO|-
+marketplace_events|3|occurred_at|timestamp without time zone|timestamp|NO|-
+marketplace_events|4|recorded_at|timestamp without time zone|timestamp|NO|now()
+marketplace_events|5|actor_user_id|integer|int4|YES|-
+marketplace_events|6|actor_role|USER-DEFINED|account_role|YES|-
+marketplace_events|7|provider_profile_id|integer|int4|YES|-
+marketplace_events|8|client_user_id|integer|int4|YES|-
+marketplace_events|9|service_id|integer|int4|YES|-
+marketplace_events|10|booking_id|integer|int4|YES|-
+marketplace_events|11|correlation_id|text|text|YES|-
+marketplace_events|12|source|USER-DEFINED|marketplace_event_source|NO|-
+marketplace_events|13|metadata|jsonb|jsonb|YES|-
+marketplace_events|14|reason_code|USER-DEFINED|marketplace_event_reason_code|YES|-
+prevented_booking_records|1|id|integer|int4|NO|nextval('prevented_booking_records_id_seq'::regclass)
+prevented_booking_records|2|marketplace_id|integer|int4|NO|-
+prevented_booking_records|3|correlation_id|text|text|NO|-
+prevented_booking_records|4|occurred_at|timestamp without time zone|timestamp|NO|-
+prevented_booking_records|5|recorded_at|timestamp without time zone|timestamp|NO|now()
+prevented_booking_records|6|actor_user_id|integer|int4|YES|-
+prevented_booking_records|7|subject_booking_id|integer|int4|YES|-
+prevented_booking_records|8|provider_id|integer|int4|YES|-
+prevented_booking_records|9|service_id|integer|int4|YES|-
+prevented_booking_records|10|scheduled_at|timestamp without time zone|timestamp|NO|-
+prevented_booking_records|11|path|USER-DEFINED|prevented_booking_path|NO|-
+provider_application_events|1|id|integer|int4|NO|nextval('provider_application_events_id_seq'::regclass)
+provider_application_events|2|provider_application_id|integer|int4|NO|-
+provider_application_events|3|user_id|integer|int4|NO|-
+provider_application_events|4|type|USER-DEFINED|provider_application_event_type|NO|-
+provider_application_events|5|from_status|USER-DEFINED|provider_application_status|NO|-
+provider_application_events|6|to_status|USER-DEFINED|provider_application_status|NO|-
+provider_application_events|7|created_at|timestamp without time zone|timestamp|NO|now()
+provider_application_submissions|1|id|integer|int4|NO|nextval('provider_application_submissions_id_seq'::regclass)
+provider_application_submissions|2|provider_application_id|integer|int4|NO|-
+provider_application_submissions|3|outcome|USER-DEFINED|provider_application_submission_outcome|NO|-
+provider_application_submissions|4|submitted_at|timestamp without time zone|timestamp|NO|-
+provider_application_submissions|5|reviewed_at|timestamp without time zone|timestamp|YES|-
+provider_application_submissions|6|reviewed_by|integer|int4|YES|-
+provider_application_submissions|7|reviewer_notes|text|text|YES|-
+provider_application_submissions|8|rejection_reason|text|text|YES|-
+provider_application_submissions|9|created_at|timestamp without time zone|timestamp|NO|now()
+provider_applications|1|id|integer|int4|NO|nextval('provider_applications_id_seq'::regclass)
+provider_applications|2|user_id|integer|int4|NO|-
+provider_applications|3|provider_profile_id|integer|int4|NO|-
+provider_applications|4|status|USER-DEFINED|provider_application_status|NO|'draft'::provider_application_status
+provider_applications|5|current_step|USER-DEFINED|provider_application_step|NO|'profile'::provider_application_step
+provider_applications|6|submitted_at|timestamp without time zone|timestamp|YES|-
+provider_applications|7|reviewed_at|timestamp without time zone|timestamp|YES|-
+provider_applications|8|reviewed_by|integer|int4|YES|-
+provider_applications|9|reviewer_notes|text|text|YES|-
+provider_applications|10|rejection_reason|text|text|YES|-
+provider_applications|11|created_at|timestamp without time zone|timestamp|NO|now()
+provider_applications|12|updated_at|timestamp without time zone|timestamp|NO|now()
+provider_notifications|1|id|integer|int4|NO|nextval('provider_notifications_id_seq'::regclass)
+provider_notifications|2|user_id|integer|int4|NO|-
+provider_notifications|3|event_id|integer|int4|NO|-
+provider_notifications|4|type|USER-DEFINED|provider_application_event_type|NO|-
+provider_notifications|5|title|text|text|NO|-
+provider_notifications|6|body|text|text|NO|-
+provider_notifications|7|link|text|text|NO|-
+provider_notifications|8|read_at|timestamp without time zone|timestamp|YES|-
+provider_notifications|9|created_at|timestamp without time zone|timestamp|NO|now()
+provider_profiles|1|id|integer|int4|NO|nextval('provider_profiles_id_seq'::regclass)
+provider_profiles|2|user_id|integer|int4|NO|-
+provider_profiles|3|title|text|text|NO|''::text
+provider_profiles|4|bio|text|text|YES|-
+provider_profiles|5|city|text|text|NO|''::text
+provider_profiles|6|service_area_notes|text|text|YES|-
+provider_profiles|7|verification_status|USER-DEFINED|verification_status|NO|'pending'::verification_status
+provider_profiles|8|rating|numeric|numeric|NO|'0'::numeric
+provider_profiles|9|review_count|integer|int4|NO|0
+provider_profiles|10|profile_complete|boolean|bool|NO|false
+provider_profiles|11|years_experience|integer|int4|YES|-
+provider_profiles|12|accepts_new_clients|boolean|bool|NO|true
+provider_profiles|13|created_at|timestamp without time zone|timestamp|NO|now()
+provider_profiles|14|updated_at|timestamp without time zone|timestamp|NO|now()
+push_tokens|1|id|integer|int4|NO|nextval('push_tokens_id_seq'::regclass)
+push_tokens|2|user_id|integer|int4|NO|-
+push_tokens|3|token|text|text|NO|-
+push_tokens|4|platform|text|text|NO|-
+push_tokens|5|created_at|timestamp without time zone|timestamp|NO|now()
+push_tokens|6|updated_at|timestamp without time zone|timestamp|NO|now()
+reviews|1|id|integer|int4|NO|nextval('reviews_id_seq'::regclass)
+reviews|2|booking_id|integer|int4|NO|-
+reviews|3|client_id|integer|int4|NO|-
+reviews|4|provider_id|integer|int4|NO|-
+reviews|5|rating|integer|int4|NO|-
+reviews|6|comment|text|text|YES|-
+reviews|7|is_visible|boolean|bool|NO|true
+reviews|8|created_at|timestamp without time zone|timestamp|NO|now()
+services|1|id|integer|int4|NO|nextval('services_id_seq'::regclass)
+services|2|provider_id|integer|int4|NO|-
+services|3|title|text|text|NO|-
+services|4|description|text|text|YES|-
+services|5|duration_minutes|integer|int4|NO|-
+services|6|price_cents|integer|int4|NO|-
+services|7|category|text|text|NO|'foot_care'::text
+services|8|eligibility_notes|text|text|YES|-
+services|9|is_active|boolean|bool|NO|true
+services|10|created_at|timestamp without time zone|timestamp|NO|now()
+support_messages|1|id|integer|int4|NO|nextval('support_messages_id_seq'::regclass)
+support_messages|2|ticket_id|integer|int4|NO|-
+support_messages|3|user_id|integer|int4|NO|-
+support_messages|4|message|text|text|NO|-
+support_messages|5|created_at|timestamp without time zone|timestamp|NO|now()
+support_tickets|1|id|integer|int4|NO|nextval('support_tickets_id_seq'::regclass)
+support_tickets|2|user_id|integer|int4|NO|-
+support_tickets|3|subject|text|text|NO|-
+support_tickets|4|status|USER-DEFINED|ticket_status|NO|'open'::ticket_status
+support_tickets|5|created_at|timestamp without time zone|timestamp|NO|now()
+support_tickets|6|updated_at|timestamp without time zone|timestamp|NO|now()
+travel_zones|1|id|integer|int4|NO|nextval('travel_zones_id_seq'::regclass)
+travel_zones|2|provider_id|integer|int4|NO|-
+travel_zones|3|zone_name|text|text|NO|-
+travel_zones|4|city|text|text|NO|-
+travel_zones|5|notes|text|text|YES|-
+users|1|id|integer|int4|NO|nextval('users_id_seq'::regclass)
+users|2|email|text|text|NO|-
+users|3|password_hash|text|text|NO|-
+users|4|role|USER-DEFINED|user_role|NO|'client'::user_role
+users|5|first_name|text|text|NO|-
+users|6|last_name|text|text|NO|-
+users|7|phone|text|text|YES|-
+users|8|avatar_url|text|text|YES|-
+users|9|is_active|boolean|bool|NO|true
+users|10|created_at|timestamp without time zone|timestamp|NO|now()
+users|11|updated_at|timestamp without time zone|timestamp|NO|now()
+verification_docs|1|id|integer|int4|NO|nextval('verification_docs_id_seq'::regclass)
+verification_docs|2|provider_id|integer|int4|NO|-
+verification_docs|3|doc_type|text|text|NO|-
+verification_docs|4|file_name|text|text|NO|-
+verification_docs|5|status|USER-DEFINED|verification_doc_status|NO|'pending'::verification_doc_status
+verification_docs|6|reviewer_notes|text|text|YES|-
+verification_docs|7|submitted_at|timestamp without time zone|timestamp|NO|now()
+verification_docs|8|reviewed_at|timestamp without time zone|timestamp|YES|-
+== ENUMS ==
+account_role|1|client
+account_role|2|provider
+account_role|3|admin
+booking_status|1|requested
+booking_status|2|confirmed
+booking_status|3|completed
+booking_status|4|cancelled
+booking_status|5|rescheduled
+booking_status|6|no_show
+invoice_status|1|pending
+invoice_status|2|paid
+invoice_status|3|cancelled
+marketplace_event_reason_code|1|NOT_APPROVED
+marketplace_event_reason_code|2|PROFILE_INCOMPLETE
+marketplace_event_reason_code|3|NO_ACTIVE_SERVICE
+marketplace_event_reason_code|4|NO_AVAILABILITY
+marketplace_event_reason_code|5|NO_SERVICE_AREA
+marketplace_event_reason_code|6|NOT_ACCEPTING_CLIENTS
+marketplace_event_reason_code|7|DOCS_PENDING
+marketplace_event_reason_code|8|PROVIDER_NOT_BOOKABLE
+marketplace_event_reason_code|9|SERVICE_INACTIVE
+marketplace_event_reason_code|10|SLOT_OUTSIDE_AVAILABILITY
+marketplace_event_reason_code|11|SLOT_CONFLICT
+marketplace_event_reason_code|12|PROVIDER_NOT_ACCEPTING
+marketplace_event_reason_code|13|VALIDATION_ERROR
+marketplace_event_reason_code|14|CLIENT_ABANDONED
+marketplace_event_source|1|web
+marketplace_event_source|2|mobile
+marketplace_event_source|3|system
+marketplace_event_type|1|provider_approved
+marketplace_event_type|2|profile_completed
+marketplace_event_type|3|first_service_published
+marketplace_event_type|4|availability_set
+marketplace_event_type|5|service_area_set
+marketplace_event_type|6|provider_activated
+marketplace_event_type|7|provider_deactivated
+marketplace_event_type|8|provider_search
+marketplace_event_type|9|provider_viewed
+marketplace_event_type|10|service_viewed
+marketplace_event_type|11|availability_slot_selected
+marketplace_event_type|12|booking_started
+marketplace_event_type|13|booking_submitted
+marketplace_event_type|14|booking_confirmed
+marketplace_event_type|15|booking_cancelled
+marketplace_event_type|16|booking_no_show
+prevented_booking_path|1|preflight
+prevented_booking_path|2|index_violation
+provider_application_event_type|1|submitted
+provider_application_event_type|2|reset_to_draft
+provider_application_event_type|3|approved
+provider_application_event_type|4|rejected
+provider_application_status|1|draft
+provider_application_status|2|under_review
+provider_application_status|3|approved
+provider_application_status|4|rejected
+provider_application_status|5|suspended
+provider_application_step|1|profile
+provider_application_step|2|services
+provider_application_step|3|availability
+provider_application_step|4|verification
+provider_application_step|5|submitted
+provider_application_submission_outcome|1|rejected
+ticket_status|1|open
+ticket_status|2|in_progress
+ticket_status|3|resolved
+user_role|1|client
+user_role|2|provider
+user_role|3|admin
+verification_doc_status|1|pending
+verification_doc_status|2|approved
+verification_doc_status|3|rejected
+verification_status|1|pending
+verification_status|2|under_review
+verification_status|3|approved
+verification_status|4|rejected
+== INDEXES ==
+account_roles_pkey|CREATE UNIQUE INDEX account_roles_pkey ON public.account_roles USING btree (id)
+account_roles_role_idx|CREATE INDEX account_roles_role_idx ON public.account_roles USING btree (role)
+account_roles_user_id_idx|CREATE INDEX account_roles_user_id_idx ON public.account_roles USING btree (user_id)
+account_roles_user_role_unique|CREATE UNIQUE INDEX account_roles_user_role_unique ON public.account_roles USING btree (user_id, role)
+availability_pkey|CREATE UNIQUE INDEX availability_pkey ON public.availability USING btree (id)
+bookings_active_booking_unique_idx|CREATE UNIQUE INDEX bookings_active_booking_unique_idx ON public.bookings USING btree (client_id, provider_id, service_id, scheduled_at) WHERE (status = ANY (ARRAY['requested'::booking_status, 'confirmed'::booking_status, 'rescheduled'::booking_status]))
+bookings_pkey|CREATE UNIQUE INDEX bookings_pkey ON public.bookings USING btree (id)
+invoices_booking_id_unique|CREATE UNIQUE INDEX invoices_booking_id_unique ON public.invoices USING btree (booking_id)
+invoices_pkey|CREATE UNIQUE INDEX invoices_pkey ON public.invoices USING btree (id)
+marketplace_events_client_occurred_idx|CREATE INDEX marketplace_events_client_occurred_idx ON public.marketplace_events USING btree (client_user_id, occurred_at DESC NULLS LAST)
+marketplace_events_correlation_idx|CREATE INDEX marketplace_events_correlation_idx ON public.marketplace_events USING btree (correlation_id)
+marketplace_events_occurred_idx|CREATE INDEX marketplace_events_occurred_idx ON public.marketplace_events USING btree (occurred_at DESC NULLS LAST)
+marketplace_events_pkey|CREATE UNIQUE INDEX marketplace_events_pkey ON public.marketplace_events USING btree (id)
+marketplace_events_provider_occurred_idx|CREATE INDEX marketplace_events_provider_occurred_idx ON public.marketplace_events USING btree (provider_profile_id, occurred_at DESC NULLS LAST)
+marketplace_events_type_occurred_idx|CREATE INDEX marketplace_events_type_occurred_idx ON public.marketplace_events USING btree (event_type, occurred_at DESC NULLS LAST)
+prevented_booking_records_correlation_unique_idx|CREATE UNIQUE INDEX prevented_booking_records_correlation_unique_idx ON public.prevented_booking_records USING btree (correlation_id)
+prevented_booking_records_marketplace_provider_occurred_idx|CREATE INDEX prevented_booking_records_marketplace_provider_occurred_idx ON public.prevented_booking_records USING btree (marketplace_id, provider_id, occurred_at DESC NULLS LAST)
+prevented_booking_records_pkey|CREATE UNIQUE INDEX prevented_booking_records_pkey ON public.prevented_booking_records USING btree (id)
+provider_application_events_app_created_idx|CREATE INDEX provider_application_events_app_created_idx ON public.provider_application_events USING btree (provider_application_id, created_at)
+provider_application_events_pkey|CREATE UNIQUE INDEX provider_application_events_pkey ON public.provider_application_events USING btree (id)
+provider_application_submissions_app_created_id_idx|CREATE INDEX provider_application_submissions_app_created_id_idx ON public.provider_application_submissions USING btree (provider_application_id, created_at DESC, id DESC)
+provider_application_submissions_pkey|CREATE UNIQUE INDEX provider_application_submissions_pkey ON public.provider_application_submissions USING btree (id)
+provider_applications_pkey|CREATE UNIQUE INDEX provider_applications_pkey ON public.provider_applications USING btree (id)
+provider_applications_profile_unique|CREATE UNIQUE INDEX provider_applications_profile_unique ON public.provider_applications USING btree (provider_profile_id)
+provider_applications_status_idx|CREATE INDEX provider_applications_status_idx ON public.provider_applications USING btree (status)
+provider_applications_user_id_idx|CREATE INDEX provider_applications_user_id_idx ON public.provider_applications USING btree (user_id)
+provider_applications_user_unique|CREATE UNIQUE INDEX provider_applications_user_unique ON public.provider_applications USING btree (user_id)
+provider_notifications_pkey|CREATE UNIQUE INDEX provider_notifications_pkey ON public.provider_notifications USING btree (id)
+provider_notifications_user_created_id_idx|CREATE INDEX provider_notifications_user_created_id_idx ON public.provider_notifications USING btree (user_id, created_at DESC, id DESC)
+provider_notifications_user_event_unique|CREATE UNIQUE INDEX provider_notifications_user_event_unique ON public.provider_notifications USING btree (user_id, event_id)
+provider_profiles_pkey|CREATE UNIQUE INDEX provider_profiles_pkey ON public.provider_profiles USING btree (id)
+provider_profiles_user_id_unique|CREATE UNIQUE INDEX provider_profiles_user_id_unique ON public.provider_profiles USING btree (user_id)
+push_tokens_pkey|CREATE UNIQUE INDEX push_tokens_pkey ON public.push_tokens USING btree (id)
+push_tokens_token_unique|CREATE UNIQUE INDEX push_tokens_token_unique ON public.push_tokens USING btree (token)
+reviews_booking_id_unique|CREATE UNIQUE INDEX reviews_booking_id_unique ON public.reviews USING btree (booking_id)
+reviews_pkey|CREATE UNIQUE INDEX reviews_pkey ON public.reviews USING btree (id)
+services_pkey|CREATE UNIQUE INDEX services_pkey ON public.services USING btree (id)
+support_messages_pkey|CREATE UNIQUE INDEX support_messages_pkey ON public.support_messages USING btree (id)
+support_tickets_pkey|CREATE UNIQUE INDEX support_tickets_pkey ON public.support_tickets USING btree (id)
+travel_zones_pkey|CREATE UNIQUE INDEX travel_zones_pkey ON public.travel_zones USING btree (id)
+users_email_unique|CREATE UNIQUE INDEX users_email_unique ON public.users USING btree (email)
+users_pkey|CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
+verification_docs_pkey|CREATE UNIQUE INDEX verification_docs_pkey ON public.verification_docs USING btree (id)
+== CONSTRAINTS ==
+psql:/app/pgdata/catalog_dump.sql:26: ERROR:  operator is not unique: text || "char"
+LINE 1: SELECT rel.relname||'|'||con.conname||'|'||con.contype||'|'|...
+                                                 ^
+HINT:  Could not choose a best candidate operator. You might need to add explicit type casts.
+== SEQUENCES ==
+account_roles_id_seq
+availability_id_seq
+bookings_id_seq
+invoices_id_seq
+marketplace_events_id_seq
+prevented_booking_records_id_seq
+provider_application_events_id_seq
+provider_application_submissions_id_seq
+provider_applications_id_seq
+provider_notifications_id_seq
+provider_profiles_id_seq
+push_tokens_id_seq
+reviews_id_seq
+services_id_seq
+support_messages_id_seq
+support_tickets_id_seq
+travel_zones_id_seq
+users_id_seq
+verification_docs_id_seq
+== SERIAL BINDING ==
+account_roles.id -> public.account_roles_id_seq
+availability.id -> public.availability_id_seq
+bookings.id -> public.bookings_id_seq
+invoices.id -> public.invoices_id_seq
+marketplace_events.id -> public.marketplace_events_id_seq
+prevented_booking_records.id -> public.prevented_booking_records_id_seq
+provider_application_events.id -> public.provider_application_events_id_seq
+provider_application_submissions.id -> public.provider_application_submissions_id_seq
+provider_applications.id -> public.provider_applications_id_seq
+provider_notifications.id -> public.provider_notifications_id_seq
+provider_profiles.id -> public.provider_profiles_id_seq
+push_tokens.id -> public.push_tokens_id_seq
+reviews.id -> public.reviews_id_seq
+services.id -> public.services_id_seq
+support_messages.id -> public.support_messages_id_seq
+support_tickets.id -> public.support_tickets_id_seq
+travel_zones.id -> public.travel_zones_id_seq
+users.id -> public.users_id_seq
+verification_docs.id -> public.verification_docs_id_seq

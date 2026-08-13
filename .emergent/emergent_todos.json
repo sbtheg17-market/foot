@@ -1,0 +1,42 @@
+[
+  {
+    "content": "Explore repo structure (drizzle schema, prevented-booking test suite)",
+    "status": "completed"
+  },
+  {
+    "content": "Install/start local scratch PostgreSQL (no managed DB)",
+    "status": "completed"
+  },
+  {
+    "content": "Recreate branch + 75-line artifact (42-line header + verbatim SQL)",
+    "status": "completed"
+  },
+  {
+    "content": "Build B1 reference DB (local-only drizzle) + apply artifact to b2test via psql",
+    "status": "completed"
+  },
+  {
+    "content": "Catalog parity comparison B1 vs B2 — 100% identical",
+    "status": "completed"
+  },
+  {
+    "content": "Run focused prevented-booking suite — 9/9 PASS",
+    "status": "completed"
+  },
+  {
+    "content": "Forbidden-statement scan, secret scan, scope check, git diff --check — all clean",
+    "status": "completed"
+  },
+  {
+    "content": "Compute new SHA-256 and report header contents",
+    "status": "completed"
+  },
+  {
+    "content": "Independent verification via testing agent — 8/8 checks passed",
+    "status": "completed"
+  },
+  {
+    "content": "Stop before commit/push — await publication approval",
+    "status": "in_progress"
+  }
+]

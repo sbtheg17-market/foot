@@ -1,0 +1,104 @@
+TAP version 13
+# Subtest: Setup
+    # Subtest: API server is reachable
+    ok 1 - API server is reachable
+      ---
+      duration_ms: 1.840064
+      ...
+    1..1
+ok 1 - Setup
+  ---
+  duration_ms: 380.742716
+  type: 'suite'
+  ...
+# Subtest: Preflight 409 recording
+    # Subtest: records exactly one complete row for a sequential duplicate
+    ok 1 - records exactly one complete row for a sequential duplicate
+      ---
+      duration_ms: 499.841533
+      ...
+    1..1
+ok 2 - Preflight 409 recording
+  ---
+  duration_ms: 500.005722
+  type: 'suite'
+  ...
+# Subtest: Server-generated correlation ids (defensive X-Request-Id)
+    # Subtest: repeated identical client X-Request-Id values still produce distinct row correlation ids
+    ok 1 - repeated identical client X-Request-Id values still produce distinct row correlation ids
+      ---
+      duration_ms: 26.368896
+      ...
+    # Subtest: malformed and oversized headers are safely ignored (recording still works)
+    ok 2 - malformed and oversized headers are safely ignored (recording still works)
+      ---
+      duration_ms: 22.844638
+      ...
+    1..2
+ok 3 - Server-generated correlation ids (defensive X-Request-Id)
+  ---
+  duration_ms: 49.40693
+  type: 'suite'
+  ...
+# Subtest: Counting rule under concurrency
+    # Subtest: 8 simultaneous identical POSTs: row count equals the 409 count
+    ok 1 - 8 simultaneous identical POSTs: row count equals the 409 count
+      ---
+      duration_ms: 64.361058
+      ...
+    # Subtest: lock-amplified deterministic race records path='index_violation'
+    ok 2 - lock-amplified deterministic race records path='index_violation'
+      ---
+      duration_ms: 517.62136
+      ...
+    1..2
+ok 4 - Counting rule under concurrency
+  ---
+  duration_ms: 582.332264
+  type: 'suite'
+  ...
+# Subtest: Non-emission paths
+    # Subtest: a 201 success records nothing
+    ok 1 - a 201 success records nothing
+      ---
+      duration_ms: 8.899923
+      ...
+    1..1
+ok 5 - Non-emission paths
+  ---
+  duration_ms: 9.043229
+  type: 'suite'
+  ...
+# Subtest: Idempotency
+    # Subtest: the same correlation_id inserted twice yields exactly one row
+    ok 1 - the same correlation_id inserted twice yields exactly one row
+      ---
+      duration_ms: 58.248835
+      ...
+    1..1
+ok 6 - Idempotency
+  ---
+  duration_ms: 58.395504
+  type: 'suite'
+  ...
+# Subtest: Failure isolation
+    # Subtest: recording-table outage never changes or fails the client's 409
+    ok 1 - recording-table outage never changes or fails the client's 409
+      ---
+      duration_ms: 17.315012
+      ...
+    1..1
+ok 7 - Failure isolation
+  ---
+  duration_ms: 17.43235
+  type: 'suite'
+  ...
+1..7
+# tests 9
+# suites 7
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11918.204298
