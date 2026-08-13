@@ -82,3 +82,9 @@ memory/test_credentials.md
 android-sdk/
 # Never commit SSH keys
 .ssh_backup/
+.env
+.env.*
+*.env
+credentials.json
+*.key
+.credentials
