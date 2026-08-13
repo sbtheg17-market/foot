@@ -1,6 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import path from "node:path";
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -9,13 +10,42 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+/**
+ * Strict validation for the OPTIONAL inbound X-Request-Id header — bounded
+ * charset and length so arbitrary client input can never reach logs.
+ *
+ * The validated value is used ONLY as a supplementary `clientRequestId`
+ * trace field. It is NEVER the request id / analytics correlation id: a
+ * valid-but-repeated client value could collide with the unique idempotency
+ * key on prevented_booking_records and suppress a legitimate event, so
+ * `req.id` is ALWAYS a server-generated UUID (genReqId below).
+ */
+const CLIENT_REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{8,128}$/;
+
+function validatedClientRequestId(
+  headers: Record<string, string | string[] | undefined> | undefined,
+): string | undefined {
+  const raw = headers?.["x-request-id"];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return typeof value === "string" && CLIENT_REQUEST_ID_PATTERN.test(value)
+    ? value
+    : undefined;
+}
+
 app.use(
   pinoHttp({
     logger,
+    // Server-generated UUID on EVERY request — never derived from client
+    // input. This id is the analytics correlation_id / idempotency key.
+    genReqId: () => randomUUID(),
     serializers: {
       req(req) {
         return {
           id: req.id,
+          clientRequestId: validatedClientRequestId(
+            (req as { headers?: Record<string, string | string[] | undefined> })
+              .headers,
+          ),
           method: req.method,
           url: req.url?.split("?")[0],
         };

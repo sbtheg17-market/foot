@@ -19,6 +19,7 @@ import {
 } from "../lib/booking-state-machine.js";
 import { emitNewBooking } from "../lib/notification-bus.js";
 import { sendPushToUser } from "../lib/push-notifications.js";
+import { recordPreventedBooking } from "../lib/prevented-booking-events.js";
 
 const router = Router();
 
@@ -293,6 +294,18 @@ router.post(
       .limit(1);
 
     if (duplicate) {
+      // Analytics Step 2 (Session 080): record the prevented duplicate under
+      // the approved counting rule (one event per API 409 with bookingId).
+      // The helper never throws and never alters the response below.
+      await recordPreventedBooking({
+        correlationId: String(req.id),
+        actorUserId: req.user!.sub,
+        subjectBookingId: duplicate.id,
+        providerId: Number(providerId),
+        serviceId: Number(serviceId),
+        scheduledAt: scheduledAtDate,
+        path: "preflight",
+      });
       res.status(409).json({
         error: DUPLICATE_BOOKING_MESSAGE,
         bookingId: duplicate.id,
@@ -341,6 +354,18 @@ router.post(
         .limit(1);
 
       if (winner) {
+        // Analytics Step 2 (Session 080): the database race guard caught this
+        // one — same counting rule, path discriminator only (the raw error
+        // never reaches the recording helper). Never alters the 409 below.
+        await recordPreventedBooking({
+          correlationId: String(req.id),
+          actorUserId: req.user!.sub,
+          subjectBookingId: winner.id,
+          providerId: Number(providerId),
+          serviceId: Number(serviceId),
+          scheduledAt: scheduledAtDate,
+          path: "index_violation",
+        });
         res.status(409).json({
           error: DUPLICATE_BOOKING_MESSAGE,
           bookingId: winner.id,
