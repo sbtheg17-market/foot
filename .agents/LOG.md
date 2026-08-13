@@ -2679,6 +2679,26 @@ Copy and append below the last entry:
 
 ---
 
+### Session 081 — Addendum (2026-08-13)
+**Agent:** E2 Agent (Emergent, Neo)
+**Scope:** `XS` (docs-only addendum; append-only)
+**Triggered by:** Operator-directed continuity record in a fresh workspace (read-only takeover verified against live `origin/main`): Branch Inventory V8 publication, Comfort-Wiring Packet V1 publication, and full-history bundle custody status.
+
+**What was done:**
+- **Branch Inventory V8 published:** reviewed commit `07052c186847ad9af960b3148d54d95116371c26` merged via **PR #11** as true merge `f28546f8bfddedfeb25e728242246c169c82ae0e` (`docs/roadmap/BRANCH_INVENTORY_V8.md`); **46 branch heads verified intact** (8 merged; 4 unmerged/squash-era requiring content verification; 31 conflict snapshots; 5 newly classified; 3 explicit holds); no branch was deleted, archived, or modified.
+- **Comfort-Wiring Export Packet V1 published:** reviewed commit `45fa13690e0c5802f47ef1800767bfef38cdf5eb` merged via **PR #12** as true merge commit `553605b1020b0340bf40fa230d2c7495e7503a95` (parents `f28546f…` + `45fa136…`; reviewed SHA preserved; no squash, no rebase); `docs/roadmap/COMFORT_WIRING_EXPORT_PACKET_V1.md` present on `main`; post-merge read-only verification PASS.
+- **Full-history bundle prepared — custody PENDING:** `foot-all-refs.bundle`, built read-only from `conflict_110826_0846` (source branch untouched); size `12,051,181` bytes; SHA-256 `bcaed3a2683902244f755819e0bcd4f62889a83b35e6e6fa81ada715ab706fc1`; `git bundle verify` PASS; 29 refs; 312 commits; zero prerequisites (complete pre-rebuild repository history). The bundle was never committed and never pushed; no token or download URL is recorded in this ledger. The workspace-local custody copy existed only in the preparing workspace; after workspace turnover no container-local copy remains — **durable operator custody is still PENDING** (local download + SHA-256 confirmation), and the bundle remains reproducible read-only from `conflict_110826_0846`.
+- Analytics Step 2 Part 1 was successfully recovered from uploaded source files, fully revalidated locally, committed as `05845638425d4b124c0b699669c7338e688360ed`, and merged through PR #13 via true merge commit `e326b2756370be9f2739289ec75d2b60d5443436`; no managed database or Supabase access occurred.
+
+**Files changed:**
+- `.agents/LOG.md` (this addendum)
+
+**Build state at end:** `main` = `e326b2756370be9f2739289ec75d2b60d5443436` (PR #13 true merge), clean and canonical; all 46 inventoried heads intact; managed Supabase untouched.
+
+**Next best action:** Operator completes bundle custody (download + local SHA-256 confirmation); B2 frozen migration artifact (`docs/migrations/PREVENTED_BOOKING_RECORDS_V1.sql`) awaits separate explicit authorization; B3 remains Gate B-gated.
+
+---
+
 ## Cross-Platform Notes
 
 This log is committed to the repository and works on any host:
