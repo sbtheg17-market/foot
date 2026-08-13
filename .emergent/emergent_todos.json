@@ -1,0 +1,42 @@
+[
+  {
+    "content": "Create branch feat/analytics-prevented-bookings-part1 from main (553605b) and place 7 verified files",
+    "status": "completed"
+  },
+  {
+    "content": "Install workspace dependencies (pnpm install)",
+    "status": "completed"
+  },
+  {
+    "content": "Provision local scratch PostgreSQL + B1 schema + Race-Proof index + seed",
+    "status": "completed"
+  },
+  {
+    "content": "Run focused prevented-booking integration suite",
+    "status": "completed"
+  },
+  {
+    "content": "Run typecheck + lifecycle + concurrency + state-machine regressions",
+    "status": "completed"
+  },
+  {
+    "content": "Secret scan + scope guard + git diff --check",
+    "status": "completed"
+  },
+  {
+    "content": "Report full validation results, STOP before commit",
+    "status": "completed"
+  },
+  {
+    "content": "Commit 7 files + push feature branch only (confirmed by operator)",
+    "status": "completed"
+  },
+  {
+    "content": "Operator opens/reviews PR — no merge by agent",
+    "status": "pending"
+  },
+  {
+    "content": "Session 081 addendum: amend after publication when PR number exists (held)",
+    "status": "pending"
+  }
+]
