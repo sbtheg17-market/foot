@@ -1,42 +1,22 @@
 [
   {
-    "content": "Explore repo structure (drizzle schema, prevented-booking test suite)",
+    "content": "Recreate + validate B2 artifact (Option B) — all gates passed, 9/9 suite, 8/8 independent checks",
     "status": "completed"
   },
   {
-    "content": "Install/start local scratch PostgreSQL (no managed DB)",
+    "content": "Operator froze candidate hash + header review",
     "status": "completed"
   },
   {
-    "content": "Recreate branch + 75-line artifact (42-line header + verbatim SQL)",
+    "content": "Pre-commit gates (hash/scope/diff/whitespace/base) — all passed",
     "status": "completed"
   },
   {
-    "content": "Build B1 reference DB (local-only drizzle) + apply artifact to b2test via psql",
+    "content": "One commit created + feature branch pushed — verified via ls-remote",
     "status": "completed"
   },
   {
-    "content": "Catalog parity comparison B1 vs B2 — 100% identical",
+    "content": "Stop before PR open/merge — B3 and all downstream work held",
     "status": "completed"
-  },
-  {
-    "content": "Run focused prevented-booking suite — 9/9 PASS",
-    "status": "completed"
-  },
-  {
-    "content": "Forbidden-statement scan, secret scan, scope check, git diff --check — all clean",
-    "status": "completed"
-  },
-  {
-    "content": "Compute new SHA-256 and report header contents",
-    "status": "completed"
-  },
-  {
-    "content": "Independent verification via testing agent — 8/8 checks passed",
-    "status": "completed"
-  },
-  {
-    "content": "Stop before commit/push — await publication approval",
-    "status": "in_progress"
   }
 ]
