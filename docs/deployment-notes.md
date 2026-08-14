@@ -23,9 +23,6 @@ CORS_ORIGINS=          # Comma-separated allowed frontend origins
 # Install dependencies
 pnpm install
 
-# Push DB schema (first deploy or after schema changes)
-pnpm --filter @workspace/db run push
-
 # Build the API server
 pnpm --filter @workspace/api-server run build
 
@@ -37,6 +34,21 @@ node artifacts/api-server/dist/index.mjs
 
 ---
 
+## Schema changes & Gate B (required reading)
+
+**Deployment startup must never push schema.** Managed-database DDL is applied
+only through reviewed, hash-verified frozen migration artifacts (see
+`docs/migrations/`) under explicit Gate B authorization, using the documented
+preflight / SHA-256-verify / apply-once `psql` procedure. Startup-time schema
+push (`drizzle-kit push` in any start command) is prohibited: it can silently
+apply unreviewed DDL to the managed database and bypass the Gate B boundary.
+
+`pnpm run db:push` (and `push-force`) remain available as **local scratch-only
+developer tools** for disposable databases. Never point them at a managed or
+production `DATABASE_URL`.
+
+---
+
 ## Railway (single service — recommended)
 
 The repo ships a `railway.json` and `nixpacks.toml`, so Railway auto-configures:
@@ -44,7 +56,7 @@ The repo ships a `railway.json` and `nixpacks.toml`, so Railway auto-configures:
 1. Create a Railway project → add a **PostgreSQL** plugin. Railway exposes `DATABASE_URL` to the service automatically.
 2. Deploy the repo. Railway reads `railway.json`:
    - **Build**: `pnpm run build:deploy` (builds the React web app + bundles the API server)
-   - **Start**: `pnpm run db:push && pnpm run start` (pushes the schema, then serves API **and** the web app on one port)
+   - **Start**: `pnpm run start` (serves API **and** the web app on one port; schema is **not** pushed at startup — see "Schema changes & Gate B")
    - **Healthcheck**: `/api/healthz`
 3. Set the remaining variables: `JWT_SECRET` (required), optionally `JWT_EXPIRES_IN`, `NODE_ENV=production`. `PORT` is injected by Railway.
 4. (First deploy only) seed demo data from the Railway shell: `pnpm run seed`.
@@ -58,7 +70,7 @@ The Express server serves the built SPA (`artifacts/web/dist/public`) for all no
 Same single-service model:
 
 - **Build command**: `pnpm install && pnpm run build:deploy`
-- **Start command**: `pnpm run db:push && pnpm run start`
+- **Start command**: `pnpm run start`
 - Provide `DATABASE_URL`, `JWT_SECRET`, and let the host inject `PORT`.
 
 ---
