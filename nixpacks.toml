@@ -15,4 +15,4 @@ cmds = [
 cmds = ["pnpm run build:deploy"]
 
 [start]
-cmd = "pnpm run db:push && pnpm run start"
+cmd = "pnpm run start"
