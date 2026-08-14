@@ -9,6 +9,7 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "seed": "node --enable-source-maps --import tsx/esm ./src/seed.ts",
     "backfill:role-state": "node --enable-source-maps --import tsx/esm ./src/scripts/backfill-role-state.ts",
+    "replay:prevented-bookings": "node --enable-source-maps --import tsx/esm ./src/scripts/replay-prevented-bookings.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx/esm --test src/__tests__/booking-state-machine.test.ts",
     "test:integration": "node --import tsx/esm --test src/__tests__/booking-concurrency.test.ts",
