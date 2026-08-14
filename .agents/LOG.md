@@ -2699,6 +2699,25 @@ Copy and append below the last entry:
 
 ---
 
+### Session — B3 disposition: ACCEPT-AS-APPLIED (2026-08-14)
+**Agent:** E2 Agent (Emergent, Neo — continuation)
+**Scope:** `XS` (ledger append only; no application, schema, or database change by this session)
+
+**What was done (operator-authorized, factual record):**
+- **B3 was halted at preflight P3** under a complete Gate B authorization: the frozen artifact `docs/migrations/PREVENTED_BOOKING_RECORDS_V1.sql` was re-extracted from canonical `main` `e5018bb65b092d78c73700340aae21dc162dc0b3` and its SHA-256 matched the frozen hash exactly (`138982a19c7427044dfea167ffdbbcc72e6647130cc565f1d23621aef70e29ce`), P1 (identity/recovery, PostgreSQL 17.6 via `aws-0-us-west-2` session pooler) and P2 (4/4 FK dependency tables) PASSED, but **P3 FAILED — all four target objects already existed** (enum `prevented_booking_path`, table `prevented_booking_records`, both indexes). Per the artifact's no-`IF NOT EXISTS` fail-loud design and the fail-fast order, execution stopped immediately.
+- **No SQL write or DDL was performed by this session.** Managed-database access was read-only preflight and diagnostics only. No retry, no drizzle-kit, no substitute migration.
+- **Read-only verification established byte-equivalence to the frozen artifact:** all 11 columns exact (names, order, types); enum labels exactly `preflight`, `index_violation`; both index definitions exact; all 4 FK constraint names exact; `prevented_booking_records` = **0 rows**; `bookings_active_booking_unique_idx` intact (`indisunique=true`, `indisvalid=true`); catalog deltas vs the recorded pre-apply baseline are exactly the artifact footprint (+1 table → 19, +1 enum → 15, +4 FKs → 38, +2 non-constraint indexes → 15); no other drift found.
+- **Operator disposition:** `ACCEPT-AS-APPLIED — schema already present and verified byte-equivalent to the frozen artifact; no apply performed by this session.`
+- **Credential security:** the Session-pooler URI used for the read-only preflight was exposed in operator chat and is treated as COMPROMISED. **Rotation of the Supabase database password is required before any future managed-database access.** The credential value appears nowhere in this ledger or the repository.
+- **Provenance investigation (read-only, repository evidence only):** until PR #18 (`dcc005e`, 2026-08-14 00:51 UTC), the deployment start command in `Procfile`, `nixpacks.toml`, `railway.json`, and `docs/deployment-notes.md` was `pnpm run db:push && pnpm run start` — an automatic startup `drizzle-kit push`. PR #13 (2026-08-13 20:29 UTC) placed the B1 declaration `lib/db/src/schema/prevented-booking-records.ts` on `main`. Any deployment/restart of the hosted service pointing `DATABASE_URL` at the managed database during the ~4.4-hour window (2026-08-13 20:30 UTC → 2026-08-14 00:52 UTC) would have auto-created exactly the observed objects with drizzle-generated names. **Likely source: startup `drizzle-kit push` during a deployment in that window (HIGH confidence on mechanism; MEDIUM-HIGH that the deployment env pointed at the Supabase pooler — host env config and deployment logs are unavailable from this environment).** Evidence unavailable: host deployment logs, Supabase audit logs (no DB access after credential compromise; PostgreSQL catalogs record no object-creation timestamps), prior session transcript for Phase A. **No unexplained database change remains** — observed deltas are exactly the artifact footprint and nothing else.
+
+**Files changed:**
+- `.agents/LOG.md` (this append-only entry)
+
+**Build state at end:** B3 accepted as applied; managed database unchanged by this session; `prevented_booking_records` empty and ready; Race-Proof index intact. **Gates: deployment / production replay / projection / endpoint & dashboard / Phase B preflight / branch archival — all NOT authorized, separately gated.** Credential rotation is a hard precondition for any future managed-database access.
+
+---
+
 ## Cross-Platform Notes
 
 This log is committed to the repository and works on any host:
