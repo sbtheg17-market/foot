@@ -54,8 +54,8 @@ export default function Register() {
           setLocation(nextRoute(res.user));
         },
         onError: (err) => {
-          const response = err as { response?: { data?: { error?: string } } };
-          setError(response.response?.data?.error ?? 'Could not create account. Please check your details.');
+          const response = err as { data?: { error?: string } };
+          setError(response.data?.error ?? 'Could not create account. Please check your details.');
         }
       }
     );
