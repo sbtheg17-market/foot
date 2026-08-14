@@ -1,0 +1,115 @@
+TAP version 13
+# Subtest: Setup
+    # Subtest: resolved FK-valid seed identifiers
+    ok 1 - resolved FK-valid seed identifiers
+      ---
+      duration_ms: 0.452693
+      ...
+    1..1
+ok 1 - Setup
+  ---
+  duration_ms: 16.147144
+  type: 'suite'
+  ...
+# Subtest: Replay: valid records and idempotency
+    # Subtest: valid record → inserted with exact source-payload-to-row equality; exit 0
+    ok 1 - valid record → inserted with exact source-payload-to-row equality; exit 0
+      ---
+      duration_ms: 599.399501
+      ...
+    # Subtest: same input replayed → already_present, still exactly one row, exit 0
+    ok 2 - same input replayed → already_present, still exactly one row, exit 0
+      ---
+      duration_ms: 1196.915675
+      ...
+    # Subtest: duplicate correlation ids within one file → one row, exit 0
+    ok 3 - duplicate correlation ids within one file → one row, exit 0
+      ---
+      duration_ms: 596.126993
+      ...
+    # Subtest: tolerates the pino envelope fields on exported log lines
+    ok 4 - tolerates the pino envelope fields on exported log lines
+      ---
+      duration_ms: 596.744152
+      ...
+    1..4
+ok 2 - Replay: valid records and idempotency
+  ---
+  duration_ms: 2989.442668
+  type: 'suite'
+  ...
+# Subtest: Replay: strict validation partitions
+    # Subtest: malformed JSON → .invalid.ndjson, exit 1
+    ok 1 - malformed JSON → .invalid.ndjson, exit 1
+      ---
+      duration_ms: 592.430281
+      ...
+    # Subtest: unknown payload field → invalid; nothing inserted
+    ok 2 - unknown payload field → invalid; nothing inserted
+      ---
+      duration_ms: 562.325895
+      ...
+    # Subtest: missing payload field → invalid
+    ok 3 - missing payload field → invalid
+      ---
+      duration_ms: 621.85889
+      ...
+    # Subtest: invalid path enum value → invalid
+    ok 4 - invalid path enum value → invalid
+      ---
+      duration_ms: 607.346793
+      ...
+    # Subtest: unknown top-level field → invalid
+    ok 5 - unknown top-level field → invalid
+      ---
+      duration_ms: 607.482441
+      ...
+    # Subtest: mixed input → correct partitions, exit 1, input unchanged
+    ok 6 - mixed input → correct partitions, exit 1, input unchanged
+      ---
+      duration_ms: 602.354799
+      ...
+    1..6
+ok 3 - Replay: strict validation partitions
+  ---
+  duration_ms: 3594.205551
+  type: 'suite'
+  ...
+# Subtest: Replay: outage, dead-letter, recovery
+    # Subtest: table outage → .failed.ndjson, nonzero exit, input unchanged; re-run recovers
+    ok 1 - table outage → .failed.ndjson, nonzero exit, input unchanged; re-run recovers
+      ---
+      duration_ms: 6505.813245
+      ...
+    1..1
+ok 4 - Replay: outage, dead-letter, recovery
+  ---
+  duration_ms: 6506.006347
+  type: 'suite'
+  ...
+# Subtest: DLQ behavior at the recording isolation boundary
+    # Subtest: writes the complete PII-free payload to the DLQ on double failure without altering the 409
+    ok 1 - writes the complete PII-free payload to the DLQ on double failure without altering the 409
+      ---
+      duration_ms: 941.142489
+      ...
+    # Subtest: unwritable DLQ path never throws and never alters the 409 contract
+    ok 2 - unwritable DLQ path never throws and never alters the 409 contract
+      ---
+      duration_ms: 372.160804
+      ...
+    1..2
+ok 5 - DLQ behavior at the recording isolation boundary
+  ---
+  duration_ms: 4124.508337
+  type: 'suite'
+  ...
+1..5
+# tests 14
+# suites 5
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17859.559111

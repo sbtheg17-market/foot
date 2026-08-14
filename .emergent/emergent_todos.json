@@ -1,22 +1,38 @@
 [
   {
-    "content": "Recreate + validate B2 artifact (Option B) — all gates passed, 9/9 suite, 8/8 independent checks",
+    "content": "Create branch feat/analytics-prevented-bookings-replay from canonical main 87878da",
     "status": "completed"
   },
   {
-    "content": "Operator froze candidate hash + header review",
+    "content": "Implement DLQ change in prevented-booking-events.ts (never-throw, bounded, no PII)",
     "status": "completed"
   },
   {
-    "content": "Pre-commit gates (hash/scope/diff/whitespace/base) — all passed",
+    "content": "Implement replay-prevented-bookings.ts job (strict validation, idempotent, retries, partitioned outputs)",
     "status": "completed"
   },
   {
-    "content": "One commit created + feature branch pushed — verified via ls-remote",
+    "content": "Add replay script entry to api-server package.json (only that line)",
     "status": "completed"
   },
   {
-    "content": "Stop before PR open/merge — B3 and all downstream work held",
+    "content": "Write prevented-booking-replay.integration.test.ts — 14/14 PASS",
     "status": "completed"
+  },
+  {
+    "content": "Run replay tests + existing 9/9 suite + typecheck locally — all PASS",
+    "status": "completed"
+  },
+  {
+    "content": "Secret scan, exact 4-file scope guard, git diff --check — all clean",
+    "status": "completed"
+  },
+  {
+    "content": "Independent verification via testing agent — 8/8 passed",
+    "status": "completed"
+  },
+  {
+    "content": "Report diff/results/DLQ limits/finding #9 — STOP before commit",
+    "status": "in_progress"
   }
 ]
