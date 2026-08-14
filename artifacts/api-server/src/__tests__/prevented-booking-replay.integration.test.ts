@@ -92,10 +92,37 @@ function sha256(file: string): string {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
 }
 
+/**
+ * Gate 3 safety controls made --confirm-target, --max-events, --max-writes,
+ * and --expect-sha256 mandatory for live (non-dry-run) execution, so the
+ * fully-confirmed invocation is now the baseline for every live-path test.
+ * Control-specific behavior (rejections, caps, dry-run) is covered in
+ * replay-safety-controls.test.ts.
+ */
+function targetFingerprint(): string {
+  const url = new URL(process.env["DATABASE_URL"]!);
+  const material = `${url.hostname}:${url.port !== "" ? url.port : "5432"}/${url.pathname.replace(/^\//, "")}`;
+  return createHash("sha256").update(material).digest("hex").slice(0, 12);
+}
+
 function runJob(input: string, extraEnv: Record<string, string> = {}) {
   const result = spawnSync(
     process.execPath,
-    ["--import", "tsx/esm", REPLAY_SCRIPT, "--input", input],
+    [
+      "--import",
+      "tsx/esm",
+      REPLAY_SCRIPT,
+      "--input",
+      input,
+      "--confirm-target",
+      targetFingerprint(),
+      "--max-events",
+      "1000",
+      "--max-writes",
+      "1000",
+      "--expect-sha256",
+      sha256(input),
+    ],
     {
       cwd: API_SERVER_DIR,
       env: { ...process.env, NODE_ENV: "production", ...extraEnv },
