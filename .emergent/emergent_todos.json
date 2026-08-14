@@ -1,38 +1,18 @@
 [
   {
-    "content": "Create branch feat/analytics-prevented-bookings-replay from canonical main 87878da",
+    "content": "Phase 2 implementation + local validation (14/14, 9/9, all gates) — complete",
     "status": "completed"
   },
   {
-    "content": "Implement DLQ change in prevented-booking-events.ts (never-throw, bounded, no PII)",
+    "content": "Pre-publication gates re-run — all passed",
     "status": "completed"
   },
   {
-    "content": "Implement replay-prevented-bookings.ts job (strict validation, idempotent, retries, partitioned outputs)",
+    "content": "One commit cc481c6 created + branch pushed — verified via ls-remote",
     "status": "completed"
   },
   {
-    "content": "Add replay script entry to api-server package.json (only that line)",
+    "content": "Stop before PR open/merge — db:push audit and B3 held as separate tracks",
     "status": "completed"
-  },
-  {
-    "content": "Write prevented-booking-replay.integration.test.ts — 14/14 PASS",
-    "status": "completed"
-  },
-  {
-    "content": "Run replay tests + existing 9/9 suite + typecheck locally — all PASS",
-    "status": "completed"
-  },
-  {
-    "content": "Secret scan, exact 4-file scope guard, git diff --check — all clean",
-    "status": "completed"
-  },
-  {
-    "content": "Independent verification via testing agent — 8/8 passed",
-    "status": "completed"
-  },
-  {
-    "content": "Report diff/results/DLQ limits/finding #9 — STOP before commit",
-    "status": "in_progress"
   }
 ]
