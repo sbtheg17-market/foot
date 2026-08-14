@@ -23,8 +23,8 @@ import { ROUTES } from '@/lib/routes';
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function apiError(error: unknown, fallback: string): string {
-  const r = error as { response?: { data?: { error?: string } } };
-  return r.response?.data?.error ?? fallback;
+  const r = error as { data?: { error?: string } };
+  return r.data?.error ?? fallback;
 }
 
 type Step = 'profile' | 'services' | 'availability' | 'verification' | 'review';
@@ -671,8 +671,8 @@ function ReviewStep({ onBack, onGoToStep }: ReviewStepProps) {
     submitApplication.mutate(undefined, {
       onSuccess: () => setLocation(ROUTES.provider.applicationStatus),
       onError: (err) => {
-        const e = err as { response?: { data?: { error?: string; missingRequirements?: string[] } } };
-        const missing = e.response?.data?.missingRequirements;
+        const e = err as { data?: { error?: string; missingRequirements?: string[] } };
+        const missing = e.data?.missingRequirements;
         setError(missing ? missing.join(', ') : apiError(err, 'Could not submit application.'));
       },
     });
