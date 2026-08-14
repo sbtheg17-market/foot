@@ -2718,6 +2718,24 @@ Copy and append below the last entry:
 
 ---
 
+### Session — Gate 3 closure: replay safety merged; ZERO-EVENT disposition (2026-08-14/15)
+**Agent:** E2 Agent (Emergent, Neo — continuation)
+**Scope:** `XS` (ledger append only; no application, schema, or database change by this session)
+
+**What was done (operator-authorized, factual record):**
+- **Replay-safety hardening merged via PR #19** (merge commit `901d18aa474a708a60ef5503aae4377d33b44671`; reviewed head `5316851bec8475ed81e564273856f9633ebb926b`): `--dry-run` with read-only existence checks and zero writes; mandatory live-mode `--confirm-target` using a 12-hex SHA-256 fingerprint of host:port/dbname with no credential exposure; mandatory `--max-events` and `--max-writes` caps; mandatory `--expect-sha256` input pre-approval; strict fail-loud validation; idempotency; bounded retry; invalid/failed isolation preserved. Validation: 27/27 focused replay-safety tests, 14/14 existing replay tests, 63/63 state-machine tests, 16/16 concurrency tests, 14/14 lifecycle tests; local scratch PostgreSQL 15 only; typecheck and builds PASS. `docs/replay-runbook.md` added with Railway export procedure, artifact approval, dry-run-first process, single capped run, and no-retry rule.
+- **Registration error-shape fix merged via PR #20** (merge commit `9ec06a357871e02cf936b8217f88a6f71d623052`; reviewed head `b77566728bf548708da60dc622f5eb845c594581`): `err.response?.data` changed to `err.data` in `register.tsx` and `onboarding/provider.tsx`, three occurrences across two files, matching the `ApiError.data` contract.
+- **Final canonical `main`:** `9ec06a357871e02cf936b8217f88a6f71d623052`.
+- **Gate 3 execution closed — ZERO EVENTS:** the operator manually inspected Railway Observability logs for project `gallant-commitment`, environment `production`, service `web`, using the exact filter `prevented_booking_record_failed`, from `2026-08-13 20:29:55 UTC` through the operator check timestamp. Matching lines: 0. No candidate artifact was created. No dry-run was performed. No production replay was performed. No managed-database access occurred. Production replay for any future window remains gated behind the runbook and fresh authorization.
+
+**Files changed:**
+- `.agents/LOG.md` (this append-only entry)
+
+**Build state at end:** replay tooling is merged and dormant. The last recorded database verification found `prevented_booking_records = 0`. Credential rotation remains required before any future managed-database access. Deployment, projection, endpoint, dashboard, Phase B, and branch archival remain unauthorized.
+
+---
+
+
 ## Cross-Platform Notes
 
 This log is committed to the repository and works on any host:
