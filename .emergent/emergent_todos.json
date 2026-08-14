@@ -1,0 +1,34 @@
+[
+  {
+    "content": "Examine current replay script, test setup, and API client error shape",
+    "status": "completed"
+  },
+  {
+    "content": "Implement replay-safety controls in replay-prevented-bookings.ts",
+    "status": "completed"
+  },
+  {
+    "content": "Write focused replay-script tests",
+    "status": "completed"
+  },
+  {
+    "content": "Write docs/replay-runbook.md",
+    "status": "completed"
+  },
+  {
+    "content": "Run validation: tests, typecheck, build, git diff --check, scope check",
+    "status": "completed"
+  },
+  {
+    "content": "Commit replay-safety changes on focused branch",
+    "status": "completed"
+  },
+  {
+    "content": "Re-create + validate two-file frontend fix on separate branch",
+    "status": "completed"
+  },
+  {
+    "content": "Report results in required output format",
+    "status": "in_progress"
+  }
+]
