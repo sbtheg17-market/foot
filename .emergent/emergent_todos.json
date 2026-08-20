@@ -1,30 +1,42 @@
 [
   {
-    "content": "Clone repo to /app/foot and verify canonical main SHA + ancestry",
-    "status": "completed"
+    "content": "Verify main, branch feat/availability-enforced-booking, confirm exact file list",
+    "status": "in_progress"
   },
   {
-    "content": "§8 first check: verify marketplace_id NOT NULL source invariant on current main",
-    "status": "completed"
+    "content": "Inspect bookings POST, providers routes, seed, regression suite, booking modal, profile page, openapi",
+    "status": "pending"
   },
   {
-    "content": "Environment setup: pnpm 10.18.3, workspace install, scratch PostgreSQL 15 seeded (per .agents/SETUP.md)",
-    "status": "completed"
+    "content": "Implement lib/availability.ts (TZ resolution, DST conversion, windows, slots, overlap)",
+    "status": "pending"
   },
   {
-    "content": "Decide surrogate-key question explicitly with written rationale",
-    "status": "completed"
+    "content": "Implement bookings.ts enforcement (outside_availability 400, provider_unavailable 409, advisory lock txn)",
+    "status": "pending"
   },
   {
-    "content": "Implement authorized files: schema mirror, frozen SQL migration, rebuild script, focused tests, runbook",
-    "status": "completed"
+    "content": "Implement providers.ts public availability + slots endpoints",
+    "status": "pending"
   },
   {
-    "content": "Run full local validation matrix: focused tests, typecheck, api-server build, git diff --check, scope check",
-    "status": "completed"
+    "content": "Update openapi.yaml + run repo codegen (no hand-edits to generated)",
+    "status": "pending"
   },
   {
-    "content": "Commit on feat/prevented-bookings-daily-projection, push branch, prepare PR report, STOP (no merge)",
-    "status": "completed"
+    "content": "Implement web booking-modal slot picker + provider-profile availability display",
+    "status": "pending"
+  },
+  {
+    "content": "Write focused test suite (17 behaviors incl. DST + concurrency)",
+    "status": "pending"
+  },
+  {
+    "content": "Run focused tests + booking-concurrency regression + typecheck + api build + web build + diff/scope check",
+    "status": "pending"
+  },
+  {
+    "content": "Implementation report; STOP before commit/push/PR/deploy",
+    "status": "pending"
   }
 ]
