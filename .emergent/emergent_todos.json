@@ -1,0 +1,46 @@
+[
+  {
+    "content": "Verify clean baseline 27b9065 and create feat/availability-enforced-booking branch",
+    "status": "completed"
+  },
+  {
+    "content": "Environment setup: node/pnpm/scratch PostgreSQL + pnpm install + db push + seed",
+    "status": "completed"
+  },
+  {
+    "content": "POC: advisory lock compatibility check (db.transaction + tx.execute pg_advisory_xact_lock)",
+    "status": "completed"
+  },
+  {
+    "content": "Implement lib/availability.ts (timezone Option B, DST-aware conversion, 30-min slot generation)",
+    "status": "completed"
+  },
+  {
+    "content": "Update openapi.yaml + run codegen",
+    "status": "completed"
+  },
+  {
+    "content": "Implement routes: public availability/slots endpoints + POST /bookings enforcement with advisory lock",
+    "status": "completed"
+  },
+  {
+    "content": "Web UI: booking-modal.tsx + provider-profile.tsx slot picker",
+    "status": "completed"
+  },
+  {
+    "content": "Write availability-enforced-booking.test.ts (26 required test areas)",
+    "status": "completed"
+  },
+  {
+    "content": "Inspect and align regression fixtures (concurrency, lifecycle, pressure, availability, state-machine + 4 additional affected suites)",
+    "status": "completed"
+  },
+  {
+    "content": "Run focused tests + regressions + codegen + typecheck + API build + web build + git diff --check",
+    "status": "completed"
+  },
+  {
+    "content": "Final scope-creep diff review + implementation report (stop before commit)",
+    "status": "completed"
+  }
+]
