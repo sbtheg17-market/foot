@@ -4,9 +4,10 @@ import {
   useGetProviderById, 
   useListProviderServices, 
   useListProviderReviews,
+  useGetProviderAvailability,
   useGetMe,
 } from '@workspace/api-client-react';
-import { MapPin, Star, ShieldCheck, Clock, ChevronLeft, CheckCircle2 } from 'lucide-react';
+import { MapPin, Star, ShieldCheck, Clock, ChevronLeft, CheckCircle2, CalendarClock, Globe } from 'lucide-react';
 import BookingModal from '@/components/ui/booking-modal';
 import { ROUTES } from '@/lib/routes';
 
@@ -25,6 +26,9 @@ export default function ProviderProfile() {
 
   const { data: reviewsRes } = useListProviderReviews(providerId, undefined, {
     query: { enabled: !!providerId, queryKey: ['reviews', providerId] }
+  });
+  const { data: availabilityRes } = useGetProviderAvailability(providerId, {
+    query: { enabled: !!providerId, queryKey: ['availability', providerId] }
   });
   const { data: me, isLoading: authLoading } = useGetMe({
     query: { retry: false, queryKey: ['me'] },
@@ -144,6 +148,35 @@ export default function ProviderProfile() {
                 <p className="text-sm text-muted-foreground leading-relaxed">{provider.serviceAreaNotes}</p>
               </div>
             </div>
+          </section>
+        )}
+
+        {availabilityRes && availabilityRes.windows.length > 0 && (
+          <section data-testid="provider-availability">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-serif font-semibold flex items-center gap-2">
+                <CalendarClock className="w-5 h-5 text-primary" />
+                Weekly availability
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((dayName, dow) => {
+                const dayWindows = availabilityRes.windows.filter((w) => w.dayOfWeek === dow);
+                if (dayWindows.length === 0) return null;
+                return (
+                  <div key={dow} className="flex items-center justify-between text-sm border-b border-border/60 pb-2">
+                    <span className="font-medium text-foreground">{dayName}</span>
+                    <span className="text-muted-foreground">
+                      {dayWindows.map((w) => `${w.startTime}–${w.endTime}`).join(', ')}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground mt-3">
+              <Globe className="w-3.5 h-3.5" />
+              Times shown in {availabilityRes.timezone.replace(/_/g, ' ')}
+            </p>
           </section>
         )}
 

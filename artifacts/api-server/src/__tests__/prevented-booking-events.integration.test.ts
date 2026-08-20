@@ -82,11 +82,35 @@ let clientToken: string;
 let providerId: number;
 let serviceId: number;
 
-/** Unique future timestamp per test run so reruns never collide. */
-function uniqueSlot(offsetMinutes: number): string {
-  const base = Date.now() + 21 * 24 * 60 * 60 * 1000;
-  const runJitter = (Date.now() % 100_000) * 60;
-  return new Date(base + runJitter + offsetMinutes * 60 * 1000).toISOString();
+/**
+ * Real-slot fixtures (availability enforcement): each call returns a fresh,
+ * non-overlapping future slot drawn from the public slots endpoint.
+ */
+const SLOT_SPACING_MS = 60 * 60 * 1000;
+const slotPool: string[] = [];
+
+async function loadSlotPool(want: number): Promise<void> {
+  const base = Date.now();
+  let lastMs = 0;
+  for (let d = 1; d <= 28 && slotPool.length < want; d++) {
+    const date = new Date(base + d * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const { body } = await apiFetch(`/providers/${providerId}/slots?serviceId=${serviceId}&date=${date}`);
+    const slots = (body["slots"] as Array<{ start: string; available: boolean }>) ?? [];
+    for (const s of slots) {
+      if (!s.available) continue;
+      const ms = Date.parse(s.start);
+      if (ms - lastMs >= SLOT_SPACING_MS) {
+        slotPool.push(s.start);
+        lastMs = ms;
+      }
+    }
+  }
+}
+
+function uniqueSlot(_offsetMinutes: number): string {
+  const slot = slotPool.shift();
+  assert.ok(slot, "fixture slot pool exhausted — widen loadSlotPool()");
+  return slot;
 }
 
 function bookingPayload(scheduledAt: string) {
@@ -153,6 +177,9 @@ describe("Setup", () => {
     assert.equal(services.status, 200, JSON.stringify(services.body));
     const svc = (services.body["services"] ?? services.body["data"] ?? services.body) as Array<{ id: number }>;
     serviceId = (Array.isArray(svc) ? svc[0] : undefined)?.id ?? 1;
+
+    await loadSlotPool(30);
+    assert.ok(slotPool.length >= 20, "expected enough seeded availability slots");
   });
 
   it("API server is reachable", async () => {

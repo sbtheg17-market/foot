@@ -28,6 +28,7 @@ import type {
   AvailabilityListResponse,
   BadRequestResponse,
   BookingListResponse,
+  BookingRequestRejectedResponse,
   BookingResponse,
   ClientCareHistoryResponse,
   ConflictResponse,
@@ -43,6 +44,7 @@ import type {
   GetClientCareHistoryParams,
   GetProviderApplicationSubmissionsParams,
   GetProviderNotificationsParams,
+  GetProviderSlotsParams,
   HealthStatus,
   InvoiceListResponse,
   InvoiceResponse,
@@ -63,6 +65,9 @@ import type {
   ProviderNotificationUnreadCountResponse,
   ProviderProfileResponse,
   ProviderReadinessResponse,
+  ProviderSlotsResponse,
+  ProviderUnavailableConflictResponse,
+  PublicAvailabilityResponse,
   RegisterRequest,
   RejectProviderApplicationRequest,
   ReviewListResponse,
@@ -3532,6 +3537,172 @@ export function useListProviderServices<TData = Awaited<ReturnType<typeof listPr
 
 
 
+export const getGetProviderAvailabilityUrl = (providerId: number,) => {
+
+
+
+
+  return `/api/providers/${providerId}/availability`
+}
+
+/**
+ * @summary Public weekly availability windows + effective marketplace timezone
+ */
+export const getProviderAvailability = async (providerId: number, options?: Parameters<typeof customFetch>[1]): Promise<PublicAvailabilityResponse> => {
+
+  return customFetch<PublicAvailabilityResponse>(getGetProviderAvailabilityUrl(providerId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProviderAvailabilityQueryKey = (providerId: number,) => {
+    return [
+    `/api/providers/${providerId}/availability`
+    ] as const;
+    }
+
+
+export const getGetProviderAvailabilityQueryOptions = <TData = Awaited<ReturnType<typeof getProviderAvailability>>, TError = ErrorType<NotFoundResponse>>(providerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProviderAvailabilityQueryKey(providerId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderAvailability>>> = ({ signal }) => getProviderAvailability(providerId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: providerId !== null && providerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderAvailability>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProviderAvailabilityQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderAvailability>>>
+export type GetProviderAvailabilityQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Public weekly availability windows + effective marketplace timezone
+ */
+
+export function useGetProviderAvailability<TData = Awaited<ReturnType<typeof getProviderAvailability>>, TError = ErrorType<NotFoundResponse>>(
+ providerId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProviderAvailabilityQueryOptions(providerId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetProviderSlotsUrl = (providerId: number,
+    params: GetProviderSlotsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/providers/${providerId}/slots?${stringifiedParams}` : `/api/providers/${providerId}/slots`
+}
+
+/**
+ * @summary Bookable 30-minute slots for a service on a date
+ */
+export const getProviderSlots = async (providerId: number,
+    params: GetProviderSlotsParams, options?: Parameters<typeof customFetch>[1]): Promise<ProviderSlotsResponse> => {
+
+  return customFetch<ProviderSlotsResponse>(getGetProviderSlotsUrl(providerId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProviderSlotsQueryKey = (providerId: number,
+    params?: GetProviderSlotsParams,) => {
+    return [
+    `/api/providers/${providerId}/slots`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetProviderSlotsQueryOptions = <TData = Awaited<ReturnType<typeof getProviderSlots>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(providerId: number,
+    params: GetProviderSlotsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderSlots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProviderSlotsQueryKey(providerId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProviderSlots>>> = ({ signal }) => getProviderSlots(providerId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: providerId !== null && providerId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProviderSlots>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProviderSlotsQueryResult = NonNullable<Awaited<ReturnType<typeof getProviderSlots>>>
+export type GetProviderSlotsQueryError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+
+/**
+ * @summary Bookable 30-minute slots for a service on a date
+ */
+
+export function useGetProviderSlots<TData = Awaited<ReturnType<typeof getProviderSlots>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
+ providerId: number,
+    params: GetProviderSlotsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProviderSlots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProviderSlotsQueryOptions(providerId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListBookingsUrl = (params?: ListBookingsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -3642,7 +3813,7 @@ export const createBooking = async (createBookingRequest: CreateBookingRequest, 
 
 
 
-export const getCreateBookingMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | DuplicateBookingConflictResponse>,
+export const getCreateBookingMutationOptions = <TError = ErrorType<BookingRequestRejectedResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | DuplicateBookingConflictResponse | ProviderUnavailableConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBooking>>, TError,{data: BodyType<CreateBookingRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createBooking>>, TError,{data: BodyType<CreateBookingRequest>}, TContext> => {
 
@@ -3671,12 +3842,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateBookingMutationResult = NonNullable<Awaited<ReturnType<typeof createBooking>>>
     export type CreateBookingMutationBody = BodyType<CreateBookingRequest>
-    export type CreateBookingMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | DuplicateBookingConflictResponse>
+    export type CreateBookingMutationError = ErrorType<BookingRequestRejectedResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | DuplicateBookingConflictResponse | ProviderUnavailableConflictResponse>
 
     /**
  * @summary Create a booking request (client only)
  */
-export const useCreateBooking = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | DuplicateBookingConflictResponse>,
+export const useCreateBooking = <TError = ErrorType<BookingRequestRejectedResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | DuplicateBookingConflictResponse | ProviderUnavailableConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBooking>>, TError,{data: BodyType<CreateBookingRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createBooking>>,

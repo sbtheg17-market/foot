@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useCreateBooking } from '@workspace/api-client-react';
-import { X, CalendarDays, MapPin, Clock, FileText } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { useCreateBooking, useGetProviderSlots } from '@workspace/api-client-react';
+import { X, CalendarDays, MapPin, Clock, FileText, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLocation } from 'wouter';
 
@@ -19,22 +19,48 @@ interface BookingModalProps {
   onSuccess: () => void;
 }
 
+/** Local YYYY-MM-DD for a Date (used for the date picker default + bounds). */
+function toDateInput(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function BookingModal({ providerId, providerName, service, onClose, onSuccess }: BookingModalProps) {
   const [, setLocation] = useLocation();
-  const [form, setForm] = useState({
-    scheduledAt: '',
-    address: '',
-    city: '',
-    postalCode: '',
-    clientNotes: '',
-  });
+  const today = useMemo(() => toDateInput(new Date()), []);
+  const [date, setDate] = useState(today);
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [form, setForm] = useState({ address: '', city: '', postalCode: '', clientNotes: '' });
+
+  const {
+    data: slotsRes,
+    isLoading: loadingSlots,
+    refetch: refetchSlots,
+  } = useGetProviderSlots(
+    providerId,
+    { serviceId: service.id, date },
+    { query: { queryKey: ['slots', providerId, service.id, date] } },
+  );
+
+  const timezone = slotsRes?.timezone;
+  const slots = slotsRes?.slots ?? [];
 
   const createBooking = useCreateBooking();
 
+  const slotLabel = (iso: string) =>
+    new Date(iso).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      ...(timezone ? { timeZone: timezone } : {}),
+    });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.scheduledAt || !form.address || !form.city) {
-      toast.error('Please fill in all required fields.');
+    if (!selectedSlot) {
+      toast.error('Please choose an available time slot.');
+      return;
+    }
+    if (!form.address || !form.city) {
+      toast.error('Please fill in the address and city.');
       return;
     }
 
@@ -43,7 +69,7 @@ export default function BookingModal({ providerId, providerName, service, onClos
         data: {
           providerId,
           serviceId: service.id,
-          scheduledAt: new Date(form.scheduledAt).toISOString(),
+          scheduledAt: selectedSlot,
           address: form.address,
           city: form.city,
           postalCode: form.postalCode || undefined,
@@ -59,44 +85,39 @@ export default function BookingModal({ providerId, providerName, service, onClos
         onError: (err: unknown) => {
           const apiError = err as {
             status?: number;
-            data?: { error?: string; bookingId?: number } | null;
+            data?: { error?: string; reason?: string; bookingId?: number } | null;
           };
-          // Booking-race notice (Session 079): the friendly duplicate-booking
-          // 409 contract (HTTP 409 + numeric bookingId) means this exact slot
-          // is already held by an active booking. Show the approved notice and
-          // keep the sheet open so the client can choose another time.
-          // Detection is strict — any other error keeps its existing behavior.
-          if (apiError.status === 409 && typeof apiError.data?.bookingId === 'number') {
-            toast.info(
-              'That time was just taken by another booking. Please choose another available time.',
-            );
+          const reason = apiError.data?.reason;
+          // The slot was just taken, or is no longer within availability.
+          // Refresh the grid and let the client pick a different time.
+          if (reason === 'provider_unavailable' || reason === 'outside_availability') {
+            toast.info('That time is no longer available. Please choose another slot.');
+            setSelectedSlot(null);
+            void refetchSlots();
+            return;
+          }
+          if (reason === 'duplicate_booking') {
+            toast.info('You already have a booking for this time. Check your bookings.');
             return;
           }
           const msg = apiError.data?.error ?? 'Could not create booking. Please try again.';
           toast.error(msg);
         },
-      }
+      },
     );
-  };
-
-  const minDateTime = () => {
-    const d = new Date();
-    d.setHours(d.getHours() + 2); // at least 2h from now
-    return d.toISOString().slice(0, 16);
   };
 
   return (
     <div
+      data-testid="booking-modal"
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="w-full max-w-[500px] bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[90dvh]">
-        {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-12 h-1.5 rounded-full bg-border" />
         </div>
 
-        {/* Header */}
         <div className="px-6 pt-3 pb-4 flex items-start justify-between border-b border-border">
           <div>
             <h2 className="text-xl font-serif font-bold text-foreground">Book Appointment</h2>
@@ -105,6 +126,7 @@ export default function BookingModal({ providerId, providerName, service, onClos
             </p>
           </div>
           <button
+            data-testid="booking-modal-close"
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-secondary/80 transition-colors mt-1"
           >
@@ -112,22 +134,72 @@ export default function BookingModal({ providerId, providerName, service, onClos
           </button>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Date & time */}
+          {/* Date */}
           <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
               <CalendarDays className="w-4 h-4 text-primary" />
-              Date &amp; time <span className="text-destructive">*</span>
+              Choose a date <span className="text-destructive">*</span>
             </label>
             <input
-              type="datetime-local"
+              data-testid="booking-date-input"
+              type="date"
               required
-              min={minDateTime()}
-              value={form.scheduledAt}
-              onChange={(e) => setForm((f) => ({ ...f, scheduledAt: e.target.value }))}
+              min={today}
+              value={date}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setSelectedSlot(null);
+              }}
               className="w-full border border-border rounded-xl px-4 py-3 text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-primary/40 text-sm"
             />
+            {timezone && (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2" data-testid="booking-timezone-label">
+                <Globe className="w-3.5 h-3.5" />
+                Times shown in {timezone.replace(/_/g, ' ')}
+              </p>
+            )}
+          </div>
+
+          {/* Slot grid */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
+              <Clock className="w-4 h-4 text-primary" />
+              Available times <span className="text-destructive">*</span>
+            </label>
+            {loadingSlots ? (
+              <div className="py-6 flex justify-center">
+                <div className="w-6 h-6 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+              </div>
+            ) : slots.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4" data-testid="booking-no-slots">
+                No available times on this date. Try another day.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2" data-testid="booking-slot-grid">
+                {slots.map((slot) => {
+                  const selected = selectedSlot === slot.start;
+                  return (
+                    <button
+                      key={slot.start}
+                      type="button"
+                      data-testid={`booking-slot-${slot.start}`}
+                      disabled={!slot.available}
+                      onClick={() => setSelectedSlot(slot.start)}
+                      className={`px-2 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${
+                        !slot.available
+                          ? 'border-border bg-secondary text-muted-foreground/50 line-through cursor-not-allowed'
+                          : selected
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-border bg-card text-foreground hover:border-primary/50'
+                      }`}
+                    >
+                      {slotLabel(slot.start)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Address */}
@@ -137,6 +209,7 @@ export default function BookingModal({ providerId, providerName, service, onClos
               Street address <span className="text-destructive">*</span>
             </label>
             <input
+              data-testid="booking-address-input"
               type="text"
               required
               placeholder="123 Main St, Unit 4"
@@ -146,13 +219,13 @@ export default function BookingModal({ providerId, providerName, service, onClos
             />
           </div>
 
-          {/* City + Postal */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-semibold text-foreground mb-2 block">
                 City <span className="text-destructive">*</span>
               </label>
               <input
+                data-testid="booking-city-input"
                 type="text"
                 required
                 placeholder="Toronto"
@@ -164,6 +237,7 @@ export default function BookingModal({ providerId, providerName, service, onClos
             <div>
               <label className="text-sm font-semibold text-foreground mb-2 block">Postal code</label>
               <input
+                data-testid="booking-postal-input"
                 type="text"
                 placeholder="M5V 2T6"
                 value={form.postalCode}
@@ -173,7 +247,6 @@ export default function BookingModal({ providerId, providerName, service, onClos
             </div>
           </div>
 
-          {/* Notes */}
           <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
               <FileText className="w-4 h-4 text-primary" />
@@ -181,6 +254,7 @@ export default function BookingModal({ providerId, providerName, service, onClos
               <span className="text-muted-foreground font-normal">(optional)</span>
             </label>
             <textarea
+              data-testid="booking-notes-input"
               rows={3}
               placeholder="Any special requirements, mobility concerns, or preferences..."
               value={form.clientNotes}
@@ -189,7 +263,6 @@ export default function BookingModal({ providerId, providerName, service, onClos
             />
           </div>
 
-          {/* Service summary */}
           <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{service.title}</span>
@@ -202,13 +275,12 @@ export default function BookingModal({ providerId, providerName, service, onClos
           </div>
         </form>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-border">
           <button
+            data-testid="booking-submit-button"
             type="submit"
-            form="booking-form"
             onClick={handleSubmit}
-            disabled={createBooking.isPending}
+            disabled={createBooking.isPending || !selectedSlot}
             className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-lg shadow-md disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
           >
             {createBooking.isPending ? (

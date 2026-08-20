@@ -1335,6 +1335,46 @@ export const ListProviderServicesResponse = zod.object({
 
 
 /**
+ * @summary Public weekly availability windows + effective marketplace timezone
+ */
+export const GetProviderAvailabilityParams = zod.object({
+  "providerId": zod.coerce.number().int()
+})
+
+export const GetProviderAvailabilityResponse = zod.object({
+  "timezone": zod.string().describe('Effective IANA marketplace timezone'),
+  "windows": zod.array(zod.object({
+  "dayOfWeek": zod.int().describe('0 = Sunday … 6 = Saturday'),
+  "startTime": zod.string().describe('Wall-clock start \"HH:MM\" in the effective marketplace timezone'),
+  "endTime": zod.string().describe('Wall-clock end \"HH:MM\" in the effective marketplace timezone')
+}))
+})
+
+
+/**
+ * @summary Bookable 30-minute slots for a service on a date
+ */
+export const GetProviderSlotsParams = zod.object({
+  "providerId": zod.coerce.number().int()
+})
+
+export const GetProviderSlotsQueryParams = zod.object({
+  "serviceId": zod.coerce.number().int(),
+  "date": zod.coerce.string().describe('Calendar date (YYYY-MM-DD) in the effective marketplace timezone')
+})
+
+export const GetProviderSlotsResponse = zod.object({
+  "timezone": zod.string().describe('Effective IANA marketplace timezone'),
+  "date": zod.string(),
+  "slots": zod.array(zod.object({
+  "start": zod.coerce.date(),
+  "end": zod.coerce.date(),
+  "available": zod.boolean()
+}))
+})
+
+
+/**
  * @summary List own bookings (scoped by role)
  */
 export const listBookingsQueryLimitDefault = 20;

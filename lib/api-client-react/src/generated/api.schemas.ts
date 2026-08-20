@@ -674,6 +674,13 @@ export interface BookingResponse {
   booking: Booking;
 }
 
+export type DuplicateBookingConflictResponseReason = typeof DuplicateBookingConflictResponseReason[keyof typeof DuplicateBookingConflictResponseReason];
+
+
+export const DuplicateBookingConflictResponseReason = {
+  duplicate_booking: 'duplicate_booking',
+} as const;
+
 /**
  * Returned when the client already has an active (requested, confirmed, or rescheduled) booking for the same provider, service, and scheduled time.
  */
@@ -681,6 +688,66 @@ export interface DuplicateBookingConflictResponse {
   error: string;
   /** The id of the already-existing active booking */
   bookingId: number;
+  reason: DuplicateBookingConflictResponseReason;
+}
+
+export type ProviderUnavailableConflictResponseReason = typeof ProviderUnavailableConflictResponseReason[keyof typeof ProviderUnavailableConflictResponseReason];
+
+
+export const ProviderUnavailableConflictResponseReason = {
+  provider_unavailable: 'provider_unavailable',
+} as const;
+
+/**
+ * Returned when the requested interval overlaps another active booking for the same provider.
+ */
+export interface ProviderUnavailableConflictResponse {
+  error: string;
+  reason: ProviderUnavailableConflictResponseReason;
+}
+
+export type BookingRequestRejectedResponseReason = typeof BookingRequestRejectedResponseReason[keyof typeof BookingRequestRejectedResponseReason];
+
+
+export const BookingRequestRejectedResponseReason = {
+  invalid_request: 'invalid_request',
+  outside_availability: 'outside_availability',
+} as const;
+
+/**
+ * Returned when a booking request is rejected before creation (invalid input or outside the provider's availability).
+ */
+export interface BookingRequestRejectedResponse {
+  error: string;
+  reason: BookingRequestRejectedResponseReason;
+}
+
+export interface PublicAvailabilityWindow {
+  /** 0 = Sunday … 6 = Saturday */
+  dayOfWeek: number;
+  /** Wall-clock start "HH:MM" in the effective marketplace timezone */
+  startTime: string;
+  /** Wall-clock end "HH:MM" in the effective marketplace timezone */
+  endTime: string;
+}
+
+export interface PublicAvailabilityResponse {
+  /** Effective IANA marketplace timezone */
+  timezone: string;
+  windows: PublicAvailabilityWindow[];
+}
+
+export interface ProviderSlot {
+  start: string;
+  end: string;
+  available: boolean;
+}
+
+export interface ProviderSlotsResponse {
+  /** Effective IANA marketplace timezone */
+  timezone: string;
+  date: string;
+  slots: ProviderSlot[];
 }
 
 export interface BookingListResponse {
@@ -1019,6 +1086,14 @@ export const GetAdminVerificationQueueStatus = {
   approved: 'approved',
   rejected: 'rejected',
 } as const;
+
+export type GetProviderSlotsParams = {
+serviceId: number;
+/**
+ * Calendar date (YYYY-MM-DD) in the effective marketplace timezone
+ */
+date: string;
+};
 
 export type ListBookingsParams = {
 /**
