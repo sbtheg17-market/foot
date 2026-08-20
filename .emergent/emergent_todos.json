@@ -1,0 +1,30 @@
+[
+  {
+    "content": "Clone repo to /app/foot and verify canonical main SHA + ancestry",
+    "status": "completed"
+  },
+  {
+    "content": "§8 first check: verify marketplace_id NOT NULL source invariant on current main",
+    "status": "completed"
+  },
+  {
+    "content": "Environment setup: pnpm 10.18.3, workspace install, scratch PostgreSQL 15 seeded (per .agents/SETUP.md)",
+    "status": "completed"
+  },
+  {
+    "content": "Decide surrogate-key question explicitly with written rationale",
+    "status": "completed"
+  },
+  {
+    "content": "Implement authorized files: schema mirror, frozen SQL migration, rebuild script, focused tests, runbook",
+    "status": "completed"
+  },
+  {
+    "content": "Run full local validation matrix: focused tests, typecheck, api-server build, git diff --check, scope check",
+    "status": "completed"
+  },
+  {
+    "content": "Commit on feat/prevented-bookings-daily-projection, push branch, prepare PR report, STOP (no merge)",
+    "status": "completed"
+  }
+]
