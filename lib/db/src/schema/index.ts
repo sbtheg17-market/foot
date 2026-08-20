@@ -16,3 +16,4 @@ export * from "./support";
 export * from "./push-tokens";
 export * from "./marketplace-events";
 export * from "./prevented-booking-records";
+export * from "./prevented-bookings-daily";
