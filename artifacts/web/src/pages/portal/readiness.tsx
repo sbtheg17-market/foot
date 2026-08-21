@@ -7,7 +7,8 @@
  */
 import React from 'react';
 import { useLocation } from 'wouter';
-import { AlertCircle, LogIn, ShieldCheck, PartyPopper, ListChecks } from 'lucide-react';
+import { Link } from 'wouter';
+import { AlertCircle, LogIn, ShieldCheck, PartyPopper, ListChecks, Eye } from 'lucide-react';
 import { useGetMyProviderReadiness } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -213,6 +214,15 @@ export default function PortalReadiness() {
       )}
 
       <ReadinessChecklist readiness={readiness} />
+
+      <Link
+        href={ROUTES.provider.listingPreview}
+        data-testid="readiness-listing-preview-link"
+        className="flex items-center justify-center gap-2 w-full rounded-2xl border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground hover:border-primary/50 transition-colors"
+      >
+        <Eye className="w-4 h-4 text-primary" />
+        Preview your listing
+      </Link>
     </Shell>
   );
 }

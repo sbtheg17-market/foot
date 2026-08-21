@@ -846,6 +846,68 @@ export const GetMyProviderReadinessResponse = zod.object({
 
 
 /**
+ * Owner-scoped preview of how the authenticated provider's marketplace listing renders — profile, active services, weekly availability, effective timezone, and real generated 30-minute slots (same engine as public booking). Draft and under-review providers may preview their own listing; this never weakens the anonymous public approval gate. Returns only public-preview-safe fields — no client ids, booking ids, reviewer-private notes, verification documents, or private care notes. Read-only.
+ * @summary Owner-scoped preview of the provider's public marketplace listing
+ */
+export const GetMyListingPreviewResponse = zod.object({
+  "preview": zod.object({
+  "isPublic": zod.boolean().describe('True only when the provider is approved and publicly bookable'),
+  "applicationStatus": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']).nullish(),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected']),
+  "timezone": zod.string(),
+  "profile": zod.object({
+  "title": zod.string(),
+  "bio": zod.string().nullish(),
+  "city": zod.string(),
+  "serviceAreaNotes": zod.string().nullish(),
+  "yearsExperience": zod.int().nullish(),
+  "rating": zod.number().nullish(),
+  "reviewCount": zod.int(),
+  "acceptsNewClients": zod.boolean(),
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish()
+}),
+  "services": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "durationMinutes": zod.int(),
+  "priceCents": zod.int(),
+  "category": zod.string()
+})),
+  "availability": zod.array(zod.object({
+  "dayOfWeek": zod.int().describe('0 = Sunday … 6 = Saturday'),
+  "startTime": zod.string().describe('Wall-clock start \"HH:MM\" in the effective marketplace timezone'),
+  "endTime": zod.string().describe('Wall-clock end \"HH:MM\" in the effective marketplace timezone')
+})),
+  "slotPreviewServiceId": zod.int().nullish(),
+  "slotPreview": zod.array(zod.object({
+  "date": zod.string(),
+  "slots": zod.array(zod.object({
+  "start": zod.coerce.date(),
+  "end": zod.coerce.date(),
+  "available": zod.boolean()
+}))
+})),
+  "readiness": zod.object({
+  "activated": zod.boolean().describe('Logical AND of criteria C1–C7'),
+  "missing": zod.array(zod.enum(['NOT_APPROVED', 'PROFILE_INCOMPLETE', 'NO_ACTIVE_SERVICE', 'NO_AVAILABILITY', 'NO_SERVICE_AREA', 'NOT_ACCEPTING_CLIENTS', 'DOCS_PENDING']).describe('Stable activation-readiness reason codes. Mirrors the readiness subset of the marketplace_event_reason_code enum; values are additive-only and never renamed or removed.')).describe('Reason codes for unmet criteria, in deterministic C1→C7 order'),
+  "criteria": zod.object({
+  "approved": zod.boolean().describe('C1 — provider application approved and profile verification approved'),
+  "profileComplete": zod.boolean().describe('C2 — non-empty title, city, and bio, computed live (the stored profileComplete flag is never trusted)'),
+  "activeService": zod.boolean().describe('C3 — at least one active service'),
+  "availability": zod.boolean().describe('C4 — at least one availability slot'),
+  "serviceArea": zod.boolean().describe('C5 — at least one travel zone (service area)'),
+  "acceptingClients": zod.boolean().describe('C6 — provider is accepting new clients'),
+  "documents": zod.boolean().describe('C7 — every platform-mandated document type has an approved verification document; auto-satisfied when no document type is mandated')
+}).describe('Per-criterion activation booleans (C1–C7), each computed live from raw source fields.')
+}).nullish()
+})
+})
+
+
+/**
  * @summary List own services
  */
 export const ListMyServicesResponse = zod.object({

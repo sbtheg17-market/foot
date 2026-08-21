@@ -21,6 +21,7 @@ import PortalProfile from '@/pages/portal/profile';
 import PortalCredentials from '@/pages/portal/credentials';
 import PortalNotifications from '@/pages/portal/notifications';
 import PortalReadiness from '@/pages/portal/readiness';
+import PortalListingPreview from '@/pages/portal/listing-preview';
 import PortalTravelZones from '@/pages/portal/travel-zones';
 import AdminVerification from '@/pages/admin/verification';
 import ProviderLayout from '@/components/layout/provider-layout';
@@ -86,6 +87,7 @@ function Router() {
       <Route path={ROUTES.provider.credentials}>{providerRoute(PortalCredentials)}</Route>
       <Route path={ROUTES.provider.notifications}>{providerRoute(PortalNotifications)}</Route>
       <Route path={ROUTES.provider.readiness}>{providerRoute(PortalReadiness)}</Route>
+      <Route path={ROUTES.provider.listingPreview}>{providerRoute(PortalListingPreview)}</Route>
       <Route path={ROUTES.provider.travelZones}>{providerRoute(PortalTravelZones)}</Route>
 
       {/* ── Legacy /portal/* → /provider/* redirects (backward compat) ──── */}

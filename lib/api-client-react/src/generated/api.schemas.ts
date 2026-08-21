@@ -300,6 +300,88 @@ export interface ProviderReadinessResponse {
   readiness: ProviderReadiness;
 }
 
+export interface ListingPreviewProfile {
+  title: string;
+  bio?: string | null;
+  city: string;
+  serviceAreaNotes?: string | null;
+  yearsExperience?: number | null;
+  rating?: number | null;
+  reviewCount: number;
+  acceptsNewClients: boolean;
+  firstName?: string | null;
+  lastName?: string | null;
+  avatarUrl?: string | null;
+}
+
+export interface ListingPreviewService {
+  id: number;
+  title: string;
+  description?: string | null;
+  durationMinutes: number;
+  priceCents: number;
+  category: string;
+}
+
+export interface ProviderSlot {
+  start: string;
+  end: string;
+  available: boolean;
+}
+
+export interface ListingPreviewSlotDay {
+  date: string;
+  slots: ProviderSlot[];
+}
+
+export type ListingPreviewApplicationStatus = typeof ListingPreviewApplicationStatus[keyof typeof ListingPreviewApplicationStatus] | null;
+
+
+export const ListingPreviewApplicationStatus = {
+  draft: 'draft',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+  suspended: 'suspended',
+} as const;
+
+export type ListingPreviewVerificationStatus = typeof ListingPreviewVerificationStatus[keyof typeof ListingPreviewVerificationStatus];
+
+
+export const ListingPreviewVerificationStatus = {
+  pending: 'pending',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface PublicAvailabilityWindow {
+  /** 0 = Sunday … 6 = Saturday */
+  dayOfWeek: number;
+  /** Wall-clock start "HH:MM" in the effective marketplace timezone */
+  startTime: string;
+  /** Wall-clock end "HH:MM" in the effective marketplace timezone */
+  endTime: string;
+}
+
+export interface ListingPreview {
+  /** True only when the provider is approved and publicly bookable */
+  isPublic: boolean;
+  applicationStatus?: ListingPreviewApplicationStatus;
+  verificationStatus: ListingPreviewVerificationStatus;
+  timezone: string;
+  profile: ListingPreviewProfile;
+  services: ListingPreviewService[];
+  availability: PublicAvailabilityWindow[];
+  slotPreviewServiceId?: number | null;
+  slotPreview: ListingPreviewSlotDay[];
+  readiness?: ProviderReadiness | null;
+}
+
+export interface ListingPreviewResponse {
+  preview: ListingPreview;
+}
+
 export type OnboardingStateClient = typeof OnboardingStateClient[keyof typeof OnboardingStateClient] | null;
 
 
@@ -722,25 +804,10 @@ export interface BookingRequestRejectedResponse {
   reason: BookingRequestRejectedResponseReason;
 }
 
-export interface PublicAvailabilityWindow {
-  /** 0 = Sunday … 6 = Saturday */
-  dayOfWeek: number;
-  /** Wall-clock start "HH:MM" in the effective marketplace timezone */
-  startTime: string;
-  /** Wall-clock end "HH:MM" in the effective marketplace timezone */
-  endTime: string;
-}
-
 export interface PublicAvailabilityResponse {
   /** Effective IANA marketplace timezone */
   timezone: string;
   windows: PublicAvailabilityWindow[];
-}
-
-export interface ProviderSlot {
-  start: string;
-  end: string;
-  available: boolean;
 }
 
 export interface ProviderSlotsResponse {
