@@ -3,6 +3,7 @@ import { useGetMyProviderProfile, useListBookings, useGetMyEarnings } from '@wor
 import { Calendar, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { Link } from 'wouter';
 import ReadinessSummaryCard from '@/components/readiness-summary-card';
+import { Eye } from 'lucide-react';
 
 export default function PortalDashboard() {
   const { data: profileRes, isLoading: loadingProfile } = useGetMyProviderProfile({
@@ -42,6 +43,19 @@ export default function PortalDashboard() {
 
       {/* Activation readiness summary (server-computed; links to canonical page) */}
       <ReadinessSummaryCard />
+
+      <Link href="/provider/listing-preview">
+        <div
+          data-testid="dashboard-listing-preview-link"
+          className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:border-primary/50 transition-colors"
+        >
+          <div className="bg-primary/10 p-2 rounded-full text-primary"><Eye className="w-5 h-5" /></div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-foreground">Preview my listing</h3>
+            <p className="text-sm text-muted-foreground">See exactly how clients will view and book you.</p>
+          </div>
+        </div>
+      </Link>
 
       {/* Action required alerts */}
       {requestedCount > 0 && (

@@ -52,6 +52,7 @@ import type {
   ListInvoicesParams,
   ListProviderReviewsParams,
   ListProvidersParams,
+  ListingPreviewResponse,
   LoginRequest,
   MeResponse,
   MessageResponse,
@@ -2093,6 +2094,84 @@ export function useGetMyProviderReadiness<TData = Awaited<ReturnType<typeof getM
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMyProviderReadinessQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyListingPreviewUrl = () => {
+
+
+
+
+  return `/api/providers/me/listing-preview`
+}
+
+/**
+ * Owner-scoped preview of how the authenticated provider's marketplace listing renders — profile, active services, weekly availability, effective timezone, and real generated 30-minute slots (same engine as public booking). Draft and under-review providers may preview their own listing; this never weakens the anonymous public approval gate. Returns only public-preview-safe fields — no client ids, booking ids, reviewer-private notes, verification documents, or private care notes. Read-only.
+ * @summary Owner-scoped preview of the provider's public marketplace listing
+ */
+export const getMyListingPreview = async ( options?: Parameters<typeof customFetch>[1]): Promise<ListingPreviewResponse> => {
+
+  return customFetch<ListingPreviewResponse>(getGetMyListingPreviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyListingPreviewQueryKey = () => {
+    return [
+    `/api/providers/me/listing-preview`
+    ] as const;
+    }
+
+
+export const getGetMyListingPreviewQueryOptions = <TData = Awaited<ReturnType<typeof getMyListingPreview>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyListingPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyListingPreviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyListingPreview>>> = ({ signal }) => getMyListingPreview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyListingPreview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyListingPreviewQueryResult = NonNullable<Awaited<ReturnType<typeof getMyListingPreview>>>
+export type GetMyListingPreviewQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Owner-scoped preview of the provider's public marketplace listing
+ */
+
+export function useGetMyListingPreview<TData = Awaited<ReturnType<typeof getMyListingPreview>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyListingPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyListingPreviewQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -722,6 +722,15 @@ function ReviewStep({ onBack, onGoToStep }: ReviewStepProps) {
 
       {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
 
+      <button
+        type="button"
+        onClick={() => setLocation(ROUTES.provider.listingPreview)}
+        data-testid="onboarding-listing-preview-link"
+        className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground hover:border-primary/50 transition-colors"
+      >
+        Preview your public listing
+      </button>
+
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onBack} className="rounded-xl border border-border bg-card px-4 py-3 font-semibold text-foreground">← Back</button>
         <button

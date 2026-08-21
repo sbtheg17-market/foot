@@ -31,6 +31,7 @@ export const ROUTES = {
     credentials: '/provider/credentials',
     notifications: '/provider/notifications',
     readiness: '/provider/readiness',
+    listingPreview: '/provider/listing-preview',
     travelZones: '/provider/travel-zones',
     applicationStatus: '/provider/application-status',
   },

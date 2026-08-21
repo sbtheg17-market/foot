@@ -732,6 +732,36 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /providers/me/listing-preview:
+    get:
+      operationId: getMyListingPreview
+      tags: [providers]
+      summary: Owner-scoped preview of the provider's public marketplace listing
+      description: >-
+        Owner-scoped preview of how the authenticated provider's marketplace
+        listing renders — profile, active services, weekly availability,
+        effective timezone, and real generated 30-minute slots (same engine as
+        public booking). Draft and under-review providers may preview their own
+        listing; this never weakens the anonymous public approval gate. Returns
+        only public-preview-safe fields — no client ids, booking ids,
+        reviewer-private notes, verification documents, or private care notes.
+        Read-only.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Owner listing preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingPreviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /providers/me/services:
     get:
       operationId: listMyServices
@@ -2157,6 +2187,106 @@ components:
           $ref: "#/components/schemas/ProviderReadiness"
       required:
         - readiness
+
+    ListingPreviewProfile:
+      type: object
+      properties:
+        title: { type: string }
+        bio: { type: string, nullable: true }
+        city: { type: string }
+        serviceAreaNotes: { type: string, nullable: true }
+        yearsExperience: { type: integer, nullable: true }
+        rating: { type: number, nullable: true }
+        reviewCount: { type: integer }
+        acceptsNewClients: { type: boolean }
+        firstName: { type: string, nullable: true }
+        lastName: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+      required:
+        - title
+        - city
+        - reviewCount
+        - acceptsNewClients
+
+    ListingPreviewService:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        durationMinutes: { type: integer }
+        priceCents: { type: integer }
+        category: { type: string }
+      required:
+        - id
+        - title
+        - durationMinutes
+        - priceCents
+        - category
+
+    ListingPreviewSlotDay:
+      type: object
+      properties:
+        date: { type: string }
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderSlot"
+      required:
+        - date
+        - slots
+
+    ListingPreview:
+      type: object
+      properties:
+        isPublic:
+          type: boolean
+          description: True only when the provider is approved and publicly bookable
+        applicationStatus:
+          type: string
+          nullable: true
+          enum: [draft, under_review, approved, rejected, suspended]
+        verificationStatus:
+          type: string
+          enum: [pending, under_review, approved, rejected]
+        timezone: { type: string }
+        profile:
+          $ref: "#/components/schemas/ListingPreviewProfile"
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListingPreviewService"
+        availability:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicAvailabilityWindow"
+        slotPreviewServiceId:
+          type: integer
+          nullable: true
+        slotPreview:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListingPreviewSlotDay"
+        readiness:
+          allOf:
+            - $ref: "#/components/schemas/ProviderReadiness"
+          nullable: true
+      required:
+        - isPublic
+        - verificationStatus
+        - timezone
+        - profile
+        - services
+        - availability
+        - slotPreview
+
+    ListingPreviewResponse:
+      type: object
+      properties:
+        preview:
+          $ref: "#/components/schemas/ListingPreview"
+      required:
+        - preview
 
     OnboardingState:
       type: object
