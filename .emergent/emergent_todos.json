@@ -1,0 +1,30 @@
+[
+  {
+    "content": "Read-only scope verification: repo state, dashboard, readiness, public profile, routes, URL construction, booking signal, gating, empty states",
+    "status": "completed"
+  },
+  {
+    "content": "Create feature branch feat/provider-first-booking-cta from authoritative main",
+    "status": "completed"
+  },
+  {
+    "content": "Report exact intended files",
+    "status": "completed"
+  },
+  {
+    "content": "Implement slice: booking-count signal (existing API) + first-booking CTA card (dashboard) + readiness banner share actions",
+    "status": "completed"
+  },
+  {
+    "content": "Add focused tests (9/9 pass + 14/14 readiness regression)",
+    "status": "completed"
+  },
+  {
+    "content": "Run focused validation: typecheck PASS, builds PASS, tests PASS, git diff --check PASS, UI states verified at 390px",
+    "status": "completed"
+  },
+  {
+    "content": "Stop before commit; deliver pre-commit report",
+    "status": "in_progress"
+  }
+]
