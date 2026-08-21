@@ -7,7 +7,13 @@ import {
   servicesTable,
   invoicesTable,
   usersTable,
+  availabilityTable,
 } from "@workspace/db";
+import {
+  getMarketplaceTimezone,
+  isWithinAvailability,
+  type AvailabilityWindow,
+} from "../lib/availability.js";
 import {
   requireAuth,
   requireApprovedProviderIfProvider,
@@ -191,6 +197,14 @@ const DUPLICATE_BOOKING_MESSAGE =
   "You already have an active request for this provider, service, and time. Check your bookings before submitting again.";
 
 /**
+ * Friendly provider-unavailable message — the requested interval overlaps an
+ * existing active booking for the same provider. No booking or client ids are
+ * ever leaked in this response.
+ */
+const PROVIDER_UNAVAILABLE_MESSAGE =
+  "That time overlaps another appointment for this provider. Please choose another available time.";
+
+/**
  * True only for a unique violation raised by ACTIVE_BOOKING_UNIQUE_INDEX.
  *
  * Per .agents/memory/drizzle-unique-error-wrapping.md, drizzle may wrap the
@@ -229,6 +243,7 @@ router.post(
     if (!providerId || !serviceId || !scheduledAt || !address || !city) {
       res.status(400).json({
         error: "providerId, serviceId, scheduledAt, address, and city are required.",
+        reason: "invalid_request",
       });
       return;
     }
@@ -251,7 +266,11 @@ router.post(
 
     // Verify service belongs to this provider and is active
     const service = await db
-      .select({ id: servicesTable.id, priceCents: servicesTable.priceCents })
+      .select({
+        id: servicesTable.id,
+        priceCents: servicesTable.priceCents,
+        durationMinutes: servicesTable.durationMinutes,
+      })
       .from(servicesTable)
       .where(
         and(
@@ -268,6 +287,24 @@ router.post(
     }
 
     const scheduledAtDate = new Date(String(scheduledAt));
+
+    // Reject malformed or past instants before any availability work.
+    if (Number.isNaN(scheduledAtDate.getTime())) {
+      res.status(400).json({
+        error: "scheduledAt must be a valid date-time.",
+        reason: "invalid_request",
+      });
+      return;
+    }
+    if (scheduledAtDate.getTime() <= Date.now()) {
+      res.status(400).json({
+        error: "scheduledAt must be in the future.",
+        reason: "invalid_request",
+      });
+      return;
+    }
+
+    const durationMinutes = service[0].durationMinutes;
 
     // Duplicate-submit protection, two layers:
     //  1. Sequential fast path (this preflight SELECT): catches double-taps,
@@ -309,44 +346,154 @@ router.post(
       res.status(409).json({
         error: DUPLICATE_BOOKING_MESSAGE,
         bookingId: duplicate.id,
+        reason: "duplicate_booking",
       });
       return;
     }
 
-    // Single-statement insert (auto-commit): PostgreSQL statement atomicity
-    // guarantees a rejected insert persists nothing — no explicit transaction
-    // or rollback handling is required on this path.
+    // ── Availability enforcement ─────────────────────────────────────────────
+    // The whole service duration must fit inside a single availability window
+    // (wall-clock in the effective marketplace timezone). Intervals that fall
+    // outside a window or cross a boundary are rejected before any lock/insert.
+    const marketplaceTimezone = getMarketplaceTimezone();
+    const windows = (await db
+      .select({
+        dayOfWeek: availabilityTable.dayOfWeek,
+        startTime: availabilityTable.startTime,
+        endTime: availabilityTable.endTime,
+      })
+      .from(availabilityTable)
+      .where(eq(availabilityTable.providerId, Number(providerId)))) as AvailabilityWindow[];
+
+    if (
+      !isWithinAvailability({
+        scheduledAt: scheduledAtDate,
+        durationMinutes,
+        windows,
+        tz: marketplaceTimezone,
+      })
+    ) {
+      res.status(400).json({
+        error: "The selected time is outside this provider's availability.",
+        reason: "outside_availability",
+      });
+      return;
+    }
+
+    // ── Concurrency-safe insert ──────────────────────────────────────────────
+    // One transaction: (1) acquire a provider-keyed advisory transaction lock so
+    // all booking writes for this provider serialize; (2) reject an active
+    // provider overlap; (3) insert while the lock is still held. The live
+    // partial unique index remains the final exact-duplicate safeguard.
+    const requestedEnd = new Date(
+      scheduledAtDate.getTime() + durationMinutes * 60000,
+    );
+
+    class ProviderUnavailableError extends Error {}
+    class DuplicateUnderLockError extends Error {
+      constructor(readonly winnerId: number) {
+        super("DUPLICATE_UNDER_LOCK");
+      }
+    }
+
     const insertBookingRow = async () => {
-      const [row] = await db
-        .insert(bookingsTable)
-        .values({
-          clientId: req.user!.sub,
-          providerId: Number(providerId),
-          serviceId: Number(serviceId),
-          status: "requested",
-          scheduledAt: scheduledAtDate,
-          address: String(address),
-          city: String(city),
-          postalCode: postalCode !== undefined ? String(postalCode) : null,
-          careNotes: careNotes !== undefined ? String(careNotes) : null,
-          clientNotes: clientNotes !== undefined ? String(clientNotes) : null,
-        })
-        .returning();
-      return row;
+      return db.transaction(async (tx) => {
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(42001, ${Number(providerId)})`,
+        );
+
+        // Same-client exact duplicate, re-checked under the lock — preserves the
+        // existing duplicate path when a concurrent request slipped past the
+        // preflight. Reported as duplicate_booking (with the winner id), never
+        // as a provider overlap.
+        const [dupUnderLock] = await tx
+          .select({ id: bookingsTable.id })
+          .from(bookingsTable)
+          .where(activeDuplicateWhere)
+          .limit(1);
+        if (dupUnderLock) {
+          throw new DuplicateUnderLockError(dupUnderLock.id);
+        }
+
+        // Provider-level overlap against any OTHER client's active booking.
+        // A same-client exact duplicate is handled above (and by the partial
+        // unique index); a client never blocks themselves via this path.
+        const [conflict] = await tx
+          .select({ id: bookingsTable.id })
+          .from(bookingsTable)
+          .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
+          .where(
+            and(
+              eq(bookingsTable.providerId, Number(providerId)),
+              inArray(bookingsTable.status, ["requested", "confirmed", "rescheduled"]),
+              sql`${bookingsTable.clientId} <> ${req.user!.sub}`,
+              sql`${bookingsTable.scheduledAt} < ${requestedEnd}`,
+              sql`${scheduledAtDate} < ${bookingsTable.scheduledAt} + make_interval(mins => ${servicesTable.durationMinutes})`,
+            ),
+          )
+          .limit(1);
+
+        if (conflict) {
+          throw new ProviderUnavailableError();
+        }
+
+        const [row] = await tx
+          .insert(bookingsTable)
+          .values({
+            clientId: req.user!.sub,
+            providerId: Number(providerId),
+            serviceId: Number(serviceId),
+            status: "requested",
+            scheduledAt: scheduledAtDate,
+            address: String(address),
+            city: String(city),
+            postalCode: postalCode !== undefined ? String(postalCode) : null,
+            careNotes: careNotes !== undefined ? String(careNotes) : null,
+            clientNotes: clientNotes !== undefined ? String(clientNotes) : null,
+          })
+          .returning();
+        return row;
+      });
+    };
+
+    const recordDuplicateAndRespond = async (winnerId: number) => {
+      await recordPreventedBooking({
+        correlationId: String(req.id),
+        actorUserId: req.user!.sub,
+        subjectBookingId: winnerId,
+        providerId: Number(providerId),
+        serviceId: Number(serviceId),
+        scheduledAt: scheduledAtDate,
+        path: "index_violation",
+      });
+      res.status(409).json({
+        error: DUPLICATE_BOOKING_MESSAGE,
+        bookingId: winnerId,
+        reason: "duplicate_booking",
+      });
     };
 
     let booking: Awaited<ReturnType<typeof insertBookingRow>>;
     try {
       booking = await insertBookingRow();
     } catch (error) {
+      if (error instanceof ProviderUnavailableError) {
+        res.status(409).json({
+          error: PROVIDER_UNAVAILABLE_MESSAGE,
+          reason: "provider_unavailable",
+        });
+        return;
+      }
+      if (error instanceof DuplicateUnderLockError) {
+        await recordDuplicateAndRespond(error.winnerId);
+        return;
+      }
       if (!isActiveBookingDuplicateViolation(error)) {
         throw error;
       }
-      // The database race guard rejected a concurrent duplicate. Map it to the
-      // SAME friendly 409 contract as the preflight — never expose PostgreSQL
-      // error text, SQLSTATE codes, or index names to the client (the raw
-      // error reaches only the server logger via the global handler when
-      // rethrown, and is not rethrown here).
+      // The database partial unique index rejected a concurrent same-client
+      // duplicate. Map it to the SAME friendly duplicate 409 contract — never
+      // expose PostgreSQL error text, SQLSTATE codes, or index names.
       const [winner] = await db
         .select({ id: bookingsTable.id })
         .from(bookingsTable)
@@ -354,22 +501,7 @@ router.post(
         .limit(1);
 
       if (winner) {
-        // Analytics Step 2 (Session 080): the database race guard caught this
-        // one — same counting rule, path discriminator only (the raw error
-        // never reaches the recording helper). Never alters the 409 below.
-        await recordPreventedBooking({
-          correlationId: String(req.id),
-          actorUserId: req.user!.sub,
-          subjectBookingId: winner.id,
-          providerId: Number(providerId),
-          serviceId: Number(serviceId),
-          scheduledAt: scheduledAtDate,
-          path: "index_violation",
-        });
-        res.status(409).json({
-          error: DUPLICATE_BOOKING_MESSAGE,
-          bookingId: winner.id,
-        });
+        await recordDuplicateAndRespond(winner.id);
         return;
       }
 

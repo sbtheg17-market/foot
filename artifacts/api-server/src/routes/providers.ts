@@ -28,6 +28,11 @@ import {
   loadReadinessSourceByUserId,
 } from "../lib/provider-readiness.js";
 import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
+import {
+  getMarketplaceTimezone,
+  generateSlotsForDate,
+  type AvailabilityWindow,
+} from "../lib/availability.js";
 
 const router = Router();
 
@@ -1758,6 +1763,28 @@ router.put(
       return;
     }
 
+    for (const [i, slot] of slots.entries()) {
+      const day = Number(slot.dayOfWeek);
+      if (!Number.isInteger(day) || day < 0 || day > 6) {
+        res.status(400).json({ error: `slots[${i}].dayOfWeek must be 0–6.` });
+        return;
+      }
+      if (!TIME_RE.test(slot.startTime)) {
+        res.status(400).json({ error: `slots[${i}].startTime must be HH:MM (24h).` });
+        return;
+      }
+      if (!TIME_RE.test(slot.endTime)) {
+        res.status(400).json({ error: `slots[${i}].endTime must be HH:MM (24h).` });
+        return;
+      }
+      // Overnight windows are unsupported; availability writes reject
+      // start_time >= end_time.
+      if (slot.startTime >= slot.endTime) {
+        res.status(400).json({ error: `slots[${i}]: startTime must be before endTime.` });
+        return;
+      }
+    }
+
     // Replace all slots atomically
     let inserted: typeof availabilityTable.$inferSelect[] = [];
     await db.transaction(async (tx) => {
@@ -2034,6 +2061,158 @@ router.get(
       );
 
     res.json({ services });
+  }
+);
+
+/** GET /providers/:providerId/availability — Public weekly windows + timezone */
+router.get(
+  "/:providerId/availability",
+  async (req: Request, res: Response): Promise<void> => {
+    const providerId = Number(req.params["providerId"]);
+
+    const profile = await db
+      .select({
+        id: providerProfilesTable.id,
+        verificationStatus: providerProfilesTable.verificationStatus,
+      })
+      .from(providerProfilesTable)
+      .where(eq(providerProfilesTable.id, providerId))
+      .limit(1);
+
+    if (!profile[0]) {
+      res.status(404).json({ error: "Provider not found." });
+      return;
+    }
+
+    const timezone = getMarketplaceTimezone();
+
+    // Unapproved providers expose a stable shape but no windows.
+    if (profile[0].verificationStatus !== "approved") {
+      res.json({ timezone, windows: [] });
+      return;
+    }
+
+    const windows = await db
+      .select({
+        dayOfWeek: availabilityTable.dayOfWeek,
+        startTime: availabilityTable.startTime,
+        endTime: availabilityTable.endTime,
+      })
+      .from(availabilityTable)
+      .where(eq(availabilityTable.providerId, providerId))
+      .orderBy(availabilityTable.dayOfWeek, availabilityTable.startTime);
+
+    res.json({ timezone, windows });
+  }
+);
+
+/** GET /providers/:providerId/slots?serviceId&date — Public bookable slots */
+router.get(
+  "/:providerId/slots",
+  async (req: Request, res: Response): Promise<void> => {
+    const providerId = Number(req.params["providerId"]);
+    const serviceId = Number(req.query["serviceId"]);
+    const date = String(req.query["date"] ?? "");
+
+    if (!Number.isInteger(serviceId) || serviceId <= 0) {
+      res.status(400).json({ error: "serviceId is required." });
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      res.status(400).json({ error: "date must be YYYY-MM-DD." });
+      return;
+    }
+
+    const profile = await db
+      .select({
+        id: providerProfilesTable.id,
+        verificationStatus: providerProfilesTable.verificationStatus,
+      })
+      .from(providerProfilesTable)
+      .where(eq(providerProfilesTable.id, providerId))
+      .limit(1);
+
+    if (!profile[0]) {
+      res.status(404).json({ error: "Provider not found." });
+      return;
+    }
+
+    const timezone = getMarketplaceTimezone();
+
+    if (profile[0].verificationStatus !== "approved") {
+      res.json({ timezone, date, slots: [] });
+      return;
+    }
+
+    const service = await db
+      .select({ durationMinutes: servicesTable.durationMinutes })
+      .from(servicesTable)
+      .where(
+        and(
+          eq(servicesTable.id, serviceId),
+          eq(servicesTable.providerId, providerId),
+          eq(servicesTable.isActive, true)
+        )
+      )
+      .limit(1);
+
+    if (!service[0]) {
+      res.status(404).json({ error: "Service not found or inactive." });
+      return;
+    }
+
+    const windows = (await db
+      .select({
+        dayOfWeek: availabilityTable.dayOfWeek,
+        startTime: availabilityTable.startTime,
+        endTime: availabilityTable.endTime,
+      })
+      .from(availabilityTable)
+      .where(eq(availabilityTable.providerId, providerId))) as AvailabilityWindow[];
+
+    const candidates = generateSlotsForDate({
+      date,
+      durationMinutes: service[0].durationMinutes,
+      windows,
+      tz: timezone,
+    });
+
+    // Advisory `available` flag: mark a slot taken when it overlaps an active
+    // booking for this provider. The transactional booking path is the
+    // authoritative guard; this flag is a best-effort UI hint only.
+    const active = await db
+      .select({
+        scheduledAt: bookingsTable.scheduledAt,
+        durationMinutes: servicesTable.durationMinutes,
+      })
+      .from(bookingsTable)
+      .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
+      .where(
+        and(
+          eq(bookingsTable.providerId, providerId),
+          or(
+            eq(bookingsTable.status, "requested"),
+            eq(bookingsTable.status, "confirmed"),
+            eq(bookingsTable.status, "rescheduled")
+          )
+        )
+      );
+
+    const activeIntervals = active.map((b) => {
+      const start = new Date(b.scheduledAt).getTime();
+      return { start, end: start + b.durationMinutes * 60000 };
+    });
+
+    const slots = candidates.map((s) => {
+      const start = new Date(s.start).getTime();
+      const end = new Date(s.end).getTime();
+      const available = !activeIntervals.some(
+        (iv) => iv.start < end && start < iv.end
+      );
+      return { start: s.start, end: s.end, available };
+    });
+
+    res.json({ timezone, date, slots });
   }
 );
 

@@ -69,11 +69,37 @@ let providerToken: string;
 let providerId: number;
 let serviceId: number;
 
-/** Unique future timestamp per test run so reruns never collide with leftovers. */
-function uniqueSlot(offsetMinutes: number): string {
-  const base = Date.now() + 14 * 24 * 60 * 60 * 1000;
-  const runJitter = (Date.now() % 100_000) * 60;
-  return new Date(base + runJitter + offsetMinutes * 60 * 1000).toISOString();
+/**
+ * Real-slot fixtures. Availability enforcement rejects out-of-window bookings,
+ * so each distinct logical offset maps to a distinct, non-overlapping real slot
+ * drawn from the public slots endpoint. The same offset always returns the same
+ * slot within a run, so duplicate/overlap tests stay deterministic.
+ */
+const SLOT_SPACING_MS = 60 * 60 * 1000;
+const slotPool: string[] = [];
+
+async function loadSlotPool(want: number): Promise<void> {
+  const base = Date.now();
+  let lastMs = 0;
+  for (let d = 1; d <= 28 && slotPool.length < want; d++) {
+    const date = new Date(base + d * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const { body } = await apiFetch(`/providers/${providerId}/slots?serviceId=${serviceId}&date=${date}`);
+    const slots = (body["slots"] as Array<{ start: string; available: boolean }>) ?? [];
+    for (const s of slots) {
+      if (!s.available) continue;
+      const ms = Date.parse(s.start);
+      if (ms - lastMs >= SLOT_SPACING_MS) {
+        slotPool.push(s.start);
+        lastMs = ms;
+      }
+    }
+  }
+}
+
+function uniqueSlot(_offsetMinutes: number): string {
+  const slot = slotPool.shift();
+  assert.ok(slot, "fixture slot pool exhausted — widen loadSlotPool()");
+  return slot;
 }
 
 function bookingPayload(scheduledAt: string) {
@@ -113,6 +139,9 @@ describe("Booking lifecycle setup", () => {
     const services = await apiFetch(`/providers/${providerId}/services`, { token: providerToken });
     assert.equal(services.status, 200);
     serviceId = ((services.body["services"] as Array<{ id: number }>)[0]!).id;
+
+    await loadSlotPool(24);
+    assert.ok(slotPool.length >= 10, "expected enough seeded availability slots");
   });
 
   it("API server is reachable", async () => {
@@ -140,14 +169,20 @@ describe("Duplicate-submit protection", () => {
     assert.equal(result.status, 201, JSON.stringify(result.body));
   });
 
-  it("does not let one client's active booking block another client", async () => {
+  it("rejects a different client overlapping the same provider with provider_unavailable", async () => {
     const slot = uniqueSlot(180);
 
     const jane = await createBooking(slot);
     assert.equal(jane.status, 201, JSON.stringify(jane.body));
 
+    // Approved milestone behavior: a DIFFERENT client requesting the same
+    // provider slot is now rejected with provider_unavailable (no ids leaked),
+    // rather than being allowed. The transactional advisory-lock overlap check
+    // is authoritative.
     const tom = await createBooking(slot, otherClientToken);
-    assert.equal(tom.status, 201, `Other client blocked: ${JSON.stringify(tom.body)}`);
+    assert.equal(tom.status, 409, `Expected provider_unavailable: ${JSON.stringify(tom.body)}`);
+    assert.equal(tom.body["reason"], "provider_unavailable");
+    assert.equal(tom.body["bookingId"], undefined);
   });
 });
 

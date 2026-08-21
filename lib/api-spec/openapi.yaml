@@ -1241,6 +1241,61 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /providers/{providerId}/availability:
+    get:
+      operationId: getProviderAvailability
+      tags: [providers]
+      summary: Public weekly availability windows + effective marketplace timezone
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Public availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicAvailabilityResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/{providerId}/slots:
+    get:
+      operationId: getProviderSlots
+      tags: [providers]
+      summary: Bookable 30-minute slots for a service on a date
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: serviceId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: date
+          in: query
+          required: true
+          description: Calendar date (YYYY-MM-DD) in the effective marketplace timezone
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Provider slots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderSlotsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   # ── Bookings ─────────────────────────────────────────────────────────────────
 
   /bookings:
@@ -1299,7 +1354,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/BookingResponse"
         "400":
-          $ref: "#/components/responses/BadRequest"
+          description: The booking request was rejected before creation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingRequestRejectedResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1307,11 +1366,13 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: An identical active booking request already exists for this client
+          description: The requested time conflicts with an existing booking
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DuplicateBookingConflictResponse"
+                oneOf:
+                  - $ref: "#/components/schemas/DuplicateBookingConflictResponse"
+                  - $ref: "#/components/schemas/ProviderUnavailableConflictResponse"
 
   /bookings/history:
     get:
@@ -2831,9 +2892,103 @@ components:
         bookingId:
           type: integer
           description: The id of the already-existing active booking
+        reason:
+          type: string
+          enum: [duplicate_booking]
       required:
         - error
         - bookingId
+        - reason
+
+    ProviderUnavailableConflictResponse:
+      type: object
+      description: Returned when the requested interval overlaps another active booking for the same provider.
+      properties:
+        error:
+          type: string
+        reason:
+          type: string
+          enum: [provider_unavailable]
+      required:
+        - error
+        - reason
+
+    BookingRequestRejectedResponse:
+      type: object
+      description: Returned when a booking request is rejected before creation (invalid input or outside the provider's availability).
+      properties:
+        error:
+          type: string
+        reason:
+          type: string
+          enum: [invalid_request, outside_availability]
+      required:
+        - error
+        - reason
+
+    PublicAvailabilityWindow:
+      type: object
+      properties:
+        dayOfWeek:
+          type: integer
+          description: 0 = Sunday … 6 = Saturday
+        startTime:
+          type: string
+          description: Wall-clock start "HH:MM" in the effective marketplace timezone
+        endTime:
+          type: string
+          description: Wall-clock end "HH:MM" in the effective marketplace timezone
+      required:
+        - dayOfWeek
+        - startTime
+        - endTime
+
+    PublicAvailabilityResponse:
+      type: object
+      properties:
+        timezone:
+          type: string
+          description: Effective IANA marketplace timezone
+        windows:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicAvailabilityWindow"
+      required:
+        - timezone
+        - windows
+
+    ProviderSlot:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        available:
+          type: boolean
+      required:
+        - start
+        - end
+        - available
+
+    ProviderSlotsResponse:
+      type: object
+      properties:
+        timezone:
+          type: string
+          description: Effective IANA marketplace timezone
+        date:
+          type: string
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderSlot"
+      required:
+        - timezone
+        - date
+        - slots
 
     BookingListResponse:
       type: object

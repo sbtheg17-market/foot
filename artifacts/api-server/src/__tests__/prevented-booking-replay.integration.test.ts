@@ -32,6 +32,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pool } from "@workspace/db";
+import { generateSlotsForDate, getMarketplaceTimezone } from "../lib/availability.js";
 
 const API_SERVER_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const REPLAY_SCRIPT = "src/scripts/replay-prevented-bookings.ts";
@@ -239,10 +240,42 @@ async function login(port: number): Promise<string> {
   return result.body["token"] as string;
 }
 
-function uniqueSlot(offsetMinutes: number): string {
-  const base = Date.now() + 42 * 24 * 60 * 60 * 1000;
-  const jitter = (Date.now() % 100_000) * 60;
-  return new Date(base + jitter + offsetMinutes * 60_000).toISOString();
+// Real-slot fixtures (availability enforcement): valid future slots computed
+// directly from the seeded availability windows via the shared availability
+// library, so real POST /bookings requests fall inside a bookable window.
+const slotPool: string[] = [];
+
+function uniqueSlot(_offsetMinutes: number): string {
+  const slot = slotPool.shift();
+  assert.ok(slot, "fixture slot pool exhausted — widen loadSlotPool()");
+  return slot;
+}
+
+async function loadSlotPool(want: number): Promise<void> {
+  const tz = getMarketplaceTimezone();
+  const wins = await pool.query(
+    "SELECT day_of_week, start_time, end_time FROM availability WHERE provider_id = $1",
+    [providerId],
+  );
+  const windows = (wins.rows as Array<{ day_of_week: number; start_time: string; end_time: string }>).map(
+    (r) => ({ dayOfWeek: r.day_of_week, startTime: r.start_time, endTime: r.end_time }),
+  );
+  const svc = await pool.query("SELECT duration_minutes FROM services WHERE id = $1", [serviceId]);
+  const durationMinutes = (svc.rows[0] as { duration_minutes: number }).duration_minutes;
+
+  const base = Date.now();
+  let lastMs = 0;
+  for (let d = 1; d <= 21 && slotPool.length < want; d++) {
+    const date = new Date(base + d * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const slots = generateSlotsForDate({ date, durationMinutes, windows, tz });
+    for (const s of slots) {
+      const ms = Date.parse(s.start);
+      if (ms - lastMs >= durationMinutes * 60000) {
+        slotPool.push(s.start);
+        lastMs = ms;
+      }
+    }
+  }
 }
 
 async function createBooking(port: number, token: string, slot: string) {
@@ -285,6 +318,9 @@ describe("Setup", () => {
     );
     assert.ok(services.rows[0], "seeded service missing");
     serviceId = (services.rows[0] as { id: number }).id;
+
+    await loadSlotPool(20);
+    assert.ok(slotPool.length >= 8, "expected enough seeded availability slots");
 
     const bookings = await pool.query("SELECT id FROM bookings ORDER BY id LIMIT 1");
     if (bookings.rows[0]) {
@@ -591,6 +627,7 @@ describe("DLQ behavior at the recording isolation boundary", () => {
       assert.deepEqual(outageDup.body, {
         error: DUPLICATE_BOOKING_MESSAGE,
         bookingId: winnerId,
+        reason: "duplicate_booking",
       });
     });
 

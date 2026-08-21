@@ -59,6 +59,35 @@ let adminToken: string;
 let providerId: number;
 let serviceId: number;
 
+// Real-slot fixture pool (availability enforcement): draw non-overlapping
+// future slots inside seeded availability instead of arbitrary timestamps.
+const SLOT_SPACING_MS = 60 * 60 * 1000;
+const slotPool: string[] = [];
+
+async function loadSlotPool(want: number): Promise<void> {
+  const base = Date.now();
+  let lastMs = 0;
+  for (let d = 1; d <= 28 && slotPool.length < want; d++) {
+    const date = new Date(base + d * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const { body } = await apiFetch(`/providers/${providerId}/slots?serviceId=${serviceId}&date=${date}`);
+    const slots = (body["slots"] as Array<{ start: string; available: boolean }>) ?? [];
+    for (const s of slots) {
+      if (!s.available) continue;
+      const ms = Date.parse(s.start);
+      if (ms - lastMs >= SLOT_SPACING_MS) {
+        slotPool.push(s.start);
+        lastMs = ms;
+      }
+    }
+  }
+}
+
+function nextAvailableSlot(): string {
+  const start = slotPool.shift();
+  assert.ok(start, "fixture slot pool exhausted — widen loadSlotPool()");
+  return start;
+}
+
 async function createCompletedBooking(): Promise<number> {
   const created = await apiFetch("/bookings", {
     method: "POST",
@@ -66,7 +95,7 @@ async function createCompletedBooking(): Promise<number> {
     body: JSON.stringify({
       providerId,
       serviceId,
-      scheduledAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      scheduledAt: nextAvailableSlot(),
       address: "99 Review Lane",
       city: "Toronto",
       postalCode: "M5V 2K3",
@@ -108,6 +137,9 @@ describe("Review integration setup", () => {
     const services = await apiFetch(`/providers/${providerId}/services`, { token: providerToken });
     assert.equal(services.status, 200);
     serviceId = ((services.body["services"] as Array<{ id: number }>)[0]!).id;
+
+    await loadSlotPool(12);
+    assert.ok(slotPool.length >= 5, "expected enough seeded availability slots");
   });
 
   it("API server is reachable", async () => {
@@ -148,7 +180,7 @@ describe("Eligible completed-booking reviews", () => {
       body: JSON.stringify({
         providerId,
         serviceId,
-        scheduledAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        scheduledAt: nextAvailableSlot(),
         address: "99 Review Lane",
         city: "Toronto",
       }),

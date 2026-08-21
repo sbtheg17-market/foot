@@ -66,12 +66,51 @@ async function login(email: string, password: string): Promise<string> {
   return body["token"] as string;
 }
 
+// Real-slot fixture pool (see booking-concurrency.test.ts): availability
+// enforcement rejects out-of-window/overlapping bookings, so fixtures draw
+// globally non-overlapping real slots from the public slots endpoint.
+const SLOT_SPACING_MS = 60 * 60 * 1000; // Sarah's seeded service is 60 minutes
+const slotPool: string[] = [];
+
+async function loadSlotPool(
+  providerId: number,
+  serviceId: number,
+  want: number,
+): Promise<void> {
+  const base = Date.now();
+  let lastMs = 0;
+  for (let d = 1; d <= 28 && slotPool.length < want; d++) {
+    const date = new Date(base + d * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const { body } = await apiFetch(
+      `/providers/${providerId}/slots?serviceId=${serviceId}&date=${date}`,
+    );
+    const slots =
+      (body["slots"] as Array<{ start: string; available: boolean }>) ?? [];
+    for (const s of slots) {
+      if (!s.available) continue;
+      const ms = Date.parse(s.start);
+      if (ms - lastMs >= SLOT_SPACING_MS) {
+        slotPool.push(s.start);
+        lastMs = ms;
+      }
+    }
+  }
+}
+
+function nextAvailableSlot(): string {
+  const start = slotPool.shift();
+  assert.ok(start, "fixture slot pool exhausted — widen loadSlotPool()");
+  return start;
+}
+
 async function createBooking(
   clientToken: string,
   providerId: number,
   serviceId: number
 ): Promise<number> {
-  const scheduledAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const scheduledAt = nextAvailableSlot();
   const { status, body } = await apiFetch("/bookings", {
     method: "POST",
     token: clientToken,
@@ -143,6 +182,10 @@ describe("Setup", () => {
     const services = svcRes.body["services"] as Array<{ id: number }>;
     assert.ok(services.length > 0, "Provider must have at least one active service");
     serviceId = services[0]!.id;
+
+    // Populate the real-slot fixture pool (>= 20 non-overlapping bookings).
+    await loadSlotPool(providerProfileId, serviceId, 40);
+    assert.ok(slotPool.length >= 25, "expected enough seeded availability slots");
   });
 });
 
@@ -311,7 +354,7 @@ describe("Write failures surface as JSON — not HTML, not silent success", () =
 
 describe("Success (200/201) responses reflect the persisted write", () => {
   it("POST /bookings 201 body matches what GET /bookings/:id returns", async () => {
-    const scheduledAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
+    const scheduledAt = nextAvailableSlot();
     const { status, body } = await apiFetch("/bookings", {
       method: "POST",
       token: clientToken,

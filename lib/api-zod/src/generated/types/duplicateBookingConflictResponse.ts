@@ -5,6 +5,7 @@
  * OnCall Foot API — foot rejuvenation marketplace
  * OpenAPI spec version: 0.3.0
  */
+import type { DuplicateBookingConflictResponseReason } from './duplicateBookingConflictResponseReason';
 
 /**
  * Returned when the client already has an active (requested, confirmed, or rescheduled) booking for the same provider, service, and scheduled time.
@@ -13,4 +14,5 @@ export interface DuplicateBookingConflictResponse {
   error: string;
   /** The id of the already-existing active booking */
   bookingId: number;
+  reason: DuplicateBookingConflictResponseReason;
 }
