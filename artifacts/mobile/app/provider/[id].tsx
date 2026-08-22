@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
   useListProviderServices,
   useListProviderReviews,
   useCreateBooking,
+  useGetProviderSlots,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/auth';
@@ -289,6 +290,27 @@ export default function ProviderScreen() {
   );
 }
 
+/** Local YYYY-MM-DD for a Date. */
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** The next `count` calendar days (device-local), starting today. */
+function upcomingDays(count: number): Array<{ dateStr: string; weekday: string; day: string; month: string }> {
+  const days: Array<{ dateStr: string; weekday: string; day: string; month: string }> = [];
+  const now = new Date();
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    days.push({
+      dateStr: toDateStr(d),
+      weekday: d.toLocaleDateString('en-CA', { weekday: 'short' }),
+      day: String(d.getDate()),
+      month: d.toLocaleDateString('en-CA', { month: 'short' }),
+    });
+  }
+  return days;
+}
+
 function BookingModal({
   providerId, providerName, service, colors, insets, onClose, onSuccess,
 }: {
@@ -304,25 +326,69 @@ function BookingModal({
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [notes, setNotes] = useState('');
-  const [dateStr, setDateStr] = useState('');
-  const [timeStr, setTimeStr] = useState('');
+  // Server-provided slots only — mirrors the verified web booking modal and
+  // the mobile reschedule modal. The previous free-text date/time entry
+  // parsed "YYYY-MM-DDTHH:MM" in the DEVICE timezone, so a traveller (or any
+  // device outside the marketplace zone) submitted the wrong instant. Slot
+  // ISO strings come from the same server engine that enforces availability,
+  // so the submitted instant is marketplace-correct by construction.
+  const days = useMemo(() => upcomingDays(90), []);
+  const [date, setDate] = useState(days[0]!.dateStr);
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+
+  const {
+    data: slotsRes,
+    isLoading: loadingSlots,
+    refetch: refetchSlots,
+  } = useGetProviderSlots(
+    providerId,
+    { serviceId: service.id, date },
+    { query: { queryKey: ['booking-slots', providerId, service.id, date] } },
+  );
+  const timezone = slotsRes?.timezone;
+  const slots = slotsRes?.slots ?? [];
 
   const createBooking = useCreateBooking();
 
+  const slotLabel = (iso: string) =>
+    new Date(iso).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      ...(timezone ? { timeZone: timezone } : {}),
+    });
+
   const handleSubmit = () => {
-    if (!address || !city || !dateStr || !timeStr) {
-      Alert.alert('Missing fields', 'Please fill in date, time, address and city.');
+    // Duplicate-tap protection: the button is disabled while pending, and
+    // this guard covers any re-entry path.
+    if (createBooking.isPending) return;
+    if (!selectedSlot) {
+      Alert.alert('Choose a time', 'Please select an available time slot first.');
       return;
     }
-    const scheduledAt = new Date(`${dateStr}T${timeStr}`).toISOString();
+    if (!address || !city) {
+      Alert.alert('Missing fields', 'Please fill in address and city.');
+      return;
+    }
     createBooking.mutate(
-      { data: { providerId, serviceId: service.id, scheduledAt, address, city, postalCode: postalCode || undefined, clientNotes: notes || undefined } },
+      { data: { providerId, serviceId: service.id, scheduledAt: selectedSlot, address, city, postalCode: postalCode || undefined, clientNotes: notes || undefined } },
       {
         onSuccess: () => {
           Alert.alert('Booking requested!', 'The provider will confirm within 24 hours.', [{ text: 'OK', onPress: onSuccess }]);
         },
         onError: (err: unknown) => {
-          const apiError = err as { status?: number; data?: { bookingId?: number } | null };
+          const apiError = err as {
+            status?: number;
+            data?: { error?: string; reason?: string; bookingId?: number } | null;
+          };
+          const reason = apiError.data?.reason;
+          // The slot was just taken, or is no longer within availability —
+          // recover in place: clear the pick and refresh the grid (web parity).
+          if (reason === 'provider_unavailable' || reason === 'outside_availability') {
+            Alert.alert('Time unavailable', 'That time is no longer available. Please choose another slot.');
+            setSelectedSlot(null);
+            void refetchSlots();
+            return;
+          }
           // Booking-race notice (Session 079): the friendly duplicate-booking
           // 409 contract (HTTP 409 + numeric bookingId) means this exact slot is
           // already held by an active booking. Show the approved notice and keep
@@ -333,6 +399,7 @@ function BookingModal({
               'Time unavailable',
               'That time was just taken by another booking. Please choose another available time.',
             );
+            setSelectedSlot(null);
             return;
           }
           Alert.alert('Error', 'Could not create booking. Please try again.');
@@ -358,36 +425,143 @@ function BookingModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 16 }} showsVerticalScrollIndicator={false}>
-            <Field label="Date (YYYY-MM-DD) *" value={dateStr} onChange={setDateStr} placeholder="2026-09-15" colors={colors} keyboardType="numbers-and-punctuation" />
-            <Field label="Time (HH:MM) *" value={timeStr} onChange={setTimeStr} placeholder="10:00" colors={colors} keyboardType="numbers-and-punctuation" />
-            <Field label="Street address *" value={address} onChange={setAddress} placeholder="123 Main St" colors={colors} />
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Field label="City *" value={city} onChange={setCity} placeholder="Toronto" colors={colors} />
-              </View>
-              <View style={{ width: 100 }}>
-                <Field label="Postal code" value={postalCode} onChange={setPostalCode} placeholder="M5V 2T6" colors={colors} />
-              </View>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 20, gap: 16 }} showsVerticalScrollIndicator={false}>
+            {/* Date strip — same pattern as the reschedule modal */}
+            <View>
+              <Text style={[styles.fieldLabel, { color: colors.foreground, paddingHorizontal: 20 }]}>Choose a date *</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.dayStrip}
+                testID="booking-date-strip"
+              >
+                {days.map((d) => {
+                  const selected = d.dateStr === date;
+                  return (
+                    <TouchableOpacity
+                      key={d.dateStr}
+                      onPress={() => {
+                        setDate(d.dateStr);
+                        setSelectedSlot(null);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`${d.weekday} ${d.month} ${d.day}`}
+                      testID={`booking-day-${d.dateStr}`}
+                      style={[
+                        styles.dayChip,
+                        {
+                          borderColor: selected ? colors.primary : colors.border,
+                          backgroundColor: selected ? colors.primary : colors.card,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.dayWeekday, { color: selected ? '#fff' : colors.mutedForeground }]}>
+                        {d.weekday}
+                      </Text>
+                      <Text style={[styles.dayNum, { color: selected ? '#fff' : colors.foreground }]}>{d.day}</Text>
+                      <Text style={[styles.dayMonth, { color: selected ? '#fff' : colors.mutedForeground }]}>
+                        {d.month}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              {timezone && (
+                <View style={styles.timezoneRow} testID="booking-timezone-label">
+                  <Feather name="globe" size={13} color={colors.mutedForeground} />
+                  <Text style={[styles.timezoneText, { color: colors.mutedForeground }]}>
+                    Times shown in {timezone.replace(/_/g, ' ')}
+                  </Text>
+                </View>
+              )}
             </View>
-            <Field label="Notes (optional)" value={notes} onChange={setNotes} placeholder="Any care requirements..." colors={colors} multiline />
 
-            <View style={[styles.summaryBox, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}>
-              <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>{service.title}</Text>
-                <Text style={[styles.summaryValue, { color: colors.foreground }]}>${(service.priceCents / 100).toFixed(2)}</Text>
+            {/* Slot grid — real server-provided slots only */}
+            <View>
+              <Text style={[styles.fieldLabel, { color: colors.foreground, paddingHorizontal: 20 }]}>Available times *</Text>
+              {loadingSlots ? (
+                <View style={styles.slotsLoading} testID="booking-slots-loading">
+                  <ActivityIndicator color={colors.primary} />
+                </View>
+              ) : slots.length === 0 ? (
+                <Text style={[styles.noSlots, { color: colors.mutedForeground }]} testID="booking-no-slots">
+                  No available times on this date. Try another day.
+                </Text>
+              ) : (
+                <View style={styles.slotGrid} testID="booking-slot-grid">
+                  {slots.map((slot) => {
+                    const disabled = !slot.available;
+                    const selected = selectedSlot === slot.start;
+                    return (
+                      <TouchableOpacity
+                        key={slot.start}
+                        onPress={() => setSelectedSlot(slot.start)}
+                        disabled={disabled}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected, disabled }}
+                        accessibilityLabel={`${slotLabel(slot.start)}${slot.available ? '' : ' — unavailable'}`}
+                        testID={`booking-slot-${slot.start}`}
+                        style={[
+                          styles.slotChip,
+                          {
+                            borderColor: selected ? colors.primary : colors.border,
+                            backgroundColor: selected ? colors.primary : disabled ? colors.secondary : colors.card,
+                            opacity: disabled ? 0.55 : 1,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.slotText,
+                            {
+                              color: selected ? '#fff' : disabled ? colors.mutedForeground : colors.foreground,
+                              textDecorationLine: disabled ? 'line-through' : 'none',
+                            },
+                          ]}
+                        >
+                          {slotLabel(slot.start)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            <View style={{ paddingHorizontal: 20, gap: 16 }}>
+              <Field label="Street address *" value={address} onChange={setAddress} placeholder="123 Main St" colors={colors} />
+              <View style={styles.row}>
+                <View style={{ flex: 1 }}>
+                  <Field label="City *" value={city} onChange={setCity} placeholder="Toronto" colors={colors} />
+                </View>
+                <View style={{ width: 100 }}>
+                  <Field label="Postal code" value={postalCode} onChange={setPostalCode} placeholder="M5V 2T6" colors={colors} />
+                </View>
               </View>
-              <Text style={[styles.summaryDuration, { color: colors.mutedForeground }]}>
-                {service.durationMinutes} minutes · at your home
-              </Text>
+              <Field label="Notes (optional)" value={notes} onChange={setNotes} placeholder="Any care requirements..." colors={colors} multiline />
+
+              <View style={[styles.summaryBox, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}>
+                <View style={styles.summaryRow}>
+                  <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>{service.title}</Text>
+                  <Text style={[styles.summaryValue, { color: colors.foreground }]}>${(service.priceCents / 100).toFixed(2)}</Text>
+                </View>
+                <Text style={[styles.summaryDuration, { color: colors.mutedForeground }]}>
+                  {service.durationMinutes} minutes · at your home
+                </Text>
+              </View>
             </View>
           </ScrollView>
 
           <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 12, borderTopColor: colors.border }]}>
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={createBooking.isPending}
-              style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: createBooking.isPending ? 0.6 : 1 }]}
+              disabled={createBooking.isPending || !selectedSlot}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: createBooking.isPending || !selectedSlot }}
+              accessibilityLabel="Request appointment"
+              testID="booking-submit-button"
+              style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: createBooking.isPending || !selectedSlot ? 0.55 : 1 }]}
               activeOpacity={0.8}
             >
               {createBooking.isPending
@@ -510,6 +684,37 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 6 },
   fieldInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, fontFamily: 'Inter_400Regular' },
   row: { flexDirection: 'row', gap: 10 },
+  dayStrip: { paddingHorizontal: 20, gap: 8 },
+  dayChip: {
+    minWidth: 58,
+    minHeight: 64,
+    borderWidth: 1.5,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+  },
+  dayWeekday: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  dayNum: { fontSize: 17, fontFamily: 'Inter_700Bold', marginVertical: 1 },
+  dayMonth: { fontSize: 10, fontFamily: 'Inter_400Regular' },
+  timezoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 20, marginTop: 10 },
+  timezoneText: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  slotsLoading: { paddingVertical: 26, alignItems: 'center' },
+  noSlots: { fontSize: 13, fontFamily: 'Inter_400Regular', paddingHorizontal: 20, paddingVertical: 12 },
+  slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 20 },
+  slotChip: {
+    minWidth: '30%',
+    flexGrow: 1,
+    minHeight: 46,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  slotText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
   summaryBox: { borderWidth: 1, borderRadius: 14, padding: 14 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   summaryLabel: { fontSize: 13, fontFamily: 'Inter_400Regular' },
