@@ -1,0 +1,30 @@
+[
+  {
+    "content": "Verify authoritative baseline origin/main read-only",
+    "status": "completed"
+  },
+  {
+    "content": "Recovery search: /app/memory, snapshots, repo objects, conflict metadata",
+    "status": "completed"
+  },
+  {
+    "content": "Classify recovery result: NO RECOVERY (reference/handoff only)",
+    "status": "completed"
+  },
+  {
+    "content": "Rebuild approved slice from origin/main (7 files)",
+    "status": "completed"
+  },
+  {
+    "content": "Focused validation: tests 8/8, readiness 14/14, typecheck, web build, browser, diff, secret scan",
+    "status": "completed"
+  },
+  {
+    "content": "Create exactly one local commit 43f1847 (no push)",
+    "status": "completed"
+  },
+  {
+    "content": "Final handoff report",
+    "status": "completed"
+  }
+]
