@@ -1,22 +1,22 @@
 [
   {
-    "content": "Verify baseline origin/main 24c6a5a, clean tree, create branch",
-    "status": "completed"
+    "content": "Verify post-merge origin/main, Book Again merge status, clean tree",
+    "status": "in_progress"
   },
   {
-    "content": "Inspect booking-detail.tsx, bookings.tsx, BookingModal fully",
-    "status": "completed"
+    "content": "Audit rescheduling behavior: state machine, authorization, slot/overlap gaps",
+    "status": "pending"
   },
   {
-    "content": "Implement Book Again (booking-detail + bookings + retention test + script)",
-    "status": "completed"
+    "content": "Implement minimal rescheduling safeguards + focused tests",
+    "status": "pending"
   },
   {
-    "content": "Validate: retention 8/8, reviews 7/7, lifecycle 14/14, typecheck, build, browser, testing_agent 19/19",
-    "status": "completed"
+    "content": "Validate: rescheduling suite, regressions, typecheck, build, testing_agent",
+    "status": "pending"
   },
   {
-    "content": "Pre-commit checks, one commit 5fcddbc, push, verify remote SHA",
-    "status": "completed"
+    "content": "One commit on feat/rescheduling-enforcement, push, verify remote SHA",
+    "status": "pending"
   }
 ]
