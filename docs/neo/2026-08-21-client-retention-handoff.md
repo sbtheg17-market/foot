@@ -417,3 +417,64 @@ changes.
 - PR: not created automatically; branch pushed and stopped for review.
 - Next recommended slice: provider-facing reschedule flow, or the
   booking-detail timezone display fix (marketplace-timezone rendering).
+
+## 2026-08-22 — New-session baseline verification; mobile slice confirmed pushed (Path A)
+
+### Previous session status
+
+- The prior session implemented and pushed the mobile Expo reschedule flow
+  and ended without creating a PR. Its closure summary survives in the
+  history of the environment snapshot branch `conflict_220826_1342`
+  (commit `c115259`, followed by auto-generated snapshot commits).
+
+### Baseline verified this session
+
+- Repository: `sbtheg17-market/foot` (SSH auth verified as `sbtheg17-market`).
+- Authoritative `origin/main`:
+  `e2066aac2f6b4de67b8f15fa3cad9a6d36f8f3b1`
+  ("Feat/client reschedule UI (#27)").
+- Merged milestones confirmed present on main:
+  PR #25 (`5f22526` book-again), PR #26 (`efade0e` rescheduling
+  enforcement), PR #27 (`e2066aa` client web rescheduling).
+- Mobile branch: `feat/mobile-reschedule` @
+  `8cfcefd4e719c487bc8f8d9c8598ec91227f7efb` — exactly one product commit
+  (`feat: add mobile reschedule flow`) whose merge-base with main equals
+  main itself (clean stack, no drift). Changed files:
+  `artifacts/mobile/app/booking/[id].tsx`,
+  `artifacts/mobile/components/reschedule-modal.tsx`,
+  and this continuity document (3 files, +631).
+- Highest PR ref on the remote is #27; no PR exists yet for
+  `feat/mobile-reschedule`.
+
+### Conflict branches
+
+- New snapshot `conflict_220826_1342` @
+  `16422ba0c505d6b008e89f2345ff050fe89563d4` — inspected read-only;
+  it is an environment snapshot (578 files changed vs main, including
+  workspace artifacts such as `test_reports/` and `test_result.md`),
+  not a feature branch. Preserved and untouched; non-authoritative.
+- Prior snapshot `conflict_210826_2128` @
+  `f82a81cf35e131834aad705b64e13681a6c8d6c1` — preserved and untouched,
+  as are all earlier `conflict_*` branches.
+
+### Validation
+
+- No product code changed this session; the prior session's validation
+  evidence is REUSED as recorded in the section above (mobile typecheck,
+  Expo web export, in-browser flow verification against the real local
+  API, server rescheduling regression 12/12, workspace typecheck,
+  web build).
+- Re-run this session on the pushed branch: `git diff --check` clean;
+  secret scan of the full branch diff clean (no credentials, database
+  URIs, or production configuration).
+- Working tree clean; no staged or untracked files.
+
+### Session output
+
+- Duplicate feature work avoided; no product code written.
+- This dated section is the only change; committed as
+  `docs: record mobile reschedule continuity` on
+  `feat/mobile-reschedule` (appended commit; no amend, no force-push).
+- Next recommended slice: open and review the
+  `main...feat/mobile-reschedule` PR; after merge, provider-facing
+  reschedule flow or the booking-detail marketplace-timezone display fix.
