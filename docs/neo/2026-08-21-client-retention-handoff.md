@@ -777,3 +777,74 @@ changes.
 - PR not merged by Neo (operator retains merge); branch pushed for review.
 - Next recommended slice: mobile parity for provider reschedule visibility,
   or reminders/notifications review (operator's choice).
+
+## 2026-08-22 — Mobile provider rescheduling parity (this session)
+
+### Baseline
+
+- Verified authoritative `origin/main`:
+  `8cb08d5db76cd287e828dcaa1c0d6a45573e33ce` (`feat: provider
+  rescheduling in the web portal (#34)`).
+- Provider web rescheduling is merged in PR #34 at that exact main SHA;
+  the web implementation was inspected and left unchanged.
+- `docs/duplicate-pr-reconciliation` at `fff2def9fb8951fec5d3a41badcf629f13eaf3c9`
+  remains docs-only, pending operator review, and untouched.
+- `feat/mobile-provider-reschedule` was created from the verified main SHA.
+  All `conflict_*` branches remain preserved and untouched.
+
+### Implementation
+
+Changed files:
+
+- `artifacts/mobile/app/(tabs)/bookings.tsx` — provider-role booking tabs
+  (`Requests`, `Reschedules`, `Upcoming`, `Past`, `Cancelled`), proposed-time
+  cards, marketplace-timezone labels, loading/empty/error behavior, and
+  confirm/decline controls for client-proposed reschedules. Provider access
+  remains scoped by the existing role-aware `useListBookings` contract.
+- `artifacts/mobile/app/booking/[id].tsx` — provider-aware booking detail with
+  client context, provider confirmation/decline actions, and provider
+  “Propose a new time” action using the existing shared real-slot modal and
+  `confirmed → rescheduled` contract. Client detail behavior remains intact.
+- This continuity document.
+
+No API, schema, migration, generated client, web, deployment, database,
+analytics, payments, ledger, notification contract, or conflict-branch changes
+were made. The existing mobile `RescheduleModal` was reused; no duplicate
+slot-selection component or new endpoint was introduced.
+
+### Client visibility audit
+
+- Existing client booking list/detail status rendering already includes
+  `rescheduled` and marketplace-timezone appointment display.
+- Existing client status feedback already announces provider-initiated
+  reschedules after refresh, and the server's existing notification path remains
+  unchanged.
+- No client-side expansion was required.
+
+### Validation
+
+- Mobile typecheck: PASS.
+- Expo iOS/Android static build: PASS.
+- Expo web export: PASS.
+- Workspace library typecheck: PASS.
+- `git diff --check`: PASS.
+- No mobile unit-test framework exists in the repository.
+- Runtime booking validation was unavailable: the API workflow starts and
+  builds, but no database-backed authenticated booking fixture was available;
+  the preview showed the app shell and no bundle crash. No managed database was
+  accessed.
+- The unrelated mockup-sandbox workflow remains failed from its pre-existing
+  missing-dependency startup attempt; it is outside this mobile slice.
+
+### Session output
+
+- Branch: `feat/mobile-provider-reschedule`, based only on verified
+  `origin/main`.
+- Commit and push performed once after final scope review; exact SHAs are
+  recorded below after the commit.
+- PR: not created.
+- Merge: not authorized and not performed.
+- Known limitation: native `Alert` feedback cannot be observed in React Native
+  Web; the shipped Expo native path uses the existing alert convention.
+- Next recommended slice: operator review of this pushed mobile branch before
+  authorizing PR creation or merge.

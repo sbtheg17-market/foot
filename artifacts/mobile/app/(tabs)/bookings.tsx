@@ -24,11 +24,20 @@ import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/auth';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
 
-type Tab = 'upcoming' | 'past' | 'cancelled';
+type ClientTab = 'upcoming' | 'past' | 'cancelled';
+type ProviderTab = 'requested' | 'rescheduled' | 'confirmed' | 'completed' | 'cancelled';
 
-const TAB_STATUSES: Record<Tab, string[]> = {
+const CLIENT_TAB_STATUSES: Record<ClientTab, string[]> = {
   upcoming: ['requested', 'confirmed', 'rescheduled'],
   past: ['completed', 'no_show'],
+  cancelled: ['cancelled'],
+};
+
+const PROVIDER_TAB_STATUSES: Record<ProviderTab, string[]> = {
+  requested: ['requested'],
+  rescheduled: ['rescheduled'],
+  confirmed: ['confirmed'],
+  completed: ['completed', 'no_show'],
   cancelled: ['cancelled'],
 };
 
@@ -45,12 +54,16 @@ export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('upcoming');
+  const [activeTab, setActiveTab] = useState<ClientTab | ProviderTab>('upcoming');
+
+  useEffect(() => {
+    setActiveTab(user?.role === 'provider' ? 'requested' : 'upcoming');
+  }, [user?.role]);
 
   const { data, isLoading, refetch } = useListBookings(undefined, {
     query: {
       queryKey: ['bookings'],
-      enabled: user?.role === 'client',
+      enabled: user?.role === 'client' || user?.role === 'provider',
       refetchOnMount: 'always',
       refetchOnReconnect: true,
     },
@@ -92,7 +105,7 @@ export default function BookingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (user?.role !== 'client') return;
+      if (user?.role !== 'client' && user?.role !== 'provider') return;
       void refetch();
       if (activeTab === 'past') void refetchHistory();
     }, [activeTab, refetch, refetchHistory, user?.role]),
@@ -100,7 +113,7 @@ export default function BookingsScreen() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active' && user?.role === 'client') {
+      if (nextState === 'active' && (user?.role === 'client' || user?.role === 'provider')) {
         void refetch();
         if (activeTab === 'past') void refetchHistory();
       }
@@ -127,15 +140,15 @@ export default function BookingsScreen() {
     );
   }
 
-  if (user.role !== 'client') {
+  if (user.role !== 'client' && user.role !== 'provider') {
     return (
       <View style={[styles.center, { backgroundColor: colors.background, paddingHorizontal: 24 }]}>
         <Feather name="briefcase" size={40} color={colors.mutedForeground} />
         <Text style={[styles.guestTitle, { color: colors.foreground }]}>
-          This is a client space
+          This is not an available booking space
         </Text>
         <Text style={[styles.guestSub, { color: colors.mutedForeground }]}>
-          You’re signed in as a {user.role}. Switch to a client account to request and manage visits.
+          You’re signed in as an {user.role} account. Switch to a client or provider account to manage visits.
         </Text>
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/account')}
@@ -148,11 +161,15 @@ export default function BookingsScreen() {
   }
 
   const allBookings = data?.bookings ?? [];
-  const filtered = allBookings.filter(b => TAB_STATUSES[activeTab].includes(b.status));
+  const isProvider = user.role === 'provider';
+  const tabStatuses = isProvider
+    ? PROVIDER_TAB_STATUSES[activeTab as ProviderTab] ?? PROVIDER_TAB_STATUSES.requested
+    : CLIENT_TAB_STATUSES[activeTab as ClientTab] ?? CLIENT_TAB_STATUSES.upcoming;
+  const filtered = allBookings.filter(b => tabStatuses.includes(b.status));
   const history = historyData?.history ?? [];
   const visibleItems: Array<Booking | ClientCareHistoryEntry> =
-    activeTab === 'past' ? history : filtered;
-  const isActiveTabLoading = activeTab === 'past' ? isHistoryLoading : isLoading;
+    !isProvider && activeTab === 'past' ? history : filtered;
+  const isActiveTabLoading = !isProvider && activeTab === 'past' ? isHistoryLoading : isLoading;
 
   const handleCancel = (id: number) => {
     if (pendingId !== null) return; // guard against tap while another request is in flight
@@ -200,19 +217,68 @@ export default function BookingsScreen() {
     ]);
   };
 
+  const handleProviderStatusChange = (
+    id: number,
+    status: 'confirmed' | 'cancelled',
+    cancellationReason?: string,
+  ) => {
+    if (pendingId !== null) return;
+    setPendingId(id);
+    updateStatus.mutate(
+      {
+        bookingId: id,
+        data: {
+          status,
+          ...(cancellationReason ? { cancellationReason } : {}),
+        },
+      },
+      {
+        onSuccess: () => {
+          Alert.alert(
+            status === 'confirmed' ? 'New time confirmed' : 'Reschedule declined',
+            status === 'confirmed'
+              ? 'The client has been notified.'
+              : 'The booking was cancelled and the client has been notified.',
+          );
+          void refetch();
+          setPendingId(null);
+        },
+        onError: (err) => {
+          Alert.alert(
+            (err as { status?: number }).status === 409
+              ? 'Booking already updated'
+              : 'Could not update booking',
+            'This booking changed before your action completed. Refreshing.',
+          );
+          void refetch();
+          setPendingId(null);
+        },
+      },
+    );
+  };
+
   const topPad = insets.top + (Platform.OS === 'web' ? 67 : 0);
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'upcoming', label: 'Upcoming' },
-    { id: 'past', label: 'Past' },
-    { id: 'cancelled', label: 'Cancelled' },
-  ];
-  const upcomingCount = allBookings.filter(b => TAB_STATUSES.upcoming.includes(b.status)).length;
+  const tabs: Array<{ id: ClientTab | ProviderTab; label: string }> = isProvider
+    ? [
+        { id: 'requested', label: 'Requests' },
+        { id: 'rescheduled', label: 'Reschedules' },
+        { id: 'confirmed', label: 'Upcoming' },
+        { id: 'completed', label: 'Past' },
+        { id: 'cancelled', label: 'Cancelled' },
+      ]
+    : [
+        { id: 'upcoming', label: 'Upcoming' },
+        { id: 'past', label: 'Past' },
+        { id: 'cancelled', label: 'Cancelled' },
+      ];
+  const upcomingCount = allBookings.filter(b => CLIENT_TAB_STATUSES.upcoming.includes(b.status)).length;
+  const providerRescheduleCount = allBookings.filter(b => b.status === 'rescheduled').length;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 12, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.foreground }]}>My Bookings</Text>
+        <Text style={[styles.headerTitle, { color: colors.foreground }]}>{isProvider ? 'Provider bookings' : 'My Bookings'}</Text>
       </View>
 
       {/* Tabs */}
@@ -226,7 +292,8 @@ export default function BookingsScreen() {
           >
             <Text style={[styles.tabLabel, { color: activeTab === tab.id ? colors.foreground : colors.mutedForeground, fontFamily: activeTab === tab.id ? 'Inter_600SemiBold' : 'Inter_400Regular' }]}>
               {tab.label}
-              {tab.id === 'upcoming' && upcomingCount > 0 ? ` (${upcomingCount})` : ''}
+              {!isProvider && tab.id === 'upcoming' && upcomingCount > 0 ? ` (${upcomingCount})` : ''}
+              {isProvider && tab.id === 'rescheduled' && providerRescheduleCount > 0 ? ` (${providerRescheduleCount})` : ''}
             </Text>
           </TouchableOpacity>
         ))}
@@ -273,6 +340,17 @@ export default function BookingsScreen() {
             </View>
           }
           renderItem={({ item }) => {
+            if (isProvider) {
+              return (
+                <ProviderBookingCard
+                  booking={item as Booking}
+                  activeTab={activeTab as ProviderTab}
+                  timezone={marketplaceTimezone}
+                  pending={pendingId === item.id}
+                  onStatusChange={handleProviderStatusChange}
+                />
+              );
+            }
             const meta = STATUS_META[item.status] ?? STATUS_META.cancelled;
             const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(item.status);
             const date = new Date(item.scheduledAt);
@@ -374,6 +452,113 @@ export default function BookingsScreen() {
   );
 }
 
+function ProviderBookingCard({
+  booking,
+  activeTab,
+  timezone,
+  pending,
+  onStatusChange,
+}: {
+  booking: Booking;
+  activeTab: ProviderTab;
+  timezone?: string;
+  pending: boolean;
+  onStatusChange: (id: number, status: 'confirmed' | 'cancelled', reason?: string) => void;
+}) {
+  const colors = useColors();
+  const meta = STATUS_META[booking.status] ?? STATUS_META.cancelled;
+  const date = new Date(booking.scheduledAt);
+  const timeText = `${date.toLocaleDateString('en-CA', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    ...(timezone ? { timeZone: timezone } : {}),
+  })} at ${date.toLocaleTimeString('en-CA', {
+    hour: 'numeric',
+    minute: '2-digit',
+    ...(timezone ? { timeZone: timezone, timeZoneName: 'short' as const } : {}),
+  })}${timezone ? '' : ' (device time)'}`;
+  const clientName = booking.clientFirstName
+    ? `${booking.clientFirstName} ${booking.clientLastName ?? ''}`.trim()
+    : `Client #${booking.clientId}`;
+
+  return (
+    <View style={[styles.bookingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.bookingTop}>
+        <View style={[styles.statusBadge, { backgroundColor: meta.bg }]}>
+          <Text style={[styles.statusText, { color: meta.text }]}>{meta.label}</Text>
+        </View>
+        {activeTab === 'rescheduled' && (
+          <Feather name="bell" size={16} color={colors.primary} />
+        )}
+      </View>
+      <View style={styles.bookingRow}>
+        <Feather name="calendar" size={14} color={colors.primary} />
+        <Text
+          style={[styles.bookingDetail, { color: colors.foreground }]}
+          testID={`provider-booking-${booking.id}-time`}
+          accessibilityLabel={`${timeText}${timezone ? `, shown in the ${timezone.replace(/_/g, ' ')} timezone` : ''}`}
+        >
+          {timeText}
+        </Text>
+      </View>
+      <View style={styles.bookingRow}>
+        <Feather name="user" size={14} color={colors.primary} />
+        <Text style={[styles.bookingDetail, { color: colors.foreground }]} numberOfLines={1}>
+          {clientName}
+        </Text>
+      </View>
+      {booking.clientPhone && (
+        <View style={styles.bookingRow}>
+          <Feather name="phone" size={14} color={colors.mutedForeground} />
+          <Text style={[styles.bookingDetail, { color: colors.mutedForeground }]}>{booking.clientPhone}</Text>
+        </View>
+      )}
+      <View style={styles.bookingRow}>
+        <Feather name="map-pin" size={14} color={colors.primary} />
+        <Text style={[styles.bookingDetail, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {booking.address}, {booking.city}
+        </Text>
+      </View>
+
+      {activeTab === 'rescheduled' && (
+        <View style={styles.providerActions}>
+          <TouchableOpacity
+            onPress={() => onStatusChange(booking.id, 'confirmed')}
+            disabled={pending}
+            accessibilityRole="button"
+            accessibilityLabel="Confirm new time"
+            testID={`provider-booking-${booking.id}-confirm-reschedule`}
+            style={[styles.providerConfirmButton, { backgroundColor: colors.primary, opacity: pending ? 0.5 : 1 }]}
+          >
+            {pending ? <ActivityIndicator color="#fff" /> : <Text style={styles.providerConfirmText}>Confirm new time</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => onStatusChange(booking.id, 'cancelled', 'Reschedule declined by provider')}
+            disabled={pending}
+            accessibilityRole="button"
+            accessibilityLabel="Decline reschedule"
+            testID={`provider-booking-${booking.id}-decline-reschedule`}
+            style={[styles.providerDeclineButton, { borderColor: colors.border, opacity: pending ? 0.5 : 1 }]}
+          >
+            <Text style={[styles.providerDeclineText, { color: colors.foreground }]}>Decline</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      <TouchableOpacity
+        onPress={() => router.push(`/booking/${booking.id}`)}
+        style={[styles.detailsLink, { borderTopColor: colors.border }]}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`View booking details for ${clientName}`}
+      >
+        <Text style={[styles.detailsLinkText, { color: colors.primary }]}>View booking details</Text>
+        <Feather name="chevron-right" size={16} color={colors.primary} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
@@ -432,4 +617,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   detailsLinkText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  providerActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  providerConfirmButton: { flex: 1, minHeight: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  providerConfirmText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  providerDeclineButton: { minHeight: 46, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  providerDeclineText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
 });

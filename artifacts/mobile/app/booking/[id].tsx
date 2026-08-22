@@ -27,6 +27,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
+import { useAuth } from '@/context/auth';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
 import RescheduleModal from '@/components/reschedule-modal';
 
@@ -68,6 +69,7 @@ export default function BookingDetailScreen() {
   const bookingId = Number(id);
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const { user } = useAuth();
   const { data, isLoading, error, refetch } = useGetBooking(bookingId, {
     query: {
       enabled: Number.isFinite(bookingId) && bookingId > 0,
@@ -152,8 +154,9 @@ export default function BookingDetailScreen() {
   const scheduled = formatDate(booking.scheduledAt, marketplaceTimezone);
   const provider = providerData?.provider;
   const service = servicesData?.services.find((item) => item.id === booking.serviceId);
-  const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
-  const isReviewEligible = booking.status === 'completed';
+  const isProvider = user?.role === 'provider';
+  const canCancel = !isProvider && ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
+  const isReviewEligible = !isProvider && booking.status === 'completed';
   // Reschedule: the server's state machine lets a client reschedule only a
   // CONFIRMED booking. The action needs the active service (for real slots),
   // so it stays hidden until the service is known — and the server remains
@@ -161,6 +164,7 @@ export default function BookingDetailScreen() {
   const isRescheduleEligible = booking.status === 'confirmed';
   const canReschedule = isRescheduleEligible && !!service;
   const rescheduleServiceGone = isRescheduleEligible && !!servicesData && !service;
+  const canConfirmReschedule = isProvider && booking.status === 'rescheduled';
 
   const handleReviewSubmit = () => {
     const trimmedComment = reviewComment.trim();
@@ -341,6 +345,23 @@ export default function BookingDetailScreen() {
             )}
           </View>
 
+          {isProvider && (
+            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.providerHeader}>
+                <Feather name="users" size={20} color={colors.primary} />
+                <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your client</Text>
+              </View>
+              <Text style={[styles.providerName, { color: colors.foreground }]}>
+                {booking.clientFirstName
+                  ? `${booking.clientFirstName} ${booking.clientLastName ?? ''}`.trim()
+                  : `Client #${booking.clientId}`}
+              </Text>
+              {booking.clientPhone && (
+                <Text style={[styles.providerCity, { color: colors.mutedForeground }]}>{booking.clientPhone}</Text>
+              )}
+            </View>
+          )}
+
           {(booking.clientNotes || booking.cancellationReason) && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.providerHeader}>
@@ -446,24 +467,89 @@ export default function BookingDetailScreen() {
             </View>
           )}
 
-          <TouchableOpacity
-            onPress={() => router.push(`/provider/${booking.providerId}`)}
-            style={[styles.profileButton, { borderColor: colors.border, backgroundColor: colors.card }]}
-          >
-            <Text style={[styles.profileButtonText, { color: colors.primary }]}>View provider profile</Text>
-            <Feather name="chevron-right" size={18} color={colors.primary} />
-          </TouchableOpacity>
+          {!isProvider && (
+            <TouchableOpacity
+              onPress={() => router.push(`/provider/${booking.providerId}`)}
+              style={[styles.profileButton, { borderColor: colors.border, backgroundColor: colors.card }]}
+            >
+              <Text style={[styles.profileButtonText, { color: colors.primary }]}>View provider profile</Text>
+              <Feather name="chevron-right" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          )}
           {canReschedule && (
             <TouchableOpacity
               onPress={() => setShowReschedule(true)}
               accessibilityRole="button"
-              accessibilityLabel={`Reschedule your ${service!.title} appointment`}
+              accessibilityLabel={`${isProvider ? 'Propose a new time for' : 'Reschedule your'} ${service!.title} appointment`}
               testID="reschedule-button"
               style={[styles.rescheduleButton, { backgroundColor: colors.primary }]}
             >
               <Feather name="calendar" size={17} color="#fff" />
-              <Text style={styles.rescheduleButtonText}>Reschedule appointment</Text>
+              <Text style={styles.rescheduleButtonText}>{isProvider ? 'Propose a new time' : 'Reschedule appointment'}</Text>
             </TouchableOpacity>
+          )}
+          {canConfirmReschedule && (
+            <View style={styles.providerDetailActions}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (updateStatus.isPending) return;
+                  updateStatus.mutate(
+                    { bookingId: booking.id, data: { status: 'confirmed' } },
+                    {
+                      onSuccess: () => {
+                        Alert.alert('New time confirmed', 'The client has been notified.');
+                        void refetch();
+                      },
+                      onError: () => {
+                        Alert.alert('Booking already updated', 'Refreshing to show the current booking.');
+                        void refetch();
+                      },
+                    },
+                  );
+                }}
+                disabled={updateStatus.isPending}
+                accessibilityRole="button"
+                accessibilityLabel="Confirm new time"
+                testID="provider-confirm-reschedule"
+                style={[styles.rescheduleButton, { backgroundColor: colors.primary, opacity: updateStatus.isPending ? 0.5 : 1 }]}
+              >
+                {updateStatus.isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.rescheduleButtonText}>Confirm new time</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  if (updateStatus.isPending) return;
+                  Alert.alert('Decline reschedule?', 'This will cancel the booking and notify the client.', [
+                    { text: 'Keep', style: 'cancel' },
+                    {
+                      text: 'Decline',
+                      style: 'destructive',
+                      onPress: () => {
+                        updateStatus.mutate(
+                          { bookingId: booking.id, data: { status: 'cancelled', cancellationReason: 'Reschedule declined by provider' } },
+                          {
+                            onSuccess: () => {
+                              Alert.alert('Reschedule declined', 'The client has been notified.');
+                              void refetch();
+                            },
+                            onError: () => {
+                              Alert.alert('Booking already updated', 'Refreshing to show the current booking.');
+                              void refetch();
+                            },
+                          },
+                        );
+                      },
+                    },
+                  ]);
+                }}
+                disabled={updateStatus.isPending}
+                accessibilityRole="button"
+                accessibilityLabel="Decline reschedule"
+                testID="provider-decline-reschedule"
+                style={[styles.cancelButton, { borderColor: colors.destructive ?? '#B42318', opacity: updateStatus.isPending ? 0.5 : 1 }]}
+              >
+                <Text style={[styles.cancelButtonText, { color: colors.destructive ?? '#B42318' }]}>Decline reschedule</Text>
+              </TouchableOpacity>
+            </View>
           )}
           {rescheduleServiceGone && (
             <Text
@@ -495,14 +581,18 @@ export default function BookingDetailScreen() {
         <RescheduleModal
           bookingId={booking.id}
           providerId={booking.providerId}
-          providerName={provider ? `${provider.firstName} ${provider.lastName}` : 'Your provider'}
+          providerName={
+            isProvider
+              ? (booking.clientFirstName ? `${booking.clientFirstName} ${booking.clientLastName ?? ''}`.trim() : `Client #${booking.clientId}`)
+              : (provider ? `${provider.firstName} ${provider.lastName}` : 'Your provider')
+          }
           service={service}
           currentScheduledAt={booking.scheduledAt}
           colors={colors}
           insets={insets}
           onClose={() => setShowReschedule(false)}
           onSuccess={() => {
-            statusFeedback.suppressNextStatusChange(booking.id, 'rescheduled');
+            if (!isProvider) statusFeedback.suppressNextStatusChange(booking.id, 'rescheduled');
             setShowReschedule(false);
             void refetch();
           }}
@@ -571,6 +661,7 @@ const styles = StyleSheet.create({
   profileButtonText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   rescheduleButton: { minHeight: 48, borderRadius: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   rescheduleButtonText: { color: '#fff', fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  providerDetailActions: { gap: 8 },
   cancelButton: { borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, alignItems: 'center' },
   cancelButtonText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   starRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
