@@ -214,3 +214,58 @@ Changed files:
   handoff (single commit: modal, booking-detail integration, this record).
 - PR: not created automatically; branch pushed and stopped for review.
 - Merge prerequisites: `feat/rescheduling-enforcement` must merge first.
+
+## 2026-08-22 — PR preparation record (no product changes)
+
+### Verified state
+
+- Repository: `sbtheg17-market/foot` (public), remote
+  `git@github.com:sbtheg17-market/foot.git`.
+- `origin/main`: `5f22526280ed8c31cf3d5f13f9d30d51a40177a7` — unchanged.
+- `feat/rescheduling-enforcement`: `f8f6ba64447a79626fd0be0eba0cf956ee2066c2`
+  — pushed; `origin/main` is its ancestor; NOT merged; NO PR exists
+  (verified via the GitHub PR list; the newest PR is #25, merged).
+- `feat/client-reschedule-ui`: `bf99bd2281e0b8081184d9030c4f107182d0c6a5`
+  — pushed; STACKED (enforcement tip is its ancestor); NOT merged; NO PR.
+- Full stacked diff re-inspected: enforcement adds 5 files (route
+  enforcement, focused suite, one concurrency fixture, test script,
+  continuity doc); the UI increment adds exactly
+  `artifacts/web/src/components/ui/reschedule-modal.tsx`,
+  `artifacts/web/src/pages/booking-detail.tsx`, and this continuity doc.
+- `git diff --check` clean across the whole stack; targeted secret scan
+  clean (only benign identifiers and the seeded demo password used by all
+  integration suites).
+- `conflict_210826_2128` untouched at `f82a81c…`; working tree clean.
+
+### PR creation status — operator action required
+
+PR creation is NOT POSSIBLE from this environment: GitHub pull requests can
+only be created via the REST/GraphQL API or the web UI, this environment
+authenticates by SSH deploy key only (git push/pull), no `gh` CLI or GitHub
+token exists here, and accepting a token from chat is prohibited by the
+session boundaries. Both branches are pushed and ready; the operator creates
+the PRs with one click each:
+
+1. FIRST — enforcement PR (base `main`, head `feat/rescheduling-enforcement`):
+   https://github.com/sbtheg17-market/foot/compare/main...feat/rescheduling-enforcement
+   Title: `feat: enforce safe rescheduling`
+   Body: prepared in the session handoff (summary/validation/scope/known
+   limitation as specified in the PR-preparation prompt).
+2. SECOND — after the enforcement PR is MERGED: update this UI branch onto
+   the new main (merge `origin/main` into `feat/client-reschedule-ui`, or
+   rebase locally WITHOUT force-push only if the platform requires), verify
+   the PR diff shows only the three UI-slice files above, then open:
+   https://github.com/sbtheg17-market/foot/compare/main...feat/client-reschedule-ui
+   Title: `feat: add client reschedule flow` (disclose the stacked history).
+   NOTE: if the enforcement PR is squash-merged, a plain merge of updated
+   main into this branch keeps history append-only (no force-push); GitHub
+   will then show only the UI increment in the PR diff.
+
+Required merge order remains: enforcement first, client UI second. Merging
+is operator-authorized only; no merges were performed in this session.
+
+### Status flags
+
+- Managed database: never accessed. Analytics: deferred, unchanged.
+- Deployment: none; not authorized. Ledger: unchanged.
+- Conflict branches: all preserved and untouched.
