@@ -13,10 +13,18 @@ interface Service {
 interface RescheduleModalProps {
   bookingId: number;
   providerId: number;
+  /** Name shown in the header subtitle — the provider's name in the client
+   *  flow, the client's name in the provider (portal) flow. */
   providerName: string;
   service: Service;
   /** ISO datetime of the current appointment — never reusable as the new time. */
   currentScheduledAt: string;
+  /**
+   * Which side of the booking is rescheduling. Copy-only switch — the server
+   * enforces every rule identically for both roles. Defaults to 'client' so
+   * existing usage is unchanged.
+   */
+  perspective?: 'client' | 'provider';
   onClose: () => void;
   /** Called after the server accepts the new time. */
   onSuccess: () => void;
@@ -40,9 +48,11 @@ export default function RescheduleModal({
   providerName,
   service,
   currentScheduledAt,
+  perspective = 'client',
   onClose,
   onSuccess,
 }: RescheduleModalProps) {
+  const isProvider = perspective === 'provider';
   const today = useMemo(() => toDateInput(new Date()), []);
   const [date, setDate] = useState(today);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -120,7 +130,11 @@ export default function RescheduleModal({
       },
       {
         onSuccess: () => {
-          toast.success('New time requested — your provider will confirm the change.');
+          toast.success(
+            isProvider
+              ? 'New time proposed — the client has been notified.'
+              : 'New time requested — your provider will confirm the change.',
+          );
           onSuccess();
         },
         onError: (err: unknown) => {
@@ -141,7 +155,11 @@ export default function RescheduleModal({
             return;
           }
           if (serverMessage.includes('already have an active request')) {
-            toast.info('You already have a booking for that exact time. Please pick a different slot.');
+            toast.info(
+              isProvider
+                ? 'This client already has a booking for that exact time. Please pick a different slot.'
+                : 'You already have a booking for that exact time. Please pick a different slot.',
+            );
             setSelectedSlot(null);
             return;
           }
@@ -314,7 +332,7 @@ export default function RescheduleModal({
             </div>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
               <Clock className="w-3.5 h-3.5" aria-hidden="true" />
-              {service.durationMinutes} minutes · your address stays the same
+              {service.durationMinutes} minutes · {isProvider ? 'the address stays the same' : 'your address stays the same'}
             </div>
           </div>
         </form>
@@ -340,8 +358,9 @@ export default function RescheduleModal({
             )}
           </button>
           <p className="text-center text-xs text-muted-foreground mt-3">
-            Your provider will confirm the new time. Your current appointment stays
-            until they do.
+            {isProvider
+              ? 'The client will be notified of the proposed time. Confirm it from your Reschedules tab once agreed.'
+              : 'Your provider will confirm the new time. Your current appointment stays until they do.'}
           </p>
         </div>
       </div>

@@ -1,7 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { useListBookings, useUpdateBookingStatus, ListBookingsStatus } from '@workspace/api-client-react';
-import { Calendar, MapPin, Clock, FileText, Phone, X, Check } from 'lucide-react';
+import {
+  useListBookings,
+  useListProviderServices,
+  useUpdateBookingStatus,
+  ListBookingsStatus,
+} from '@workspace/api-client-react';
+import { Calendar, MapPin, Clock, FileText, Phone, X, Check, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
+import RescheduleModal from '@/components/ui/reschedule-modal';
 import { formatBookingDateTime, useMarketplaceTimezone } from '@/lib/marketplace-time';
 
 const mapsUrl = (address: string, city: string, postalCode?: string | null) =>
@@ -22,6 +28,21 @@ export default function PortalBookings() {
   // own bookings all resolve the same value — one cached request).
   const timezoneProviderId = data?.bookings?.[0]?.providerId;
   const { timezone: marketplaceTimezone, status: timezoneStatus } = useMarketplaceTimezone(timezoneProviderId);
+
+  // Own services — needed to open the reschedule modal (slot queries are
+  // per-service). Public endpoint; one cached request for the whole page.
+  const { data: servicesData } = useListProviderServices(timezoneProviderId ?? 0, {
+    query: { enabled: !!timezoneProviderId, queryKey: ['portal-services', timezoneProviderId] },
+  });
+
+  // Provider-initiated rescheduling (server-enforced: confirmed → rescheduled).
+  const [rescheduling, setRescheduling] = useState<{
+    bookingId: number;
+    providerId: number;
+    clientName: string;
+    currentScheduledAt: string;
+    service: { id: number; title: string; priceCents: number; durationMinutes: number };
+  } | null>(null);
 
   const countsByStatus = useMemo(() => {
     const counts: Partial<Record<ListBookingsStatus, number>> = {};
@@ -44,6 +65,7 @@ export default function PortalBookings() {
     id: number,
     newStatus: ListBookingsStatus,
     cancellationReason?: string,
+    successMessage?: string,
   ) => {
     if (pendingId !== null) return; // another request is already in flight
     setPendingId(id);
@@ -62,7 +84,7 @@ export default function PortalBookings() {
             cancelled: 'Booking declined',
             completed: 'Marked as completed ✓',
           };
-          toast.success(labels[newStatus] ?? `Booking marked as ${newStatus.replace('_', ' ')}`);
+          toast.success(successMessage ?? labels[newStatus] ?? `Booking marked as ${newStatus.replace('_', ' ')}`);
           refetch();
           setPendingId(null);
         },
@@ -83,9 +105,45 @@ export default function PortalBookings() {
 
   const tabs: { id: ListBookingsStatus; label: string }[] = [
     { id: 'requested', label: 'Requests' },
+    { id: 'rescheduled', label: 'Reschedules' },
     { id: 'confirmed', label: 'Upcoming' },
     { id: 'completed', label: 'Past' },
   ];
+
+  const clientNameOf = (booking: { clientFirstName?: string | null; clientLastName?: string | null; clientId: number }) =>
+    booking.clientFirstName
+      ? `${booking.clientFirstName} ${booking.clientLastName ?? ''}`.trim()
+      : `Client ID: ${booking.clientId}`;
+
+  const openReschedule = (booking: {
+    id: number;
+    providerId: number;
+    serviceId: number;
+    scheduledAt: string;
+    clientFirstName?: string | null;
+    clientLastName?: string | null;
+    clientId: number;
+  }) => {
+    const service = servicesData?.services.find((s) => s.id === booking.serviceId);
+    if (!service) {
+      // Service deactivated (or services still loading) — the server would
+      // reject the reschedule anyway; surface the same friendly explanation.
+      toast.error("This booking's service is no longer offered, so it cannot be rescheduled.");
+      return;
+    }
+    setRescheduling({
+      bookingId: booking.id,
+      providerId: booking.providerId,
+      clientName: clientNameOf(booking),
+      currentScheduledAt: booking.scheduledAt,
+      service: {
+        id: service.id,
+        title: service.title,
+        priceCents: service.priceCents,
+        durationMinutes: service.durationMinutes,
+      },
+    });
+  };
 
   return (
     <div className="p-6 pt-10 pb-32 max-w-4xl mx-auto h-full flex flex-col">
@@ -161,9 +219,7 @@ export default function PortalBookings() {
                     )}
                   </div>
                   <h3 className="font-serif font-bold text-lg text-foreground" data-testid={`booking-${booking.id}-client-name`}>
-                    {booking.clientFirstName
-                      ? `${booking.clientFirstName} ${booking.clientLastName ?? ''}`.trim()
-                      : `Client ID: ${booking.clientId}`}
+                    {clientNameOf(booking)}
                   </h3>
                   {booking.clientPhone && (
                     <a
@@ -221,6 +277,36 @@ export default function PortalBookings() {
                 </div>
               )}
 
+              {/* Reschedules — the time shown above is the PROPOSED new time.
+                  Server state machine: rescheduled → confirmed | cancelled. */}
+              {activeTab === 'rescheduled' && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleStatusChange(booking.id, 'confirmed', undefined, 'New time confirmed ✓')}
+                    disabled={pendingId === booking.id}
+                    data-testid={`booking-${booking.id}-confirm-reschedule`}
+                    className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {pendingId === booking.id
+                      ? <span className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                      : <><Check className="w-5 h-5" /> Confirm new time</>
+                    }
+                  </button>
+                  <button
+                    onClick={() => handleStatusChange(booking.id, 'cancelled', 'Reschedule declined by provider', 'Reschedule declined')}
+                    disabled={pendingId === booking.id}
+                    data-testid={`booking-${booking.id}-decline-reschedule`}
+                    aria-label="Decline reschedule and cancel booking"
+                    className="w-12 h-12 bg-secondary text-secondary-foreground rounded-xl flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {pendingId === booking.id
+                      ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      : <X className="w-5 h-5" />
+                    }
+                  </button>
+                </div>
+              )}
+
               {activeTab === 'confirmed' && (
                 <div className="flex gap-3">
                   <button
@@ -232,6 +318,14 @@ export default function PortalBookings() {
                       ? <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
                       : 'Mark Completed'
                     }
+                  </button>
+                  <button
+                    onClick={() => openReschedule(booking)}
+                    disabled={pendingId === booking.id}
+                    data-testid={`booking-${booking.id}-reschedule`}
+                    className="py-3 px-4 border-2 border-border text-foreground bg-card rounded-xl font-semibold flex items-center justify-center gap-2 hover:border-primary/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <CalendarClock className="w-5 h-5" /> Reschedule
                   </button>
                 </div>
               )}
@@ -245,6 +339,26 @@ export default function PortalBookings() {
           ))
         )}
       </div>
+
+      {/* Provider-initiated reschedule — real server slots only; the server
+          re-checks every safety rule (state, availability, overlap, duplicates). */}
+      {rescheduling && (
+        <RescheduleModal
+          perspective="provider"
+          bookingId={rescheduling.bookingId}
+          providerId={rescheduling.providerId}
+          providerName={rescheduling.clientName}
+          service={rescheduling.service}
+          currentScheduledAt={rescheduling.currentScheduledAt}
+          onClose={() => setRescheduling(null)}
+          onSuccess={() => {
+            setRescheduling(null);
+            refetch();
+            // The booking is now awaiting confirmation — show it where it lives.
+            setActiveTab('rescheduled');
+          }}
+        />
+      )}
     </div>
   );
 }
