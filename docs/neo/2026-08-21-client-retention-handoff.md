@@ -269,3 +269,32 @@ is operator-authorized only; no merges were performed in this session.
 - Managed database: never accessed. Analytics: deferred, unchanged.
 - Deployment: none; not authorized. Ledger: unchanged.
 - Conflict branches: all preserved and untouched.
+
+## 2026-08-22 — Enforcement merged; UI branch aligned for its PR
+
+- Enforcement PR #26 (`feat: enforce safe rescheduling`) was reviewed and
+  squash-merged by the operator:
+  https://github.com/sbtheg17-market/foot/pull/26
+- Verified post-merge `origin/main`:
+  `efade0e70415197ff0d5c7421dde8fb171890ca0`
+  (`feat: enforce safe rescheduling (#26)`); enforcement content confirmed
+  present on main.
+- `feat/client-reschedule-ui` updated by MERGING the new main into it
+  (merge commit `a4d8e0b56271f0c076788e435fd969dbc3700732`; append-only, no
+  force-push, feature commits unmodified). The expected add/add conflict on
+  this continuity file was resolved by keeping the branch's version — a
+  verified strict superset of main's version (0 deletions).
+- PR diff vs new main now contains EXACTLY the UI slice:
+  `artifacts/web/src/components/ui/reschedule-modal.tsx`,
+  `artifacts/web/src/pages/booking-detail.tsx`, and this continuity doc.
+- Post-merge validation: workspace typecheck pass; web build pass;
+  rescheduling regression 12/12 on local scratch PostgreSQL;
+  `git diff --check` clean vs main; secret scan previously clean and no new
+  code introduced by the merge.
+- Ready for the operator: open the UI PR (base `main`, head
+  `feat/client-reschedule-ui`) —
+  https://github.com/sbtheg17-market/foot/compare/main...feat/client-reschedule-ui
+  Title: `feat: add client reschedule flow`. Merge remains
+  operator-authorized only.
+- Boundaries held: no managed DB access, no analytics, no deployment, ledger
+  unchanged, `conflict_210826_2128` and all conflict branches untouched.
