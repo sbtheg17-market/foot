@@ -19,6 +19,7 @@ import {
   useCreateReview,
   useGetBooking,
   useGetBookingReview,
+  useGetProviderAvailability,
   useGetProviderById,
   useListProviderServices,
   useUpdateBookingStatus,
@@ -38,7 +39,12 @@ const STATUS_META: Record<string, { label: string; bg: string; text: string; des
   no_show: { label: 'No show', bg: '#FEE2E2', text: '#991B1B', description: 'The visit was marked as a no-show.' },
 };
 
-function formatDate(value: string) {
+// Formats the appointment instant in the authoritative marketplace timezone
+// when it is known (same server source as the slot engine). When the timezone
+// is unavailable the previous device-timezone rendering is preserved and the
+// caller shows an explicit caption instead of failing silently. DST is
+// handled by Intl's timezone-aware formatting — never by manual offsets.
+function formatDate(value: string, timeZone?: string) {
   const date = new Date(value);
   return {
     date: date.toLocaleDateString('en-CA', {
@@ -46,8 +52,14 @@ function formatDate(value: string) {
       month: 'long',
       day: 'numeric',
       year: 'numeric',
+      ...(timeZone ? { timeZone } : {}),
     }),
-    time: date.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' }),
+    time: date.toLocaleTimeString('en-CA', {
+      hour: 'numeric',
+      minute: '2-digit',
+      // Surface the abbreviation (e.g. "EDT"/"EST") so the zone is explicit.
+      ...(timeZone ? { timeZone, timeZoneName: 'short' as const } : {}),
+    }),
   };
 }
 
@@ -80,6 +92,15 @@ export default function BookingDetailScreen() {
   const { data: servicesData } = useListProviderServices(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider-services', booking?.providerId] },
   });
+  // Authoritative marketplace timezone — the same public endpoint and server
+  // engine (getMarketplaceTimezone) that powers slot generation, so the
+  // detail view always matches the times shown when booking or rescheduling.
+  const { data: availabilityData, isError: timezoneUnavailable } = useGetProviderAvailability(
+    booking?.providerId ?? 0,
+    {
+      query: { enabled: !!booking?.providerId, queryKey: ['booking-provider-availability', booking?.providerId] },
+    },
+  );
   const { data: reviewData } = useGetBookingReview(bookingId, {
     query: {
       enabled: booking?.status === 'completed',
@@ -127,7 +148,8 @@ export default function BookingDetailScreen() {
     text: colors.foreground,
     description: 'The booking status was updated.',
   };
-  const scheduled = formatDate(booking.scheduledAt);
+  const marketplaceTimezone = availabilityData?.timezone;
+  const scheduled = formatDate(booking.scheduledAt, marketplaceTimezone);
   const provider = providerData?.provider;
   const service = servicesData?.services.find((item) => item.id === booking.serviceId);
   const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
@@ -255,7 +277,26 @@ export default function BookingDetailScreen() {
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your visit</Text>
             <View style={styles.detailList}>
-              <DetailRow icon="calendar" label={scheduled.date} value={scheduled.time} colors={colors} />
+              <View>
+                <DetailRow icon="calendar" label={scheduled.date} value={scheduled.time} colors={colors} />
+                {marketplaceTimezone ? (
+                  <Text
+                    style={[styles.timezoneCaption, { color: colors.mutedForeground }]}
+                    testID="booking-timezone-label"
+                    accessibilityLabel={`Times shown in the ${marketplaceTimezone.replace(/_/g, ' ')} timezone`}
+                  >
+                    Times shown in {marketplaceTimezone.replace(/_/g, ' ')}
+                  </Text>
+                ) : timezoneUnavailable ? (
+                  <Text
+                    style={[styles.timezoneCaption, { color: colors.mutedForeground }]}
+                    testID="booking-timezone-fallback"
+                    accessibilityLabel="Times shown in your device’s timezone"
+                  >
+                    Shown in your device’s timezone
+                  </Text>
+                ) : null}
+              </View>
               <DetailRow
                 icon="map-pin"
                 label={booking.address}
@@ -516,6 +557,7 @@ const styles = StyleSheet.create({
   detailRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   detailLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   detailValue: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  timezoneCaption: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 4, marginLeft: 31 },
   providerHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 15 },
   providerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
