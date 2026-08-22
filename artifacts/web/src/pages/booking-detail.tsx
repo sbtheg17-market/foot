@@ -10,12 +10,13 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useRoute } from 'wouter';
-import { ArrowLeft, Calendar, CalendarPlus, Clock, FileText, MapPin, ShieldCheck, UserRound } from 'lucide-react';
+import { ArrowLeft, Calendar, CalendarClock, CalendarPlus, Clock, FileText, MapPin, ShieldCheck, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/routes';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
 import ClientReviewForm from '@/components/client-review-form';
 import BookingModal from '@/components/ui/booking-modal';
+import RescheduleModal from '@/components/ui/reschedule-modal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,6 +92,7 @@ export default function ClientBookingDetail() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [isRebookOpen, setIsRebookOpen] = useState(false);
+  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
   const updateStatus = useUpdateBookingStatus();
   const statusFeedback = useClientBookingStatusFeedback(booking ? [booking] : undefined);
   const queryClient = useQueryClient();
@@ -142,6 +144,12 @@ export default function ClientBookingDetail() {
   const isRebookEligible = booking.status === 'completed';
   const rebookLoading = providerLoading || servicesLoading;
   const originalServiceActive = !!service;
+  // Reschedule: the server's state machine allows a client to reschedule only
+  // a CONFIRMED booking (requested/rescheduled/terminal states cannot). When
+  // eligibility can't be determined here, the action stays hidden and the
+  // server remains the final authority on every submission.
+  const isRescheduleEligible = booking.status === 'confirmed';
+  const rescheduleLoading = providerLoading || servicesLoading;
 
   const requestCancel = () => {
     if (isCancelling || !canCancel) {
@@ -357,6 +365,48 @@ export default function ClientBookingDetail() {
           </section>
         )}
 
+        {isRescheduleEligible && (
+          <section
+            className="rounded-2xl border border-border bg-card p-5 shadow-sm"
+            data-testid="reschedule-section"
+            aria-labelledby="reschedule-title"
+          >
+            <div className="flex items-start gap-3">
+              <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <h2 id="reschedule-title" className="font-serif text-xl font-semibold">Need a different time?</h2>
+                {rescheduleLoading ? (
+                  <div className="mt-3 space-y-2" data-testid="reschedule-loading" aria-hidden="true">
+                    <div className="h-4 w-2/3 animate-pulse rounded bg-secondary" />
+                    <div className="h-11 w-full animate-pulse rounded-xl bg-secondary" />
+                  </div>
+                ) : service ? (
+                  <>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Pick a new date and time from {provider ? `${provider.firstName}’s` : 'your provider’s'} real
+                      availability. Your current time is held until they confirm the change.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setIsRescheduleOpen(true)}
+                      data-testid="reschedule-button"
+                      aria-label={`Reschedule your ${service.title} appointment`}
+                      className="mt-3 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      Reschedule appointment
+                    </button>
+                  </>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground" data-testid="reschedule-service-unavailable">
+                    Rescheduling isn’t available because this service is no longer offered.
+                    You can cancel below and book another service instead.
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
         <button
           onClick={() => setLocation(ROUTES.client.provider(booking.providerId))}
           className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold text-primary shadow-sm hover:bg-secondary"
@@ -384,6 +434,26 @@ export default function ClientBookingDetail() {
           service={service}
           onClose={() => setIsRebookOpen(false)}
           onSuccess={() => setIsRebookOpen(false)}
+        />
+      )}
+
+      {/* Reschedule — real server-provided slots only; the old appointment
+          datetime is never reused, and every safety rule (authorization,
+          state, availability, overlap, duplicates, service status) is
+          re-validated by the rescheduling endpoint. */}
+      {isRescheduleOpen && isRescheduleEligible && service && (
+        <RescheduleModal
+          bookingId={booking.id}
+          providerId={booking.providerId}
+          providerName={provider ? `${provider.firstName} ${provider.lastName}` : 'Your provider'}
+          service={service}
+          currentScheduledAt={booking.scheduledAt}
+          onClose={() => setIsRescheduleOpen(false)}
+          onSuccess={() => {
+            statusFeedback.suppressNextStatusChange(booking.id, 'rescheduled');
+            setIsRescheduleOpen(false);
+            void refetch();
+          }}
         />
       )}
 
