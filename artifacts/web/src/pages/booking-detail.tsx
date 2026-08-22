@@ -10,11 +10,12 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useRoute } from 'wouter';
-import { ArrowLeft, Calendar, Clock, FileText, MapPin, ShieldCheck, UserRound } from 'lucide-react';
+import { ArrowLeft, Calendar, CalendarPlus, Clock, FileText, MapPin, ShieldCheck, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/routes';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
 import ClientReviewForm from '@/components/client-review-form';
+import BookingModal from '@/components/ui/booking-modal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -89,13 +90,14 @@ export default function ClientBookingDetail() {
   const booking = data?.booking;
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+  const [isRebookOpen, setIsRebookOpen] = useState(false);
   const updateStatus = useUpdateBookingStatus();
   const statusFeedback = useClientBookingStatusFeedback(booking ? [booking] : undefined);
   const queryClient = useQueryClient();
   const { data: providerData, isLoading: providerLoading } = useGetProviderById(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider', booking?.providerId] },
   });
-  const { data: servicesData } = useListProviderServices(booking?.providerId ?? 0, {
+  const { data: servicesData, isLoading: servicesLoading } = useListProviderServices(booking?.providerId ?? 0, {
     query: { enabled: !!booking?.providerId, queryKey: ['booking-provider-services', booking?.providerId] },
   });
   const { data: reviewData } = useGetBookingReview(bookingId, {
@@ -134,6 +136,12 @@ export default function ClientBookingDetail() {
   const service = servicesData?.services.find((item) => item.id === booking.serviceId);
   const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
   const isReviewEligible = booking.status === 'completed';
+  // Book again: only for completed visits. The public services list contains
+  // ACTIVE services only, so once it has loaded, a missing original service
+  // means it is no longer offered — never silently substitute another one.
+  const isRebookEligible = booking.status === 'completed';
+  const rebookLoading = providerLoading || servicesLoading;
+  const originalServiceActive = !!service;
 
   const requestCancel = () => {
     if (isCancelling || !canCancel) {
@@ -292,6 +300,63 @@ export default function ClientBookingDetail() {
           />
         )}
 
+        {isRebookEligible && (
+          <section
+            className="rounded-2xl border border-border bg-card p-5 shadow-sm"
+            data-testid="book-again-section"
+            aria-labelledby="book-again-title"
+          >
+            <div className="flex items-start gap-3">
+              <CalendarPlus className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <h2 id="book-again-title" className="font-serif text-xl font-semibold">Book again</h2>
+                {rebookLoading ? (
+                  <div className="mt-3 space-y-2" data-testid="book-again-loading" aria-hidden="true">
+                    <div className="h-4 w-2/3 animate-pulse rounded bg-secondary" />
+                    <div className="h-11 w-full animate-pulse rounded-xl bg-secondary" />
+                  </div>
+                ) : provider && service ? (
+                  <>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Rebook {service.title} with {provider.firstName} — you’ll pick a fresh
+                      date and time from their real availability.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setIsRebookOpen(true)}
+                      data-testid="book-again-button"
+                      aria-label={`Book ${service.title} again with ${provider.firstName}`}
+                      className="mt-3 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      Book again
+                    </button>
+                  </>
+                ) : provider ? (
+                  <>
+                    <p className="mt-1 text-sm text-muted-foreground" data-testid="book-again-service-unavailable">
+                      The service from this visit is no longer offered by {provider.firstName}.
+                      You can choose another service from their listing.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setLocation(ROUTES.client.provider(booking.providerId))}
+                      data-testid="book-again-choose-service"
+                      className="mt-3 w-full rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold text-primary shadow-sm hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      Choose another service
+                    </button>
+                  </>
+                ) : (
+                  <p className="mt-1 text-sm text-muted-foreground" data-testid="book-again-provider-unavailable">
+                    This provider isn’t available for new bookings right now. You can try
+                    their profile below or discover other providers.
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
         <button
           onClick={() => setLocation(ROUTES.client.provider(booking.providerId))}
           className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold text-primary shadow-sm hover:bg-secondary"
@@ -308,6 +373,19 @@ export default function ClientBookingDetail() {
           </button>
         )}
       </div>
+
+      {/* Book again — reuses the canonical booking flow; a fresh date and a
+          fresh real slot are always required (the previous time is never
+          reused, and server duplicate/overlap protections stay in force). */}
+      {isRebookOpen && provider && service && (
+        <BookingModal
+          providerId={booking.providerId}
+          providerName={`${provider.firstName} ${provider.lastName}`}
+          service={service}
+          onClose={() => setIsRebookOpen(false)}
+          onSuccess={() => setIsRebookOpen(false)}
+        />
+      )}
 
       {/* In-app cancellation confirmation (never the native browser confirm) */}
       <AlertDialog open={isCancelConfirmOpen} onOpenChange={setIsCancelConfirmOpen}>
