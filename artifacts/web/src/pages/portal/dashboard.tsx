@@ -4,6 +4,7 @@ import { Calendar, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { Link } from 'wouter';
 import ReadinessSummaryCard from '@/components/readiness-summary-card';
 import FirstBookingCard from '@/components/first-booking-card';
+import { formatBookingDate, formatBookingTime, useMarketplaceTimezone } from '@/lib/marketplace-time';
 import { Eye } from 'lucide-react';
 
 export default function PortalDashboard() {
@@ -24,6 +25,12 @@ export default function PortalDashboard() {
   const { data: earningsRes } = useGetMyEarnings({
     query: { queryKey: ['my-earnings'] }
   });
+
+  // Authoritative marketplace timezone (global on the server; the provider's
+  // own bookings all resolve the same value — one cached request).
+  const timezoneProviderId =
+    upcomingBookingsRes?.bookings?.[0]?.providerId ?? bookingsRes?.bookings?.[0]?.providerId;
+  const { timezone: marketplaceTimezone, status: timezoneStatus } = useMarketplaceTimezone(timezoneProviderId);
 
   if (loadingProfile || loadingBookings) {
     return <div className="p-6 pt-20 flex justify-center"><div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin" /></div>;
@@ -131,18 +138,35 @@ export default function PortalDashboard() {
               <div key={booking.id} className="bg-card border border-border rounded-2xl p-4 shadow-sm flex items-center gap-4">
                 <div className="w-14 h-14 rounded-xl bg-secondary flex flex-col items-center justify-center shrink-0">
                   <span className="text-xs font-bold text-muted-foreground uppercase">
-                    {new Date(booking.scheduledAt).toLocaleString('en-US', { month: 'short' })}
+                    {timezoneStatus === 'loading'
+                      ? '—'
+                      : formatBookingDate(booking.scheduledAt, marketplaceTimezone, { month: 'short' }, 'en-US')}
                   </span>
                   <span className="text-lg font-serif font-bold text-foreground leading-none mt-0.5">
-                    {new Date(booking.scheduledAt).getDate()}
+                    {timezoneStatus === 'loading'
+                      ? '—'
+                      : formatBookingDate(booking.scheduledAt, marketplaceTimezone, { day: 'numeric' }, 'en-US')}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <Clock className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-sm font-medium text-foreground">
-                      {new Date(booking.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    {timezoneStatus === 'loading' ? (
+                      <span
+                        className="inline-block h-4 w-28 animate-pulse rounded bg-secondary"
+                        data-testid={`dashboard-booking-${booking.id}-time-loading`}
+                        aria-label="Loading appointment time"
+                      />
+                    ) : (
+                      <span className="text-sm font-medium text-foreground" data-testid={`dashboard-booking-${booking.id}-time`}>
+                        {formatBookingTime(booking.scheduledAt, marketplaceTimezone, { hour: '2-digit', minute: '2-digit' }, 'en-US')}
+                        {timezoneStatus === 'unavailable' && (
+                          <span className="text-xs text-muted-foreground" data-testid={`dashboard-booking-${booking.id}-device-time`}>
+                            {' '}(device time)
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </div>
                   <p className="font-semibold text-foreground truncate">{booking.address}</p>
                 </div>

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useListBookings, useUpdateBookingStatus, ListBookingsStatus } from '@workspace/api-client-react';
 import { Calendar, MapPin, Clock, FileText, Phone, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatBookingDateTime, useMarketplaceTimezone } from '@/lib/marketplace-time';
 
 const mapsUrl = (address: string, city: string, postalCode?: string | null) =>
   `https://maps.google.com/?q=${encodeURIComponent([address, city, postalCode].filter(Boolean).join(', '))}`;
@@ -16,6 +17,11 @@ export default function PortalBookings() {
     { limit: 100 },
     { query: { queryKey: ['bookings'] } }
   );
+
+  // Authoritative marketplace timezone (global on the server; the provider's
+  // own bookings all resolve the same value — one cached request).
+  const timezoneProviderId = data?.bookings?.[0]?.providerId;
+  const { timezone: marketplaceTimezone, status: timezoneStatus } = useMarketplaceTimezone(timezoneProviderId);
 
   const countsByStatus = useMemo(() => {
     const counts: Partial<Record<ListBookingsStatus, number>> = {};
@@ -134,10 +140,25 @@ export default function PortalBookings() {
                 <div>
                   <div className="flex items-center gap-2 text-primary font-medium text-sm mb-1">
                     <Clock className="w-4 h-4" />
-                    {new Date(booking.scheduledAt).toLocaleString('en-US', { 
-                      weekday: 'short', month: 'short', day: 'numeric', 
-                      hour: 'numeric', minute: '2-digit' 
-                    })}
+                    {timezoneStatus === 'loading' ? (
+                      <span
+                        className="inline-block h-4 w-44 animate-pulse rounded bg-secondary"
+                        data-testid={`booking-${booking.id}-time-loading`}
+                        aria-label="Loading appointment time"
+                      />
+                    ) : (
+                      <span data-testid={`booking-${booking.id}-time`}>
+                        {formatBookingDateTime(booking.scheduledAt, marketplaceTimezone, {
+                          weekday: 'short', month: 'short', day: 'numeric',
+                          hour: 'numeric', minute: '2-digit',
+                        }, 'en-US')}
+                        {timezoneStatus === 'unavailable' && (
+                          <span className="text-xs" data-testid={`booking-${booking.id}-device-time`}>
+                            {' '}(device time)
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </div>
                   <h3 className="font-serif font-bold text-lg text-foreground" data-testid={`booking-${booking.id}-client-name`}>
                     {booking.clientFirstName

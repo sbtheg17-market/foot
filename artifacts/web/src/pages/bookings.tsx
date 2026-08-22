@@ -4,6 +4,7 @@ import { Calendar, MapPin, ChevronRight, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'wouter';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
+import { formatBookingDate, formatBookingTime, useMarketplaceTimezone } from '@/lib/marketplace-time';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,6 +72,10 @@ export default function ClientBookings() {
   );
   const history = historyData?.history ?? [];
   const isActiveTabLoading = activeTab === 'past' ? isHistoryLoading : isLoading;
+  // Authoritative marketplace timezone (global on the server, so any
+  // booking's provider resolves the same value — one cached request).
+  const timezoneProviderId = data?.bookings?.[0]?.providerId ?? history[0]?.providerId;
+  const { timezone: marketplaceTimezone, status: timezoneStatus } = useMarketplaceTimezone(timezoneProviderId);
 
   const requestCancel = (id: number) => {
     if (cancellingId !== null) return; // guard against double-tap
@@ -205,7 +210,6 @@ export default function ClientBookings() {
           (activeTab === 'past' ? history : bookings).map((booking) => {
             const statusInfo = STATUS_LABELS[booking.status] ?? { label: booking.status, color: 'bg-secondary text-foreground' };
             const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
-            const scheduledDate = new Date(booking.scheduledAt);
             const historyEntry = 'provider' in booking ? booking : null;
             const providerName = historyEntry
               ? `${historyEntry.provider.firstName} ${historyEntry.provider.lastName}`
@@ -251,16 +255,29 @@ export default function ClientBookings() {
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-primary shrink-0" />
-                    <span>
-                      {scheduledDate.toLocaleDateString('en-CA', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                      {' at '}
-                      {scheduledDate.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    {timezoneStatus === 'loading' ? (
+                      <span
+                        className="inline-block h-4 w-48 animate-pulse rounded bg-secondary"
+                        data-testid={`booking-${booking.id}-time-loading`}
+                        aria-label="Loading appointment time"
+                      />
+                    ) : (
+                      <span data-testid={`booking-${booking.id}-time`}>
+                        {formatBookingDate(booking.scheduledAt, marketplaceTimezone, {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                        {' at '}
+                        {formatBookingTime(booking.scheduledAt, marketplaceTimezone)}
+                        {timezoneStatus === 'unavailable' && (
+                          <span className="text-xs" data-testid={`booking-${booking.id}-device-time`}>
+                            {' '}(device time)
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-primary shrink-0" />
