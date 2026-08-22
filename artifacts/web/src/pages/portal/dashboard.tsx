@@ -3,6 +3,7 @@ import { useGetMyProviderProfile, useListBookings, useGetMyEarnings } from '@wor
 import { Calendar, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { Link } from 'wouter';
 import ReadinessSummaryCard from '@/components/readiness-summary-card';
+import FirstBookingCard from '@/components/first-booking-card';
 import { Eye } from 'lucide-react';
 
 export default function PortalDashboard() {
@@ -43,6 +44,9 @@ export default function PortalDashboard() {
 
       {/* Activation readiness summary (server-computed; links to canonical page) */}
       <ReadinessSummaryCard />
+
+      {/* First-booking conversion: server-confirmed activation only */}
+      <FirstBookingCard />
 
       <Link href="/provider/listing-preview">
         <div

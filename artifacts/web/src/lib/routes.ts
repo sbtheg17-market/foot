@@ -50,6 +50,24 @@ export const ROUTES = {
   },
 } as const;
 
+/**
+ * Canonical public listing path for a provider: `/providers/:providerId`.
+ * This is the only public share target — no slugs or referral codes.
+ */
+export function publicListingPath(providerId: number | string): string {
+  return ROUTES.client.provider(providerId);
+}
+
+/**
+ * Absolute canonical public listing URL (SSR-safe: falls back to the
+ * path when `window` is unavailable). Never carries private data.
+ */
+export function publicListingUrl(providerId: number | string): string {
+  const path = publicListingPath(providerId);
+  if (typeof window === 'undefined') return path;
+  return `${window.location.origin}${path}`;
+}
+
 /** Legacy `/portal/*` → canonical `/provider/*` redirect map. */
 export const LEGACY_PORTAL_REDIRECTS: Array<{ from: string; to: string }> = [
   { from: '/portal', to: ROUTES.provider.dashboard },

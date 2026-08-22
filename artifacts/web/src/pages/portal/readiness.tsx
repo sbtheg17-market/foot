@@ -9,7 +9,7 @@ import React from 'react';
 import { useLocation } from 'wouter';
 import { Link } from 'wouter';
 import { AlertCircle, LogIn, ShieldCheck, PartyPopper, ListChecks, Eye } from 'lucide-react';
-import { useGetMyProviderReadiness } from '@workspace/api-client-react';
+import { useGetMyProviderReadiness, useGetMyProviderProfile } from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -22,6 +22,7 @@ import {
   EmptyContent,
 } from '@/components/ui/empty';
 import ReadinessChecklist from '@/components/readiness-checklist';
+import ShareListingActions from '@/components/share-listing-actions';
 import { ROUTES } from '@/lib/routes';
 import { httpStatusOf } from '@/hooks/use-notification-center';
 import { completedCount, unresolvedCount, TOTAL_CRITERIA } from '@/lib/readiness';
@@ -46,6 +47,7 @@ const Header = (
 export default function PortalReadiness() {
   const [, setLocation] = useLocation();
   const query = useGetMyProviderReadiness();
+  const profileQuery = useGetMyProviderProfile({ query: { queryKey: ['my-profile'] } });
   const errorStatus = httpStatusOf(query.error);
 
   // ── Loading ────────────────────────────────────────────────────────
@@ -185,11 +187,21 @@ export default function PortalReadiness() {
           <div className="mt-0.5 bg-emerald-100 p-2 rounded-full text-emerald-700 shrink-0">
             <PartyPopper className="w-5 h-5" />
           </div>
-          <div>
+          <div className="flex-1">
             <h2 className="font-serif font-bold text-lg text-emerald-900">Ready for clients</h2>
             <p className="text-sm text-emerald-800/80 mt-0.5">
               All {TOTAL_CRITERIA} requirements are complete. Clients can discover and book you.
             </p>
+            {/* Public sharing controls: only rendered on the server-confirmed
+                activated state, and only once the canonical id is known. */}
+            {typeof profileQuery.data?.provider?.id === 'number' && (
+              <div className="mt-3" data-testid="readiness-share">
+                <ShareListingActions
+                  providerId={profileQuery.data.provider.id}
+                  variant="compact"
+                />
+              </div>
+            )}
           </div>
         </div>
       ) : (
