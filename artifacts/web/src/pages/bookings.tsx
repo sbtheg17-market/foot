@@ -277,12 +277,22 @@ export default function ClientBookings() {
                     <ChevronRight className="w-4 h-4" />
                   </Link>
                    {booking.status === 'completed' && (
-                    <Link
-                      href={`/bookings/${booking.id}`}
-                      className="text-sm text-muted-foreground font-medium hover:text-primary hover:underline"
-                    >
-                      Leave a review
-                    </Link>
+                    <div className="flex items-center gap-4">
+                      <Link
+                        href={`/bookings/${booking.id}`}
+                        className="text-sm text-muted-foreground font-medium hover:text-primary hover:underline"
+                      >
+                        Leave a review
+                      </Link>
+                      <Link
+                        href={`/bookings/${booking.id}`}
+                        data-testid={`book-again-link-${booking.id}`}
+                        aria-label="Book this visit again"
+                        className="inline-flex items-center rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        Book again
+                      </Link>
+                    </div>
                   )}
                 </div>
               </div>
