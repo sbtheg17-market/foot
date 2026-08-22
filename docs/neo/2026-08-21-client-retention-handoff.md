@@ -298,3 +298,39 @@ is operator-authorized only; no merges were performed in this session.
   operator-authorized only.
 - Boundaries held: no managed DB access, no analytics, no deployment, ledger
   unchanged, `conflict_210826_2128` and all conflict branches untouched.
+
+## 2026-08-22 — Client reschedule slice CLOSED; verified baseline for the next session
+
+- UI PR #27 (`Feat/client reschedule UI`) was reviewed and squash-merged by
+  the operator: https://github.com/sbtheg17-market/foot/pull/27
+- VERIFIED POST-MERGE AUTHORITATIVE `origin/main`:
+  `e2066aac2f6b4de67b8f15fa3cad9a6d36f8f3b1`
+  (`Feat/client reschedule UI (#27)`).
+  Verified on main: `artifacts/web/src/components/ui/reschedule-modal.tsx`
+  present, booking-detail reschedule section present, and this continuity
+  document with its full dated history.
+- Slice ledger, all verified merged into main:
+  - Rescheduling enforcement — branch `feat/rescheduling-enforcement`
+    (`f8f6ba64447a79626fd0be0eba0cf956ee2066c2`), PR #26, merged as
+    `efade0e70415197ff0d5c7421dde8fb171890ca0`.
+  - Client reschedule UI — branch `feat/client-reschedule-ui`
+    (`18644c501d694717a4d0b84bf3ae1c4a20f41093`), PR #27, merged as
+    `e2066aac2f6b4de67b8f15fa3cad9a6d36f8f3b1`.
+  Both feature branches remain on the remote, unmodified, available for
+  archival or deletion at the operator's discretion (no deletion performed).
+- NEXT SESSION BASELINE: branch new work only from the verified
+  `origin/main` @ `e2066aa…` (or newer, re-verified). The stacked-branch
+  workaround is over; no stacking is needed for future slices.
+- Next recommended slice: MOBILE (EXPO) RESCHEDULING — the web client can
+  now reschedule while the mobile app (`artifacts/mobile/app/booking/[id].tsx`)
+  still offers cancel only. The server enforcement is shared, so the mobile
+  slice is UI-only: reuse the slots endpoint and `updateBookingStatus`
+  contract, mirror the web eligibility rule (CONFIRMED bookings only), never
+  reuse the old datetime, and keep the server authoritative.
+- Known limitations carried forward: booking-detail page renders times in
+  the browser/device timezone (pre-existing) while slot pickers use the
+  marketplace timezone; cross-provider client-overlap policy unchanged;
+  provider-facing reschedule UI not built.
+- Statuses: managed DB never accessed; analytics deferred, migration
+  unapplied; no deployment; ledger unchanged; `conflict_210826_2128` and all
+  conflict branches preserved and untouched.
