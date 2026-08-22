@@ -298,3 +298,122 @@ is operator-authorized only; no merges were performed in this session.
   operator-authorized only.
 - Boundaries held: no managed DB access, no analytics, no deployment, ledger
   unchanged, `conflict_210826_2128` and all conflict branches untouched.
+
+## 2026-08-22 — Client reschedule slice CLOSED; verified baseline for the next session
+
+- UI PR #27 (`Feat/client reschedule UI`) was reviewed and squash-merged by
+  the operator: https://github.com/sbtheg17-market/foot/pull/27
+- VERIFIED POST-MERGE AUTHORITATIVE `origin/main`:
+  `e2066aac2f6b4de67b8f15fa3cad9a6d36f8f3b1`
+  (`Feat/client reschedule UI (#27)`).
+  Verified on main: `artifacts/web/src/components/ui/reschedule-modal.tsx`
+  present, booking-detail reschedule section present, and this continuity
+  document with its full dated history.
+- Slice ledger, all verified merged into main:
+  - Rescheduling enforcement — branch `feat/rescheduling-enforcement`
+    (`f8f6ba64447a79626fd0be0eba0cf956ee2066c2`), PR #26, merged as
+    `efade0e70415197ff0d5c7421dde8fb171890ca0`.
+  - Client reschedule UI — branch `feat/client-reschedule-ui`
+    (`18644c501d694717a4d0b84bf3ae1c4a20f41093`), PR #27, merged as
+    `e2066aac2f6b4de67b8f15fa3cad9a6d36f8f3b1`.
+  Both feature branches remain on the remote, unmodified, available for
+  archival or deletion at the operator's discretion (no deletion performed).
+- NEXT SESSION BASELINE: branch new work only from the verified
+  `origin/main` @ `e2066aa…` (or newer, re-verified). The stacked-branch
+  workaround is over; no stacking is needed for future slices.
+- Next recommended slice: MOBILE (EXPO) RESCHEDULING — the web client can
+  now reschedule while the mobile app (`artifacts/mobile/app/booking/[id].tsx`)
+  still offers cancel only. The server enforcement is shared, so the mobile
+  slice is UI-only: reuse the slots endpoint and `updateBookingStatus`
+  contract, mirror the web eligibility rule (CONFIRMED bookings only), never
+  reuse the old datetime, and keep the server authoritative.
+- Known limitations carried forward: booking-detail page renders times in
+  the browser/device timezone (pre-existing) while slot pickers use the
+  marketplace timezone; cross-provider client-overlap policy unchanged;
+  provider-facing reschedule UI not built.
+- Statuses: managed DB never accessed; analytics deferred, migration
+  unapplied; no deployment; ledger unchanged; `conflict_210826_2128` and all
+  conflict branches preserved and untouched.
+
+## 2026-08-22 — Mobile Expo rescheduling (this session)
+
+### Baseline
+
+- Verified `origin/main`: `e2066aac2f6b4de67b8f15fa3cad9a6d36f8f3b1`
+  (PR #27 squash-merge; PRs #25/#26/#27 all confirmed merged).
+- `docs/reschedule-closure-record` (`362b009…`): pushed, PR pending, NOT
+  merged, left untouched. Its closure section is INCORPORATED into this
+  branch's copy of this file (strict superset) so the two branches merge
+  cleanly in either order without losing history.
+- Branch `feat/mobile-reschedule` created from verified `origin/main` only.
+- `conflict_210826_2128` and all conflict branches untouched.
+
+### Implementation (mobile UI only; no server changes)
+
+Changed files:
+
+- `artifacts/mobile/components/reschedule-modal.tsx` (new) — formSheet modal
+  following the app's existing modal conventions: 90-day horizontal date
+  strip, REAL slots from the existing `GET /providers/:id/slots` endpoint
+  (no free datetime entry — deliberately stricter than the legacy mobile
+  create-booking form), marketplace-timezone labels, current appointment
+  slot disabled and tagged "current" (old datetime never reusable, plus a
+  submit-time equality guard), occupied slots disabled with clear visual
+  state, submission disabled until a slot is chosen, duplicate-tap
+  protection via the pending mutation state and a re-entry guard, loading
+  and empty states, and friendly Alert-based recovery for overlap /
+  duplicate / outside-availability / inactive-service / invalid-state /
+  forbidden / generic errors (grid refresh + re-pick where recoverable;
+  no PostgreSQL internals ever shown). Accessibility: roles, states,
+  labels, ≥44pt touch targets, safe-area-aware footer.
+- `artifacts/mobile/app/booking/[id].tsx` — "Reschedule appointment"
+  primary action shown only for client CONFIRMED bookings with a known
+  active service (hidden when eligibility cannot be determined; server
+  remains the final authority); an explanatory note when the service is no
+  longer offered; on success the duplicate status toast is suppressed and
+  the booking refetches. Cancel, review, and provider actions unchanged.
+
+No web, API, schema, migration, analytics, payment, ledger, or deployment
+changes.
+
+### Validation (local scratch PostgreSQL; Expo web export for browser checks)
+
+- Mobile typecheck: pass. Expo web export (`expo export -p web`): pass.
+  The repo's `mobile build` script targets a Replit/Expo Go deployment and
+  requires a deployment domain env — unavailable here; reported honestly.
+  No mobile unit-test framework exists in the repo.
+- Browser verification of the exported mobile web bundle against the real
+  local API (static server + /api proxy):
+  confirmed booking shows Reschedule; requested (#12) and rescheduled (#17)
+  bookings hide it; real slots load with timezone label and Saturday
+  empty-state; occupied slots disabled; current slot disabled + "current"
+  tag + accessible label; submit disabled before a pick and enabled after;
+  happy path submitted a fresh real slot and the booking was verified
+  rescheduled via the API; the action is gone from rescheduled bookings.
+- Server rescheduling regression (shared contract): 12/12.
+- Workspace typecheck pass; web build pass (web untouched);
+  `git diff --check` clean; secret scan clean.
+
+### Known limitations
+
+- React Native Web's `Alert` is a no-op, so success/error alerts are
+  native-only; this affects only the verification web export, not the
+  shipped Expo app. In-browser happy-path confirmation was therefore
+  verified via API state + reload instead of the alert.
+- The date strip covers the next 90 days; appointments cannot be
+  rescheduled to a later date from mobile (web's date input is unbounded).
+- Pre-existing (not introduced here): hard deep-link reloads of the web
+  export can show "Booking unavailable" before auth hydration; native
+  in-app navigation is unaffected.
+- Detail screens render times in the device timezone (pre-existing),
+  while slot pickers use the marketplace timezone.
+
+### Session output
+
+- Branch: `feat/mobile-reschedule` (base `e2066aa…`).
+- Commit: `feat: add mobile reschedule flow` — exact SHA in the final
+  session handoff (single commit: modal, booking-detail wiring, this
+  record).
+- PR: not created automatically; branch pushed and stopped for review.
+- Next recommended slice: provider-facing reschedule flow, or the
+  booking-detail timezone display fix (marketplace-timezone rendering).

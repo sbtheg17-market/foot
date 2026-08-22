@@ -27,6 +27,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
+import RescheduleModal from '@/components/reschedule-modal';
 
 const STATUS_META: Record<string, { label: string; bg: string; text: string; description: string }> = {
   requested: { label: 'Pending', bg: '#FEF3C7', text: '#92400E', description: 'Your request is with the provider for review.' },
@@ -65,6 +66,7 @@ export default function BookingDetailScreen() {
   });
   const booking = data?.booking;
   const [isCancelling, setIsCancelling] = useState(false);
+  const [showReschedule, setShowReschedule] = useState(false);
   const updateStatus = useUpdateBookingStatus();
   const statusFeedback = useClientBookingStatusFeedback(booking ? [booking] : undefined);
   const queryClient = useQueryClient();
@@ -130,6 +132,13 @@ export default function BookingDetailScreen() {
   const service = servicesData?.services.find((item) => item.id === booking.serviceId);
   const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
   const isReviewEligible = booking.status === 'completed';
+  // Reschedule: the server's state machine lets a client reschedule only a
+  // CONFIRMED booking. The action needs the active service (for real slots),
+  // so it stays hidden until the service is known — and the server remains
+  // the final authority on every submission.
+  const isRescheduleEligible = booking.status === 'confirmed';
+  const canReschedule = isRescheduleEligible && !!service;
+  const rescheduleServiceGone = isRescheduleEligible && !!servicesData && !service;
 
   const handleReviewSubmit = () => {
     const trimmedComment = reviewComment.trim();
@@ -403,6 +412,27 @@ export default function BookingDetailScreen() {
             <Text style={[styles.profileButtonText, { color: colors.primary }]}>View provider profile</Text>
             <Feather name="chevron-right" size={18} color={colors.primary} />
           </TouchableOpacity>
+          {canReschedule && (
+            <TouchableOpacity
+              onPress={() => setShowReschedule(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`Reschedule your ${service!.title} appointment`}
+              testID="reschedule-button"
+              style={[styles.rescheduleButton, { backgroundColor: colors.primary }]}
+            >
+              <Feather name="calendar" size={17} color="#fff" />
+              <Text style={styles.rescheduleButtonText}>Reschedule appointment</Text>
+            </TouchableOpacity>
+          )}
+          {rescheduleServiceGone && (
+            <Text
+              style={[styles.mutedText, { color: colors.mutedForeground, paddingHorizontal: 4 }]}
+              testID="reschedule-service-unavailable"
+            >
+              Rescheduling isn’t available because this service is no longer offered. You can
+              cancel below and book another service instead.
+            </Text>
+          )}
           {canCancel && (
             <TouchableOpacity
               onPress={handleCancel}
@@ -416,6 +446,27 @@ export default function BookingDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Reschedule — real server-provided slots only; the old appointment
+          datetime is never reused, and every safety rule is re-validated by
+          the shared rescheduling endpoint. */}
+      {showReschedule && canReschedule && service && (
+        <RescheduleModal
+          bookingId={booking.id}
+          providerId={booking.providerId}
+          providerName={provider ? `${provider.firstName} ${provider.lastName}` : 'Your provider'}
+          service={service}
+          currentScheduledAt={booking.scheduledAt}
+          colors={colors}
+          insets={insets}
+          onClose={() => setShowReschedule(false)}
+          onSuccess={() => {
+            statusFeedback.suppressNextStatusChange(booking.id, 'rescheduled');
+            setShowReschedule(false);
+            void refetch();
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -476,6 +527,8 @@ const styles = StyleSheet.create({
   skeleton: { height: 22, width: 190, borderRadius: 8 },
   profileButton: { borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   profileButtonText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  rescheduleButton: { minHeight: 48, borderRadius: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  rescheduleButtonText: { color: '#fff', fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   cancelButton: { borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14, alignItems: 'center' },
   cancelButtonText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   starRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
