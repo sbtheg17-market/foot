@@ -1,0 +1,40 @@
+{
+  "summary": "Completed comprehensive frontend testing of the Reschedule flow for OnCall Foot marketplace. Tested 10 scenarios covering eligibility display, modal interactions, slot selection, accessibility, happy-path mutation, and post-reschedule state. All core functionality working correctly.",
+  "backend_issues": {},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "accessibility_notes": [
+      {
+        "component": "RescheduleModal",
+        "issue": "The role='dialog' and aria-modal='true' attributes are correctly implemented on the inner dialog div (line 185-188 of reschedule-modal.tsx), but the test queried the outer backdrop div with data-testid. This is correct HTML structure - the backdrop should not have dialog role. No fix needed.",
+        "severity": "informational",
+        "fix_priority": "none"
+      }
+    ]
+  },
+  "passed_tests": [
+    "TEST 1: Reschedule section and button visible on confirmed booking #41, along with Cancel and View Provider Profile buttons",
+    "TEST 2: NO reschedule section shown on requested booking #43 (correct eligibility logic)",
+    "TEST 3: Modal opens, displays current appointment time 'Currently Mon, Oct 12, 11:00 a.m.', date input works, slot grid loads with time buttons",
+    "TEST 4: Current appointment slot (2026-10-12T15:00:00.000Z / 11:00 AM) is disabled and shows 'current' label",
+    "TEST 5: Occupied slot (2026-10-12T16:00:00.000Z / 12:00 PM) held by another client is disabled",
+    "TEST 6: Submit button is disabled before any slot is selected",
+    "TEST 7: Happy path - selected slot 17:00:00Z (1:00 PM), submit button enabled, submission successful, success toast 'New time requested — your provider will confirm the change.', modal closed, booking status changed to 'Rescheduled'",
+    "TEST 8: After reschedule, booking #41 no longer shows reschedule section (status is 'rescheduled'), Cancel booking button still available",
+    "TEST 9: Escape key closes modal, close button has aria-label 'Close reschedule dialog'",
+    "TEST 10: Skipped gracefully - no completed bookings available to test Book Again section (as instructed)"
+  ],
+  "test_report_links": [
+    "/root/.emergent/automation_output/20260822_033813/console_20260822_033813.log"
+  ],
+  "action_item_for_main_agent": "",
+  "updated_files": [],
+  "success_percentage": {
+    "frontend": "100%",
+    "backend": "not tested (backend suites already pass 126/126 per instructions)"
+  },
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_test_itself": false
+}
