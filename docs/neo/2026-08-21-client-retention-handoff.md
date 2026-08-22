@@ -478,3 +478,103 @@ changes.
 - Next recommended slice: open and review the
   `main...feat/mobile-reschedule` PR; after merge, provider-facing
   reschedule flow or the booking-detail marketplace-timezone display fix.
+
+## 2026-08-22 — Marketplace timezone across booking lists (this session)
+
+### Baseline
+
+- Verified `origin/main`: `a8c009b2506db8a50fc439b512b90cc030275bb3`
+  ("Feat/mobile reschedule (#28)").
+- Detail-page slice `feat/marketplace-timezone-display` @
+  `5ebddeb40218240d2cfb191a00af388c00ac77f1` verified present on the remote
+  but NOT yet merged into main. This slice is therefore based on verified
+  main (not stacked); the two branches share no product files — only this
+  continuity document overlaps, which may produce a trivial append-only
+  merge conflict (resolution: keep both dated sections).
+- Conflict branches (`conflict_220826_1342` @ `16422ba…`,
+  `conflict_210826_2128` @ `f82a81c…`, and all earlier) preserved untouched.
+- Branch: `feat/marketplace-timezone-lists`, based only on verified main.
+
+### Surfaces audited and updated
+
+- Updated (device-timezone rendering fixed):
+  - web client bookings list (`artifacts/web/src/pages/bookings.tsx`);
+  - provider portal dashboard "Next Up"
+    (`artifacts/web/src/pages/portal/dashboard.tsx` — month/day box and
+    time);
+  - provider portal bookings list
+    (`artifacts/web/src/pages/portal/bookings.tsx`);
+  - mobile bookings tab (`artifacts/mobile/app/(tabs)/bookings.tsx`).
+- New shared helper: `artifacts/web/src/lib/marketplace-time.ts`
+  (`useMarketplaceTimezone` + `formatBookingDate/Time/DateTime`).
+- Audited, intentionally NOT changed:
+  - `portal/earnings-statement.tsx` — renders a date-only value in device
+    timezone on a financial-statement surface; deferred for review (a date
+    could shift near midnight; statement grouping is server-side);
+  - mobile `provider/[id].tsx` booking creation composes `scheduledAt`
+    from free-text date/time parsed in the DEVICE timezone (web booking
+    modal submits the slot's ISO `start` directly) — pre-existing booking-
+    creation behavior, out of this presentation slice; flagged for review
+    as a likely correctness follow-up;
+  - `provider/application-status.tsx` — application timestamps, not
+    appointment times.
+
+### Timezone source and multi-provider handling
+
+- Source: existing public `GET /providers/:id/availability`
+  (`useGetProviderAvailability`) — the same server
+  `getMarketplaceTimezone()` engine as slots and the detail page.
+- The marketplace timezone is a single global server value, so every
+  booking's provider resolves the identical zone; one cached request per
+  screen (react-query key `['booking-provider-availability', providerId]`,
+  shared with the detail page) is per-booking correct with no N+1 and no
+  API change.
+
+### Loading and fallback behavior
+
+- While the timezone resolves, list times show a neutral placeholder
+  (skeleton on web, em dash on mobile) — an unlabeled converted time is
+  never presented as authoritative.
+- On definitive failure, times render in device timezone with an explicit
+  "(device time)" label (testids `booking-*-device-time`); no guessing.
+- Times include the zone abbreviation (e.g. "2:26 PM EDT") when the
+  timezone is known; DST handled by Intl (no manual offsets).
+
+### Validation (local scratch infrastructure only)
+
+- Typecheck (libs, web, mobile): pass. Web production build: pass.
+  Expo web export: pass.
+- Formatter DST/date-shift check (node, exact option sets): summer EDT /
+  winter EST correct; 2026-03-08 spring-forward boundary correct;
+  2026-08-26T03:00Z renders as Tue, Aug 25 in America/Toronto.
+- Live browser verification (scratch Postgres + seeded API; device tz UTC,
+  marketplace tz America/Toronto; device would show 6:26 p.m.):
+  - web client list: "Tue, Aug 25, 2026 at 02:26 p.m. EDT";
+  - portal dashboard: day box "AUG 25", time "02:26 PM EDT";
+  - portal bookings (Upcoming tab): "Tue, Aug 25, 2:26 PM EDT";
+  - mobile bookings tab (Expo web export, in-app navigation):
+    "Tue, Aug 25 at 02:26 p.m. EDT";
+  - no "(device time)" caption anywhere while the timezone was available.
+- `git diff --check` clean; secret scan clean; no client unit-test
+  framework exists in the repo (unchanged) — verification was runtime-based.
+- Server rescheduling regression not rerun — no server code changed.
+
+### Known limitations
+
+- The "(device time)" fallback and loading placeholder paths were
+  code-reviewed and typechecked but not runtime-triggered (the live
+  availability endpoint always returned the timezone).
+- Booking-detail pages gain marketplace timezone only once
+  `feat/marketplace-timezone-display` merges; until both merge, lists and
+  detail may briefly disagree depending on merge order.
+- Earnings statement and mobile booking-creation findings above are
+  deferred for operator review.
+
+### Session output
+
+- Single commit `fix: show marketplace timezone in booking lists` on
+  `feat/marketplace-timezone-lists`; exact SHAs in the final handoff.
+- PR not created; branch pushed and stopped for review.
+- Next recommended slice: merge/review both timezone branches, then the
+  mobile booking-creation device-timezone fix or provider-facing
+  rescheduling.

@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import {
   useGetClientCareHistory,
+  useGetProviderAvailability,
   useListBookings,
   useUpdateBookingStatus,
 } from '@workspace/api-client-react';
@@ -73,6 +74,19 @@ export default function BookingsScreen() {
 
   const updateStatus = useUpdateBookingStatus();
   const statusFeedback = useClientBookingStatusFeedback(user?.role === 'client' ? data?.bookings : undefined);
+  // Authoritative marketplace timezone — same public endpoint and server
+  // engine (getMarketplaceTimezone) as slot generation and booking detail.
+  // The value is global on the server, so any booking's provider resolves
+  // the identical timezone; one cached request covers the whole list.
+  const timezoneProviderId = data?.bookings?.[0]?.providerId ?? historyData?.history?.[0]?.providerId;
+  const { data: availabilityData, isError: timezoneUnavailable } = useGetProviderAvailability(
+    timezoneProviderId ?? 0,
+    {
+      query: { enabled: !!timezoneProviderId, queryKey: ['booking-provider-availability', timezoneProviderId] },
+    },
+  );
+  const marketplaceTimezone = availabilityData?.timezone;
+  const timezoneResolving = !!timezoneProviderId && !marketplaceTimezone && !timezoneUnavailable;
   // Track which booking has a request in flight so we can disable its button.
   const [pendingId, setPendingId] = useState<number | null>(null);
 
@@ -262,6 +276,23 @@ export default function BookingsScreen() {
             const meta = STATUS_META[item.status] ?? STATUS_META.cancelled;
             const canCancel = ['requested', 'confirmed', 'rescheduled'].includes(item.status);
             const date = new Date(item.scheduledAt);
+            // Marketplace-timezone rendering (DST-aware via Intl). While the
+            // timezone is resolving a neutral placeholder is shown; on a
+            // definitive failure the device-time fallback is labelled.
+            const timeText = timezoneResolving
+              ? '—'
+              : `${date.toLocaleDateString('en-CA', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                  ...(marketplaceTimezone ? { timeZone: marketplaceTimezone } : {}),
+                })} at ${date.toLocaleTimeString('en-CA', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  ...(marketplaceTimezone
+                    ? { timeZone: marketplaceTimezone, timeZoneName: 'short' as const }
+                    : {}),
+                })}${!marketplaceTimezone && timezoneUnavailable ? ' (device time)' : ''}`;
             const historyEntry = 'provider' in item ? item : null;
             return (
               <View style={[styles.bookingCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -285,10 +316,18 @@ export default function BookingsScreen() {
                 </View>
                 <View style={styles.bookingRow}>
                   <Feather name="calendar" size={14} color={colors.primary} />
-                  <Text style={[styles.bookingDetail, { color: colors.foreground }]}>
-                    {date.toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' })}
-                    {' at '}
-                    {date.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}
+                  <Text
+                    style={[styles.bookingDetail, { color: colors.foreground }]}
+                    testID={`booking-${item.id}-time`}
+                    accessibilityLabel={
+                      timezoneResolving
+                        ? 'Loading appointment time'
+                        : marketplaceTimezone
+                          ? `${timeText}, shown in the ${marketplaceTimezone.replace(/_/g, ' ')} timezone`
+                          : timeText
+                    }
+                  >
+                    {timeText}
                   </Text>
                 </View>
                 {historyEntry && (
