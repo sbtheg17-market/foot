@@ -777,3 +777,70 @@ changes.
 - PR not merged by Neo (operator retains merge); branch pushed for review.
 - Next recommended slice: mobile parity for provider reschedule visibility,
   or reminders/notifications review (operator's choice).
+
+## 2026-08-22 — Duplicate-PR audit and continuity reconciliation (no product changes)
+
+### Verified state
+
+- Repository/remote verified: `sbtheg17-market/foot`
+  (`git@github.com:sbtheg17-market/foot.git`); working tree clean.
+- Authoritative `origin/main`:
+  `8cb08d5db76cd287e828dcaa1c0d6a45573e33ce`
+  ("feat: provider rescheduling in the web portal (#34)").
+
+### PR #33 duplicate audit (immutable history; nothing deleted or rewritten)
+
+- Merge commit `0ce333d2da28ce115b692a44a4e7c6d01fa6e787` (squash; single
+  parent `60f235c80abec99f46a119305c9026769f3f78d4` = PR #32).
+- Tree `f810cb62f28813191630ddc2cd60a518d4572dfb` is byte-identical to
+  PR #32's tree AND to head branch
+  `fix/mobile-booking-slot-timezone` @
+  `a9812d59d2c91ead4943f739c1683ff3144da738`.
+- Changed files vs parent: NONE. Determination: TRUE CONTENT NO-OP —
+  an accidental re-merge of the already-merged mobile booking-slot branch.
+  No unique code, docs, schema, or configuration. Already merged, therefore
+  immutable; per policy no revert/reset/deletion was performed. (PR #31 was
+  the same class of no-op for the list-timezone branch, recorded earlier.)
+- "Removing the double" = this continuity record; Git history untouched.
+
+### PR #34 verification (not inferred from title)
+
+- Merge commit `8cb08d5db76cd287e828dcaa1c0d6a45573e33ce` (squash; single
+  parent `0ce333d2da28ce115b692a44a4e7c6d01fa6e787`).
+- Tree `f05098d63fb672cdbbc129f3144a2ccf4aa9651a` byte-identical to head
+  `feat/provider-reschedule` @
+  `7484afb091543f8b2de100043a5e56f9c48998cb`.
+- Changed files: `artifacts/web/src/components/ui/reschedule-modal.tsx`,
+  `artifacts/web/src/pages/portal/bookings.tsx`, this continuity document.
+- Provider-facing rescheduling verified PRESENT on main by content grep:
+  `perspective` prop in the shared modal; portal "Reschedules" tab;
+  `booking-<id>-confirm-reschedule` / `-decline-reschedule` /
+  `-reschedule` actions; portal `RescheduleModal` wiring.
+
+### Status lines
+
+- Conflict branches preserved untouched: `conflict_220826_1342` @
+  `16422ba0c505d6b008e89f2345ff050fe89563d4`, `conflict_210826_2128` @
+  `f82a81cf35e131834aad705b64e13681a6c8d6c1`, and all other `conflict_*`.
+- Analytics deferred; schema/migrations, payments, ledger untouched;
+  managed database not accessed; deployment not performed.
+- No merges, force-pushes, reverts, resets, or history rewrites this
+  session; this dated section is the only change.
+
+### Deferred backlog (record only)
+
+- Mobile provider reschedule visibility and actions (next approved slice);
+  reminder/notification review; client visibility of provider-proposed
+  reschedules; change-history timeline; cross-provider client-overlap
+  policy; service-area/travel-buffer policy; analytics; schema/migrations;
+  payments; ledger; deployment.
+
+### Next session
+
+- Begin by verifying post-#34 `origin/main`
+  (`8cb08d5db76cd287e828dcaa1c0d6a45573e33ce`).
+- Recommended slice: mobile provider rescheduling parity (PR #34 verified
+  to contain the provider-facing web rescheduling work, so the
+  recommendation stands).
+- Suggested hygiene (operator action, optional): delete already-merged
+  remote branches on GitHub to prevent further accidental duplicate PRs.
