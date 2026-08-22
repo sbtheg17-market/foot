@@ -478,3 +478,85 @@ changes.
 - Next recommended slice: open and review the
   `main...feat/mobile-reschedule` PR; after merge, provider-facing
   reschedule flow or the booking-detail marketplace-timezone display fix.
+
+## 2026-08-22 — Marketplace-timezone display on booking detail (this session)
+
+### Baseline
+
+- Verified post-mobile-merge `origin/main`:
+  `a8c009b2506db8a50fc439b512b90cc030275bb3`
+  ("Feat/mobile reschedule (#28)" — squash merge of `feat/mobile-reschedule`).
+- All prior milestones confirmed on main (PR #24–#28). Conflict branches
+  (`conflict_220826_1342` @ `16422ba…`, `conflict_210826_2128` @ `f82a81c…`,
+  and all earlier) preserved and untouched.
+- Branch: `feat/marketplace-timezone-display`, based only on verified main.
+
+### Problem and source of truth
+
+- Booking-detail screens (web `booking-detail.tsx`, mobile `booking/[id].tsx`)
+  formatted `scheduledAt` with device-timezone `toLocale*` calls, so a
+  traveller could misread their visit time.
+- Authoritative timezone source: the existing public endpoint
+  `GET /providers/:id/availability` (already generated as
+  `useGetProviderAvailability`), which returns the same
+  `getMarketplaceTimezone()` value that drives slot generation — so the
+  detail view now matches booking/reschedule slot times by construction.
+  No API, schema, or server change was needed or made.
+
+### Changes (exact files)
+
+- `artifacts/web/src/pages/booking-detail.tsx` — timezone-aware
+  `formatDate(value, timeZone?)` (adds `timeZone` + `timeZoneName: 'short'`
+  abbreviation, e.g. "2:26 p.m. EDT"); fetches the provider's availability
+  timezone; caption "Times shown in <IANA zone>"
+  (`booking-timezone-label`); explicit fallback caption
+  "Shown in your device's timezone" (`booking-timezone-fallback`) only when
+  the timezone query definitively fails — never a silent fallback.
+- `artifacts/mobile/app/booking/[id].tsx` — identical pattern with an
+  accessible caption under the calendar row (same testIDs).
+- This continuity document.
+
+### Fallback behavior
+
+- Timezone known → marketplace-timezone rendering with abbreviation + label.
+- Timezone query failed → previous device-timezone rendering is preserved
+  and explicitly labelled; no device-location guessing; no new policy.
+- DST is handled by Intl's timezone-aware formatting (verified across the
+  2026-03-08 spring-forward boundary and EDT/EST winter/summer instants).
+
+### Validation (local scratch infrastructure only)
+
+- No client unit-test framework exists in the repo (unchanged); focused
+  verification was performed at runtime instead:
+- Formatter check (node, exact option set): summer 18:30Z → "2:30 p.m. EDT",
+  winter 18:30Z → "1:30 p.m. EST"; 06:59Z/07:00Z on 2026-03-08 →
+  "1:59 a.m. EST"/"3:00 a.m. EDT"; missing tz → device time (fallback).
+- Live local stack (scratch Postgres + seeded API, container device tz UTC,
+  marketplace tz America/Toronto): web booking detail for the confirmed
+  booking rendered "2:26 p.m. EDT" + "Times shown in America/Toronto"
+  (device would show 6:26 p.m.); no fallback caption when tz present.
+- Mobile Expo web export against the same live API via in-app navigation
+  (login → Bookings → detail): same correct rendering and captions;
+  Reschedule/Cancel actions intact.
+- Workspace libs + web + mobile typecheck: pass. Web production build: pass.
+  Expo web export: pass. `git diff --check`: clean. Secret scan: clean.
+  Working tree contained only the intended files.
+- Server rescheduling regression not rerun — no server code changed.
+
+### Known limitations
+
+- List/dashboard screens (web `bookings.tsx`, portal dashboard/bookings,
+  mobile bookings tab) still render device-timezone times — intentionally
+  out of this focused slice; candidate follow-up.
+- The fallback caption depends on the availability query settling; during
+  the brief loading window the time renders without an abbreviation.
+- Pre-existing: hard deep-link reloads of the mobile web export show
+  "Booking unavailable" before auth hydration (in-app navigation is fine).
+
+### Session output
+
+- Single commit `fix: display booking times in marketplace timezone` on
+  `feat/marketplace-timezone-display`; exact SHAs in the final handoff.
+- PR not created; branch pushed and stopped for review.
+- Next recommended slice: marketplace-timezone rendering on booking list
+  and portal screens, or the provider-facing reschedule flow.
