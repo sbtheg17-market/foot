@@ -30,6 +30,7 @@
     "test:provider-readiness": "node --import tsx/esm --test src/__tests__/provider-readiness.integration.test.ts",
     "test:first-booking": "node --import tsx/esm --test src/__tests__/first-booking-signal.integration.test.ts",
     "test:client-retention": "node --import tsx/esm --test src/__tests__/client-retention.integration.test.ts",
+    "test:rescheduling": "node --import tsx/esm --test src/__tests__/rescheduling-enforcement.integration.test.ts",
     "test:marketplace-events": "node --import tsx/esm --test src/__tests__/marketplace-events.integration.test.ts"
   },
   "dependencies": {

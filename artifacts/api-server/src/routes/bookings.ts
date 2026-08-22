@@ -705,6 +705,152 @@ router.patch(
           });
         }
 
+        // ── Rescheduling enforcement ─────────────────────────────────────────
+        // A rescheduled booking must obey the SAME safety rules as a new
+        // booking: valid future instant, active service, availability-window
+        // fit, no provider overlap, and no active duplicate. All checks run
+        // inside this transaction, and booking writes for the provider are
+        // serialized via the same advisory lock POST /bookings uses, so a
+        // reschedule can never race a concurrent insert into a double-booking.
+        let rescheduleDate: Date | null = null;
+        if (newStatus === "rescheduled" && scheduledAt) {
+          rescheduleDate = new Date(scheduledAt);
+
+          // Reject malformed or past instants before any availability work —
+          // same wording as booking creation.
+          if (Number.isNaN(rescheduleDate.getTime())) {
+            throw Object.assign(new Error("VALIDATION"), {
+              statusCode: 400,
+              userMessage: "scheduledAt must be a valid date-time.",
+            });
+          }
+          if (rescheduleDate.getTime() <= Date.now()) {
+            throw Object.assign(new Error("VALIDATION"), {
+              statusCode: 400,
+              userMessage: "scheduledAt must be in the future.",
+            });
+          }
+
+          // The booking's service must still exist and be active — inactive
+          // services are never silently carried into a new time.
+          const [service] = await tx
+            .select({
+              durationMinutes: servicesTable.durationMinutes,
+              isActive: servicesTable.isActive,
+            })
+            .from(servicesTable)
+            .where(eq(servicesTable.id, booking.serviceId))
+            .limit(1);
+          if (!service || !service.isActive) {
+            throw Object.assign(new Error("SERVICE_INACTIVE"), {
+              statusCode: 409,
+              userMessage:
+                "This booking's service is no longer offered, so it cannot be rescheduled. Please cancel and book an available service.",
+            });
+          }
+
+          // The whole service duration must fit inside one availability
+          // window (wall-clock in the marketplace timezone) — same rule and
+          // wording as booking creation.
+          const windows = (await tx
+            .select({
+              dayOfWeek: availabilityTable.dayOfWeek,
+              startTime: availabilityTable.startTime,
+              endTime: availabilityTable.endTime,
+            })
+            .from(availabilityTable)
+            .where(
+              eq(availabilityTable.providerId, booking.providerId),
+            )) as AvailabilityWindow[];
+          if (
+            !isWithinAvailability({
+              scheduledAt: rescheduleDate,
+              durationMinutes: service.durationMinutes,
+              windows,
+              tz: getMarketplaceTimezone(),
+            })
+          ) {
+            throw Object.assign(new Error("VALIDATION"), {
+              statusCode: 400,
+              userMessage:
+                "The selected time is outside this provider's availability.",
+            });
+          }
+
+          // Serialize with POST /bookings inserts for this provider so the
+          // overlap/duplicate checks below cannot race a concurrent booking.
+          // Lock order (booking row lock → provider advisory lock) cannot
+          // deadlock with POST: booking creation never waits on row locks.
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(42001, ${booking.providerId})`,
+          );
+
+          // Same-client exact duplicate at the NEW time: another ACTIVE
+          // booking already holds the (client, provider, service, time)
+          // tuple. Reported with the friendly duplicate message; the live
+          // partial unique index remains the final race safeguard on UPDATE.
+          const [duplicate] = await tx
+            .select({ id: bookingsTable.id })
+            .from(bookingsTable)
+            .where(
+              and(
+                sql`${bookingsTable.id} <> ${bookingId}`,
+                eq(bookingsTable.clientId, booking.clientId),
+                eq(bookingsTable.providerId, booking.providerId),
+                eq(bookingsTable.serviceId, booking.serviceId),
+                eq(bookingsTable.scheduledAt, rescheduleDate),
+                inArray(bookingsTable.status, [
+                  "requested",
+                  "confirmed",
+                  "rescheduled",
+                ]),
+              ),
+            )
+            .limit(1);
+          if (duplicate) {
+            throw Object.assign(new Error("DUPLICATE_BOOKING"), {
+              statusCode: 409,
+              userMessage: DUPLICATE_BOOKING_MESSAGE,
+            });
+          }
+
+          // Provider-level overlap against any OTHER client's active booking
+          // — identical interval rule to booking creation. The booking being
+          // rescheduled never blocks itself, and (as with creation) a client
+          // never blocks themselves via this path.
+          const rescheduleEnd = new Date(
+            rescheduleDate.getTime() + service.durationMinutes * 60000,
+          );
+          const [conflict] = await tx
+            .select({ id: bookingsTable.id })
+            .from(bookingsTable)
+            .innerJoin(
+              servicesTable,
+              eq(servicesTable.id, bookingsTable.serviceId),
+            )
+            .where(
+              and(
+                eq(bookingsTable.providerId, booking.providerId),
+                inArray(bookingsTable.status, [
+                  "requested",
+                  "confirmed",
+                  "rescheduled",
+                ]),
+                sql`${bookingsTable.id} <> ${bookingId}`,
+                sql`${bookingsTable.clientId} <> ${booking.clientId}`,
+                sql`${bookingsTable.scheduledAt} < ${rescheduleEnd}`,
+                sql`${rescheduleDate} < ${bookingsTable.scheduledAt} + make_interval(mins => ${servicesTable.durationMinutes})`,
+              ),
+            )
+            .limit(1);
+          if (conflict) {
+            throw Object.assign(new Error("PROVIDER_UNAVAILABLE"), {
+              statusCode: 409,
+              userMessage: PROVIDER_UNAVAILABLE_MESSAGE,
+            });
+          }
+        }
+
         const updates: Partial<typeof bookingsTable.$inferInsert> = {
           status: newStatus,
           updatedAt: new Date(),
@@ -713,8 +859,8 @@ router.patch(
           updates.cancelledBy = user.sub;
           if (cancellationReason) updates.cancellationReason = cancellationReason;
         }
-        if (newStatus === "rescheduled" && scheduledAt) {
-          updates.scheduledAt = new Date(scheduledAt);
+        if (newStatus === "rescheduled" && rescheduleDate) {
+          updates.scheduledAt = rescheduleDate;
         }
 
         const [updatedBooking] = await tx
@@ -764,6 +910,14 @@ router.patch(
       const e = err as { statusCode?: number; userMessage?: string };
       if (e.statusCode) {
         res.status(e.statusCode).json({ error: e.userMessage });
+        return;
+      }
+      // Race safety net: a concurrent request took the exact duplicate tuple
+      // between our in-transaction check and the UPDATE, and the live partial
+      // unique index rejected the write. Map it to the SAME friendly 409 —
+      // never expose PostgreSQL error text, SQLSTATE codes, or index names.
+      if (newStatus === "rescheduled" && isActiveBookingDuplicateViolation(err)) {
+        res.status(409).json({ error: DUPLICATE_BOOKING_MESSAGE });
         return;
       }
       throw err; // unexpected — propagate to Express error handler

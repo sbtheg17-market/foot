@@ -310,7 +310,9 @@ describe("Back-to-back valid transitions", () => {
 
   it("requested → confirmed → rescheduled → confirmed succeeds in order", async () => {
     const bookingId = await createBooking(clientToken, providerProfileId, serviceId);
-    const newTime = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    // Rescheduling now enforces the same real-slot rules as creation, so the
+    // new time must come from the availability-backed fixture pool.
+    const newTime = nextAvailableSlot();
 
     const confirm = await patchStatus(bookingId, "confirmed", providerToken);
     assert.equal(confirm.status, 200);
