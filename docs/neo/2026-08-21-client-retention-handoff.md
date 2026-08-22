@@ -133,3 +133,84 @@ returned 409 for invalid transitions before this session.
   session handoff (single commit containing implementation, tests, and this
   continuity record).
 - PR: not created automatically; branch pushed for review per protocol.
+
+## 2026-08-22 — Client-facing reschedule flow (stacked branch)
+
+### Baseline and stacked-base authorization
+
+- Repository re-verified: `sbtheg17-market/foot`; `origin/main` still at
+  `5f22526280ed8c31cf3d5f13f9d30d51a40177a7` (Book Again, PR #25).
+- Prerequisite `feat/rescheduling-enforcement` is pushed at
+  `f8f6ba64447a79626fd0be0eba0cf956ee2066c2` but has NO PR and is NOT merged
+  into `main` (verified via git ancestry and the GitHub PR API).
+- Per protocol the session stopped and reported; the operator then EXPLICITLY
+  AUTHORIZED a stacked branch.
+- New branch: `feat/client-reschedule-ui`, based on
+  `feat/rescheduling-enforcement` (`f8f6ba6…`) — a STACKED branch, not based
+  on `origin/main`. It contains the enforcement commit. REQUIRED MERGE ORDER:
+  merge `feat/rescheduling-enforcement` into `main` first, then this branch.
+- `conflict_210826_2128` untouched at `f82a81c…`.
+
+### UI scope (web SPA only; server untouched in this slice)
+
+Changed files:
+
+- `artifacts/web/src/components/ui/reschedule-modal.tsx` (new) — bottom-sheet
+  reschedule dialog mirroring the canonical BookingModal slot-selection
+  pattern: date picker + REAL slots from the existing
+  `GET /providers/:id/slots` endpoint (no arbitrary datetime entry), the
+  current appointment slot disabled and labeled "current" (old datetime never
+  reusable, with a submit-time guard as well), occupied slots disabled,
+  submission disabled until a slot is chosen, duplicate-submit protection via
+  the mutation pending state, loading/empty states, explicit handling for
+  overlap / duplicate / outside-availability / inactive-service / invalid
+  state / forbidden / generic errors (friendly recovery, grid refresh, no
+  PostgreSQL internals), `role="dialog"` + `aria-modal` + labels + Escape
+  close + initial focus, mobile bottom-sheet layout.
+- `artifacts/web/src/pages/booking-detail.tsx` — "Need a different time?"
+  section shown only for CONFIRMED bookings (the only state the server's
+  state machine lets a client reschedule); skeleton while provider/services
+  load; explanatory unavailable note when the original service is no longer
+  offered (action hidden — server stays authoritative); on success the
+  status-feedback toast is suppressed (client initiated it) and the booking
+  refetches to "Rescheduled". Review, Book Again, cancel, and provider
+  actions unchanged.
+- No API, schema, migration, analytics, payment, or ledger changes. Uses the
+  existing `PATCH /bookings/:id/status` contract and generated client hooks.
+
+### Validation (local scratch PostgreSQL; SPA served by the API server)
+
+- Backend regressions on a clean scratch DB: state machine 63/63, rescheduling
+  12/12, lifecycle 14/14, concurrency 16/16, availability 6/6, reviews 7/7,
+  Book Again retention 8/8 (126/126). An initial re-run on a dirty DB showed
+  3 failures that were confirmed as rerun-collisions of pre-existing suites
+  (fixed far-future fixture dates), not regressions.
+- Browser verification (Playwright, mobile viewport 390×800, real server):
+  10/10 scenarios — eligibility shown/hidden, real slots load, current slot
+  disabled + labeled, occupied slot disabled, no submit without slot, happy
+  path (success toast, status → Rescheduled), post-reschedule ineligibility,
+  Escape/aria behavior, Book Again + review sections intact on a completed
+  booking, reschedule section absent on completed bookings.
+- The repository has NO web unit-test framework; focused UI coverage is
+  therefore browser-automation verification (documented above), not committed
+  test files.
+- Workspace typecheck: pass. Web build: pass. `git diff --check`: clean.
+  Secret scan of changed files: clean.
+
+### Known limitations
+
+- Client may reschedule only CONFIRMED bookings (server state machine);
+  bookings already in `rescheduled` state need provider confirmation first.
+- Provider-facing reschedule UI intentionally excluded from this slice.
+- Slot grid marks the client's other own-booking times as unavailable via the
+  slots endpoint's occupancy view; server-side duplicate/overlap rules remain
+  the authority.
+- Mobile app (Expo) reschedule UI not in scope.
+
+### Session output
+
+- Branch: `feat/client-reschedule-ui` (STACKED on `f8f6ba6…`).
+- Commit: `feat: add client reschedule flow` — exact SHA in the final session
+  handoff (single commit: modal, booking-detail integration, this record).
+- PR: not created automatically; branch pushed and stopped for review.
+- Merge prerequisites: `feat/rescheduling-enforcement` must merge first.
