@@ -714,3 +714,66 @@ changes.
   `fix/mobile-booking-slot-timezone`; exact SHAs in the final handoff.
 - PR not merged by Neo (operator retains merge); branch pushed for review.
 - Next recommended slice: provider-facing rescheduling.
+
+## 2026-08-22 — Provider-facing rescheduling in the web portal (this session)
+
+### Baseline
+
+- Verified `origin/main`: `60f235c80abec99f46a119305c9026769f3f78d4`
+  ("fix: book mobile appointments from marketplace slots (#32)"). PR #31 was
+  an accidental duplicate merge of the list branch — verified content no-op
+  (empty diff vs #30); no action required. 11 dated sections verified.
+- Conflict branches preserved untouched. Branch: `feat/provider-reschedule`,
+  based only on verified main.
+
+### Audit (performed before any change)
+
+- Server already fully supports provider rescheduling — NO API or contract
+  change required: state machine allows provider `confirmed → rescheduled`
+  (with `scheduledAt`) and `rescheduled → confirmed | cancelled`; the
+  rescheduling endpoint re-runs every safety rule (future instant, active
+  service, availability fit, overlap, duplicates) under the provider lock,
+  and already notifies the client on provider-initiated reschedules.
+- Gap was web-portal UI only: bookings in `rescheduled` status were
+  invisible (no tab — providers could not confirm client reschedule
+  requests), and confirmed bookings had no reschedule action.
+- Note: `rescheduled → rescheduled` is NOT allowed by the state machine, so
+  no "propose another" action was added from the Reschedules tab (kept
+  strictly within the existing contract).
+
+### Changes (exact files)
+
+- `artifacts/web/src/components/ui/reschedule-modal.tsx` — optional
+  `perspective?: 'client' | 'provider'` prop (default `'client'`, existing
+  client usage unchanged). Copy-only switch: success toast, duplicate-slot
+  notice, summary line, footer note. Slot logic, safety handling, and
+  testIDs untouched.
+- `artifacts/web/src/pages/portal/bookings.tsx` — new "Reschedules" tab
+  (status `rescheduled`) showing the proposed time with actions
+  "Confirm new time" (`booking-<id>-confirm-reschedule`) and decline
+  (`booking-<id>-decline-reschedule`, cancels with reason "Reschedule
+  declined by provider"); "Reschedule" button on confirmed bookings
+  (`booking-<id>-reschedule`) opening the shared modal with
+  `perspective="provider"`; own services fetched once via the public
+  services endpoint for the slot query; on success the page refetches and
+  switches to the Reschedules tab. Deactivated-service path surfaces the
+  same friendly explanation the server would return.
+- This continuity document.
+
+### Validation
+
+- Workspace libs + web typecheck: pass. Web production build (vite): pass.
+- `git diff --check` clean; targeted secret scan clean; diff contains only
+  the two code files above plus this continuity append.
+- Full-stack runtime verification not possible in this container (no
+  Postgres); the slot modal reused here is the runtime-verified client one,
+  and the status-transition buttons reuse the existing verified
+  `handleStatusChange` path.
+
+### Session output
+
+- Single commit `feat: provider rescheduling in the web portal` on
+  `feat/provider-reschedule`; exact SHAs in the final handoff.
+- PR not merged by Neo (operator retains merge); branch pushed for review.
+- Next recommended slice: mobile parity for provider reschedule visibility,
+  or reminders/notifications review (operator's choice).
