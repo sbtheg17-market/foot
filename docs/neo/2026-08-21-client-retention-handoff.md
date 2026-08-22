@@ -660,3 +660,57 @@ changes.
 - Next recommended slice: merge/review both timezone branches, then the
   mobile booking-creation device-timezone fix or provider-facing
   rescheduling.
+
+## 2026-08-22 — Mobile booking-creation marketplace-timezone slots (this session)
+
+### Baseline
+
+- Verified `origin/main`: `547d92c4ec388b85b0d7868dc4a88ac5bad4ca9a`
+  ("fix: show marketplace timezone in booking lists (#30)"). Detail slice
+  merged as #29 (`f760421`); squash trees verified byte-identical to the
+  branch tips. All 10 dated continuity sections verified present on main.
+- Conflict branches (`conflict_220826_1342` @ `16422ba…`,
+  `conflict_210826_2128` @ `f82a81c…`, and all earlier) preserved untouched.
+- Branch: `fix/mobile-booking-slot-timezone`, based only on verified main.
+
+### Audit (performed before any change, per handoff instruction)
+
+- Confirmed defect in `artifacts/mobile/app/provider/[id].tsx`: booking
+  creation used free-text "Date (YYYY-MM-DD)" and "Time (HH:MM)" inputs and
+  submitted `new Date(`${dateStr}T${timeStr}`).toISOString()` — an ISO-8601
+  local-time string parsed in the DEVICE timezone, so any device outside the
+  marketplace zone submitted the wrong instant. It also bypassed the slot
+  engine entirely, inviting `outside_availability` rejections.
+- Web booking (`booking-modal.tsx`) and mobile reschedule
+  (`reschedule-modal.tsx`) already submit exact server slot ISO instants
+  from `GET /providers/:id/slots` (generated hook `useGetProviderSlots`,
+  already consumed by mobile). Conclusion: NO API or contract change
+  required — the handoff's stop-for-review condition was not triggered.
+
+### Changes (exact files)
+
+- `artifacts/mobile/app/provider/[id].tsx` — BookingModal now mirrors the
+  verified web/reschedule pattern: 90-day date strip, server slot grid
+  (real slots only; unavailable slots disabled/struck), timezone caption
+  "Times shown in <IANA zone>" (`booking-timezone-label`), loading and
+  no-slots states, submit disabled until a slot is picked, and
+  `scheduledAt: selectedSlot` (exact server ISO — no client parsing).
+  Error recovery gains web parity: `provider_unavailable` /
+  `outside_availability` clear the pick and refetch the grid; the strict
+  Session-079 duplicate 409 contract (409 + numeric `bookingId`) keeps its
+  approved notice verbatim. Address/city/postal/notes fields unchanged.
+- This continuity document.
+
+### Validation
+
+- Workspace typecheck for the mobile app: pass (recorded below in the
+  session log; rerun details in the PR body).
+- `git diff --check` clean; targeted secret scan clean; single-file code
+  diff plus this continuity append only.
+
+### Session output
+
+- Single commit `fix: book mobile appointments from marketplace slots` on
+  `fix/mobile-booking-slot-timezone`; exact SHAs in the final handoff.
+- PR not merged by Neo (operator retains merge); branch pushed for review.
+- Next recommended slice: provider-facing rescheduling.
