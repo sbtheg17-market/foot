@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
@@ -45,7 +46,7 @@ export function usePushNotifications(
         );
         if (cancelled) return;
 
-        await fetch(`${BASE}/api/notifications/register-token`, {
+        const registration = await fetch(`${BASE}/api/notifications/register-token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -56,6 +57,11 @@ export function usePushNotifications(
             platform: Platform.OS,
           }),
         });
+        if (!registration.ok && registration.status !== 401 && registration.status !== 403) {
+          console.warn('[push] token registration rejected', { status: registration.status });
+        } else if (registration.ok) {
+          await AsyncStorage.setItem('oncallfoot_push_token', pushTokenObj.data);
+        }
       } catch (err) {
         // Non-fatal — provider can still use the app without push
         console.warn('[push] registration failed:', err);
@@ -70,8 +76,26 @@ export function usePushNotifications(
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    const sub = Notifications.addNotificationResponseReceivedListener(() => {
-      router.push('/(tabs)/bookings');
+    const openNotification = (response: Notifications.NotificationResponse) => {
+      const data = response.notification.request.content.data as {
+        bookingId?: unknown;
+        screen?: unknown;
+      };
+      const bookingId = typeof data.bookingId === 'number' || typeof data.bookingId === 'string'
+        ? Number(data.bookingId)
+        : NaN;
+
+      // Booking detail performs the authenticated ownership/role check server-side.
+      if (data.screen === 'booking' && Number.isInteger(bookingId) && bookingId > 0) {
+        router.push(`/booking/${bookingId}`);
+      } else {
+        router.push('/(tabs)/bookings');
+      }
+    };
+
+    const sub = Notifications.addNotificationResponseReceivedListener(openNotification);
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) openNotification(response);
     });
 
     return () => sub.remove();

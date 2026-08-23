@@ -539,7 +539,7 @@ router.post(
     void sendPushToUser(providerUserId, {
       title: "New booking request 📅",
       body: `${bookingCity} · ${dateStr}`,
-      data: { screen: "bookings", bookingId: booking!.id },
+      data: { screen: "booking", bookingId: booking!.id },
     });
 
     res.status(201).json({ booking: toClientSafeBooking(booking) });
@@ -936,7 +936,7 @@ router.patch(
       void sendPushToUser(originalBooking.clientId, {
         title: "Booking confirmed! 🎉",
         body: `Your appointment is set for ${originalDateStr}`,
-        data: { screen: "bookings", bookingId },
+        data: { screen: "booking", bookingId },
       });
     } else if (newStatus === "cancelled") {
       if (role === "client") {
@@ -950,7 +950,7 @@ router.patch(
           void sendPushToUser(provProfile[0].userId, {
             title: "Booking cancelled",
             body: `A client cancelled their ${originalDateStr} appointment`,
-            data: { screen: "bookings", bookingId },
+            data: { screen: "booking", bookingId },
           });
         }
       } else if (role === "provider") {
@@ -958,7 +958,7 @@ router.patch(
         void sendPushToUser(originalBooking.clientId, {
           title: "Booking cancelled",
           body: "Your appointment was cancelled by the provider",
-          data: { screen: "bookings", bookingId },
+          data: { screen: "booking", bookingId },
         });
       }
     } else if (newStatus === "rescheduled" && scheduledAt) {
@@ -977,7 +977,7 @@ router.patch(
           void sendPushToUser(provProfile[0].userId, {
             title: "Booking rescheduled",
             body: `Client requested a new time: ${newDateStr}`,
-            data: { screen: "bookings", bookingId },
+            data: { screen: "booking", bookingId },
           });
         }
       } else {
@@ -985,7 +985,7 @@ router.patch(
         void sendPushToUser(originalBooking.clientId, {
           title: "Booking rescheduled",
           body: `New time: ${newDateStr}`,
-          data: { screen: "bookings", bookingId },
+          data: { screen: "booking", bookingId },
         });
       }
     }

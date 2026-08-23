@@ -3,6 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setAuthTokenGetter } from '@workspace/api-client-react';
 
 const TOKEN_KEY = 'oncallfoot_token';
+const PUSH_TOKEN_KEY = 'oncallfoot_push_token';
+const API_BASE = process.env.EXPO_PUBLIC_DOMAIN
+  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
+  : '';
 
 interface AuthUser {
   id: number;
@@ -61,10 +65,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    const authToken = _token;
+    const pushToken = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
+    if (authToken && pushToken) {
+      try {
+        await fetch(`${API_BASE}/api/notifications/register-token`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ token: pushToken }),
+        });
+      } catch {
+        // Logout must complete even when the API is unavailable.
+      }
+    }
     _token = null;
     setToken(null);
     setUser(null);
-    await AsyncStorage.multiRemove([TOKEN_KEY, 'oncallfoot_user']);
+    await AsyncStorage.multiRemove([TOKEN_KEY, 'oncallfoot_user', PUSH_TOKEN_KEY]);
   }, []);
 
   return (
