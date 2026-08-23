@@ -2972,3 +2972,34 @@ performed. The branch remains local until repository authentication is repaired.
 
 **Build state at end:** design packet complete; runtime behavior unchanged;
 awaiting explicit policy and data-model approval before implementation.
+
+---
+### Session — Finalize and verify service-area/rescheduling design (2026-08-22)
+**Agent:** Replit Agent
+**Scope:** `XS` (documentation-only continuation)
+
+**What was done:**
+- Re-verified `sbtheg17-market/foot` on
+  `feat/service-area-rescheduling-history`, based on current `origin/main`
+  `fbe477413d18fea601908d7d6a7bcc7762f4598d`.
+- Replaced the combined draft with the required
+  `docs/service-area-travel-policy.md` and
+  `docs/rescheduling-history-design.md`.
+- Expanded both documents to cover the requested policy alternatives,
+  approval gates, data/API implications, privacy, failure behavior, lifecycle,
+  concurrency, retention, and future tests.
+- Appended the continuation result to the Neo handoff without rewriting prior
+  history.
+- Committed the documentation finalization locally as
+  `4ca95d847351837b5b87f161b782890abdd0c5d8`.
+
+**Boundaries held:**
+- Runtime behavior, service-area enforcement, travel-buffer enforcement,
+  rescheduling persistence, schema/migrations, API contracts, database access,
+  geocoding/routing, deployment, notifications, payments, and Replit artifacts
+  were unchanged or not accessed.
+- Push was attempted twice and blocked by GitHub's invalid username/token
+  authentication response; no remote feature SHA exists.
+
+**Build state at end:** design complete locally; implementation remains blocked
+on explicit operator approval of the policy and data model.
