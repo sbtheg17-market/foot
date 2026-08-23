@@ -1033,3 +1033,50 @@ their unresolved operational status:
 - Managed catalog status remains **NOT VERIFIED**. No managed database,
   production data, migration, backup, restore, or deployment was accessed or
   changed by this documentation work.
+
+## 2026-08-22 — Final roadmap-item-3 baseline
+
+This final audit was based on the verified current `origin/main`
+`d3a6d7dbcf707b0173617d7a01f35f7501b5f2fa`. The repository-controlled schema
+source fingerprint procedure produced aggregate SHA-256
+`8e69085fda8280e511483990d6c24653831252fa0541de990d7288ca238024d8`.
+This is an exact source-file fingerprint, not a semantic manifest and not
+evidence of managed-production parity.
+
+### Final release-gate matrix
+
+| Gate | Evidence required | Current status | Blocker | Next action | Owner |
+|---|---|---|---|---|---|
+| Schema fingerprint | Approved commit, deterministic source fingerprint, semantic-manifest decision | Repository VERIFIED; semantic manifest NOT VERIFIED | No canonical semantic manifest; managed comparison unavailable | Review whether a deterministic semantic generator is warranted; otherwise retain source fingerprint limitation | Release engineer |
+| Migration inventory | Every frozen artifact, order, dependencies, rollback, and managed history | Repository VERIFIED; managed history NOT VERIFIED | No committed migration journal and no managed catalog access | Reconcile against authorized read-only catalog evidence | DBA / release engineer |
+| Managed target identity | Credential-free target fingerprint and environment class | BLOCKED / NOT VERIFIED | No approved target or read-only authorization | Identify target through protected operator process | DBA |
+| Managed schema match | Read-only comparison of tables, columns, enums, constraints, FKs, indexes, and predicates | BLOCKED / NOT VERIFIED | Managed database access not authorized | Run one read-only transaction only after all prerequisites exist | DBA |
+| Required indexes | Exact definitions, uniqueness, predicates, validity, and workload support | Repository VERIFIED; managed NOT VERIFIED | Catalog and query-plan evidence unavailable | Compare by full definition, not name | DBA |
+| Active-booking unique index | Exact partial unique definition and validity | Repository VERIFIED; managed NOT VERIFIED | Managed catalog unavailable | Verify `bookings_active_booking_unique_idx` before any schema push | DBA |
+| Prevented-bookings projection | Declaration, frozen artifact, source sufficiency, rebuild safety, disposition | Repository VERIFIED; managed NOT VERIFIED | No managed presence or source-data check | Decide separately whether staging/managed application is needed | Product owner / DBA |
+| Backup | Recovery point, owner, provider, retention, PITR | BLOCKED | Backup evidence unavailable | Establish and attach provider evidence | DBA / platform owner |
+| Restore test | Tested non-production restore and integrity result | BLOCKED | Restore rehearsal unavailable | Complete and record rehearsal before migration | DBA / platform owner |
+| RPO | Approved and achievable recovery-point target | BLOCKED | Operator/provider decision missing | Set and evidence target | Platform owner |
+| RTO | Approved and achievable recovery-time target | BLOCKED | Operator/provider decision missing | Set and evidence target | Platform owner |
+| Dry-run | Exact artifact/hash, target, fingerprint, destructive scan, expected impact, abort conditions | PARTIALLY VERIFIED | No target-specific managed/staging execution | Perform only against approved non-production target | Release engineer |
+| Controlled application approval | Exact target, artifact, hashes, backup, restore, dry-run, order, authorization | NOT AUTHORIZED | Multiple prerequisites absent | Create one-run approval record only after gates pass | Approver / DBA |
+| Post-migration verification | Read-only catalog, health, invariant, projection, and compatibility checks | READY AS PROCEDURE; NOT RUN | No migration was authorized or applied | Execute immediately after a future approved apply | DBA / on-call |
+| Rollback/restore | Tested restore or reviewed forward-fix with owner and compatibility plan | BLOCKED | No restore-tested evidence; frozen artifacts have no DOWN | Complete restore rehearsal; never invent DOWN SQL | DBA / incident commander |
+| Application compatibility | Startup health, smoke checks, and schema compatibility | PARTIALLY VERIFIED | No verified managed target | Run checks against the identified target only | Application owner |
+| Deployment readiness | Start command with no startup DDL | Repository VERIFIED | Production release not authorized | Preserve `pnpm run start`; do not add schema push | Release engineer |
+
+### Final audit boundaries
+
+- Managed database access: **NONE**.
+- SQL/DDL, migration, replay, projection rebuild, seed, backup, restore, and
+  deployment: **NONE**.
+- Application, schema, migration, package, lockfile, workflow, Replit
+  configuration, and production changes: **NONE**.
+- Required outcome: **No migration applied.**
+- Analytics remains deferred until managed projection state is separately
+  verified. Ledger remains unchanged. Conflict branches remain preserved and
+  untouched.
+
+The next operator must resolve target identity, backup/restore evidence, and
+read-only managed catalog authorization before any production migration
+decision. Documentation does not authorize database access.
