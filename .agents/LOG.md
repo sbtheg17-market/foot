@@ -2849,7 +2849,6 @@ evidence, and separately authorized read-only managed catalog verification.
 
 ---
 
-<<<<<<< HEAD
 ### Session — Notification reliability and client-overlap policy (2026-08-22)
 **Agent:** Replit Agent
 **Scope:** `S` (notification hardening and policy documentation)
@@ -2886,7 +2885,6 @@ were used.
 the exact notification persistence/delivery semantics before expanding scope.
 
 ---
-=======
 ### Session — Imported project setup inquiry (2026-08-22)
 **Agent:** Replit Agent
 **Scope:** `XS` (read-only import orientation)
@@ -2951,4 +2949,3 @@ provider-specific or schema implementation.
 `feat/payments-foundation`. Push to `origin` was attempted and rejected by
 GitHub with invalid HTTPS credentials; no force-push or credential handling was
 performed. The branch remains local until repository authentication is repaired.
->>>>>>> origin/main
