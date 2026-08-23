@@ -2949,3 +2949,57 @@ provider-specific or schema implementation.
 `feat/payments-foundation`. Push to `origin` was attempted and rejected by
 GitHub with invalid HTTPS credentials; no force-push or credential handling was
 performed. The branch remains local until repository authentication is repaired.
+
+---
+### Session — Service-area and rescheduling-history design (2026-08-22)
+**Agent:** Replit Agent
+**Scope:** `XS` (design and implementation-readiness only)
+
+**What was done:**
+- Verified the imported Foot repository is on clean `main`, matching
+  `origin/main`, with the notification/overlap-policy work already merged.
+- Audited the existing descriptive travel-zone model, free-form booking location
+  fields, current booking coverage gap, and existing reschedule validation.
+- Added a provider-neutral design packet for service-area/travel-buffer policy and
+  durable rescheduling history, including approval gates, data/API contracts,
+  authorization, privacy boundaries, and tests.
+- Created the local branch `feat/service-area-rescheduling-history`.
+
+**Boundaries held:**
+- No live service-area restriction, travel buffer, address restriction, durable
+  history table, API route, migration, dependency, workflow, secret, database,
+  deployment, or unrelated product change was made.
+
+**Build state at end:** design packet complete; runtime behavior unchanged;
+awaiting explicit policy and data-model approval before implementation.
+
+---
+### Session — Finalize and verify service-area/rescheduling design (2026-08-22)
+**Agent:** Replit Agent
+**Scope:** `XS` (documentation-only continuation)
+
+**What was done:**
+- Re-verified `sbtheg17-market/foot` on
+  `feat/service-area-rescheduling-history`, based on current `origin/main`
+  `fbe477413d18fea601908d7d6a7bcc7762f4598d`.
+- Replaced the combined draft with the required
+  `docs/service-area-travel-policy.md` and
+  `docs/rescheduling-history-design.md`.
+- Expanded both documents to cover the requested policy alternatives,
+  approval gates, data/API implications, privacy, failure behavior, lifecycle,
+  concurrency, retention, and future tests.
+- Appended the continuation result to the Neo handoff without rewriting prior
+  history.
+- Committed the documentation finalization locally as
+  `4ca95d847351837b5b87f161b782890abdd0c5d8`.
+
+**Boundaries held:**
+- Runtime behavior, service-area enforcement, travel-buffer enforcement,
+  rescheduling persistence, schema/migrations, API contracts, database access,
+  geocoding/routing, deployment, notifications, payments, and Replit artifacts
+  were unchanged or not accessed.
+- Push was attempted twice and blocked by GitHub's invalid username/token
+  authentication response; no remote feature SHA exists.
+
+**Build state at end:** design complete locally; implementation remains blocked
+on explicit operator approval of the policy and data model.

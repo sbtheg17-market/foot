@@ -1131,3 +1131,40 @@ The current invoice trigger and booking state machine remain unchanged.
 Cancellation/no-show fees, refunds, payouts, taxes, supported currencies,
 capture timing, and provider account requirements remain operator/business
 decisions. Railway build/start/health configuration remains unchanged.
+
+## 2026-08-22 — Service-area and rescheduling-history design slice
+
+### Verified continuation state
+
+- Repository: `sbtheg17-market/foot`.
+- Authoritative base: current merged `origin/main`
+  `fbe477413d18fea601908d7d6a7bcc7762f4598d`.
+- Working branch: `feat/service-area-rescheduling-history`.
+- No conflict branch was used; no unrelated product changes were made.
+
+### Design outcome
+
+- Added `docs/service-area-travel-policy.md` for roadmap item 7. It compares
+  postal allowlists, radius, polygon/geofence, city/region, and hybrid models;
+  recommends a city/region model with optional postal refinement pending
+  approval; and covers address handling, privacy, travel feasibility, buffers,
+  operating constraints, outages, future schema, and tests.
+- Added `docs/rescheduling-history-design.md` for roadmap item 8. It compares
+  append-only events, request-plus-history, generic audit, and hybrid models;
+  recommends request-plus-history only if proposal semantics are approved,
+  otherwise an append-only accepted-event record; and covers entities, fields,
+  nullability, indexes, keys, lifecycle, concurrency, API, authorization,
+  privacy, retention, notification linkage, and tests.
+- All recommendations remain approval-gated. The current descriptive travel-zone
+  behavior and existing rescheduling enforcement remain unchanged.
+
+### Explicit boundaries
+
+Runtime behavior: unchanged.
+Service-area enforcement: not implemented.
+Travel-buffer enforcement: not implemented.
+Rescheduling persistence: not implemented.
+Schema/migrations: none.
+API contracts: unchanged.
+Managed database, geocoding, routing, payment, notification-provider, and
+production access: none.
