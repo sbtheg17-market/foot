@@ -34,7 +34,7 @@ import RescheduleModal from '@/components/reschedule-modal';
 const STATUS_META: Record<string, { label: string; bg: string; text: string; description: string }> = {
   requested: { label: 'Pending', bg: '#FEF3C7', text: '#92400E', description: 'Your request is with the provider for review.' },
   confirmed: { label: 'Confirmed', bg: '#D1FAE5', text: '#065F46', description: 'Your visit is scheduled.' },
-  rescheduled: { label: 'Rescheduled', bg: '#DBEAFE', text: '#1E40AF', description: 'The appointment time was changed.' },
+  rescheduled: { label: 'Rescheduled', bg: '#DBEAFE', text: '#1E40AF', description: 'A new appointment time is waiting for confirmation.' },
   completed: { label: 'Completed', bg: '#ECFDF5', text: '#047857', description: 'This visit has been completed.' },
   cancelled: { label: 'Cancelled', bg: '#F3F4F6', text: '#6B7280', description: 'This booking is no longer active.' },
   no_show: { label: 'No show', bg: '#FEE2E2', text: '#991B1B', description: 'The visit was marked as a no-show.' },
@@ -165,6 +165,9 @@ export default function BookingDetailScreen() {
   const canReschedule = isRescheduleEligible && !!service;
   const rescheduleServiceGone = isRescheduleEligible && !!servicesData && !service;
   const canConfirmReschedule = isProvider && booking.status === 'rescheduled';
+  const pendingRescheduleMessage = !isProvider && booking.status === 'rescheduled'
+    ? 'Your provider has been notified. This visit stays pending until the new time is confirmed.'
+    : null;
 
   const handleReviewSubmit = () => {
     const trimmedComment = reviewComment.trim();
@@ -275,6 +278,9 @@ export default function BookingDetailScreen() {
             </View>
           </View>
           <Text style={styles.heroDescription}>{status.description}</Text>
+          {pendingRescheduleMessage && (
+            <Text style={styles.heroDescription}>{pendingRescheduleMessage}</Text>
+          )}
         </View>
 
         <View style={styles.content}>

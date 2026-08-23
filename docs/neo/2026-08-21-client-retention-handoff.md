@@ -1081,6 +1081,44 @@ The next operator must resolve target identity, backup/restore evidence, and
 read-only managed catalog authorization before any production migration
 decision. Documentation does not authorize database access.
 
+## 2026-08-22 — Notification reliability and client-overlap policy
+
+Verified `origin/main` at `b31835222d4c06ed247105ee7812ffe8fb4f1569`. The
+payments foundation is present in the repository history but is not included
+in this branch, per scope.
+
+### Notification audit and implementation
+
+- Audited new-booking SSE, provider/client booking status push notifications,
+  provider application notification persistence, provider unread behavior,
+  Expo token registration, mobile permission handling, logout, and tap routing.
+- Preserved the existing rule that delivery failure cannot roll back a
+  successful booking transition.
+- Added a bounded retry with aggregate redacted logging for push delivery.
+- Booking push payloads now deep-link to `/booking/:id`; mobile handles cold
+  starts and taps while the existing server authorization remains authoritative.
+- Mobile token registration failures remain non-fatal, and registered tokens
+  are best-effort removed on logout using the existing endpoint.
+- Existing provider in-app unread persistence remains provider-only. No client
+  notification persistence or new schema was added.
+- Email and SMS remain deferred.
+
+### Overlap policy
+
+Current cross-provider client overlap behavior is unchanged and documented in
+`docs/booking-overlap-policy.md`. The recommendation is to reject overlapping
+active client appointments, but operator approval is still required before
+changing booking or rescheduling behavior. No overlap enforcement, schema, or
+migration was added.
+
+### Validation and boundaries
+
+API/mobile typechecks, API build, Railway deploy build, Expo static export,
+focused booking state-machine tests, and `git diff --check` passed. The
+rescheduling integration suite could not run because its expected local API
+server was not running on port 8080. Managed database access, production
+notifications, deployment, secrets, and Replit artifacts were none.
+
 ## 2026-08-22 — Payments foundation
 
 Roadmap item 4 was addressed with a provider-neutral design and pure,

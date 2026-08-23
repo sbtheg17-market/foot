@@ -22,9 +22,12 @@ export interface PushPayload {
   data?: Record<string, unknown>;
 }
 
+const MAX_SEND_ATTEMPTS = 2;
+
 /**
  * Send a push notification to all registered Expo tokens for a user.
- * Fails silently — push delivery must never break a booking flow.
+ * Delivery is best-effort — push delivery must never break a booking flow.
+ * Retries the whole batch once, and logs only aggregate safe diagnostics.
  */
 export async function sendPushToUser(
   userId: number,
@@ -49,11 +52,20 @@ export async function sendPushToUser(
 
   const chunks = expo.chunkPushNotifications(messages);
   for (const chunk of chunks) {
-    try {
-      await expo.sendPushNotificationsAsync(chunk);
-    } catch (err) {
-      // Log but never rethrow — notification failure must not break the caller
-      console.error("[push] send error:", err);
+    let delivered = false;
+    for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS && !delivered; attempt += 1) {
+      try {
+        await expo.sendPushNotificationsAsync(chunk);
+        delivered = true;
+      } catch {
+        if (attempt === MAX_SEND_ATTEMPTS) {
+          // Never expose provider responses or token values in application logs.
+          console.warn("[push] delivery failed after bounded retry", {
+            userId,
+            tokenCount: chunk.length,
+          });
+        }
+      }
     }
   }
 }

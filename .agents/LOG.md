@@ -2849,6 +2849,42 @@ evidence, and separately authorized read-only managed catalog verification.
 
 ---
 
+### Session — Notification reliability and client-overlap policy (2026-08-22)
+**Agent:** Replit Agent
+**Scope:** `S` (notification hardening and policy documentation)
+
+**What was done:**
+- Verified `origin/main` at
+  `b31835222d4c06ed247105ee7812ffe8fb4f1569` and based work on it.
+- Added bounded, redacted push retry handling; booking push payloads now
+  deep-link to authenticated booking detail.
+- Added mobile cold-start/tap routing, non-fatal registration handling, and
+  best-effort token removal on logout using the existing API.
+- Added explicit pending-reschedule copy without changing booking states.
+- Added `docs/booking-overlap-policy.md`; current cross-provider overlap
+  behavior remains unchanged pending operator approval.
+- Preserved the existing provider-only durable unread mechanism; no schema,
+  client notification storage, API contract, email, or SMS changes.
+
+**Validation:** API/mobile typechecks, API build, Railway deploy build, Expo
+static export, booking state-machine tests (63/63), and `git diff --check`
+passed. The rescheduling integration suite was not runnable because no API
+server was listening on its expected local port 8080. Expo reported existing
+package-version compatibility warnings but completed successfully.
+
+**Boundaries held:** no managed database access, production notifications,
+deployment, secrets, Replit artifacts, schema/migrations, or overlap
+enforcement.
+
+**Commit/push:** committed locally as `34fca9d` on
+`feat/notifications-overlap-policy`. Push was rejected by GitHub because the
+checkout's HTTPS credentials are invalid; no credential values or force-push
+were used.
+
+**Next operator decision:** select and approve the client overlap policy and
+the exact notification persistence/delivery semantics before expanding scope.
+
+---
 ### Session — Imported project setup inquiry (2026-08-22)
 **Agent:** Replit Agent
 **Scope:** `XS` (read-only import orientation)
