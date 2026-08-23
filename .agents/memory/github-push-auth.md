@@ -7,4 +7,4 @@ GitHub read access and write access are separate. Direct `git push origin main` 
 
 **Why:** The repository requires checkpoint synchronization, but neither failure is an application or Git-history problem, and retrying with guessed credentials is unsafe.
 
-**How to apply:** Treat GitHub account authorization as external to the repo: reconnect the account or use a fork with a pull request. Preserve local commits, do not force-push or rewrite history, re-check local/remote hashes and ahead-behind after a reported failure, and only retry after confirming the remote did not advance.
+**How to apply:** Treat GitHub account authorization as external to the repo: reconnect the account or use a fork with a pull request. Preserve local commits, do not create duplicate commits just to retry publication, force-push, or rewrite history; re-check local/remote hashes and ahead-behind after a reported failure, and only retry after confirming the remote did not advance.

@@ -848,3 +848,188 @@ slot-selection component or new endpoint was introduced.
   Web; the shipped Expo native path uses the existing alert convention.
 - Next recommended slice: operator review of this pushed mobile branch before
   authorizing PR creation or merge.
+
+## 2026-08-22 — Managed database release-gate audit
+
+### Scope and verified baseline
+
+This is a documentation-only audit for the roadmap item “Managed database
+state requires a deliberate release gate.” No managed database was accessed,
+no production SQL or DDL was run, no migration was applied, no backup or
+restore was initiated, no deployment was performed, and no schema,
+application, package, lockfile, or Replit metadata was changed.
+
+- Repository: `sbtheg17-market/foot`
+- Checkout: `/home/runner/workspace`
+- Remote: `origin` points to `https://github.com/sbtheg17-market/foot`
+- Authoritative `origin/main`:
+  `8d96ebe560ef8c16943d3a1e301dc596bc72a691`
+- Working tree: clean
+- Conflict branches: 46 remote `origin/conflict_*` refs observed; all
+  preserved and untouched
+
+### Schema fingerprint and migration inventory
+
+- **VERIFIED from repository evidence:** canonical Drizzle schema is
+  `lib/db/src/schema/index.ts`, exporting modules under `lib/db/src/schema/`;
+  `lib/db/drizzle.config.ts` points Drizzle at that barrel.
+- **VERIFIED from repository evidence:** 17 schema modules and two frozen SQL
+  artifacts exist. SHA-256 values:
+  - `PREVENTED_BOOKING_RECORDS_V1.sql` =
+    `138982a19c7427044dfea167ffdbbcc72e6647130cc565f1d23621aef70e29ce`
+  - `PREVENTED_BOOKINGS_DAILY_V1.sql` =
+    `c4b1896e1e3342cdedd1868a4884719a65e17bf0dfa59a4a238af34f5854a876`
+- **NOT VERIFIED:** no canonical schema manifest, committed whole-schema
+  fingerprint, or drift-detecting fingerprint procedure was found.
+- **VERIFIED from repository evidence:** no committed Drizzle migration
+  directory or migration journal exists. `db:push` remains a developer
+  command; the two frozen artifacts are the only committed migration
+  artifacts.
+- The records artifact is additive-only (one enum, one table, two indexes);
+  the daily artifact is additive-only (one table with a CHECK and
+  `UNIQUE NULLS NOT DISTINCT`). Both are single-transaction, no-DOWN,
+  no-`IF NOT EXISTS` artifacts. Required order is records first, projection
+  second.
+- **NOT VERIFIED / BLOCKED:** current managed catalog, managed migration
+  history, and managed match to these artifacts. Earlier ledger entries are
+  historical evidence only and were not revalidated here.
+
+Safe future fingerprint procedure: verify the intended commit with
+`git rev-parse`, enumerate and hash sorted files under `lib/db/src/schema/`,
+hash each frozen SQL artifact with `sha256sum`, and compare those values with
+an authorized read-only managed catalog export. Never include credentials or
+the raw `DATABASE_URL` in the input or report.
+
+### Startup mutation and required indexes
+
+- **VERIFIED:** `Procfile`, `nixpacks.toml`, and `railway.json` start with
+  `pnpm run start`; build commands only build the web and API artifacts.
+- **VERIFIED:** startup does not invoke `drizzle-kit push`, `drizzle-kit
+  migrate`, or another schema mutation. Deployment startup is separated from
+  schema change application.
+- **VERIFIED in declarations, managed status NOT VERIFIED:**
+  - `bookings_active_booking_unique_idx`: unique on
+    `(client_id, provider_id, service_id, scheduled_at)` with predicate
+    `status IN ('requested','confirmed','rescheduled')`;
+  - `prevented_booking_records_correlation_unique_idx`: unique on
+    `(correlation_id)`;
+  - `prevented_booking_records_marketplace_provider_occurred_idx`: on
+    `(marketplace_id, provider_id, occurred_at DESC NULLS LAST)`;
+  - `prevented_bookings_daily_grain_unique`: `UNIQUE NULLS NOT DISTINCT` on
+    `(marketplace_id, provider_id, service_id, day_utc)`.
+- **NOT VERIFIED:** no dedicated provider-overlap or availability indexes and
+  no separate foreign-key-support index inventory are documented; workload
+  and managed catalog review are required before deciding whether more are
+  needed.
+- The active-booking index must be checked by full catalog definition,
+  predicate, uniqueness, and validity, not by name alone. No index was
+  created, altered, or dropped.
+
+### Prevented-bookings projection
+
+- **VERIFIED:** source declaration, frozen source artifact, replay tooling,
+  projection declaration, frozen projection artifact, rebuild script, and
+  rebuild runbook all exist.
+- **VERIFIED:** `prevented_bookings_daily` is a rebuildable read-side
+  aggregate sourced only from `prevented_booking_records`; it is not written
+  by request paths or used for authorization.
+- **NOT VERIFIED / BLOCKED:** current managed presence, row count, source
+  sufficiency, and projection correctness require an authorized read-only
+  managed check. No rebuild was run.
+- Disposition: **repository-ready, but managed application and verification
+  remain separately gated**. Neither artifact may be applied through blind
+  `drizzle-kit push`.
+
+### Backup, dry-run, application, verification, and rollback
+
+- **NOT VERIFIED:** no backup owner/provider, frequency, retention, PITR,
+  pre-migration backup confirmation, backup verification, restore-test
+  procedure, RPO, or RTO was found.
+- **RELEASE BLOCKER:** no restore-tested managed backup procedure is evidenced.
+  Before any managed schema application, those ownership and recovery details
+  must be recorded and a restore rehearsal completed.
+- **VERIFIED:** projection and replay runbooks provide credential-free target
+  fingerprints, read-only dry-run behavior, expected counts, input/artifact
+  hashes, caps, abort conditions, idempotency, and no-retry rules.
+- **PARTIALLY VERIFIED:** frozen SQL comments define hash verification,
+  object-existence preflight, `ON_ERROR_STOP`, one transaction, and immediate
+  catalog verification, but there is no generalized schema-migration dry-run
+  command or canonical migration journal.
+- Required controlled sequence:
+  `preflight → backup confirmation → target identity confirmation →
+  fingerprint confirmation → SQL/hash review → read-only dry-run →
+  explicit operator approval → one controlled psql apply → immediate
+  read-only verification → release decision`.
+- **NOT VERIFIED:** named authorizer, captured output location, and an
+  explicit incompatible-schema application stop condition are not consolidated
+  into one release procedure.
+- **VERIFIED from repository evidence:** post-apply checks are described
+  across the artifacts and runbooks for tables, columns, constraints, indexes,
+  enums, foreign keys, projection reconciliation, health, and migration
+  outcome. None ran against the managed database in this audit.
+- **PARTIALLY VERIFIED:** projection recovery is available through a
+  transactional rebuild; replay is idempotent but treated as irreversible and
+  requires fresh authorization after failure.
+- **NOT VERIFIED / BLOCKED:** schema artifacts have no automated reversal and
+  no restore-tested managed rollback procedure. Recovery is backup-restore or
+  reviewed forward-fix, with ownership, downtime, and compatibility
+  expectations still to be documented.
+
+### Release-gate matrix
+
+| Gate | Required evidence | Current status | Safe next action | Owner |
+|---|---|---|---|---|
+| Canonical schema fingerprint | Manifest and drift-detecting procedure | NOT VERIFIED | Establish a credential-free manifest procedure | Release engineer |
+| Migration inventory | Complete ordered artifact/history list | Repository VERIFIED; managed history NOT VERIFIED | Reconcile with authorized read-only catalog/history evidence | DBA / release engineer |
+| Managed schema match | Read-only catalog comparison | BLOCKED | Obtain separately authorized read-only verification | DBA |
+| Active-booking unique index | Exact definition, predicate, uniqueness, validity | Declaration VERIFIED; managed NOT VERIFIED | Compare full catalog definition before any push | DBA |
+| Required FKs/indexes | Catalog and workload-support evidence | NOT VERIFIED | Produce checklist and inspect read-only catalog | DBA |
+| Prevented-bookings projection | Declaration, artifact, rebuild safety, disposition | Repository VERIFIED; managed NOT VERIFIED | Decide and authorize staging/managed application separately | Product owner / DBA |
+| Pre-migration backup | Recovery point and restore evidence | NOT VERIFIED — blocker | Establish owner, retention, RPO/RTO, and restore test | DBA / platform owner |
+| Dry-run | Read-only target-specific output and SQL review | PARTIALLY VERIFIED | Run only against approved staging/non-production target | Release engineer |
+| Controlled migration approval | Named approval for exact hashes and target | NOT VERIFIED | Create one-run, no-retry approval record | Product owner / DBA |
+| Post-migration verification | Catalog, data, health, invariant checks | NOT VERIFIED | Execute read-only checks immediately after approved apply | DBA / on-call |
+| Rollback/restore test | Tested recovery and compatibility plan | NOT VERIFIED — blocker | Complete and record restore rehearsal | DBA / platform owner |
+| Application compatibility | Startup health and schema compatibility | PARTIALLY VERIFIED | Run health/smoke checks against verified target | Application owner |
+| Deployment readiness | Build/start config with no startup DDL | VERIFIED | Keep `pnpm run start`; never add schema push | Release engineer |
+
+### Checks, blockers, and next action
+
+- `git fetch origin --prune`, status, branch, remote, and `origin/main`:
+  PASS.
+- Read-only inspection of schema, artifacts, scripts, startup configuration,
+  deployment notes, runbooks, and continuity history: PASS.
+- Frozen SQL SHA-256 calculation: PASS.
+- Managed database access: **NONE**.
+- Production SQL/DDL, migration, seed, backup, restore, deployment, package
+  installation, lockfile, workflow, schema, application, and Replit metadata
+  changes: **NOT PERFORMED**.
+- Deployment: **NOT PERFORMED / NOT AUTHORIZED**.
+- Analytics: source/projection/replay preparation exists; managed projection
+  state and current production analytics readiness are **NOT VERIFIED**.
+- Launch blockers: restore-tested backup/recovery evidence and current
+  authorized read-only managed catalog verification.
+- Next safe operator action: establish recovery ownership/evidence, then
+  perform the separately authorized read-only managed catalog comparison
+  before any migration or deployment decision.
+
+## 2026-08-22 — Release-gate documentation closure
+
+The audit procedures are now published in the repository without changing
+their unresolved operational status:
+
+- `docs/managed-db-release-gate.md` defines local-scratch, staging, and
+  managed-production boundaries; the repository fingerprint procedure;
+  migration inventory; preflight; hash-reviewed dry-run; explicit approval;
+  controlled application; verification; and abort conditions.
+- `docs/backup-restore-runbook.md` defines provider-agnostic backup,
+  point-in-time recovery, restore rehearsal, validation, incident, and
+  evidence procedures. Backup owner, provider, retention, PITR, cadence, RPO,
+  and RTO remain `TBD — operator/provider decision`.
+- Frozen artifacts remain additive-only and have no automated DOWN. No
+  rollback SQL was added. Recovery remains backup-restore or reviewed
+  forward-fix; the daily projection can be rebuilt only under its existing
+  separate authorization.
+- Managed catalog status remains **NOT VERIFIED**. No managed database,
+  production data, migration, backup, restore, or deployment was accessed or
+  changed by this documentation work.
