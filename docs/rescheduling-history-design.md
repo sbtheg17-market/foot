@@ -1,6 +1,6 @@
 # Rescheduling history design
 
-**Status:** Design complete; recommendation pending operator approval.  
+**Status:** Design complete; recommendation pending operator approval.
 **Scope:** Roadmap item 8 only. No migration, route, persistence, or UI change is
 authorized by this document.
 

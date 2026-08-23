@@ -1,6 +1,6 @@
 # Service-area and travel-buffer policy
 
-**Status:** Design complete; all recommendations are pending operator approval.  
+**Status:** Design complete; all recommendations are pending operator approval.
 **Scope:** Roadmap item 7 only. This document authorizes no enforcement, geocoding,
 routing, persistence, or migration.
 
