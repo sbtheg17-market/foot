@@ -1081,7 +1081,6 @@ The next operator must resolve target identity, backup/restore evidence, and
 read-only managed catalog authorization before any production migration
 decision. Documentation does not authorize database access.
 
-<<<<<<< HEAD
 ## 2026-08-22 — Notification reliability and client-overlap policy
 
 Verified `origin/main` at `b31835222d4c06ed247105ee7812ffe8fb4f1569`. The
@@ -1119,7 +1118,7 @@ focused booking state-machine tests, and `git diff --check` passed. The
 rescheduling integration suite could not run because its expected local API
 server was not running on port 8080. Managed database access, production
 notifications, deployment, secrets, and Replit artifacts were none.
-=======
+
 ## 2026-08-22 — Payments foundation
 
 Roadmap item 4 was addressed with a provider-neutral design and pure,
@@ -1132,4 +1131,3 @@ The current invoice trigger and booking state machine remain unchanged.
 Cancellation/no-show fees, refunds, payouts, taxes, supported currencies,
 capture timing, and provider account requirements remain operator/business
 decisions. Railway build/start/health configuration remains unchanged.
->>>>>>> origin/main
