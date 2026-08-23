@@ -1080,3 +1080,16 @@ evidence of managed-production parity.
 The next operator must resolve target identity, backup/restore evidence, and
 read-only managed catalog authorization before any production migration
 decision. Documentation does not authorize database access.
+
+## 2026-08-22 — Payments foundation
+
+Roadmap item 4 was addressed with a provider-neutral design and pure,
+test-covered money/status primitives. No provider is selected; Stripe Connect
+is documented as a recommendation only. No payment SDK, live checkout,
+webhook route, financial side effect, schema/migration, ledger mutation,
+database access, workflow, or deployment change was made.
+
+The current invoice trigger and booking state machine remain unchanged.
+Cancellation/no-show fees, refunds, payouts, taxes, supported currencies,
+capture timing, and provider account requirements remain operator/business
+decisions. Railway build/start/health configuration remains unchanged.

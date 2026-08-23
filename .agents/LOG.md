@@ -2871,3 +2871,45 @@ evidence, and separately authorized read-only managed catalog verification.
 awaiting a future user instruction.
 
 ---
+
+### Session — Payments foundation (2026-08-22)
+**Agent:** Replit Agent
+**Scope:** `S` (provider-neutral foundation; no provider or schema work)
+
+**What was done:**
+- Verified authoritative `origin/main` at
+  `b31835222d4c06ed247105ee7812ffe8fb4f1569` and created
+  `feat/payments-foundation` without touching conflict branches.
+- Added `docs/payments-foundation.md` covering the provider recommendation,
+  unresolved operator policies, invoice lifecycle, booking mapping,
+  cancellation/no-show, payouts, taxes, failed payments, webhooks, audit
+  trail, and Railway/schema boundaries.
+- Added pure minor-unit money arithmetic, currency validation, payment
+  lifecycle transitions, and audit-context types with focused unit tests.
+- Appended continuity details to the client-retention handoff.
+
+**Boundaries held:**
+- No provider SDK, live checkout, webhook route, financial side effect,
+  schema/migration, ledger mutation, managed database access, secret,
+  workflow, deployment, or Railway/Replit configuration change.
+- Existing invoice and booking state machines remain unchanged.
+
+**Validation:**
+- Focused payments tests: 6/6 passed.
+- `pnpm run typecheck`: passed.
+- `pnpm run build:deploy`: passed.
+- `git diff --check`: passed.
+- Built API smoke check: `/api/healthz` returned `{"status":"ok"}`.
+- Secret/path review: no payment secrets; protected config and schema paths
+  unchanged.
+
+**Next operator decision:** formally select a provider and approve fee, tax,
+refund, payout, capture, currency/country, and no-show policies before any
+provider-specific or schema implementation.
+
+---
+
+**Post-session custody note:** commit `906725a` is present locally on
+`feat/payments-foundation`. Push to `origin` was attempted and rejected by
+GitHub with invalid HTTPS credentials; no force-push or credential handling was
+performed. The branch remains local until repository authentication is repaired.
