@@ -1,0 +1,34 @@
+[
+  {
+    "content": "Preserve/verify current state; create branch feat/rescheduling-consent-workflow from origin/main fd3c6b6",
+    "status": "completed"
+  },
+  {
+    "content": "Apply recovered patch, restore .env.example, audit all 38 files for scope/secrets/deletions",
+    "status": "completed"
+  },
+  {
+    "content": "Set up disposable PostgreSQL 15, db:push, seed x2, verify additive schema",
+    "status": "completed"
+  },
+  {
+    "content": "Build + start server, run full API test suite incl. new reschedule suites",
+    "status": "completed"
+  },
+  {
+    "content": "Run typecheck, build:deploy, git diff --check, secret scan",
+    "status": "completed"
+  },
+  {
+    "content": "Update docs: rescheduling-policy.md, rescheduling-history-design.md, test-coverage-matrix.md, neo handoff",
+    "status": "completed"
+  },
+  {
+    "content": "Commit + push #9 branch via SSH, verify SHAs, produce PR report, STOP",
+    "status": "completed"
+  },
+  {
+    "content": "AWAIT operator manual PR review/squash-merge of #9, then start #10 from updated main",
+    "status": "pending"
+  }
+]
