@@ -37,7 +37,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Layer | Status | Notes |
 |---|---|---|
 | DB schema | ✅ Phase 3 authorization state verified in development | Existing schema remains intact; `account_roles` and `provider_applications` are now read by authorization middleware. `users.role` and provider verification state remain compatibility fields. |
-| Gate B — Supabase managed catalog | ✅ Historical verification recorded; current state NOT VERIFIED | Prior read-only verification and later B3 ACCEPT-AS-APPLIED disposition remain historical ledger evidence. This audit did not access the managed database; current catalog, migration history, and index definitions require a fresh authorized read-only check. |
+| Gate B — Supabase managed catalog | ✅ Documentation finalized; current state BLOCKED / NOT VERIFIED | Final roadmap-item-3 baseline is `origin/main` `d3a6d7dbcf707b0173617d7a01f35f7501b5f2fa`; source fingerprint and index/projection dispositions are documented. No managed database access occurred; target identity, backup/restore evidence, and catalog verification remain blocked. |
 | Race-Proof booking index | ✅ APPLIED & CONCURRENCY-VERIFIED (2026-08-12) | `bookings_active_booking_unique_idx` — partial unique index on `bookings (client_id, provider_id, service_id, scheduled_at) WHERE status IN ('requested','confirmed','rescheduled')`; applied byte-for-byte (SQL SHA-256 `aece832e…`) in one transaction after read-only preflight; post-verification exact-definition PASS; live concurrency test: one simultaneous duplicate COMMITTED, the other rejected with SQLSTATE 23505 citing this index; all transient test rows removed, 18 tables back to 0 rows. Follow-ups gated separately: mirror declaration in `bookings.ts` before any future `drizzle-kit push` — **DONE (Session 074, commit `f12bd05e1d57f17d5cfc1ec8b83b26b9968e174c`; branch `publish/session-074-index-mirror` published to GitHub 2026-08-12, PR review pending)**; map 23505→409 in the API insert path. Operator rule: any future push proposing DROP/CREATE for this index is a hard STOP. |
 | Session 074 publication | ✅ Branch published (2026-08-12); PR review pending | `publish/session-074-index-mirror` pushed to GitHub at frozen tip `7a46801401698339c9a8461aa335622943424e73` (ancestry `41e6973 → f12bd05 → 7a46801`, byte-identical, via a temporary write-scoped deploy key). The earlier authentication failure is preserved as history in the Session 075 entry. Branch since carries the main-merge conflict resolution and the bundle-artifact removal; merge to `main` only through the reviewed PR. |
 | API server workflow | ✅ Running with Phase 2 readiness API | `artifacts/api-server: API Server` builds and serves on port 8080; database-backed role guards, approved-provider gates, owner-scoped provider applications, public discovery, admin routes, and owner-scoped provider readiness are verified. |
@@ -2813,5 +2813,38 @@ test or workflow restart was applicable.
 **Next best action:** operator resolves the documented backup/restore,
 schema-fingerprint, and managed-catalog gates before authorizing production
 schema work.
+
+---
+
+### Session — Final managed database release-gate baseline (2026-08-22)
+**Agent:** Replit Agent
+**Scope:** `S` (documentation-only)
+
+**What was done:**
+- Re-verified the actual checkout at `/home/runner/workspace` and fetched
+  current authoritative `origin/main`
+  `d3a6d7dbcf707b0173617d7a01f35f7501b5f2fa`.
+- Created the final documentation branch from that current `origin/main`:
+  `docs/managed-db-release-gate-final`.
+- Added the exact repository schema source fingerprint
+  `8e69085fda8280e511483990d6c24653831252fa0541de990d7288ca238024d8`.
+- Documented the exact active-booking index declaration,
+  provider availability/overlap index limitation, projection uniqueness
+  definitions, and the final complete release-gate matrix.
+- Preserved prior continuity sections and appended the final baseline,
+  blockers, no-write statement, and operator next action.
+
+**Boundaries held:**
+- Managed database access: NONE.
+- No SQL/DDL, migration, replay, projection rebuild, seed, backup, restore,
+  deployment, application, schema, package, lockfile, workflow, Replit
+  configuration, or production change.
+- Conflict branches preserved and untouched.
+
+**Validation:** repository evidence inspection, source/artifact hash
+calculation, `git diff --check`, and targeted secret/path checks passed.
+
+**Next best action:** complete protected target identification, backup/restore
+evidence, and separately authorized read-only managed catalog verification.
 
 ---

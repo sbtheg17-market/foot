@@ -28,6 +28,21 @@ manager and are supplied only to the operator's process.
 - There is currently no committed Drizzle migration-history directory or
   migration journal. `db:push` is a local scratch-only tool.
 
+### Final audit baseline
+
+The final documentation audit used the verified current `origin/main` commit
+`d3a6d7dbcf707b0173617d7a01f35f7501b5f2fa` on 2026-08-22. The repository
+fingerprint procedure below produced this aggregate source-file fingerprint:
+
+```text
+lib/db/src/schema/*.ts aggregate SHA-256
+8e69085fda8280e511483990d6c24653831252fa0541de990d7288ca238024d8
+```
+
+The aggregate is reproducible from the sorted relative file list and exact
+file bytes. Individual source hashes are retained in the audit record; the
+aggregate is not a semantic manifest and is not evidence of production parity.
+
 The frozen artifact hashes must be recomputed from the reviewed checkout, not
 copied from chat or an old report:
 
@@ -134,6 +149,24 @@ The artifacts intentionally have no `IF NOT EXISTS`, so drift fails loudly.
 Do not add untested rollback SQL. Do not run either artifact through
 `drizzle-kit push`.
 
+## Required-index audit
+
+The repository declaration audit found the following correctness-relevant
+index evidence:
+
+| Correctness concern | Repository definition | Current managed result |
+|---|---|---|
+| Active-booking uniqueness | Exact declaration is `bookings_active_booking_unique_idx` on `public.bookings (client_id, provider_id, service_id, scheduled_at)` with predicate `status IN ('requested','confirmed','rescheduled')`; unique | `NOT VERIFIED` — managed catalog access was not authorized |
+| Provider overlap/availability | No dedicated provider overlap or availability index is declared. Application correctness uses provider-scoped availability reads and overlap predicates under a provider advisory lock; this is not a database-index substitute | `NOT VERIFIED` — managed query plan/catalog review unavailable |
+| Prevented-record uniqueness | `prevented_booking_records_correlation_unique_idx` on the server-generated correlation identifier; additive frozen artifact | `NOT VERIFIED` |
+| Projection grain uniqueness | `prevented_bookings_daily_grain_unique` with `UNIQUE NULLS NOT DISTINCT` over marketplace, nullable provider/service, and UTC day; additive frozen artifact | `NOT VERIFIED` |
+| Foreign-key support indexes | No blanket FK-support index set is declared; each FK and workload path requires a target-specific catalog/performance review | `NOT VERIFIED` |
+
+The requested active-booking invariant is therefore repository-verified under
+the exact snake-case name above. It must be compared by full definition,
+predicate, uniqueness, and validity—not by a normalized or shortened name.
+No index was created, altered, dropped, or renamed by this audit.
+
 ## Controlled application
 
 The only permitted production sequence is:
@@ -193,7 +226,9 @@ Stop before any write when:
 
 ## Current disposition
 
-This document records procedure readiness only. The current managed catalog,
-managed migration history, backup/restore readiness, and production schema
-match remain **NOT VERIFIED**. Production deployment and schema application
-are **NOT AUTHORIZED**.
+This document records procedure readiness only. Against final audit baseline
+`d3a6d7dbcf707b0173617d7a01f35f7501b5f2fa`, the repository fingerprint and
+frozen artifact hashes are recorded, but the current managed catalog, managed
+migration history, backup/restore readiness, and production schema match remain
+**BLOCKED / NOT VERIFIED**. Production deployment and schema application are
+**NOT AUTHORIZED**. The default outcome is `No migration applied.`
