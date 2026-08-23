@@ -1500,6 +1500,167 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /bookings/{bookingId}/reschedule-requests:
+    post:
+      operationId: createRescheduleRequest
+      tags: [bookings]
+      summary: Propose a new time (provider/admin; requires client consent)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRescheduleRequest"
+      responses:
+        "201":
+          description: Proposal created (pending client consent)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RescheduleProposalResponse"
+        "200":
+          description: Idempotent replay — the existing proposal for this key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RescheduleProposalResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    get:
+      operationId: listRescheduleRequests
+      tags: [bookings]
+      summary: List reschedule proposals for an owned booking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Proposals (newest first, bounded)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RescheduleProposalListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /reschedule-requests/{requestId}/accept:
+    post:
+      operationId: acceptRescheduleRequest
+      tags: [bookings]
+      summary: Client accepts a proposed time (makes it the confirmed time)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Proposal accepted and booking time updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptRescheduleResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /reschedule-requests/{requestId}/decline:
+    post:
+      operationId: declineRescheduleRequest
+      tags: [bookings]
+      summary: Client declines a proposal (or the proposer withdraws it)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Proposal resolved; the original appointment is unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeclineRescheduleResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /bookings/{bookingId}/rescheduling-history:
+    get:
+      operationId: getReschedulingHistory
+      tags: [bookings]
+      summary: Append-only history of accepted time changes (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: integer
+          description: Keyset cursor (id of the last row from the previous page)
+      responses:
+        "200":
+          description: Rescheduling history, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReschedulingHistoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   # ── Reviews ───────────────────────────────────────────────────────────────────
 
   /reviews:
@@ -3183,6 +3344,163 @@ components:
           description: Required when transitioning to rescheduled
       required:
         - status
+
+    # ── Reschedule proposal schemas (consent-first provider rescheduling) ─────
+
+    RescheduleProposalStatus:
+      type: string
+      enum: [pending, accepted, declined, cancelled, expired, unresolved]
+
+    RescheduleProposal:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        requesterRole:
+          type: string
+          enum: [client, provider, admin]
+        originalScheduledAt:
+          type: string
+          format: date-time
+        proposedScheduledAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/RescheduleProposalStatus"
+        deadlineAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - bookingId
+        - requesterRole
+        - originalScheduledAt
+        - proposedScheduledAt
+        - status
+        - deadlineAt
+        - createdAt
+
+    CreateRescheduleRequest:
+      type: object
+      properties:
+        proposedScheduledAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          maxLength: 500
+        idempotencyKey:
+          type: string
+          maxLength: 128
+      required:
+        - proposedScheduledAt
+        - idempotencyKey
+
+    RescheduleProposalResponse:
+      type: object
+      properties:
+        proposal:
+          $ref: "#/components/schemas/RescheduleProposal"
+      required:
+        - proposal
+
+    RescheduleProposalListResponse:
+      type: object
+      properties:
+        proposals:
+          type: array
+          items:
+            $ref: "#/components/schemas/RescheduleProposal"
+      required:
+        - proposals
+
+    AcceptRescheduleResponse:
+      type: object
+      properties:
+        booking:
+          $ref: "#/components/schemas/Booking"
+        proposal:
+          $ref: "#/components/schemas/RescheduleProposal"
+      required:
+        - booking
+        - proposal
+
+    DeclineRescheduleResponse:
+      type: object
+      properties:
+        proposal:
+          $ref: "#/components/schemas/RescheduleProposal"
+        originalTimeFeasible:
+          type: boolean
+        supportMessage:
+          type: string
+      required:
+        - proposal
+        - originalTimeFeasible
+
+    RescheduleHistoryEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        originalScheduledAt:
+          type: string
+          format: date-time
+        newScheduledAt:
+          type: string
+          format: date-time
+        requesterRole:
+          type: string
+          enum: [client, provider, admin]
+        reason:
+          type: string
+          nullable: true
+        previousStatus:
+          $ref: "#/components/schemas/BookingStatus"
+        newStatus:
+          $ref: "#/components/schemas/BookingStatus"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - bookingId
+        - originalScheduledAt
+        - newScheduledAt
+        - requesterRole
+        - previousStatus
+        - newStatus
+        - createdAt
+
+    ReschedulingHistoryResponse:
+      type: object
+      properties:
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/RescheduleHistoryEntry"
+        limit:
+          type: integer
+        nextCursor:
+          type: integer
+          nullable: true
+      required:
+        - history
+        - limit
 
     # ── Review Schemas (create/get) ────────────────────────────────────────────
 

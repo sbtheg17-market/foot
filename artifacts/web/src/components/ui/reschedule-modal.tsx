@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useGetProviderSlots, useUpdateBookingStatus } from '@workspace/api-client-react';
+import {
+  useGetProviderSlots,
+  useUpdateBookingStatus,
+  useCreateRescheduleRequest,
+} from '@workspace/api-client-react';
 import { X, CalendarDays, Clock, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -73,6 +77,13 @@ export default function RescheduleModal({
   const currentMs = useMemo(() => Date.parse(currentScheduledAt), [currentScheduledAt]);
 
   const updateStatus = useUpdateBookingStatus();
+  // Provider path: consent-first PROPOSAL — the client's confirmed time is
+  // never changed here. One idempotency key per modal open, so a network
+  // retry can never create a second proposal.
+  const createProposal = useCreateRescheduleRequest();
+  const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
+  const [reason, setReason] = useState('');
+  const submitting = updateStatus.isPending || createProposal.isPending;
 
   // Accessibility: focus enters the dialog on open; Escape closes it (but
   // never mid-submit, so a double-press cannot orphan an in-flight request).
@@ -81,11 +92,11 @@ export default function RescheduleModal({
   }, []);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !updateStatus.isPending) onClose();
+      if (event.key === 'Escape' && !submitting) onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose, updateStatus.isPending]);
+  }, [onClose, submitting]);
 
   const slotLabel = (iso: string) =>
     new Date(iso).toLocaleTimeString('en-US', {
@@ -111,7 +122,7 @@ export default function RescheduleModal({
     e.preventDefault();
     // Duplicate-submit protection: the button is disabled while pending, and
     // this guard covers keyboard/Enter re-entry.
-    if (updateStatus.isPending) return;
+    if (submitting) return;
     if (!selectedSlot) {
       toast.error('Please choose an available time slot.');
       return;
@@ -123,6 +134,73 @@ export default function RescheduleModal({
       return;
     }
 
+    if (isProvider) {
+      // Consent-first: create a pending proposal — the client must accept it.
+      createProposal.mutate(
+        {
+          bookingId,
+          data: {
+            proposedScheduledAt: selectedSlot,
+            idempotencyKey,
+            ...(reason.trim() ? { reason: reason.trim() } : {}),
+          },
+        },
+        {
+          onSuccess: () => {
+            toast.success('Time proposed — the client has been asked to confirm it. Their current appointment stays until they do.');
+            onSuccess();
+          },
+          onError: (err: unknown) => {
+            const apiError = err as { status?: number; data?: { error?: string } | null };
+            const statusCode = apiError.status;
+            const serverMessage = apiError.data?.error ?? '';
+            if (
+              serverMessage.includes('overlaps another appointment') ||
+              serverMessage.includes("outside this provider's availability")
+            ) {
+              toast.info('That time is no longer available. Please choose another slot.');
+              setSelectedSlot(null);
+              void refetchSlots();
+              return;
+            }
+            if (serverMessage.includes('already have an active request')) {
+              toast.info('This client already has a booking for that exact time. Please pick a different slot.');
+              setSelectedSlot(null);
+              return;
+            }
+            if (serverMessage.includes("already awaiting the client's response")) {
+              toast.info('A proposal is already awaiting this client — they need to respond first.');
+              onClose();
+              return;
+            }
+            if (serverMessage.includes('limit of provider time-change proposals')) {
+              toast.error(serverMessage);
+              onClose();
+              return;
+            }
+            if (serverMessage.includes('no longer offered')) {
+              toast.error('This service is no longer offered, so the booking cannot be rescheduled.');
+              onClose();
+              return;
+            }
+            if (statusCode === 409) {
+              toast.info('This booking can no longer be rescheduled — refreshing.');
+              onClose();
+              return;
+            }
+            if (statusCode === 400 && serverMessage) {
+              toast.error(serverMessage);
+              setSelectedSlot(null);
+              void refetchSlots();
+              return;
+            }
+            toast.error('Could not propose a new time. Please try again.');
+          },
+        },
+      );
+      return;
+    }
+
     updateStatus.mutate(
       {
         bookingId,
@@ -130,11 +208,7 @@ export default function RescheduleModal({
       },
       {
         onSuccess: () => {
-          toast.success(
-            isProvider
-              ? 'New time proposed — the client has been notified.'
-              : 'New time requested — your provider will confirm the change.',
-          );
+          toast.success('New time requested — your provider will confirm the change.');
           onSuccess();
         },
         onError: (err: unknown) => {
@@ -197,7 +271,7 @@ export default function RescheduleModal({
     <div
       data-testid="reschedule-modal"
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm"
-      onClick={(e) => e.target === e.currentTarget && !updateStatus.isPending && onClose()}
+      onClick={(e) => e.target === e.currentTarget && !submitting && onClose()}
     >
       <div
         role="dialog"
@@ -227,7 +301,7 @@ export default function RescheduleModal({
             data-testid="reschedule-modal-close"
             aria-label="Close reschedule dialog"
             onClick={onClose}
-            disabled={updateStatus.isPending}
+            disabled={submitting}
             className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-secondary/80 transition-colors mt-1 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="w-4 h-4" aria-hidden="true" />
@@ -325,6 +399,27 @@ export default function RescheduleModal({
             )}
           </div>
 
+          {isProvider && (
+            <div>
+              <label
+                htmlFor="reschedule-reason-input"
+                className="text-sm font-semibold text-foreground mb-2 block"
+              >
+                Reason shared with the client (optional)
+              </label>
+              <textarea
+                id="reschedule-reason-input"
+                data-testid="reschedule-reason-input"
+                value={reason}
+                maxLength={500}
+                onChange={(e) => setReason(e.target.value)}
+                rows={2}
+                placeholder="e.g. An earlier visit ran long — would this time work instead?"
+                className="w-full border border-border rounded-xl px-4 py-3 text-foreground bg-card focus:outline-none focus:ring-2 focus:ring-primary/40 text-sm resize-none"
+              />
+            </div>
+          )}
+
           <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{service.title}</span>
@@ -342,24 +437,24 @@ export default function RescheduleModal({
             data-testid="reschedule-submit-button"
             type="submit"
             onClick={handleSubmit}
-            disabled={updateStatus.isPending || !selectedSlot}
+            disabled={submitting || !selectedSlot}
             className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-semibold text-lg shadow-md disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            {updateStatus.isPending ? (
+            {submitting ? (
               <>
                 <span
                   className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"
                   aria-hidden="true"
                 />
-                Requesting new time…
+                {isProvider ? 'Proposing new time…' : 'Requesting new time…'}
               </>
             ) : (
-              'Confirm new time'
+              isProvider ? 'Propose new time' : 'Confirm new time'
             )}
           </button>
           <p className="text-center text-xs text-muted-foreground mt-3">
             {isProvider
-              ? 'The client will be notified of the proposed time. Confirm it from your Reschedules tab once agreed.'
+              ? 'The client must accept before anything changes — their current appointment stays until they do.'
               : 'Your provider will confirm the new time. Your current appointment stays until they do.'}
           </p>
         </div>

@@ -11,7 +11,7 @@
     "backfill:role-state": "node --enable-source-maps --import tsx/esm ./src/scripts/backfill-role-state.ts",
     "replay:prevented-bookings": "node --enable-source-maps --import tsx/esm ./src/scripts/replay-prevented-bookings.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx/esm --test src/__tests__/booking-state-machine.test.ts",
+    "test": "node --import tsx/esm --test src/__tests__/booking-state-machine.test.ts src/__tests__/reschedule-policy.test.ts",
     "test:integration": "node --import tsx/esm --test src/__tests__/booking-concurrency.test.ts",
     "test:lifecycle": "node --import tsx/esm --test src/__tests__/client-booking-lifecycle.integration.test.ts",
     "test:reviews": "node --import tsx/esm --test src/__tests__/review.integration.test.ts",
@@ -31,6 +31,7 @@
     "test:first-booking": "node --import tsx/esm --test src/__tests__/first-booking-signal.integration.test.ts",
     "test:client-retention": "node --import tsx/esm --test src/__tests__/client-retention.integration.test.ts",
     "test:rescheduling": "node --import tsx/esm --test src/__tests__/rescheduling-enforcement.integration.test.ts",
+    "test:proposals": "node --import tsx/esm --test src/__tests__/reschedule-proposals.integration.test.ts",
     "test:marketplace-events": "node --import tsx/esm --test src/__tests__/marketplace-events.integration.test.ts"
   },
   "dependencies": {

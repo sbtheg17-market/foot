@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AcceptRescheduleResponse,
   AdminProviderApplicationResponse,
   AdminVerificationQueueResponse,
   ApplicationCompletionResponse,
@@ -33,9 +34,11 @@ import type {
   ClientCareHistoryResponse,
   ConflictResponse,
   CreateBookingRequest,
+  CreateRescheduleRequest,
   CreateReviewRequest,
   CreateServiceRequest,
   CreateTravelZoneRequest,
+  DeclineRescheduleResponse,
   DuplicateBookingConflictResponse,
   EarningsExportResponse,
   EarningsSummaryResponse,
@@ -45,6 +48,7 @@ import type {
   GetProviderApplicationSubmissionsParams,
   GetProviderNotificationsParams,
   GetProviderSlotsParams,
+  GetReschedulingHistoryParams,
   HealthStatus,
   InvoiceListResponse,
   InvoiceResponse,
@@ -71,6 +75,9 @@ import type {
   PublicAvailabilityResponse,
   RegisterRequest,
   RejectProviderApplicationRequest,
+  RescheduleProposalListResponse,
+  RescheduleProposalResponse,
+  ReschedulingHistoryResponse,
   ReviewListResponse,
   ReviewResponse,
   ReviewVerificationDocRequest,
@@ -4170,6 +4177,386 @@ export const useUpdateBookingStatus = <TError = ErrorType<BadRequestResponse | U
       > => {
       return useMutation(getUpdateBookingStatusMutationOptions(options));
     }
+
+export const getCreateRescheduleRequestUrl = (bookingId: number,) => {
+
+
+
+
+  return `/api/bookings/${bookingId}/reschedule-requests`
+}
+
+/**
+ * @summary Propose a new time (provider/admin; requires client consent)
+ */
+export const createRescheduleRequest = async (bookingId: number,
+    createRescheduleRequest: CreateRescheduleRequest, options?: Parameters<typeof customFetch>[1]): Promise<RescheduleProposalResponse> => {
+
+  return customFetch<RescheduleProposalResponse>(getCreateRescheduleRequestUrl(bookingId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createRescheduleRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateRescheduleRequestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRescheduleRequest>>, TError,{bookingId: number;data: BodyType<CreateRescheduleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRescheduleRequest>>, TError,{bookingId: number;data: BodyType<CreateRescheduleRequest>}, TContext> => {
+
+const mutationKey = ['createRescheduleRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRescheduleRequest>>, {bookingId: number;data: BodyType<CreateRescheduleRequest>}> = (props) => {
+          const {bookingId,data} = props ?? {};
+
+          return  createRescheduleRequest(bookingId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRescheduleRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createRescheduleRequest>>>
+    export type CreateRescheduleRequestMutationBody = BodyType<CreateRescheduleRequest>
+    export type CreateRescheduleRequestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Propose a new time (provider/admin; requires client consent)
+ */
+export const useCreateRescheduleRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRescheduleRequest>>, TError,{bookingId: number;data: BodyType<CreateRescheduleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createRescheduleRequest>>,
+        TError,
+        {bookingId: number;data: BodyType<CreateRescheduleRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateRescheduleRequestMutationOptions(options));
+    }
+
+export const getListRescheduleRequestsUrl = (bookingId: number,) => {
+
+
+
+
+  return `/api/bookings/${bookingId}/reschedule-requests`
+}
+
+/**
+ * @summary List reschedule proposals for an owned booking
+ */
+export const listRescheduleRequests = async (bookingId: number, options?: Parameters<typeof customFetch>[1]): Promise<RescheduleProposalListResponse> => {
+
+  return customFetch<RescheduleProposalListResponse>(getListRescheduleRequestsUrl(bookingId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRescheduleRequestsQueryKey = (bookingId: number,) => {
+    return [
+    `/api/bookings/${bookingId}/reschedule-requests`
+    ] as const;
+    }
+
+
+export const getListRescheduleRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listRescheduleRequests>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(bookingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRescheduleRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRescheduleRequestsQueryKey(bookingId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRescheduleRequests>>> = ({ signal }) => listRescheduleRequests(bookingId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookingId !== null && bookingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRescheduleRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRescheduleRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listRescheduleRequests>>>
+export type ListRescheduleRequestsQueryError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+
+
+/**
+ * @summary List reschedule proposals for an owned booking
+ */
+
+export function useListRescheduleRequests<TData = Awaited<ReturnType<typeof listRescheduleRequests>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(
+ bookingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRescheduleRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRescheduleRequestsQueryOptions(bookingId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAcceptRescheduleRequestUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/reschedule-requests/${requestId}/accept`
+}
+
+/**
+ * @summary Client accepts a proposed time (makes it the confirmed time)
+ */
+export const acceptRescheduleRequest = async (requestId: number, options?: Parameters<typeof customFetch>[1]): Promise<AcceptRescheduleResponse> => {
+
+  return customFetch<AcceptRescheduleResponse>(getAcceptRescheduleRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAcceptRescheduleRequestMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptRescheduleRequest>>, TError,{requestId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptRescheduleRequest>>, TError,{requestId: number}, TContext> => {
+
+const mutationKey = ['acceptRescheduleRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptRescheduleRequest>>, {requestId: number}> = (props) => {
+          const {requestId} = props ?? {};
+
+          return  acceptRescheduleRequest(requestId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptRescheduleRequestMutationResult = NonNullable<Awaited<ReturnType<typeof acceptRescheduleRequest>>>
+
+    export type AcceptRescheduleRequestMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Client accepts a proposed time (makes it the confirmed time)
+ */
+export const useAcceptRescheduleRequest = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptRescheduleRequest>>, TError,{requestId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptRescheduleRequest>>,
+        TError,
+        {requestId: number},
+        TContext
+      > => {
+      return useMutation(getAcceptRescheduleRequestMutationOptions(options));
+    }
+
+export const getDeclineRescheduleRequestUrl = (requestId: number,) => {
+
+
+
+
+  return `/api/reschedule-requests/${requestId}/decline`
+}
+
+/**
+ * @summary Client declines a proposal (or the proposer withdraws it)
+ */
+export const declineRescheduleRequest = async (requestId: number, options?: Parameters<typeof customFetch>[1]): Promise<DeclineRescheduleResponse> => {
+
+  return customFetch<DeclineRescheduleResponse>(getDeclineRescheduleRequestUrl(requestId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeclineRescheduleRequestMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineRescheduleRequest>>, TError,{requestId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineRescheduleRequest>>, TError,{requestId: number}, TContext> => {
+
+const mutationKey = ['declineRescheduleRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineRescheduleRequest>>, {requestId: number}> = (props) => {
+          const {requestId} = props ?? {};
+
+          return  declineRescheduleRequest(requestId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineRescheduleRequestMutationResult = NonNullable<Awaited<ReturnType<typeof declineRescheduleRequest>>>
+
+    export type DeclineRescheduleRequestMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Client declines a proposal (or the proposer withdraws it)
+ */
+export const useDeclineRescheduleRequest = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineRescheduleRequest>>, TError,{requestId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof declineRescheduleRequest>>,
+        TError,
+        {requestId: number},
+        TContext
+      > => {
+      return useMutation(getDeclineRescheduleRequestMutationOptions(options));
+    }
+
+export const getGetReschedulingHistoryUrl = (bookingId: number,
+    params?: GetReschedulingHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/bookings/${bookingId}/rescheduling-history?${stringifiedParams}` : `/api/bookings/${bookingId}/rescheduling-history`
+}
+
+/**
+ * @summary Append-only history of accepted time changes (owner only)
+ */
+export const getReschedulingHistory = async (bookingId: number,
+    params?: GetReschedulingHistoryParams, options?: Parameters<typeof customFetch>[1]): Promise<ReschedulingHistoryResponse> => {
+
+  return customFetch<ReschedulingHistoryResponse>(getGetReschedulingHistoryUrl(bookingId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReschedulingHistoryQueryKey = (bookingId: number,
+    params?: GetReschedulingHistoryParams,) => {
+    return [
+    `/api/bookings/${bookingId}/rescheduling-history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetReschedulingHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getReschedulingHistory>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(bookingId: number,
+    params?: GetReschedulingHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReschedulingHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReschedulingHistoryQueryKey(bookingId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReschedulingHistory>>> = ({ signal }) => getReschedulingHistory(bookingId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookingId !== null && bookingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReschedulingHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReschedulingHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getReschedulingHistory>>>
+export type GetReschedulingHistoryQueryError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+
+
+/**
+ * @summary Append-only history of accepted time changes (owner only)
+ */
+
+export function useGetReschedulingHistory<TData = Awaited<ReturnType<typeof getReschedulingHistory>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(
+ bookingId: number,
+    params?: GetReschedulingHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReschedulingHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReschedulingHistoryQueryOptions(bookingId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getCreateReviewUrl = () => {
 

@@ -1258,3 +1258,67 @@ Commit: single docs commit on `feat/rescheduling-policy-test-matrix` (this
 entry ships inside it; the pushed branch head is its SHA). PR: not opened —
 awaiting operator review. Next operator approvals: final rescheduling policy
 (Part 4 table) and test-matrix scope before any runtime or migration change.
+
+---
+
+## 2026-08-23 — Session: consent-first rescheduling implemented (roadmap item 9)
+
+### What happened
+
+- The uncommitted item-9 implementation produced in the previous workspace was
+  recovered intact (38-file staged diff, base `a80b031`), audited file-by-file,
+  and re-applied onto a FRESH branch `feat/rescheduling-consent-workflow` cut
+  from the current `origin/main` (`fd3c6b6`, the squash-merged docs PR #43).
+  A stray `.env.example` deletion present in the recovered diff was rejected;
+  the file is preserved byte-identical to `origin/main`. No other recovered
+  content was dropped. Duplicate work avoided: nothing was re-implemented.
+
+### Implemented (see docs/rescheduling-policy.md "Implementation record")
+
+- Provider time changes are now consent-first proposals; the client's confirmed
+  time is never overwritten without acceptance. Client immediate reschedule is
+  retained. Accept applies time + append-only history row + proposal resolution
+  in one transaction. Lazy expiry (`expired`/`unresolved`), no auto-accept,
+  no silent moves. Deadline fallback: appt−48h else creation+24h (capped at the
+  appointment). Provider proposal limit: 3 (configurable, never hidden).
+  Idempotency `(requester, key)`; single pending proposal per booking (partial
+  unique index); booking-row → proposal-row lock order; best-effort push after
+  commit with coarse outcome recording.
+- New: `lib/db/src/schema/reschedule.ts`,
+  `docs/migrations/RESCHEDULE_PROPOSALS_HISTORY_V1.sql` (ADDITIVE ONLY),
+  `routes/reschedule.ts`, `lib/reschedule-policy.ts`, web + mobile
+  `reschedule-proposal-card.tsx`, OpenAPI + regenerated zod/react clients,
+  suites `reschedule-policy.test.ts` + `reschedule-proposals.integration.test.ts`
+  (`test:proposals`).
+- Changed: state machine (provider `confirmed → rescheduled` removed), status
+  route (consent-required 409, history writes, pending-proposal resolution on
+  any transition away from `confirmed`), reschedule modals (provider path now
+  creates proposals), booking detail pages (proposal card + history timeline).
+
+### Validation (disposable local PostgreSQL 15 ONLY; no managed DB)
+
+- `pnpm run typecheck` green (libs, api, web, mobile, scripts).
+- `pnpm run build:deploy` green. `git diff --check` clean. Secret scan clean.
+- `db:push` applied additively (2 enums, 2 tables, 4 indexes verified in psql);
+  seed run twice — idempotent.
+- Built server on local `PORT=18080` (8001/8010 occupied in this workspace):
+  `pnpm test` 70/70; `test:proposals` 17/17; all 22 scripted `test:*` suites
+  pass; unscripted suites pass except the known Session-080 changed-file-scope
+  guard in `prevented-bookings-daily-rebuild.test.ts` (25/26 — fails by design
+  on any feature branch; not a behavior regression).
+- NOT validated: native devices (never), reminder delivery (not implemented),
+  CI (does not exist yet — item 10).
+
+### Boundaries
+
+Managed DB: none. Deploy: none. Payments/service-area/notification
+persistence/email/SMS: untouched. No force-push, no push to main, no PR created
+programmatically (operator will open + squash-merge the PR manually).
+
+### Next best action
+
+Operator: review + squash-merge PR for `feat/rescheduling-consent-workflow`
+(title: `feat: implement approved rescheduling consent workflow`). Then item 10
+branch `test/web-mobile-ci-matrix` from the updated main: GitHub Actions matrix
+(static/API+disposable-PG/web Vitest+RTL/mobile typecheck+deterministic Expo
+exports), per operator decisions of 2026-08-23 (no jest-expo/RNTL).

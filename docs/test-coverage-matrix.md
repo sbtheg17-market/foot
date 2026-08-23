@@ -164,3 +164,23 @@ Integration suites fail fast without: a scratch PostgreSQL (`DATABASE_URL`), pus
 schema, idempotent seed, `JWT_SECRET`, and a live server on `$PORT` (suites default to
 `8080`; docs use `8001`). When blocked, report the exact connection/HTTP error — never
 report blocked suites as passed.
+
+---
+
+## 7. Addendum — 2026-08-23: roadmap item 9 suites (implemented)
+
+Recorded after the consent-first rescheduling implementation on
+`feat/rescheduling-consent-workflow`. Rows below reflect suites that actually
+ran against a disposable local PostgreSQL 15 + built server in this session.
+
+| Test area | Command | Files | Result | Notes |
+|---|---|---|---|---|
+| Reschedule policy helpers (deadline math incl. DST-boundary instants, limit fallback) | `pnpm --filter @workspace/api-server run test` (now also runs this file) | `reschedule-policy.test.ts` | 7/7 pass | Pure; no server/DB |
+| Booking state machine (updated: provider `confirmed → rescheduled` now forbidden) | same `test` script | `booking-state-machine.test.ts` | 63/63 pass | Unit total for `pnpm test`: 70/70 |
+| Consent-first proposals (authz/404 non-leak, idempotency, single-pending, accept atomic history, decline feasibility, stale accept, lazy expiry, accept re-validation, concurrency storm, provider limit, cancellation interaction, no-show gating, history append-only) | `pnpm --filter @workspace/api-server run test:proposals` | `reschedule-proposals.integration.test.ts` | 17/17 pass | Server + PG |
+| Rescheduling enforcement (updated: provider direct reschedule now 409 consent-required) | `run test:rescheduling` | `rescheduling-enforcement.integration.test.ts` | 12/12 pass | Server + PG |
+| Full scripted regression (all 22 `test:*` scripts) | see §1 | 22 suites | all pass (e.g. concurrency 16/16, authorization 7/7, lifecycle 14/14, pressure 13/13) | Server + PG |
+| Unscripted suites | direct `node --test` | 6 files | pass EXCEPT 1 known non-regression failure | `prevented-bookings-daily-rebuild.test.ts` contains a Session-080 changed-file-scope guard that diffs the tree against `main`; it fails BY DESIGN on any later feature branch and is not a behavior failure (25/26; the other 25 pass) |
+
+Known environment facts, unchanged: no CI workflow yet (item 10), no web/mobile
+test framework, native-device verification never performed.

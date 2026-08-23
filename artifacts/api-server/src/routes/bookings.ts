@@ -8,6 +8,8 @@ import {
   invoicesTable,
   usersTable,
   availabilityTable,
+  rescheduleProposalsTable,
+  rescheduleHistoryTable,
 } from "@workspace/db";
 import {
   getMarketplaceTimezone,
@@ -646,6 +648,7 @@ router.patch(
     interface TxResult {
       updatedBooking: typeof bookingsTable.$inferSelect;
       originalBooking: typeof bookingsTable.$inferSelect;
+      rescheduleHistoryId: number | null;
     }
 
     let txResult: TxResult;
@@ -679,6 +682,21 @@ router.patch(
           throw Object.assign(new Error("FORBIDDEN"), {
             statusCode: 403,
             userMessage: "You do not have access to this booking.",
+          });
+        }
+
+        // Consent-first policy (docs/rescheduling-policy.md): a provider can
+        // no longer overwrite the client's confirmed time. Give a precise
+        // pointer to the proposal workflow instead of a generic 409.
+        if (
+          role === "provider" &&
+          newStatus === "rescheduled" &&
+          booking.status === "confirmed"
+        ) {
+          throw Object.assign(new Error("CONSENT_REQUIRED"), {
+            statusCode: 409,
+            userMessage:
+              "Provider time changes require client consent. Propose a new time instead — the client will be asked to confirm it.",
           });
         }
 
@@ -878,6 +896,46 @@ router.patch(
           );
         }
 
+        // Append-only rescheduling history (same transaction: the time change
+        // and its audit row commit or roll back together).
+        let rescheduleHistoryId: number | null = null;
+        if (newStatus === "rescheduled" && rescheduleDate) {
+          const [historyRow] = await tx
+            .insert(rescheduleHistoryTable)
+            .values({
+              bookingId,
+              originalScheduledAt: booking.scheduledAt,
+              newScheduledAt: rescheduleDate,
+              requesterUserId: user.sub,
+              requesterRole: role as "client" | "provider" | "admin",
+              previousStatus: booking.status as BookingStatus,
+              newStatus: "rescheduled",
+            })
+            .returning({ id: rescheduleHistoryTable.id });
+          if (!historyRow) {
+            throw new Error("Reschedule history insert did not return a row — rolling back.");
+          }
+          rescheduleHistoryId = historyRow.id;
+        }
+
+        // Any transition away from `confirmed` makes a pending provider
+        // proposal stale — resolve it as cancelled in the same transaction.
+        if (newStatus !== "confirmed") {
+          await tx
+            .update(rescheduleProposalsTable)
+            .set({
+              status: "cancelled",
+              resolvedAt: new Date(),
+              version: sql`${rescheduleProposalsTable.version} + 1`,
+            })
+            .where(
+              and(
+                eq(rescheduleProposalsTable.bookingId, bookingId),
+                eq(rescheduleProposalsTable.status, "pending"),
+              ),
+            );
+        }
+
         // Auto-create invoice when confirmed
         if (newStatus === "confirmed") {
           const serviceRows = await tx
@@ -904,7 +962,7 @@ router.patch(
           }
         }
 
-        return { updatedBooking, originalBooking: booking };
+        return { updatedBooking, originalBooking: booking, rescheduleHistoryId };
       });
     } catch (err: unknown) {
       const e = err as { statusCode?: number; userMessage?: string };
@@ -923,7 +981,27 @@ router.patch(
       throw err; // unexpected — propagate to Express error handler
     }
 
-    const { updatedBooking, originalBooking } = txResult;
+    const { updatedBooking, originalBooking, rescheduleHistoryId } = txResult;
+
+    // Coarse notification-outcome recording on the history row (post-commit,
+    // best effort — never affects the booking write).
+    const recordHistoryOutcome = (push: Promise<void>) => {
+      if (rescheduleHistoryId === null) return;
+      push
+        .then(() =>
+          db
+            .update(rescheduleHistoryTable)
+            .set({ notificationOutcome: "sent" })
+            .where(eq(rescheduleHistoryTable.id, rescheduleHistoryId)),
+        )
+        .catch(() =>
+          db
+            .update(rescheduleHistoryTable)
+            .set({ notificationOutcome: "failed" })
+            .where(eq(rescheduleHistoryTable.id, rescheduleHistoryId))
+            .catch(() => undefined),
+        );
+    };
 
     // ── 3. Push notifications — outside the transaction ───────────────────────
     // Fire-and-forget: a failed push never affects booking state.
@@ -974,19 +1052,23 @@ router.patch(
           .where(eq(providerProfilesTable.id, originalBooking.providerId))
           .limit(1);
         if (provProfile[0]) {
-          void sendPushToUser(provProfile[0].userId, {
-            title: "Booking rescheduled",
-            body: `Client requested a new time: ${newDateStr}`,
-            data: { screen: "booking", bookingId },
-          });
+          recordHistoryOutcome(
+            sendPushToUser(provProfile[0].userId, {
+              title: "Booking rescheduled",
+              body: `Client requested a new time: ${newDateStr}`,
+              data: { screen: "booking", bookingId },
+            }),
+          );
         }
       } else {
-        // Provider rescheduled — notify the client
-        void sendPushToUser(originalBooking.clientId, {
-          title: "Booking rescheduled",
-          body: `New time: ${newDateStr}`,
-          data: { screen: "booking", bookingId },
-        });
+        // Admin rescheduled — notify the client
+        recordHistoryOutcome(
+          sendPushToUser(originalBooking.clientId, {
+            title: "Booking rescheduled",
+            body: `New time: ${newDateStr}`,
+            data: { screen: "booking", bookingId },
+          }),
+        );
       }
     }
 

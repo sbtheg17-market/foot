@@ -26,7 +26,9 @@ export const ALLOWED_TRANSITIONS: Record<
     client: ["cancelled"],
   },
   confirmed: {
-    provider: ["completed", "cancelled", "rescheduled", "no_show"],
+    // Provider time changes require client consent (docs/rescheduling-policy.md):
+    // providers create a reschedule PROPOSAL instead of writing "rescheduled".
+    provider: ["completed", "cancelled", "no_show"],
     client: ["cancelled", "rescheduled"],
   },
   rescheduled: {
