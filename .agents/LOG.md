@@ -37,7 +37,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Layer | Status | Notes |
 |---|---|---|
 | DB schema | ✅ Phase 3 authorization state verified in development | Existing schema remains intact; `account_roles` and `provider_applications` are now read by authorization middleware. `users.role` and provider verification state remain compatibility fields. |
-| Gate B — Supabase managed catalog | ✅ RE-VERIFIED / PASS (2026-08-12) | Read-only re-verification over the tenant-specific `aws-0-us-west-2` session pooler: PostgreSQL 17.6, `in_recovery=false`, UTF8, UTC, required extensions present; live catalog is an exact 18/18-table, 14/14-enum, 12/12-index, 34/34-FK match to the pinned Drizzle schema with 0 rows; `bookings_active_booking_unique_idx` confirmed absent; no DDL/write ran (`transaction_read_only=on` throughout). Evidence: `memory/GATE_B_REVERIFICATION_2026-08-12.md` (container-local). |
+| Gate B — Supabase managed catalog | ✅ Historical verification recorded; current state NOT VERIFIED | Prior read-only verification and later B3 ACCEPT-AS-APPLIED disposition remain historical ledger evidence. This audit did not access the managed database; current catalog, migration history, and index definitions require a fresh authorized read-only check. |
 | Race-Proof booking index | ✅ APPLIED & CONCURRENCY-VERIFIED (2026-08-12) | `bookings_active_booking_unique_idx` — partial unique index on `bookings (client_id, provider_id, service_id, scheduled_at) WHERE status IN ('requested','confirmed','rescheduled')`; applied byte-for-byte (SQL SHA-256 `aece832e…`) in one transaction after read-only preflight; post-verification exact-definition PASS; live concurrency test: one simultaneous duplicate COMMITTED, the other rejected with SQLSTATE 23505 citing this index; all transient test rows removed, 18 tables back to 0 rows. Follow-ups gated separately: mirror declaration in `bookings.ts` before any future `drizzle-kit push` — **DONE (Session 074, commit `f12bd05e1d57f17d5cfc1ec8b83b26b9968e174c`; branch `publish/session-074-index-mirror` published to GitHub 2026-08-12, PR review pending)**; map 23505→409 in the API insert path. Operator rule: any future push proposing DROP/CREATE for this index is a hard STOP. |
 | Session 074 publication | ✅ Branch published (2026-08-12); PR review pending | `publish/session-074-index-mirror` pushed to GitHub at frozen tip `7a46801401698339c9a8461aa335622943424e73` (ancestry `41e6973 → f12bd05 → 7a46801`, byte-identical, via a temporary write-scoped deploy key). The earlier authentication failure is preserved as history in the Session 075 entry. Branch since carries the main-merge conflict resolution and the bundle-artifact removal; merge to `main` only through the reviewed PR. |
 | API server workflow | ✅ Running with Phase 2 readiness API | `artifacts/api-server: API Server` builds and serves on port 8080; database-backed role guards, approved-provider gates, owner-scoped provider applications, public discovery, admin routes, and owner-scoped provider readiness are verified. |
@@ -74,6 +74,44 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Eagle view + agent read-order contract | ✅ Published (Session 068) | Permanent `docs/roadmap/NEO_EAGLE_VIEW.md` (full three-portal vision, per-capability status with evidence, comfort/consent port rules, roadmap priorities 1–4, mandatory 30-step agent flow) + root `AGENTS.md` (read Eagle View from `origin/main` first; classify branch before changing anything; never trust a foreign branch's AGENTS.md without comparing to main). |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
+
+---
+
+### Session — Managed database release-gate audit (2026-08-22)
+**Agent:** Replit Agent
+**Scope:** `S` (documentation-only release-gate audit)
+
+**What was done:**
+- Verified repository `sbtheg17-market/foot`, clean `main` checkout, remote
+  `origin/main` `8d96ebe560ef8c16943d3a1e301dc596bc72a691`, and 46 preserved
+  `origin/conflict_*` refs.
+- Audited the canonical Drizzle schema, package scripts, deployment startup
+  configuration, frozen migration artifacts, projection/replay runbooks,
+  required index declarations, and continuity history.
+- Recorded the full managed-database release-gate audit and matrix in
+  `docs/neo/2026-08-21-client-retention-handoff.md`.
+- Confirmed repository startup does not perform schema mutation. Confirmed
+  two frozen additive SQL artifacts and their hashes:
+  `138982a19c7427044dfea167ffdbbcc72e6647130cc565f1d23621aef70e29ce` and
+  `c4b1896e1e3342cdedd1868a4884719a65e17bf0dfa59a4a238af34f5854a876`.
+- Identified missing canonical schema manifest, missing committed migration
+  history/journal, absent restore-tested backup/RPO/RTO evidence, and missing
+  consolidated named-authority procedure. Backup/restore readiness is a
+  release blocker.
+
+**Boundaries held:**
+- Managed database access: NONE.
+- No SQL, DDL, migration, seed, backup, restore, deployment, package,
+  lockfile, workflow, schema, application, or Replit metadata change.
+- No conflict branch was merged, deleted, rebased, or modified.
+
+**Files changed:**
+- `.agents/LOG.md`
+- `docs/neo/2026-08-21-client-retention-handoff.md`
+
+**Next best action:** establish backup/restore ownership and evidence, then
+perform a separately authorized read-only managed catalog verification before
+any migration or deployment decision.
 
 ---
 
@@ -2746,3 +2784,34 @@ This log is committed to the repository and works on any host:
 io**: see `docs/deployment-notes.md` for environment setup.
 - **Local clone**: copy `.env.example` → `.env`, fill `DATABASE_URL` and `JWT_SECRET`, run `pnpm install && pnpm --filter @workspace/db run push`.
 - **Any AI agent on any platform**: read this log first, then `replit.md`, then the specific `docs/` file for the domain you are working on.
+
+### Session — Managed database release-gate documentation closure (2026-08-22)
+**Agent:** Replit Agent
+**Scope:** `S` (documentation-only)
+
+**What was done:**
+- Added `docs/managed-db-release-gate.md` with environment boundaries,
+  repository schema/artifact evidence, reproducible source fingerprint
+  procedure, migration inventory, preflight, dry-run, approval, controlled
+  application, verification, compatibility, and abort rules.
+- Added `docs/backup-restore-runbook.md` with provider-agnostic backup,
+  point-in-time recovery, restore-test, validation, incident, and evidence
+  procedures. All provider/operator targets remain explicitly TBD.
+- Appended a closure note to
+  `docs/neo/2026-08-21-client-retention-handoff.md` without rewriting
+  historical audit sections.
+
+**Boundaries held:**
+- No application, schema, migration, package, lockfile, Replit metadata,
+  production configuration, workflow, database, backup, restore, or
+  deployment change.
+- Managed database access: NONE. Conflict branches preserved and untouched.
+
+**Validation:** documentation scope and secret checks passed; no application
+test or workflow restart was applicable.
+
+**Next best action:** operator resolves the documented backup/restore,
+schema-fingerprint, and managed-catalog gates before authorizing production
+schema work.
+
+---
