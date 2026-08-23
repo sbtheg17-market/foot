@@ -1168,3 +1168,93 @@ Schema/migrations: none.
 API contracts: unchanged.
 Managed database, geocoding, routing, payment, notification-provider, and
 production access: none.
+
+## 2026-08-23 — Rescheduling policy finalization and test-coverage matrix
+
+### Verified continuation state
+
+- Repository: `sbtheg17-market/foot`; checkout at `/app`.
+- Authoritative base: `origin/main` at
+  `75396f2d997668666135f35243899c7705a9aa86` (local `main` identical; clean tree;
+  PRs #1–#40 present; no `conflict_*` branch used).
+- Working branch: `feat/rescheduling-policy-test-matrix` (new, from `main`).
+
+### Current rescheduling behavior (audited from code)
+
+- `PATCH /api/bookings/:bookingId/status` with `status: "rescheduled"` +
+  `scheduledAt` applies the new time **immediately and atomically** for BOTH
+  client- and provider-initiated changes (row lock + provider advisory lock
+  42001; future-instant, active-service, marketplace-timezone availability,
+  same-client duplicate, and cross-client overlap validation; partial unique
+  index as race safety net).
+- **Provider-initiated changes do not require client confirmation** — the
+  confirmed time is overwritten and the provider can self-reconfirm
+  (`rescheduled → confirmed` is provider-only). No proposal/pending state,
+  no decline verb, no history retention, no reminders/deadlines, no
+  reschedule-count limit. Notifications are best-effort push after commit.
+- Full detail with exact paths and state names: `docs/rescheduling-policy.md`.
+
+### Proposed final policy (recommended, approval-gated)
+
+- Appointment-time ownership: the time belongs to the booking; a time becomes
+  authoritative only after the required workflow transition succeeds.
+- Provider proposals should require client confirmation (retain original time,
+  pending proposal, deadline, reminder, no auto-accept, safe fallback) — needs
+  the not-yet-implemented proposal state from
+  `docs/rescheduling-history-design.md`; NOT added this session.
+- Client non-response: reminder, no automatic acceptance, preserve original if
+  feasible, else support; never silent cancel/move.
+- Multiple reschedules allowed with full re-validation and a communicated
+  limit; client may counter a provider proposal; role-aware cancellation with
+  client-friendly path for provider-caused changes; refunds/fees deferred to
+  payments; no-show taxonomy (client/provider/disputed/access/travel) defined
+  but consequences unresolved. Decision table: `docs/rescheduling-policy.md`
+  Part 4 — **no item is marked Approved**.
+
+### Unresolved operator decisions
+
+Proposal-state adoption and deadline value; reminder scheduling; reschedule
+count limit; no-show consequences; refund/fee schedule (blocked on payments);
+availability-edit conflict flagging; admin-override auditing.
+
+### Test coverage audit
+
+- Only framework: Node built-in `node --test` + tsx (API; 28 suites under
+  `artifacts/api-server/src/__tests__/`). Web and mobile have typecheck only —
+  **zero web/mobile tests**. No Playwright/Vitest/Jest/Detox/Maestro, no
+  `eas.json`, and **no CI workflow exists** (`.github/` absent).
+- Full matrix, proposed 5-stage CI/release pipeline (static → API+disposable
+  PG → web → mobile → release gate), and smallest-stack recommendation
+  (keep node:test for API; Vitest+RTL for web and jest-expo+RNTL for mobile
+  pending approval — NOT installed): `docs/test-coverage-matrix.md`.
+- Native-device verification: NEVER performed; Expo web/static export is not
+  native validation; exact future device checklist documented in §5.
+
+### Files changed
+
+- `docs/rescheduling-policy.md` (new)
+- `docs/test-coverage-matrix.md` (new)
+- `docs/neo/2026-08-21-client-retention-handoff.md` (this entry)
+
+### Validation
+
+- `pnpm install --frozen-lockfile`; `pnpm run build` (typecheck libs/api/web +
+  web/api builds) green; mobile typecheck green.
+- Disposable local PostgreSQL created in this workspace; `db:push` + idempotent
+  seed applied; built server started on `PORT=8001`; `/api/healthz` → ok.
+- Tests green against the live local server: state-machine unit 63/63;
+  `test:rescheduling` 12/12; `test:integration` (concurrency) 16/16;
+  `test:availability` 3/3; `test:pressure` 13/13 — 107/107. Remaining
+  integration suites unaffected by this docs-only diff and not run.
+- `git diff --check` clean; targeted secret scan of changed files clean.
+
+### Boundaries
+
+Runtime booking/rescheduling behavior: unchanged (no defect found — code
+matches `docs/booking-statuses.md`). Schema/migrations: none. API contracts:
+unchanged. Managed database access: none. Deployment: none. Live
+notifications: none. Payments and service-area/travel enforcement: excluded.
+Commit: single docs commit on `feat/rescheduling-policy-test-matrix` (this
+entry ships inside it; the pushed branch head is its SHA). PR: not opened —
+awaiting operator review. Next operator approvals: final rescheduling policy
+(Part 4 table) and test-matrix scope before any runtime or migration change.

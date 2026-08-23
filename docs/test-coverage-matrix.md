@@ -1,0 +1,166 @@
+# Test coverage matrix — web, mobile, API
+
+**Status:** Audited 2026-08-23 from the repository state at `origin/main`
+`75396f2d997668666135f35243899c7705a9aa86`. This document records what exists, what
+is missing, and the proposed CI/release matrix. **No CI workflow exists in the
+repository today (`.github/` is absent), and no web or mobile test framework is
+installed.** Nothing here claims coverage that is not in the repo.
+
+---
+
+## 1. Current framework inventory
+
+| Layer | Framework | Installed? | Notes |
+|---|---|---|---|
+| API (`@workspace/api-server`) | Node.js built-in test runner (`node --test`) + `tsx` loader + `node:assert/strict` | Yes | Only test framework in the repo |
+| Web (`@workspace/web`) | None | — | `typecheck` (tsc) only; Vite present but no Vitest |
+| Mobile (`@workspace/mobile`) | None | — | `typecheck` only; Expo; no jest-expo, no RNTL, no Detox/Maestro, no `eas.json` |
+| E2E browser | None | — | No Playwright/Cypress |
+| CI | None | — | No `.github/workflows`; deploy is Railway (`railway.json`, `nixpacks.toml`, `pnpm run build:deploy`, healthcheck `/api/healthz`) |
+| Repo scripts | `scripts/check-github-sync.sh` (`git:check`), `scripts/verify-publication.sh` (`publish:gate`) | Yes | Shell gates, not tests |
+
+### Test commands (package `@workspace/api-server`, all run from repo root)
+
+Environment for integration suites: seeded scratch PostgreSQL
+(`DATABASE_URL`, `JWT_SECRET`), `pnpm run db:push && pnpm run seed`, and a running
+API server on `$PORT` (default expected `8080`; docs use `PORT=8001`).
+
+| Command | File | Server/DB needed |
+|---|---|---|
+| `test` | `booking-state-machine.test.ts` | No (pure) |
+| `test:integration` | `booking-concurrency.test.ts` | Server + PG |
+| `test:rescheduling` | `rescheduling-enforcement.integration.test.ts` | Server + PG |
+| `test:lifecycle` | `client-booking-lifecycle.integration.test.ts` | Server + PG |
+| `test:availability` | `availability-preset.test.ts` | Server + PG |
+| `test:pressure` | `booking-pressure.test.ts` | Server + PG |
+| `test:authorization` | `authorization-hardening.integration.test.ts` | Server + PG |
+| `test:client-retention` | `client-retention.integration.test.ts` | Server + PG |
+| `test:reviews`, `test:care-history`, `test:role-state`, `test:provider-*`, `test:onboarding`, `test:reviewer-decisions`, `test:first-booking`, `test:marketplace-events` | corresponding `src/__tests__/*.integration.test.ts` | Server + PG |
+| (no script) | `availability-enforced-booking.test.ts`, `payments-foundation.test.ts`, `listing-preview.integration.test.ts`, `prevented-booking-*.test.ts`, `prevented-bookings-daily-rebuild.test.ts`, `replay-safety-controls.test.ts` | Mixed; several pure (`payments-foundation`), most Server + PG |
+
+28 test files total, all under `artifacts/api-server/src/__tests__/`.
+
+---
+
+## 2. Coverage matrix
+
+Release-blocking = must pass before a production release once CI exists.
+
+| Test area | Framework | Command | Files | Actually tested | Only typechecked | Needs server | Needs PostgreSQL | Needs auth setup | Needs native device | Missing coverage | Priority | Owner / action | Release-blocking |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Booking state machine | node:test | `pnpm --filter @workspace/api-server run test` | `booking-state-machine.test.ts` | All role/status transitions, terminal states, admin override (63 tests) | — | No | No | No | No | — (complete for current machine) | — | Keep green | Yes |
+| Rescheduling enforcement | node:test | `run test:rescheduling` | `rescheduling-enforcement.integration.test.ts` | Ownership, state gating, missing/malformed/past time, availability fit, cross-client overlap, own duplicate, inactive service, happy path, reconfirm+re-reschedule, terminal lockout (12 tests) | — | Yes | Yes | Seeded demo accounts | No | Reschedule idempotent retry; marketplace-timezone DST boundary reschedules; admin-forced reschedule | High | API owner: extend suite | Yes |
+| Booking concurrency | node:test | `run test:integration` | `booking-concurrency.test.ts` | Concurrent confirms/cancels/cross-actor races, ordered transitions incl. reschedule cycle | — | Yes | Yes | Seeded | No | Concurrent reschedule vs. create race assertion (advisory-lock path) | High | API owner | Yes |
+| Booking creation & availability | node:test | `run test:availability`, `run test:pressure`, `availability-enforced-booking.test.ts` | 3 files | Preset save, slot generation, overlap/duplicate pressure | — | Yes | Yes | Seeded | No | Explicit DST nonexistent/repeated wall-clock cases (design requires them) | High | API owner | Yes |
+| Authorization | node:test | `run test:authorization` (+ ownership cases inside other suites) | `authorization-hardening.integration.test.ts` | Role gates, ownership, approved-provider gate | — | Yes | Yes | Seeded | No | Token expiry/refresh lifecycle | Medium | API owner | Yes |
+| Client lifecycle / retention / reviews / care history / role state / provider onboarding / notifications persistence / marketplace events / prevented bookings & replay | node:test | `run test:lifecycle`, `test:client-retention`, `test:reviews`, `test:care-history`, `test:role-state`, `test:provider-*`, `test:marketplace-events`, (unscripted replay/prevented files) | 18 files | End-to-end API flows against seeded server | — | Yes | Yes | Seeded | No | — | Medium | Keep green | Yes (existing 92+ suite) |
+| Payments foundation primitives | node:test | `node --import tsx/esm --test src/__tests__/payments-foundation.test.ts` | `payments-foundation.test.ts` | Pure money/status primitives | — | No | No | No | No | Everything else is EXCLUDED (payments not live) | — | Excluded scope | No |
+| Notification failure behavior | node:test | covered inside booking suites | — | Push failure never rolls back a transition (by design; asserted indirectly) | — | Yes | Yes | Seeded | No | Direct fault-injection test for push retry/failure path | Medium | API owner | No |
+| Health endpoint | — | none | — | Nothing (Railway healthcheck `/api/healthz` exists but is untested) | — | Yes | Yes | No | No | Curl-level smoke assertion | Low | Add to CI smoke | Yes |
+| API typecheck/build | tsc / esbuild | `pnpm run typecheck`, `pnpm run build` | workspace | Compile-time only | All API/web/lib code | No | No | No | No | — | — | Keep green | Yes |
+| Web unit/component | **none** | — | 0 files | **Nothing** | All of `artifacts/web/src` | — | — | — | No | Booking flow, reschedule modal (slot pick, current-time block, 409 refresh paths), loading/error states, unauthorized redirects, timezone labels | **High** | Approve Vitest + React Testing Library (see §4) | Future yes |
+| Web E2E/smoke | **none** | — | 0 files | **Nothing** | — | Yes | Yes | Seeded | No | Login → book → reschedule → reconfirm happy path; a11y scan | High | Approve Playwright later (see §4) | Future yes |
+| Web accessibility | none | — | 0 | Nothing | — | — | — | — | No | Modal focus trap, `aria-*` on reschedule slots (markup exists, untested) | Medium | With web layer | Future |
+| Timezone/DST display (web+mobile) | none | — | 0 | Nothing (server slot labels tested only via API suites) | UI code | — | — | — | Device TZ matters | Device-timezone ≠ marketplace-timezone rendering; DST boundary labels | High | With web/mobile layers | Future yes |
+| Mobile unit/component | **none** | — | 0 files | **Nothing** | All of `artifacts/mobile` | — | — | — | Partially | Reschedule modal, booking screens, status feedback hooks | High | Approve jest-expo + RNTL (see §4) | Future |
+| Mobile flows on device (booking, reschedule, push foreground/background, cold-start deep links `/booking/:id`, token lifecycle incl. logout removal, permission denial, native alerts, device timezones) | **none** | — | 0 | **Nothing verified on native devices** | — | Yes | Yes | Seeded | **Yes** | Everything; see §5 native verification | High | Manual checklist now; Maestro/Detox decision later | Future |
+| iOS / Android export | Expo | `artifacts/mobile/scripts/build.js` (static export), no `eas.json` | — | Static export only | — | No | No | No | For real builds | EAS build config; store-level export untested | Medium | Operator decision on EAS | Future |
+| Migrations in disposable DB | drizzle-kit | `pnpm run db:push` + `pnpm run seed` (local scratch only, per `docs/managed-db-release-gate.md`) | `lib/db` | Schema push + idempotent seed exercised manually | — | No | Yes (scratch) | No | No | Automated disposable-DB push+seed+suite job; rollback rehearsal is a managed-gate item (restore-based; frozen artifacts have no DOWN) | High | CI job (§3) | Yes |
+| Secret scan / `git diff --check` | git | manual | — | Manual only | — | No | No | No | No | Automated CI step | Medium | CI job (§3) | Yes |
+
+---
+
+## 3. Required CI/release matrix (PROPOSED — not yet implemented)
+
+No workflow file exists yet. **Do not treat this section as implemented.** Proposed
+GitHub Actions pipeline, in dependency order; all jobs use a disposable PostgreSQL
+service container and dummy secrets; no production access, no managed database, no
+real notifications.
+
+### Stage A — static (fast, always)
+1. `pnpm install --frozen-lockfile`
+2. `pnpm run typecheck` (libs + api + web + mobile via workspace filter)
+3. `git diff --check` (whitespace) on the merge ref
+4. Secret scan (gitleaks or `git grep` deny-list) — no credentials in tree
+5. Builds: `pnpm run build` and `pnpm run build:deploy` (Railway parity)
+
+### Stage B — API against disposable PostgreSQL
+1. Service container `postgres:16`, `DATABASE_URL` scratch, `JWT_SECRET=ci-secret`
+2. `pnpm run db:push` (migration application in disposable DB) + `pnpm run seed` twice (idempotency)
+3. Start built server (`PORT=8001 NODE_ENV=production pnpm run start &`), wait on `/api/healthz` (health smoke)
+4. Unit: `test` (state machine)
+5. Integration: `test:rescheduling`, `test:integration` (concurrency), `test:availability`, `test:pressure`, `test:authorization`, `test:lifecycle`, remaining `test:*` scripts
+6. Covers: booking state machine, rescheduling, authorization, concurrency, duplicate-idempotency (partial unique index), notification-failure tolerance (push is a no-op without Expo tokens — asserts transitions still succeed)
+
+### Stage C — Web (once framework approved, §4)
+Component tests (booking + reschedule modal states: loading, empty slots, 409 refresh,
+unauthorized), accessibility checks (axe on modal), timezone display with mocked
+marketplace TZ + DST boundary instants, then a Playwright smoke
+(login → book → reschedule → reconfirm) against the Stage B server.
+
+### Stage D — Mobile (once framework approved, §4)
+`typecheck` (exists today) + static export build; component tests via jest-expo/RNTL
+(reschedule modal, status feedback hooks, permission-denial branches); native-device
+smoke stays a documented manual checklist (§5) until Maestro/Detox is approved.
+
+### Stage E — Release gate (tag/release only)
+All above green + `pnpm run publish:gate` + artifact provenance (record commit SHA,
+lockfile hash, build artifact checksums in the release notes) + manual native
+checklist sign-off + `docs/managed-db-release-gate.md` for any schema change
+(rollback = restore rehearsal per the gate; never invented DOWN SQL).
+
+---
+
+## 4. Test-framework recommendation (smallest sustainable stack)
+
+- **API: keep `node:test` + `tsx`.** Zero new dependencies; 28 suites already work.
+  Do **not** introduce Vitest/Jest for the API.
+- **Web: add Vitest + @testing-library/react + jsdom** when approved. Rationale: the
+  web app is already Vite; Vitest reuses `vite.config.ts`, adds dev-only deps, no
+  runtime impact. This is the single highest-value gap (0 web tests today).
+- **Web E2E: Playwright**, second step after component tests, for the one booking →
+  reschedule smoke; do not add Cypress alongside it.
+- **Mobile: jest-expo + @testing-library/react-native** when approved (standard Expo
+  pairing). **Detox is not recommended now** (heavy native build infra); **Maestro**
+  is the lighter future option for device smoke since it needs no repo dependencies.
+- **Not recommended:** adding Jest for web, multiple E2E frameworks, or any framework
+  duplication "for completeness".
+
+**Stop-for-review:** the web (Vitest/RTL) and mobile (jest-expo/RNTL) additions modify
+`package.json` + lockfile with significant dev-dependency trees. Per session scope they
+are **documented here and NOT installed**. Operator approval required before adding.
+
+---
+
+## 5. Native verification status (exact)
+
+These are distinct levels; only the last two are native validation:
+
+| Level | What it proves | Status in repo |
+|---|---|---|
+| Expo web verification (`expo start` web / browser) | React tree renders in a browser | Available locally; **not native validation** |
+| Static export (`artifacts/mobile/scripts/build.js`) | Bundle compiles/export succeeds | Used in prior sessions; **not native validation** |
+| Simulator/emulator (iOS Simulator / Android emulator) | Native runtime, alerts, deep links, foreground push UX | **Unavailable in this environment; never verified in recorded sessions** |
+| Physical device (Expo Go or dev build) | Real push delivery, background/cold-start behavior, permission dialogs, device timezone | **Unavailable in this environment; never verified in recorded sessions** |
+
+**Native-device behavior is NOT verified.** Future exact steps:
+
+1. `pnpm --filter @workspace/mobile run dev` (Expo start) with the API reachable from
+   the device; sign in with seeded demo accounts.
+2. Verify: booking create/reschedule flows; foreground push (in-app receipt);
+   background push (app backgrounded → notification tap routes to `/booking/:id`);
+   cold-start deep link (kill app → tap push); permission denial (deny notifications →
+   token registration remains non-fatal); logout removes the push token; native alerts
+   in the reschedule modal; device timezone set to a non-marketplace zone shows
+   marketplace-timezone labels.
+3. Record device model, OS version, Expo SDK, app commit SHA in the release notes.
+4. For store builds, add `eas.json` (operator decision) — none exists today.
+
+---
+
+## 6. Known blocked suites and exact setup requirements
+
+Integration suites fail fast without: a scratch PostgreSQL (`DATABASE_URL`), pushed
+schema, idempotent seed, `JWT_SECRET`, and a live server on `$PORT` (suites default to
+`8080`; docs use `8001`). When blocked, report the exact connection/HTTP error — never
+report blocked suites as passed.
