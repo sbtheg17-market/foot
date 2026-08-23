@@ -2848,3 +2848,26 @@ calculation, `git diff --check`, and targeted secret/path checks passed.
 evidence, and separately authorized read-only managed catalog verification.
 
 ---
+
+### Session — Imported project setup inquiry (2026-08-22)
+**Agent:** Replit Agent
+**Scope:** `XS` (read-only import orientation)
+
+**What was done:**
+- Inspected the imported OnCall Foot monorepo, README, project handbook,
+  product vision, package scripts, and attached payments-foundation notes.
+- Confirmed the repository is a pnpm monorepo with Express API, React web,
+  Expo mobile, PostgreSQL/Drizzle, and an existing Railway deployment model.
+- Asked the user whether to run the project on Replit, implement the attached
+  payments-foundation task, make another change, or leave it imported.
+- The user declined the setup question.
+
+**Boundaries held:**
+- No files, dependencies, workflows, environment variables, database,
+  deployment configuration, or application code were changed.
+- No follow-up task was proposed because no work was authorized.
+
+**Build state at end:** repository unchanged; no Replit workflow configured;
+awaiting a future user instruction.
+
+---
