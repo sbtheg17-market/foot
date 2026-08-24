@@ -127,21 +127,27 @@ export default function BookingModal({ providerId, providerName, service, onClos
           </div>
           <button
             data-testid="booking-modal-close"
+            type="button"
+            aria-label="Close booking dialog"
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:bg-secondary/80 transition-colors mt-1"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Date */}
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
+            <label
+              htmlFor="booking-date-input"
+              className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2"
+            >
               <CalendarDays className="w-4 h-4 text-primary" />
               Choose a date <span className="text-destructive">*</span>
             </label>
             <input
+              id="booking-date-input"
               data-testid="booking-date-input"
               type="date"
               required
