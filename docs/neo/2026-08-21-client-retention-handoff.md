@@ -1438,3 +1438,26 @@ axe-required accessibility attributes in `booking-modal.tsx`.
   from `docs/TODO-LEDGER.md` (native device lab, real notification delivery,
   Playwright browser smoke, reminders, payments, service-area enforcement,
   managed-DB gate).
+
+### Addendum — first GitHub Actions runs on PR #46 (same session)
+
+- First run (head `681c45b…`): 13/15 jobs green immediately (both Expo
+  exports, web, accessibility, timezone/DST, smoke, migration checks,
+  authz-concurrency, secret scan, git diff --check, builds, full typecheck).
+  Two honest failures, both test-infrastructure, fixed in-session:
+  1. `mobile-typecheck` — the standalone package typecheck needs the lib
+     project references built first; the job now runs
+     `pnpm run typecheck:libs` before it
+     (`test: build lib project references before the mobile typecheck CI job`,
+     `1a0713685061a3d27b09d736524dc99bfc2855de`).
+  2. `api-tests` — `prevented-booking-replay.integration.test.ts` DLQ
+     subtests failed with duplicate 409s: they consume fixed seeded
+     slot-pool positions, and earlier booking suites in the same job had
+     already booked those instants. Verified locally: the file passes 14/14
+     standalone against a fresh scratch DB with no other suite run first.
+     The suite now has a dedicated CI job (`api-replay-tests`) with its own
+     disposable database; nothing was weakened or skipped — all 14 tests
+     remain gating. Ledger and matrix updated accordingly.
+- Final workflow: 16 jobs. Merge performed only after all gating jobs were
+  green on the final head; exact head SHA and merge SHA in the final
+  handoff.

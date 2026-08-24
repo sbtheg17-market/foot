@@ -126,18 +126,53 @@ jobs:
         run: |
           cd artifacts/api-server
           for f in availability-enforced-booking payments-foundation listing-preview.integration \
-                   prevented-booking-events.integration prevented-booking-replay.integration \
-                   replay-safety-controls; do
+                   prevented-booking-events.integration replay-safety-controls; do
             echo "::group::$f"
             node --import tsx/esm --test "src/__tests__/$f.test.ts"
             echo "::endgroup::"
           done
+      # prevented-booking-replay.integration.test.ts runs in its own job
+      # (api-replay-tests): its DLQ subtests consume fixed seeded slot-pool
+      # positions, so it needs a database no other booking suite has touched.
       - name: NON-GATING — daily-rebuild suite (contains branch-scope guard that fails by design off main)
         continue-on-error: true
         run: |
           git fetch origin main:refs/remotes/origin/main --depth=1 || true
           cd artifacts/api-server
           node --import tsx/esm --test src/__tests__/prevented-bookings-daily-rebuild.test.ts
+
+  api-replay-tests:
+    name: Replay + DLQ isolation tests (dedicated disposable PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: oncallfoot
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/oncallfoot
+      JWT_SECRET: ci-only-dummy-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Schema and seed (booking-free slot pool required by the suite)
+        run: |
+          pnpm run db:push
+          pnpm run seed
+      - name: Replay validation, outage recovery, DLQ isolation
+        run: |
+          cd artifacts/api-server
+          node --import tsx/esm --test src/__tests__/prevented-booking-replay.integration.test.ts
 
   authz-concurrency:
     name: Authorization, concurrency and idempotency (disposable PostgreSQL)

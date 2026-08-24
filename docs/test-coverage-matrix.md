@@ -205,14 +205,16 @@ Statements below reflect suites that actually ran in the implementing session.
 
 ### CI workflow: `.github/workflows/ci.yml` (pull_request + push to main)
 
-15 jobs, all deterministic, no production secrets, no deploy, no managed DB:
+15 jobs plus a dedicated replay-isolation job (16 total), all deterministic, no
+production secrets, no deploy, no managed DB:
 
 | Job | Covers |
 |---|---|
 | `typecheck` | Full workspace typecheck (libs, api, web incl. test files, mobile, scripts) |
 | `api-build` | esbuild API bundle + artifact existence |
 | `deploy-build` | `pnpm run build:deploy` (Railway parity) + artifact existence |
-| `api-tests` | Disposable postgres:15 service; db:push; seed ×2; built server; health; unit (state machine + reschedule policy); 16 scripted integration suites; 6 unscripted suites; NON-GATING labeled step for the daily-rebuild suite (contains the Session-080 branch-scope guard that fails by design off main) |
+| `api-tests` | Disposable postgres:15 service; db:push; seed ×2; built server; health; unit (state machine + reschedule policy); 16 scripted integration suites; 5 unscripted suites; NON-GATING labeled step for the daily-rebuild suite (contains the Session-080 branch-scope guard that fails by design off main) |
+| `api-replay-tests` | Dedicated disposable DB for `prevented-booking-replay.integration.test.ts` — its DLQ subtests consume fixed seeded slot-pool positions, so any earlier booking suite on the same DB collides (duplicate 409) |
 | `authz-concurrency` | `test:authorization`, `test:integration`, `test:pressure`, `test:rescheduling`, `test:proposals` on a disposable DB |
 | `migration-checks` | Fresh db:push; idempotent re-push; seed ×2; frozen-artifact hash + no-destructive-DDL check; startup after migration |
 | `web-tests` | 60 Vitest tests: booking modal, reschedule modal (client + provider consent proposal), proposal card (accept/decline/stale-409), marketplace-time, timezone hook |
