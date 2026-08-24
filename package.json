@@ -11,6 +11,7 @@
     "publish:gate": "bash scripts/verify-publication.sh",
     "seed": "pnpm --filter @workspace/api-server run seed",
     "start": "node --enable-source-maps artifacts/api-server/dist/index.mjs",
+    "test": "pnpm -r --if-present --filter \"!@workspace/mockup-sandbox\" run test",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"!@workspace/mockup-sandbox\" --filter \"./scripts\" --if-present run typecheck"
   },
