@@ -282,6 +282,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      # Build the referenced lib projects (d.ts outputs) first.
+      - run: pnpm run typecheck:libs
       - run: pnpm --filter @workspace/mobile run typecheck
 
   expo-export-ios:
