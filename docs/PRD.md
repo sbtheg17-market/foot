@@ -4,6 +4,11 @@ _Last updated: Feb 2026_
 
 > **Stack note (Aug 2026):** This PRD was authored during the Python/FastAPI + MongoDB phase. The product vision, portal structure, checkpoint roadmap, and feature priorities remain accurate. The implementation has since been fully rebuilt on the current stack: TypeScript · Node 24 · Express 5 · PostgreSQL + Drizzle ORM · React 19 + Vite · Expo (React Native). Any references to `server.py`, MongoDB, `requirements.txt`, or `.emergent` are historical only.
 
+> **Status note (2026-08-24, pre-#11 gate):** the checkpoint framing below is
+> historical — client portal, mobile app, consent-first rescheduling (#9) and the
+> CI/test matrix (#10) are merged. Current authoritative status:
+> `docs/TODO-LEDGER.md` and `docs/pre-11-release-readiness.md`.
+
 ---
 
 ## 1. Product Vision

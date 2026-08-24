@@ -67,3 +67,10 @@ credentials.json
 # Uploaded prompts and temporary handoff files stay in the workspace only
 /attached_assets/Pasted-*.txt
 /attached_assets/*.patch
+
+# API server runtime DLQ/reconciliation output (written at runtime by
+# prevented-booking-events; tracking it trips the Session-080 scope guard)
+artifacts/api-server/var/
+
+# External test-harness reports (agent tooling output, not repository artifacts)
+/test_reports/

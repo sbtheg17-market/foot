@@ -425,3 +425,14 @@ history writes in `routes/bookings.ts`; policy constants
 `artifacts/mobile/components/reschedule-proposal-card.tsx`; tests
 `reschedule-policy.test.ts` (7 pure) and
 `reschedule-proposals.integration.test.ts` (17, `pnpm … run test:proposals`).
+
+## Merge record — 2026-08-24 (pre-#11 gate note)
+
+The implementation described above was **squash-merged to `main`**: PR #44 and
+PR #45 (`feat: implement approved rescheduling consent workflow`), main
+`a911d2248b46b6f7ecd9945165d2b379acb69b99`. Since item #10 (PR #46) the workflow
+is CI-covered on every PR/push (`.github/workflows/ci.yml`: `api-tests`,
+`authz-concurrency` → `test:rescheduling` 12, `test:proposals` 17, plus web
+proposal-card tests). Re-verified green at the 2026-08-24 pre-#11 gate against
+disposable local PostgreSQL. Reminder DELIVERY remains not implemented
+(`docs/TODO-LEDGER.md`).

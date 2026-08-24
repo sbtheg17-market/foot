@@ -6,6 +6,12 @@ is missing, and the proposed CI/release matrix. **No CI workflow exists in the
 repository today (`.github/` is absent), and no web or mobile test framework is
 installed.** Nothing here claims coverage that is not in the repo.
 
+> **Update 2026-08-24 (pre-#11 gate):** §1–§7 below are the historical
+> pre-implementation audit, preserved unchanged — their "no CI / no web or mobile
+> test framework" statements described `75396f2` and are no longer current. The
+> matrix was implemented in roadmap item #10 (PR #46); see **§8** for the live
+> 16-job CI workflow and the suites that actually run.
+
 ---
 
 ## 1. Current framework inventory

@@ -3,6 +3,15 @@
 > **Read this first, then `.agents/LOG.md` (latest entry) and `replit.md`.**
 > This file is the durable handoff so any agent, on any host, can continue.
 
+> **Current status (2026-08-24, pre-#11 gate):** the task sections below are a
+> historical build log (Session-018 era; their test counts are outdated).
+> Roadmap items #1–#10 are merged to `main`; CI is live
+> (`.github/workflows/ci.yml`, 16 jobs). Current totals: 22 scripted API suites
+> (295 tests) + 71 unscripted API tests + 60 web tests. Authoritative today:
+> `docs/TODO-LEDGER.md`, `docs/test-coverage-matrix.md` §8,
+> `docs/pre-11-release-readiness.md`, and
+> `docs/neo/2026-08-21-client-retention-handoff.md`.
+
 ## Where the build stands (origin/main)
 - **Canonical stack:** Node/Express + TypeScript + PostgreSQL + React/Vite + Expo monorepo (pnpm workspaces).
 - The `conflict_*` branches are a **different** stack (React + FastAPI + MongoDB) → **reference only, never merge**.

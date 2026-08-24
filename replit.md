@@ -18,6 +18,12 @@ OnCall Foot is a **funded-quality, mobile-first marketplace** for in-home foot c
 
 ## Current Build State (2026-08-05)
 
+> **Update 2026-08-24 (pre-#11 gate):** the table below is the 2026-08-05
+> snapshot and its test counts are outdated. Roadmap items #1–#10 are merged
+> (consent-first rescheduling, 16-job GitHub Actions CI, web Vitest layer).
+> Current authoritative status: `docs/TODO-LEDGER.md`,
+> `docs/test-coverage-matrix.md` §8, and `docs/pre-11-release-readiness.md`.
+
 | Layer | Status |
 |---|---|
 | DB schema | ✅ Live (Drizzle → PostgreSQL) |

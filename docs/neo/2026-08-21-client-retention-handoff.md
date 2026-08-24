@@ -1461,3 +1461,94 @@ axe-required accessibility attributes in `booking-modal.tsx`.
 - Final workflow: 16 jobs. Merge performed only after all gating jobs were
   green on the final head; exact head SHA and merge SHA in the final
   handoff.
+
+## 2026-08-24 — Session: pre-#11 release-readiness gate (verification only)
+
+### Baseline and repair
+
+- Verified `origin/main` = `17b1bf9589f9665630346af3a85d110debcd170a`
+  (PR #46 squash). Local checkout had ONE local-only commit (`a7e0ec2…`)
+  auto-created by the Emergent platform after the item-10 session; it tracked
+  only the external harness file `test_reports/iteration_1.json`. Repaired
+  with a plain `git reset --mixed origin/main` (not a force-push; nothing was
+  ever pushed) — local `main` again equals `origin/main`, tree clean.
+- Branch for this gate: `chore/pre-11-release-readiness` from that main.
+
+### Audits performed
+
+- **Merged-work verification (#1–#10):** #9 (routes/reschedule.ts, consent
+  guard, policy constants, proposal cards web+mobile, additive
+  `RESCHEDULE_PROPOSALS_HISTORY_V1.sql`) and #10 (ci.yml, web test layer,
+  ledger, checklist, secret scan) confirmed present on `main` via git history
+  and file inspection — not documentation claims.
+- **Branch/PR audit:** 97 remote branches; all 46 closed PRs are MERGED (no
+  closed-unmerged PRs across the full list); exactly ONE open PR — #2
+  ("docs: record Session 068 publication verification", 2026-08-11,
+  `.agents/LOG.md` + `.agents/NEXT_TASK.md`), whose NEXT_TASK payload is long
+  superseded; recorded in the ledger with a recommendation to close without
+  merge (operator decision; nothing deleted, nothing merged). All 47
+  `conflict_*` branches untouched. Feature branches with commits "not in
+  main" are pre-squash originals of merged PRs — no unmerged valuable work
+  found.
+- **File/artifact audit:** no tracked secrets (deny-list scan clean;
+  `.env.example` is keys-only), no `.env` files, no conflict markers,
+  `git diff --check` clean, executable bits only on the three shell scripts.
+  Replit artifacts (`.replit`, `replit.md`, `.replit-artifact/`,
+  `attached_assets/`, `nixpacks.toml`) are HISTORICAL tracked files from the
+  original build — none added, none removed.
+- **CI verification:** `ci.yml` parses (16 jobs, no `if:` conditions, no
+  silent skips); all 16 jobs green on `main` `17b1bf9`; no production
+  secrets/deploys/managed-DB usage; the single non-gating step
+  (daily-rebuild) is labeled in-file and in §8 of the matrix.
+
+### Defect found and fixed (test-only file hygiene)
+
+The API server writes its DLQ to `artifacts/api-server/var/…` at runtime
+(`prevented-booking-events.ts`, `DEFAULT_DLQ_PATH`). The directory was
+untracked AND unignored, so any server run tripped the Session-080
+changed-file-scope guard (`prevented-bookings-daily-rebuild.test.ts` reported
+`unauthorized changed file: artifacts/api-server/var/`) even on a clean
+`main` checkout — the guard's only failure at this gate. Fix: gitignore
+`artifacts/api-server/var/` (runtime output) and `/test_reports/` (external
+agent-harness reports, the same class that produced the stray local commit
+above). No runtime behavior changed. `git check-ignore` verified.
+
+### Validation (disposable local PostgreSQL 15 ONLY)
+
+typecheck / build / build:deploy / root `pnpm test` PASS; 22 scripted API
+suites 295/295; unscripted 71/71 (replay 14/14 on its own fresh DB);
+smoke matrix (healthz 200, seeded login 200, six critical routes → 401,
+SPA 200) PASS; db:push ×2 + seed ×2 idempotent; web 60/60, a11y 10/10,
+tz-DST 10/10; Expo iOS+Android exports PASS via `--no-bytecode` (arm64
+host; CI x86_64 runs full exports); secret scan PASS; `git diff --check`
+PASS. #9 policy values in code confirmed to match the policy document
+(deadline appointment−48h / now+24h clamp; limit 3 via
+`RESCHEDULE_PROPOSAL_LIMIT`; lazy expiry; reminders NOT implemented).
+Native devices: still NEVER verified. Browser E2E: still not implemented.
+
+### Documentation truth reconciliation (append-only notes; history preserved)
+
+- `README.md`: verification-commands section rewritten to the current
+  commands; CI paragraph added; pnpm version corrected to the pinned 10.18.3.
+- `docs/NEXT-STEPS.md`, `docs/test-coverage-matrix.md` (header),
+  `docs/PRD.md`, `replit.md`: dated current-status banners marking historical
+  sections as historical (stale "no CI", "92/95 tests", "provider-only"
+  claims superseded).
+- `docs/rescheduling-policy.md`: merge record appended (#44/#45 → `a911d22`,
+  CI coverage since #46) — the doc previously said only "implemented on
+  feat/rescheduling-consent-workflow".
+- `docs/TODO-LEDGER.md`: pre-#11 review section — per-item status / why /
+  files / dependencies / next action / completion criteria / owner / last
+  reviewed for every deferred item, plus CI-badge item, environment
+  limitations, the `var/` hygiene fix, and the PR #2 disposition.
+- `docs/pre-11-release-readiness.md`: NEW — full gate report and verdict
+  (internal demo: SUITABLE; controlled provider pilot: NOT YET — managed-DB
+  gate + deployment authorization + native-device pass required; paid
+  pilot/public launch/financial operation: NOT SUITABLE).
+
+### Boundaries
+
+No product behavior, state machine, policy, schema, notification, payment,
+service-area, or deployment change. No managed DB access. No production
+credentials. Roadmap #11 NOT started. Exact commit/PR/merge SHAs in the
+final session handoff.

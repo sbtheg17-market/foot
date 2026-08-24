@@ -33,7 +33,7 @@ A vertical marketplace with three roles:
 ### Prerequisites
 
 - Node.js 24+
-- pnpm 9+
+- pnpm 10 (the repo pins `packageManager: pnpm@10.18.3`; enable via corepack)
 - PostgreSQL database
 
 ### Setup
@@ -65,11 +65,31 @@ Do not commit `.env` files, secret values, account passwords, tokens, or connect
 ### Verification commands
 
 ```bash
-pnpm run typecheck
-pnpm run build
-pnpm --filter @workspace/api-server run test
+pnpm run typecheck        # full workspace (libs, API, web incl. tests, mobile, scripts)
+pnpm run build            # typecheck + web + API build
+pnpm test                 # pure API unit suite + web Vitest suite
+
+# Server-backed API suites (need DATABASE_URL, JWT_SECRET and a running server on $PORT):
 pnpm --filter @workspace/api-server run test:integration
+pnpm --filter @workspace/api-server run test:rescheduling
+pnpm --filter @workspace/api-server run test:proposals
+# ...see artifacts/api-server/package.json for the full test:* list and
+# docs/test-coverage-matrix.md §8 for what each suite covers.
+
+# Web-only suites:
+pnpm --filter @workspace/web run test        # all web tests
+pnpm --filter @workspace/web run test:a11y   # accessibility subset
+pnpm --filter @workspace/web run test:tz     # timezone/DST subset
+
+bash scripts/secret-scan.sh                  # deny-list secret scan
 ```
+
+Continuous integration: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)
+runs 16 deterministic jobs on every pull request and push to `main` (typecheck,
+builds, API/web/mobile checks, Expo static exports, accessibility, timezone/DST,
+authorization/concurrency, disposable-PostgreSQL migration checks, smoke, secret
+scan, `git diff --check`). Details: `docs/test-coverage-matrix.md` §8.
+Native-device verification is NOT automated — see `docs/native-device-checklist.md`.
 
 After changing `lib/api-spec/openapi.yaml`, regenerate the typed API packages before building:
 
