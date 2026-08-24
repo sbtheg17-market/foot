@@ -184,3 +184,69 @@ ran against a disposable local PostgreSQL 15 + built server in this session.
 
 Known environment facts, unchanged: no CI workflow yet (item 10), no web/mobile
 test framework, native-device verification never performed.
+
+---
+
+## 8. Addendum — 2026-08-24: roadmap item 10 IMPLEMENTED (CI matrix + web tests)
+
+Recorded on branch `test/web-mobile-ci-matrix` (base `origin/main`
+`a911d2248b46b6f7ecd9945165d2b379acb69b99`, item 9 merged). §3's proposal is now
+implemented in `.github/workflows/ci.yml`; §4's web recommendation is installed.
+Statements below reflect suites that actually ran in the implementing session.
+
+### Frameworks added (dev-only, web workspace; per §4 and the 2026-08-23 operator decision)
+
+- **Web:** Vitest 4 + @testing-library/react 16 (+ jest-dom, user-event,
+  @testing-library/dom peer) + jsdom 26 + axe-core. jsdom is pinned to v26:
+  jsdom 30 requires an undici API absent from Node 20, the repo's engine.
+- **Mobile:** NO jest-expo/RNTL (per the operator decision) — typecheck +
+  deterministic Expo static exports (`export:ios`, `export:android` scripts).
+- **API:** unchanged (`node:test` + `tsx`).
+
+### CI workflow: `.github/workflows/ci.yml` (pull_request + push to main)
+
+15 jobs, all deterministic, no production secrets, no deploy, no managed DB:
+
+| Job | Covers |
+|---|---|
+| `typecheck` | Full workspace typecheck (libs, api, web incl. test files, mobile, scripts) |
+| `api-build` | esbuild API bundle + artifact existence |
+| `deploy-build` | `pnpm run build:deploy` (Railway parity) + artifact existence |
+| `api-tests` | Disposable postgres:15 service; db:push; seed ×2; built server; health; unit (state machine + reschedule policy); 16 scripted integration suites; 6 unscripted suites; NON-GATING labeled step for the daily-rebuild suite (contains the Session-080 branch-scope guard that fails by design off main) |
+| `authz-concurrency` | `test:authorization`, `test:integration`, `test:pressure`, `test:rescheduling`, `test:proposals` on a disposable DB |
+| `migration-checks` | Fresh db:push; idempotent re-push; seed ×2; frozen-artifact hash + no-destructive-DDL check; startup after migration |
+| `web-tests` | 60 Vitest tests: booking modal, reschedule modal (client + provider consent proposal), proposal card (accept/decline/stale-409), marketplace-time, timezone hook |
+| `accessibility` | `-t accessibility` subset: labeled dialog, focus entry, Escape (incl. mid-submit lockout), aria-pressed slots, non-color "current" marking, labeled regions, axe scans (color-contrast off — jsdom cannot compute it) |
+| `timezone-dst` | Web marketplace-time suite (EDT/EST, 2026-03-08 spring-forward, 2026-11-01 fall-back, date boundary, labeled device fallback) + API pure reschedule-policy DST deadline math |
+| `mobile-typecheck` | `tsc --noEmit` for the Expo app |
+| `expo-export-ios` / `expo-export-android` | Deterministic static exports + `metadata.json` existence — explicitly NOT native validation |
+| `smoke` | build:deploy; seeded server; `/api/healthz` 200; seeded login 200; critical booking/reschedule routes registered (401, never 404: `GET/POST /bookings`, `PATCH /bookings/:id/status`, `POST/GET /bookings/:id/reschedule-requests`, `GET /bookings/:id/rescheduling-history`); SPA served |
+| `secret-scan` | `scripts/secret-scan.sh` deny-list over tracked files (GitHub/OpenAI/Stripe/AWS/Slack tokens, private keys, signed JWTs, non-local DB passwords; local scratch + documented test-fixture hosts allowed) |
+| `git-diff-check` | `git diff --check` against the PR base (or `HEAD^` on main pushes) |
+
+### Session validation results (local; disposable PostgreSQL 15 only)
+
+- 22 scripted API suites: **295/295 pass** against a seeded scratch DB + built
+  server. Unscripted suites: **71/71 pass on a fresh DB** (replay suite's DLQ
+  subtests are single-run-safe only — fixed slot-pool positions persist as
+  bookings; re-running on the same DB yields duplicate 409s; CI DBs are fresh).
+- Daily-rebuild suite: 25/26 — the changed-file-scope guard fails BY DESIGN on
+  this feature branch; preserved, run non-gating in CI.
+- Web: 60/60; a11y subset 10/10; TZ/DST subset 10/10. Root `pnpm test`
+  (new script: recursive `test`) passes (API 70 unit + web 60).
+- Typecheck, `pnpm run build`, `pnpm run build:deploy`, secret scan,
+  `git diff --check`: pass.
+- Expo exports: pass locally with `--no-bytecode` (this container is arm64 and
+  cannot execute the x86_64 `hermesc`); CI (x86_64) runs the full export with
+  Hermes bytecode.
+- The failing-a11y-test-driven fixes to `booking-modal.tsx` (axe `button-name`
+  on the icon-only close button; axe `label` on the date input) are the only
+  product-file changes: `aria-label`, `type="button"`, `aria-hidden` on the
+  icon, and a `htmlFor`/`id` label association. No behavior change.
+
+### Still true / not claimed
+
+- Native devices: NEVER verified — see `docs/native-device-checklist.md`.
+- Real-browser E2E (Playwright): not added; jsdom-level only (ledger follow-up).
+- Reminders, payments, service-area enforcement, managed-DB migration: deferred
+  (see `docs/TODO-LEDGER.md`).

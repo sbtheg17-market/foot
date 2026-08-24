@@ -1322,3 +1322,119 @@ Operator: review + squash-merge PR for `feat/rescheduling-consent-workflow`
 branch `test/web-mobile-ci-matrix` from the updated main: GitHub Actions matrix
 (static/API+disposable-PG/web Vitest+RTL/mobile typecheck+deterministic Expo
 exports), per operator decisions of 2026-08-23 (no jest-expo/RNTL).
+
+## 2026-08-24 — Session: web/mobile/API coverage and CI matrix (roadmap item 10)
+
+### Baseline
+
+- Repository: `sbtheg17-market/foot` (SSH remote re-pointed to
+  `git@github.com:sbtheg17-market/foot.git`; auth verified as
+  `sbtheg17-market`). Checkout `/app`; working tree clean at start.
+- Verified `origin/main`: `a911d2248b46b6f7ecd9945165d2b379acb69b99`
+  ("feat: implement approved rescheduling consent workflow (#45)") — item 9
+  merged; its implementation was NOT reworked. Items 1–9 intact.
+- Branch: `test/web-mobile-ci-matrix`, cut from that main SHA (did not exist
+  before this session). No `conflict_*` branch used; all preserved untouched.
+
+### Implemented (test infrastructure only)
+
+- `.github/workflows/ci.yml` — first CI workflow in the repository
+  (pull_request + push to main), 15 deterministic jobs: `typecheck`,
+  `api-build`, `deploy-build` (Railway parity), `api-tests` (disposable
+  postgres:15 service container; db:push; seed ×2; built server; health; unit
+  + 16 scripted integration suites + 6 unscripted suites; the daily-rebuild
+  suite runs as a labeled NON-GATING step because its Session-080
+  changed-file-scope guard fails by design off main — guard preserved, not
+  weakened), `authz-concurrency` (authorization, concurrency, pressure,
+  rescheduling enforcement, consent proposals), `migration-checks` (fresh
+  push, idempotent re-push, seed ×2, frozen-artifact hash + no-destructive-DDL
+  check, startup after migration), `web-tests`, `accessibility`,
+  `timezone-dst`, `mobile-typecheck`, `expo-export-ios`, `expo-export-android`
+  (both labeled NOT native validation), `smoke` (healthz 200, seeded login
+  200, six critical booking/reschedule routes registered → 401 never 404, SPA
+  served, artifacts exist), `secret-scan`, `git-diff-check`. No job deploys,
+  needs production secrets, or touches a managed database.
+- Web test layer (first in the repo, per §4 of the coverage matrix and the
+  2026-08-23 operator decision): Vitest 4 + @testing-library/react 16 +
+  jsdom 26 (30 is incompatible with Node 20) + axe-core, dev-only in
+  `artifacts/web`. 60 tests across 5 files: `booking-modal.test.tsx`,
+  `reschedule-modal.test.tsx` (client flow + provider consent-first proposal,
+  loading/empty/error/403/409 recovery, duplicate-submit protection,
+  idempotency key), `reschedule-proposal-card.test.tsx` (accept/decline,
+  stale-accept 409 race, feasible/infeasible decline, read-only provider
+  view, history), `marketplace-time.test.ts` (EDT/EST, 2026-03-08
+  spring-forward, 2026-11-01 fall-back repeated wall clock, date boundary,
+  labeled device fallback), `use-marketplace-timezone.test.tsx`
+  (idle/loading/ready/unavailable). Accessibility: labeled dialog, focus
+  entry, Escape incl. mid-submit lockout, aria-pressed, non-color "current"
+  marking, labeled regions, axe scans (color-contrast off — jsdom cannot
+  compute it).
+- Minimal product change REQUIRED by failing axe tests (allowed by the session
+  scope): `booking-modal.tsx` close button gained `aria-label` +
+  `type="button"` + `aria-hidden` icon; the date input gained a
+  `htmlFor`/`id` label association. No behavior change; reschedule modal was
+  already compliant.
+- Mobile (approved lighter path, no jest-expo/RNTL): `export:ios` /
+  `export:android` scripts (deterministic Expo static export). Root
+  `pnpm test` added (recursive `test`: pure API unit suite + web suite).
+- `scripts/secret-scan.sh`: dependency-free deny-list scan (tokens, private
+  keys, signed JWTs, non-local DB passwords; local scratch and documented
+  redaction-test fixture hosts allowed) — used locally and in CI.
+- Docs: `docs/test-coverage-matrix.md` §8 addendum (implemented matrix),
+  `docs/native-device-checklist.md` (manual native checks: simulators,
+  physical devices, native alerts, notification taps, cold start,
+  permissions, token lifecycle, device timezones, deep links),
+  `docs/TODO-LEDGER.md` created as the consolidated authoritative ledger (no
+  single ledger file existed; deferred items preserved from their source
+  documents, plus item-10 follow-ups).
+
+### Validation (disposable local PostgreSQL 15 ONLY; no managed DB)
+
+- `pnpm run typecheck` PASS (libs, api, web incl. new test files, mobile,
+  scripts). `pnpm run build` / `pnpm run build:deploy` PASS.
+  `pnpm test` (new root script) PASS: API unit 70/70 + web 60/60.
+- All 22 scripted API `test:*` suites PASS against a seeded scratch DB +
+  built server on PORT=18080 — 295/295 tests (incl. authorization 7/7,
+  concurrency 16/16, pressure 13/13, rescheduling 12/12, proposals 17/17,
+  lifecycle 14/14). Seed run twice — idempotent. db:push re-run — no-op.
+- Unscripted suites: 71/71 PASS on a FRESH DB. Environment fact recorded in
+  the ledger: the replay suite's DLQ subtests are single-run-safe only
+  (fixed slot-pool positions persist as bookings; a re-run on the same DB
+  409s). Daily-rebuild suite 25/26 — the changed-file-scope guard fails BY
+  DESIGN on this feature branch (known repository guard; reported, not
+  weakened, non-gating in CI).
+- Web: 60/60 PASS; `test:a11y` 10/10; `test:tz` 10/10.
+- Mobile typecheck PASS. Expo iOS + Android exports PASS locally with
+  `--no-bytecode` (this container is arm64; the x86_64 `hermesc` binary
+  cannot run — the plain export scripts run fully, with bytecode, on x86_64
+  CI runners). BLOCKED locally, honest per the checklist: no simulator,
+  emulator, or physical device exists in this environment — NATIVE-DEVICE
+  BEHAVIOR REMAINS UNVERIFIED and is not claimed by any CI job.
+- Smoke matrix verified locally: healthz 200, seeded login 200, six critical
+  booking/reschedule routes → 401 (registered, never 404), SPA 200.
+- `bash scripts/secret-scan.sh` PASS. `git diff --check` PASS (fixed one
+  blank-line-at-EOF it caught in the new docs).
+- GitHub Actions execution itself: PENDING first run on the PR (no workflow
+  existed before this branch); results recorded in the PR.
+
+### Boundaries
+
+No booking/rescheduling behavior, state machine, or policy change; no
+provider-proposal or history change; no service-area/travel change; no
+reminders; no notification persistence; no email/SMS; no payments; no
+production migration; no managed DB access; no deployment; no force-push;
+no Replit artifacts; no credentials. Product diff limited to the two
+axe-required accessibility attributes in `booking-modal.tsx`.
+
+### Session output
+
+- Implementation commit: `78ac7b5911213e5bd381707a8c3c6bf4379119f7`
+  (`test: establish web mobile and CI coverage`, 16 files).
+- Docs commit (`docs: update test matrix and deferred TODO ledger`) follows
+  it with this record; exact SHA and PR URL in the final session handoff.
+- PR `main...test/web-mobile-ci-matrix` created and squash-merged in-session
+  per the operator's explicit item-10 merge authorization.
+- Next operator: review the merged CI runs on main; schedule deferred work
+  from `docs/TODO-LEDGER.md` (native device lab, real notification delivery,
+  Playwright browser smoke, reminders, payments, service-area enforcement,
+  managed-DB gate).
