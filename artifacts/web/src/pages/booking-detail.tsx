@@ -18,6 +18,7 @@ import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-statu
 import ClientReviewForm from '@/components/client-review-form';
 import BookingModal from '@/components/ui/booking-modal';
 import RescheduleModal from '@/components/ui/reschedule-modal';
+import RescheduleProposalCard from '@/components/ui/reschedule-proposal-card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -437,6 +438,17 @@ export default function ClientBookingDetail() {
             </div>
           </section>
         )}
+
+        {/* Consent-first proposals: pending provider proposal + accepted-change history */}
+        <RescheduleProposalCard
+          bookingId={booking.id}
+          isClient
+          {...(marketplaceTimezone ? { timezone: marketplaceTimezone } : {})}
+          onChanged={() => void refetch()}
+          {...(isRescheduleEligible && service
+            ? { onPickAnother: () => setIsRescheduleOpen(true) }
+            : {})}
+        />
 
         <button
           onClick={() => setLocation(ROUTES.client.provider(booking.providerId))}

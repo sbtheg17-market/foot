@@ -30,6 +30,8 @@ import {
   marketplaceEventsTable,
   preventedBookingRecordsTable,
   reviewsTable,
+  rescheduleProposalsTable,
+  rescheduleHistoryTable,
 } from "@workspace/db";
 
 const PORT = process.env["PORT"] ?? "8080";
@@ -146,6 +148,12 @@ async function cleanupTestWindow(date: string): Promise<void> {
     );
   const ids = rows.map((r) => r.id);
   if (ids.length === 0) return;
+  await db
+    .delete(rescheduleHistoryTable)
+    .where(inArray(rescheduleHistoryTable.bookingId, ids));
+  await db
+    .delete(rescheduleProposalsTable)
+    .where(inArray(rescheduleProposalsTable.bookingId, ids));
   await db.delete(reviewsTable).where(inArray(reviewsTable.bookingId, ids));
   await db.delete(invoicesTable).where(inArray(invoicesTable.bookingId, ids));
   await db
@@ -295,31 +303,28 @@ describe("rescheduling enforcement", () => {
     assert.ok(!("careNotes" in booking));
   });
 
-  it("provider re-confirms and can also reschedule within the same rules", async () => {
+  it("provider re-confirms; direct provider reschedule is refused (consent-first)", async () => {
     const confirm = await patchStatus(sarah, bookingA, { status: "confirmed" });
     assert.equal(confirm.status, 200);
 
+    // Consent-first policy: a provider can no longer overwrite the client's
+    // confirmed time — the status route points to the proposal workflow.
     const res = await patchStatus(sarah, bookingA, {
       status: "rescheduled",
       scheduledAt: `${date}T19:00:00.000Z`,
     });
-    assert.equal(res.status, 200);
-    const booking = res.body["booking"] as Record<string, unknown>;
-    assert.equal(booking["status"], "rescheduled");
+    assert.equal(res.status, 409);
+    assert.match(String(res.body["error"]), /require client consent/i);
+
+    // The confirmed time is untouched.
+    const detail = await api(`/bookings/${bookingA}`, { token: sarah });
+    assert.equal(detail.status, 200);
+    const booking = detail.body["booking"] as Record<string, unknown>;
+    assert.equal(booking["status"], "confirmed");
     assert.equal(
       new Date(String(booking["scheduledAt"])).toISOString(),
-      `${date}T19:00:00.000Z`,
+      `${date}T17:00:00.000Z`,
     );
-
-    // Provider reschedules are bound by availability too.
-    const outside = await patchStatus(sarah, bookingA, { status: "confirmed" });
-    assert.equal(outside.status, 200);
-    const bad = await patchStatus(sarah, bookingA, {
-      status: "rescheduled",
-      scheduledAt: `${date}T03:00:00.000Z`,
-    });
-    assert.equal(bad.status, 400);
-    assert.match(String(bad.body["error"]), /outside this provider's availability/);
   });
 
   it("terminal bookings can never be rescheduled", async () => {

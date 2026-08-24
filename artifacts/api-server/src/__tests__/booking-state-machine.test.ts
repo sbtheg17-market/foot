@@ -28,8 +28,8 @@ describe("isTransitionAllowed — provider", () => {
   it("provider can cancel a confirmed booking", () => {
     assert.ok(isTransitionAllowed("confirmed", "cancelled", "provider"));
   });
-  it("provider can reschedule a confirmed booking", () => {
-    assert.ok(isTransitionAllowed("confirmed", "rescheduled", "provider"));
+  it("provider can NOT reschedule a confirmed booking directly (consent-first: proposals only)", () => {
+    assert.equal(isTransitionAllowed("confirmed", "rescheduled", "provider"), false);
   });
   it("provider can mark no_show on a confirmed booking", () => {
     assert.ok(isTransitionAllowed("confirmed", "no_show", "provider"));

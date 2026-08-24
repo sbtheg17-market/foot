@@ -30,6 +30,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/auth';
 import { useClientBookingStatusFeedback } from '@/hooks/use-client-booking-status-feedback';
 import RescheduleModal from '@/components/reschedule-modal';
+import RescheduleProposalCard from '@/components/reschedule-proposal-card';
 
 const STATUS_META: Record<string, { label: string; bg: string; text: string; description: string }> = {
   requested: { label: 'Pending', bg: '#FEF3C7', text: '#92400E', description: 'Your request is with the provider for review.' },
@@ -473,6 +474,17 @@ export default function BookingDetailScreen() {
             </View>
           )}
 
+          {/* Consent-first proposals: pending provider proposal + accepted-change history */}
+          {['confirmed', 'rescheduled', 'completed', 'cancelled'].includes(booking.status) && (
+            <RescheduleProposalCard
+              bookingId={booking.id}
+              isClient={!isProvider}
+              {...(marketplaceTimezone ? { timezone: marketplaceTimezone } : {})}
+              colors={colors}
+              onChanged={() => void refetch()}
+            />
+          )}
+
           {!isProvider && (
             <TouchableOpacity
               onPress={() => router.push(`/provider/${booking.providerId}`)}
@@ -587,6 +599,7 @@ export default function BookingDetailScreen() {
         <RescheduleModal
           bookingId={booking.id}
           providerId={booking.providerId}
+          perspective={isProvider ? 'provider' : 'client'}
           providerName={
             isProvider
               ? (booking.clientFirstName ? `${booking.clientFirstName} ${booking.clientLastName ?? ''}`.trim() : `Client #${booking.clientId}`)

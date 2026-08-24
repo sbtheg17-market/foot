@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useGetProviderSlots, useUpdateBookingStatus } from '@workspace/api-client-react';
+import { useGetProviderSlots, useUpdateBookingStatus, useCreateRescheduleRequest } from '@workspace/api-client-react';
 import type { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { useColors } from '@/hooks/useColors';
 
@@ -28,6 +28,8 @@ interface RescheduleModalProps {
   service: Service;
   /** ISO datetime of the current appointment — never reusable as the new time. */
   currentScheduledAt: string;
+  /** Provider mode creates a consent-first PROPOSAL instead of changing the time. */
+  perspective?: 'client' | 'provider';
   colors: ReturnType<typeof useColors>;
   insets: ReturnType<typeof useSafeAreaInsets>;
   onClose: () => void;
@@ -70,6 +72,7 @@ export default function RescheduleModal({
   providerName,
   service,
   currentScheduledAt,
+  perspective = 'client',
   colors,
   insets,
   onClose,
@@ -94,6 +97,14 @@ export default function RescheduleModal({
   const currentMs = useMemo(() => Date.parse(currentScheduledAt), [currentScheduledAt]);
 
   const updateStatus = useUpdateBookingStatus();
+  const createProposal = useCreateRescheduleRequest();
+  const isProvider = perspective === 'provider';
+  // One idempotency key per modal open — a retry can never duplicate a proposal.
+  const idempotencyKey = useMemo(
+    () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+    [],
+  );
+  const submitting = updateStatus.isPending || createProposal.isPending;
 
   const slotLabel = (iso: string) =>
     new Date(iso).toLocaleTimeString('en-US', {
@@ -116,14 +127,14 @@ export default function RescheduleModal({
   );
 
   const handleClose = () => {
-    if (updateStatus.isPending) return; // never orphan an in-flight request
+    if (submitting) return; // never orphan an in-flight request
     onClose();
   };
 
   const handleSubmit = () => {
     // Duplicate-tap protection: the button is disabled while pending, and
     // this guard covers any re-entry path.
-    if (updateStatus.isPending) return;
+    if (submitting) return;
     if (!selectedSlot) {
       Alert.alert('Choose a time', 'Please select an available time slot first.');
       return;
@@ -132,6 +143,71 @@ export default function RescheduleModal({
     if (Date.parse(selectedSlot) === currentMs) {
       Alert.alert('That is your current time', 'Please pick a different slot.');
       setSelectedSlot(null);
+      return;
+    }
+
+    if (isProvider) {
+      // Consent-first: create a pending proposal — the client must accept it.
+      createProposal.mutate(
+        { bookingId, data: { proposedScheduledAt: selectedSlot, idempotencyKey } },
+        {
+          onSuccess: () => {
+            Alert.alert(
+              'Time proposed',
+              "The client has been asked to confirm the new time. Their current appointment stays until they respond.",
+              [{ text: 'OK', onPress: onSuccess }],
+            );
+          },
+          onError: (err: unknown) => {
+            const apiError = err as { status?: number; data?: { error?: string } | null };
+            const statusCode = apiError.status;
+            const serverMessage = apiError.data?.error ?? '';
+            if (
+              serverMessage.includes('overlaps another appointment') ||
+              serverMessage.includes("outside this provider's availability")
+            ) {
+              Alert.alert('Time unavailable', 'That time is no longer available. Please choose another slot.');
+              setSelectedSlot(null);
+              void refetchSlots();
+              return;
+            }
+            if (serverMessage.includes('already have an active request')) {
+              Alert.alert('Already booked', 'This client already has a booking for that exact time. Please pick a different slot.');
+              setSelectedSlot(null);
+              return;
+            }
+            if (serverMessage.includes("already awaiting the client's response")) {
+              Alert.alert('Proposal pending', 'A proposal is already awaiting this client — they need to respond first.', [
+                { text: 'OK', onPress: onClose },
+              ]);
+              return;
+            }
+            if (serverMessage.includes('limit of provider time-change proposals')) {
+              Alert.alert('Limit reached', serverMessage, [{ text: 'OK', onPress: onClose }]);
+              return;
+            }
+            if (serverMessage.includes('no longer offered')) {
+              Alert.alert('Service unavailable', 'This service is no longer offered, so the booking cannot be rescheduled.', [
+                { text: 'OK', onPress: onClose },
+              ]);
+              return;
+            }
+            if (statusCode === 409) {
+              Alert.alert('Booking updated', 'This booking can no longer be rescheduled. Refreshing.', [
+                { text: 'OK', onPress: onClose },
+              ]);
+              return;
+            }
+            if (statusCode === 400 && serverMessage) {
+              Alert.alert('Cannot use that time', serverMessage);
+              setSelectedSlot(null);
+              void refetchSlots();
+              return;
+            }
+            Alert.alert('Could not propose', 'Something went wrong. Please try again.');
+          },
+        },
+      );
       return;
     }
 
@@ -227,12 +303,12 @@ export default function RescheduleModal({
           </View>
           <TouchableOpacity
             onPress={handleClose}
-            disabled={updateStatus.isPending}
+            disabled={submitting}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityLabel="Close reschedule dialog"
             testID="reschedule-modal-close"
-            style={{ opacity: updateStatus.isPending ? 0.4 : 1 }}
+            style={{ opacity: submitting ? 0.4 : 1 }}
           >
             <Feather name="x" size={22} color={colors.mutedForeground} />
           </TouchableOpacity>
@@ -378,28 +454,30 @@ export default function RescheduleModal({
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12, borderTopColor: colors.border }]}>
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={updateStatus.isPending || !selectedSlot}
+            disabled={submitting || !selectedSlot}
             accessibilityRole="button"
-            accessibilityState={{ disabled: updateStatus.isPending || !selectedSlot }}
-            accessibilityLabel="Confirm new time"
+            accessibilityState={{ disabled: submitting || !selectedSlot }}
+            accessibilityLabel={isProvider ? 'Propose new time' : 'Confirm new time'}
             testID="reschedule-submit-button"
             activeOpacity={0.8}
             style={[
               styles.submitBtn,
               {
                 backgroundColor: colors.primary,
-                opacity: updateStatus.isPending || !selectedSlot ? 0.55 : 1,
+                opacity: submitting || !selectedSlot ? 0.55 : 1,
               },
             ]}
           >
-            {updateStatus.isPending ? (
+            {submitting ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.submitBtnText}>Confirm new time</Text>
+              <Text style={styles.submitBtnText}>{isProvider ? 'Propose new time' : 'Confirm new time'}</Text>
             )}
           </TouchableOpacity>
           <Text style={[styles.footerNote, { color: colors.mutedForeground }]}>
-            Your provider will confirm the new time. Your current appointment stays until they do.
+            {isProvider
+              ? 'The client must accept before anything changes — their current appointment stays until they do.'
+              : 'Your provider will confirm the new time. Your current appointment stays until they do.'}
           </Text>
         </View>
       </View>

@@ -846,6 +846,94 @@ export interface UpdateBookingStatusRequest {
   scheduledAt?: string;
 }
 
+export type RescheduleProposalStatus = typeof RescheduleProposalStatus[keyof typeof RescheduleProposalStatus];
+
+
+export const RescheduleProposalStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+  declined: 'declined',
+  cancelled: 'cancelled',
+  expired: 'expired',
+  unresolved: 'unresolved',
+} as const;
+
+export type RescheduleProposalRequesterRole = typeof RescheduleProposalRequesterRole[keyof typeof RescheduleProposalRequesterRole];
+
+
+export const RescheduleProposalRequesterRole = {
+  client: 'client',
+  provider: 'provider',
+  admin: 'admin',
+} as const;
+
+export interface RescheduleProposal {
+  id: number;
+  bookingId: number;
+  requesterRole: RescheduleProposalRequesterRole;
+  originalScheduledAt: string;
+  proposedScheduledAt: string;
+  reason?: string | null;
+  status: RescheduleProposalStatus;
+  deadlineAt: string;
+  createdAt: string;
+  resolvedAt?: string | null;
+}
+
+export interface CreateRescheduleRequest {
+  proposedScheduledAt: string;
+  /** @maxLength 500 */
+  reason?: string;
+  /** @maxLength 128 */
+  idempotencyKey: string;
+}
+
+export interface RescheduleProposalResponse {
+  proposal: RescheduleProposal;
+}
+
+export interface RescheduleProposalListResponse {
+  proposals: RescheduleProposal[];
+}
+
+export interface AcceptRescheduleResponse {
+  booking: Booking;
+  proposal: RescheduleProposal;
+}
+
+export interface DeclineRescheduleResponse {
+  proposal: RescheduleProposal;
+  originalTimeFeasible: boolean;
+  supportMessage?: string;
+}
+
+export type RescheduleHistoryEntryRequesterRole = typeof RescheduleHistoryEntryRequesterRole[keyof typeof RescheduleHistoryEntryRequesterRole];
+
+
+export const RescheduleHistoryEntryRequesterRole = {
+  client: 'client',
+  provider: 'provider',
+  admin: 'admin',
+} as const;
+
+export interface RescheduleHistoryEntry {
+  id: number;
+  bookingId: number;
+  originalScheduledAt: string;
+  newScheduledAt: string;
+  requesterRole: RescheduleHistoryEntryRequesterRole;
+  reason?: string | null;
+  previousStatus: BookingStatus;
+  newStatus: BookingStatus;
+  createdAt: string;
+}
+
+export interface ReschedulingHistoryResponse {
+  history: RescheduleHistoryEntry[];
+  limit: number;
+  nextCursor?: number | null;
+}
+
 export interface ReviewResponse {
   review: Review;
 }
@@ -1200,6 +1288,18 @@ limit?: number;
  * @minimum 0
  */
 offset?: number;
+};
+
+export type GetReschedulingHistoryParams = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+/**
+ * Keyset cursor (id of the last row from the previous page)
+ */
+cursor?: number;
 };
 
 export type ListInvoicesParams = {

@@ -1640,6 +1640,165 @@ export const UpdateBookingStatusResponse = zod.object({
 
 
 /**
+ * @summary Propose a new time (provider/admin; requires client consent)
+ */
+export const CreateRescheduleRequestParams = zod.object({
+  "bookingId": zod.coerce.number().int()
+})
+
+export const createRescheduleRequestBodyReasonMax = 500;
+
+export const createRescheduleRequestBodyIdempotencyKeyMax = 128;
+
+
+
+export const CreateRescheduleRequestBody = zod.object({
+  "proposedScheduledAt": zod.coerce.date(),
+  "reason": zod.string().max(createRescheduleRequestBodyReasonMax).optional(),
+  "idempotencyKey": zod.string().max(createRescheduleRequestBodyIdempotencyKeyMax)
+})
+
+export const CreateRescheduleRequestResponse = zod.object({
+  "proposal": zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "requesterRole": zod.enum(['client', 'provider', 'admin']),
+  "originalScheduledAt": zod.coerce.date(),
+  "proposedScheduledAt": zod.coerce.date(),
+  "reason": zod.string().nullish(),
+  "status": zod.enum(['pending', 'accepted', 'declined', 'cancelled', 'expired', 'unresolved']),
+  "deadlineAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullish()
+})
+})
+
+
+/**
+ * @summary List reschedule proposals for an owned booking
+ */
+export const ListRescheduleRequestsParams = zod.object({
+  "bookingId": zod.coerce.number().int()
+})
+
+export const ListRescheduleRequestsResponse = zod.object({
+  "proposals": zod.array(zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "requesterRole": zod.enum(['client', 'provider', 'admin']),
+  "originalScheduledAt": zod.coerce.date(),
+  "proposedScheduledAt": zod.coerce.date(),
+  "reason": zod.string().nullish(),
+  "status": zod.enum(['pending', 'accepted', 'declined', 'cancelled', 'expired', 'unresolved']),
+  "deadlineAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullish()
+}))
+})
+
+
+/**
+ * @summary Client accepts a proposed time (makes it the confirmed time)
+ */
+export const AcceptRescheduleRequestParams = zod.object({
+  "requestId": zod.coerce.number().int()
+})
+
+export const AcceptRescheduleRequestResponse = zod.object({
+  "booking": zod.object({
+  "id": zod.int(),
+  "clientId": zod.int(),
+  "providerId": zod.int(),
+  "serviceId": zod.int(),
+  "status": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "scheduledAt": zod.coerce.date(),
+  "address": zod.string(),
+  "city": zod.string(),
+  "postalCode": zod.string().nullish(),
+  "careNotes": zod.string().nullish().describe('Provider-private care note; included only in provider\/admin responses'),
+  "clientNotes": zod.string().nullish(),
+  "cancellationReason": zod.string().nullish(),
+  "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
+  "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
+  "clientPhone": zod.string().nullish().describe('Client phone (joined; present on list responses)'),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}),
+  "proposal": zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "requesterRole": zod.enum(['client', 'provider', 'admin']),
+  "originalScheduledAt": zod.coerce.date(),
+  "proposedScheduledAt": zod.coerce.date(),
+  "reason": zod.string().nullish(),
+  "status": zod.enum(['pending', 'accepted', 'declined', 'cancelled', 'expired', 'unresolved']),
+  "deadlineAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullish()
+})
+})
+
+
+/**
+ * @summary Client declines a proposal (or the proposer withdraws it)
+ */
+export const DeclineRescheduleRequestParams = zod.object({
+  "requestId": zod.coerce.number().int()
+})
+
+export const DeclineRescheduleRequestResponse = zod.object({
+  "proposal": zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "requesterRole": zod.enum(['client', 'provider', 'admin']),
+  "originalScheduledAt": zod.coerce.date(),
+  "proposedScheduledAt": zod.coerce.date(),
+  "reason": zod.string().nullish(),
+  "status": zod.enum(['pending', 'accepted', 'declined', 'cancelled', 'expired', 'unresolved']),
+  "deadlineAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullish()
+}),
+  "originalTimeFeasible": zod.boolean(),
+  "supportMessage": zod.string().optional()
+})
+
+
+/**
+ * @summary Append-only history of accepted time changes (owner only)
+ */
+export const GetReschedulingHistoryParams = zod.object({
+  "bookingId": zod.coerce.number().int()
+})
+
+export const getReschedulingHistoryQueryLimitDefault = 20;
+export const getReschedulingHistoryQueryLimitMax = 50;
+
+
+
+export const GetReschedulingHistoryQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(getReschedulingHistoryQueryLimitMax).default(getReschedulingHistoryQueryLimitDefault),
+  "cursor": zod.coerce.number().int().optional().describe('Keyset cursor (id of the last row from the previous page)')
+})
+
+export const GetReschedulingHistoryResponse = zod.object({
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "originalScheduledAt": zod.coerce.date(),
+  "newScheduledAt": zod.coerce.date(),
+  "requesterRole": zod.enum(['client', 'provider', 'admin']),
+  "reason": zod.string().nullish(),
+  "previousStatus": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "newStatus": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "createdAt": zod.coerce.date()
+})),
+  "limit": zod.int(),
+  "nextCursor": zod.int().nullish()
+})
+
+
+/**
  * @summary Submit a review (client only, completed booking)
  */
 export const createReviewBodyRatingMax = 5;

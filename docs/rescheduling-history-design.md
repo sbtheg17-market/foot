@@ -246,3 +246,43 @@ idempotency scope, conflict codes, notification outcome semantics, and the
 schema/API above. No request table, history table, migration, API route,
 OpenAPI change, notification provider, web screen, or mobile screen is created
 in this design slice.
+---
+
+## Implementation record — 2026-08-23
+
+The **hybrid request + append-only history** model above is now **Implemented**
+(roadmap item 9 shipped it together with the consent workflow; see
+`docs/rescheduling-policy.md` "Implementation record — 2026-08-23").
+
+- Tables: `booking_reschedule_proposals` (request table; statuses
+  `pending/accepted/declined/cancelled/expired/unresolved`) and
+  `booking_reschedule_history` (append-only accepted-change audit), per
+  `lib/db/src/schema/reschedule.ts` and
+  `docs/migrations/RESCHEDULE_PROPOSALS_HISTORY_V1.sql` (additive-only; no DOWN
+  by policy — rollback is restore-based per `docs/managed-db-release-gate.md`).
+- Naming drift from this design (documented, intentional): the request table is
+  `booking_reschedule_proposals` (not `booking_reschedule_requests`); serial
+  `id` doubles as the public request id (no separate opaque `request_id`);
+  `deadline_at`/`resolved_at`/`responded_by_user_id` replace
+  `expires_at`/`confirmer_user_id`/`decliner_user_id`; history stores
+  `new_scheduled_at` (this design's `replacement_scheduled_at`) and an
+  `unresolved` proposal status covers the infeasible-original expiry path.
+- Uniqueness implemented: `(requester_user_id, idempotency_key)` unique;
+  single-pending-per-booking partial unique index; bounded newest-first history
+  index `(booking_id, created_at DESC, id DESC)`.
+- Lifecycle: immediate-acceptance path (client/admin direct reschedule) and
+  proposal path both write exactly one history row per accepted change, in the
+  same transaction as the booking update; failed history insert rolls back the
+  update; no history row for rejections, declines, or reconfirmations.
+- API: implemented as proposed (create/list under
+  `/bookings/:bookingId/reschedule-requests`, `accept`/`decline` under
+  `/reschedule-requests/:requestId`, history under
+  `/bookings/:bookingId/rescheduling-history` with capped keyset cursor). The
+  `counter` route was NOT added: "request another time" reuses the client's
+  existing direct-reschedule flow, which cancels the pending proposal
+  atomically — no competing active proposals can exist.
+- Privacy: responses expose role/reason/times/status only — no user ids,
+  addresses, care notes, coordinates, vendor errors, or internal keys;
+  inaccessible bookings return 404.
+- Retention, legal hold, and admin history visibility remain operator
+  decisions (unchanged from this design's approval gate).

@@ -340,8 +340,8 @@ export default function PortalBookings() {
         )}
       </div>
 
-      {/* Provider-initiated reschedule — real server slots only; the server
-          re-checks every safety rule (state, availability, overlap, duplicates). */}
+      {/* Provider-initiated reschedule — consent-first: this creates a pending
+          PROPOSAL; the client's confirmed time never changes until they accept. */}
       {rescheduling && (
         <RescheduleModal
           perspective="provider"
@@ -354,8 +354,6 @@ export default function PortalBookings() {
           onSuccess={() => {
             setRescheduling(null);
             refetch();
-            // The booking is now awaiting confirmation — show it where it lives.
-            setActiveTab('rescheduled');
           }}
         />
       )}

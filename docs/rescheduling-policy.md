@@ -326,3 +326,102 @@ behind the existing state machine without weakening validation, authorization, o
 concurrency guarantees. Defects found during this audit: **none** — the implementation
 matches `docs/booking-statuses.md` exactly; the provider-unilateral-overwrite gap is a
 product-policy gap, not a code defect.
+
+---
+
+## Implementation record — 2026-08-23 (roadmap item 9)
+
+**Status:** The consent-first provider rescheduling workflow recommended in
+Parts 2–4 is now **Implemented** on `feat/rescheduling-consent-workflow`.
+This section is append-only; Parts 1–4 above describe the PRE-implementation
+state and remain unchanged as the audit record.
+
+### Previous behavior (superseded)
+
+A provider `PATCH /api/bookings/:bookingId/status` with `status: "rescheduled"`
+overwrote the client's confirmed time immediately and unilaterally (Part 1).
+
+### Implemented behavior
+
+- **Provider-initiated change = pending proposal.** Providers (and admins) use
+  `POST /api/bookings/:bookingId/reschedule-requests`. The proposal stores the
+  proposed time, requester + role, optional reason (≤500 chars), created and
+  deadline timestamps, and a required idempotency key. The booking's
+  `scheduledAt` and status are NOT touched.
+- **State machine:** provider `confirmed → rescheduled` is removed from
+  `ALLOWED_TRANSITIONS`. A provider attempting the old direct overwrite gets a
+  409 pointing to the proposal workflow. Client `confirmed → rescheduled`
+  (immediate validated reschedule, Part 3) is retained unchanged.
+- **Client response:** `POST /api/reschedule-requests/:requestId/accept`
+  applies the proposed time atomically (booking update + append-only history
+  row + proposal resolution in ONE transaction; a failed history insert rolls
+  back the time change). `POST /api/reschedule-requests/:requestId/decline`
+  preserves the original time and reports `originalTimeFeasible`; when the
+  original time is no longer feasible the response carries a support-routing
+  message — never a silent move or cancel. The proposer may withdraw via the
+  same decline route (recorded as `cancelled`).
+- **Acceptance re-validation:** accept re-runs every safety rule at consent
+  time (future instant, active service, availability-window fit in the
+  marketplace timezone, provider advisory lock 42001, same-client duplicate,
+  cross-client overlap) — identical rules to booking creation.
+- **Deadline (fallback values, now in code):** `deadlineAt` = appointment − 48h;
+  if the appointment is sooner than 48h away, proposal creation + 24h, capped
+  at the appointment instant (`computeProposalDeadline`, pure UTC math,
+  DST-safe). Item 2's "exact deadline value: Unresolved" is resolved by this
+  documented fallback.
+- **Expiry (lazy, no scheduler):** a pending proposal past its deadline is
+  resolved on next read/action inside the booking-row lock: `expired` when the
+  original time is still feasible, `unresolved` (support/provider resolution
+  path) when it is not. **No automatic acceptance. No silent cancellation.**
+- **Reminder:** the 24h-before-expiry reminder lead is a documented constant
+  (`PROPOSAL_REMINDER_LEAD_MS`); reminder DELIVERY is **not implemented** —
+  there is still no scheduled-notification infrastructure (Part 2 item 7
+  remains Deferred for delivery).
+- **Single active proposal per booking**, enforced both in-transaction and by
+  the partial unique index `reschedule_proposals_single_pending_idx`.
+- **Manual-review threshold:** after **3** provider-initiated proposals for the
+  same booking (default, configurable via `RESCHEDULE_PROPOSAL_LIMIT`, never
+  hidden — the 409 says so), further provider changes route to support.
+  Item 3's "exact count: Unresolved" is resolved by this documented default.
+- **Idempotency:** `(requester_user_id, idempotency_key)` is unique; a retry
+  returns the SAME proposal (200, no second row). Accept/decline replays by the
+  same actor return the resolved result idempotently.
+- **Concurrency:** booking row lock → proposal row lock (same order as the
+  status endpoint); stale actions get refresh-safe 409s; a proposal whose
+  original time no longer matches the booking is auto-cancelled at accept time.
+- **Any transition away from `confirmed`** (client reschedule, cancel, no-show,
+  completion) resolves a pending proposal as `cancelled` in the same
+  transaction — no orphaned pending proposals.
+- **History (roadmap item 8 request-table model):** `booking_reschedule_history`
+  rows are appended in the SAME transaction for accepted proposals AND for
+  client/admin direct reschedules. Rejected attempts, declines, and pure
+  reconfirmations write NO history row. Read via
+  `GET /api/bookings/:bookingId/rescheduling-history` (owner-only, keyset
+  cursor, ≤50 per page, role/reason/times only — no user IDs, addresses, care
+  notes, or notification internals).
+- **Notifications:** best-effort Expo push AFTER commit (proposal created →
+  client; accepted/declined → proposer). Failures never roll back state; a
+  coarse `notification_outcome` enum is recorded on the proposal/history row.
+- **Cancellation/no-show:** role-aware cancellation behavior unchanged; NO
+  automatic fees, penalties, or refunds (payments remain design-only). No-show
+  taxonomy beyond provider-marked `confirmed → no_show` remains **Unresolved**
+  (Part 3), except that its interaction with pending proposals is now defined
+  (proposal → `cancelled`).
+
+### Deferred / unchanged
+
+Reminder delivery and scheduled notifications; email/SMS; refund/fee schedule
+(payments); service-area/travel feasibility (item 12); client-reportable
+provider no-show and disputed no-show tooling; notification persistence.
+
+### Where
+
+Schema `lib/db/src/schema/reschedule.ts`
+(+ `docs/migrations/RESCHEDULE_PROPOSALS_HISTORY_V1.sql`, additive-only);
+routes `artifacts/api-server/src/routes/reschedule.ts` + consent guard and
+history writes in `routes/bookings.ts`; policy constants
+`artifacts/api-server/src/lib/reschedule-policy.ts`; web
+`artifacts/web/src/components/ui/reschedule-proposal-card.tsx`; mobile
+`artifacts/mobile/components/reschedule-proposal-card.tsx`; tests
+`reschedule-policy.test.ts` (7 pure) and
+`reschedule-proposals.integration.test.ts` (17, `pnpm … run test:proposals`).
