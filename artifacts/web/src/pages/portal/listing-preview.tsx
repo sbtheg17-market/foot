@@ -15,6 +15,7 @@ import {
 import { useGetMyListingPreview } from '@workspace/api-client-react';
 import { ROUTES } from '@/lib/routes';
 import { READINESS_ITEMS, labelForCode } from '@/lib/readiness';
+import BookingPageCard from '@/components/booking-page-card';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -68,6 +69,9 @@ export default function PortalListingPreview() {
         </h1>
         <p className="text-muted-foreground mt-1">This is how clients see you on the marketplace.</p>
       </header>
+
+      {/* Provider-owned public booking page (share link + QR) */}
+      <BookingPageCard />
 
       {/* State banner */}
       {p.isPublic ? (

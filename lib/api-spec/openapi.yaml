@@ -732,6 +732,101 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /providers/me/booking-page:
+    get:
+      operationId: getMyBookingPage
+      tags: [providers]
+      summary: Owner-scoped public booking-page state (slug + publish state)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Booking-page state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyBookingPageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/booking-page/publish:
+    post:
+      operationId: publishMyBookingPage
+      tags: [providers]
+      summary: Publish the provider's canonical public booking page (approved providers only)
+      description: >-
+        Assigns a globally unique lowercase kebab-case slug from the provider
+        display name on first publish (deterministic safe suffix on collision;
+        not provider-editable afterwards) and makes /book/{slug} publicly
+        reachable. Idempotent when already published.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Booking-page state after publish
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyBookingPageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/booking-page/unpublish:
+    post:
+      operationId: unpublishMyBookingPage
+      tags: [providers]
+      summary: Unpublish the provider's public booking page (removes public access; data retained)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Booking-page state after unpublish
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyBookingPageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /booking-pages/{slug}:
+    get:
+      operationId: getPublicBookingPage
+      tags: [booking-pages]
+      summary: Public provider booking page by slug (published, approved providers only)
+      description: >-
+        Canonical provider-owned public booking surface. Missing, unpublished,
+        inactive, and format-invalid slugs all return the same generic
+        non-leaking 404. Derives profile, services, and availability from the
+        same source of truth as marketplace discovery; booking uses the
+        existing slots and bookings endpoints via the returned provider id.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public booking page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicBookingPageResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /providers/me/listing-preview:
     get:
       operationId: getMyListingPreview
@@ -3135,6 +3230,13 @@ components:
         clientNotes:
           type: string
           nullable: true
+        source:
+          type: string
+          nullable: true
+          description: >-
+            Privacy-safe allowlisted link attribution recorded at creation
+            (instagram, qr-card, text, facebook, website); never exposed
+            publicly and never used for authorization
         cancellationReason:
           type: string
           nullable: true
@@ -3248,6 +3350,121 @@ components:
         - timezone
         - windows
 
+    # ── Provider booking page schemas (roadmap #11) ───────────────────────────
+
+    BookingPageSettings:
+      type: object
+      description: Owner-scoped publish state for the provider's public booking page
+      properties:
+        slug:
+          type: string
+          nullable: true
+          description: Canonical public slug; assigned at first publish, then immutable
+        published:
+          type: boolean
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        path:
+          type: string
+          nullable: true
+          description: Canonical public path (/book/{slug}) once a slug exists
+        eligible:
+          type: boolean
+          description: True when the provider is approved and may publish
+        verificationStatus:
+          $ref: "#/components/schemas/VerificationStatus"
+      required:
+        - slug
+        - published
+        - publishedAt
+        - path
+        - eligible
+        - verificationStatus
+
+    MyBookingPageResponse:
+      type: object
+      properties:
+        bookingPage:
+          $ref: "#/components/schemas/BookingPageSettings"
+      required:
+        - bookingPage
+
+    PublicBookingPageProvider:
+      type: object
+      description: Public-safe provider identity for the booking page (never exposes account/user ids)
+      properties:
+        id:
+          type: integer
+          description: provider_profiles.id — same public identifier used by marketplace discovery
+        firstName:
+          type: string
+        lastName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        title:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        city:
+          type: string
+        serviceAreaNotes:
+          type: string
+          nullable: true
+        rating:
+          type: string
+          description: Numeric string, e.g. "4.85"
+        reviewCount:
+          type: integer
+        yearsExperience:
+          type: integer
+          nullable: true
+        acceptsNewClients:
+          type: boolean
+        verificationStatus:
+          $ref: "#/components/schemas/VerificationStatus"
+      required:
+        - id
+        - firstName
+        - lastName
+        - title
+        - city
+        - rating
+        - reviewCount
+        - acceptsNewClients
+        - verificationStatus
+
+    PublicBookingPage:
+      type: object
+      properties:
+        slug:
+          type: string
+        provider:
+          $ref: "#/components/schemas/PublicBookingPageProvider"
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/Service"
+        availability:
+          $ref: "#/components/schemas/PublicAvailabilityResponse"
+      required:
+        - slug
+        - provider
+        - services
+        - availability
+
+    PublicBookingPageResponse:
+      type: object
+      properties:
+        page:
+          $ref: "#/components/schemas/PublicBookingPage"
+      required:
+        - page
+
     ProviderSlot:
       type: object
       properties:
@@ -3323,6 +3540,13 @@ components:
           type: string
         clientNotes:
           type: string
+        source:
+          type: string
+          enum: [instagram, qr-card, text, facebook, website]
+          description: >-
+            Optional allowlisted acquisition-source attribution (provider
+            booking-page share links). Unknown values are dropped server-side;
+            never used for authorization or pricing.
       required:
         - providerId
         - serviceId

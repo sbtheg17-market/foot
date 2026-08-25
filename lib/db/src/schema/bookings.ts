@@ -42,6 +42,10 @@ export const bookingsTable = pgTable(
     postalCode: text("postal_code"),
     careNotes: text("care_notes"),
     clientNotes: text("client_notes"),
+    // Privacy-safe, allowlisted acquisition-source attribution recorded at
+    // creation (roadmap #11 provider booking pages). Never used for
+    // authorization or pricing; never exposed on public endpoints.
+    source: text("source"),
     cancelledBy: integer("cancelled_by").references(() => usersTable.id),
     cancellationReason: text("cancellation_reason"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

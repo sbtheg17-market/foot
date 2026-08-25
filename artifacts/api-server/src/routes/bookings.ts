@@ -28,6 +28,7 @@ import {
 import { emitNewBooking } from "../lib/notification-bus.js";
 import { sendPushToUser } from "../lib/push-notifications.js";
 import { recordPreventedBooking } from "../lib/prevented-booking-events.js";
+import { normalizeBookingSource } from "../lib/booking-page.js";
 
 const router = Router();
 
@@ -239,7 +240,7 @@ router.post(
   requireAuth,
   requireRole("client"),
   async (req: Request, res: Response): Promise<void> => {
-    const { providerId, serviceId, scheduledAt, address, city, postalCode, careNotes, clientNotes } =
+    const { providerId, serviceId, scheduledAt, address, city, postalCode, careNotes, clientNotes, source } =
       req.body as Record<string, unknown>;
 
     if (!providerId || !serviceId || !scheduledAt || !address || !city) {
@@ -452,6 +453,9 @@ router.post(
             postalCode: postalCode !== undefined ? String(postalCode) : null,
             careNotes: careNotes !== undefined ? String(careNotes) : null,
             clientNotes: clientNotes !== undefined ? String(clientNotes) : null,
+            // Allowlisted attribution only; unknown values are dropped, never
+            // stored, and never block the booking.
+            source: normalizeBookingSource(source),
           })
           .returning();
         return row;

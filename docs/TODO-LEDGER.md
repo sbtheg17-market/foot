@@ -124,3 +124,28 @@ entry — owner for all items: repository operator; last reviewed: 2026-08-24.
   sessions ago); merging now would regress the task ledger. Recommendation:
   close without merging, preserving the branch as the historical record. Not
   closed in this gate (branch/PR disposition left to the operator).
+
+## Roadmap #11 — provider public booking pages — 2026-08-25
+
+Implemented in `feat/provider-public-booking-pages` (operator-defined scope:
+provider-owned public booking pages and shareable conversion links). Canonical
+public page `/book/:slug` (API `GET /booking-pages/:slug`), explicit
+publish/unpublish (default unpublished; non-leaking generic 404 for
+missing/unpublished/inactive/invalid slugs), immutable kebab-case slug with
+deterministic collision suffix, dashboard share card (copy/native
+share/preview/QR encoding the canonical URL + `source=qr-card`), allowlisted
+booking `source` attribution (`instagram|qr-card|text|facebook|website`,
+stored on bookings, dropped when unknown, never authorization-relevant), and
+frozen additive artifact `docs/migrations/PROVIDER_PUBLIC_BOOKING_PAGES_V1.sql`.
+Booking reuses the existing slots/bookings path — no duplicated booking logic.
+Marketplace discovery stays separate at `/providers`.
+
+### Deferred follow-ups from #11 (NOT implemented — do not mark complete)
+
+| Item | Status | Notes |
+|---|---|---|
+| Slug rename + redirect/history policy | DEFERRED | Slugs are immutable after first publish in this release; renaming a published URL needs a redirect policy first. |
+| Custom domains for booking pages | DEFERRED | Out of #11 scope. |
+| Per-channel attribution analytics dashboard | DEFERRED | `bookings.source` is durably recorded; no aggregation/dashboard was built (advanced analytics excluded from #11). |
+| Referral programs / payouts | DEFERRED | Explicitly excluded by the #11 authorization. |
+| Marketplace ranking | DEFERRED | Explicitly excluded by the #11 authorization. |

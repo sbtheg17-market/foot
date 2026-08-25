@@ -1552,3 +1552,76 @@ No product behavior, state machine, policy, schema, notification, payment,
 service-area, or deployment change. No managed DB access. No production
 credentials. Roadmap #11 NOT started. Exact commit/PR/merge SHAs in the
 final session handoff.
+
+## 2026-08-25 — Session: provider public booking pages (roadmap #11)
+
+### Baseline and scope
+
+- Verified `origin/main` = `e8f0f34b846c11d470f23102af430cda8b25504d`
+  (pre-#11 gate), clean tree. Recovery audit first: NO #11 draft work in any
+  Git ref (all feat/docs/test branches map to merged PRs #22–#46; conflict_*
+  snapshots preserved untouched) and none in the prior preview workspace
+  (only a staged `.env.example` deletion — rejected as a local/env artifact).
+- Roadmap #11 was then explicitly defined and authorized by the operator:
+  provider-owned public booking pages and shareable conversion links, with
+  policy defaults (slug format/uniqueness/immutability, unpublished default,
+  public-data boundaries, allowlisted attribution, QR from canonical URL).
+- Branch: `feat/provider-public-booking-pages` from that main.
+
+### What was implemented
+
+- Schema (additive only): `provider_profiles.public_slug` (unique index),
+  `booking_page_published` (default false), `booking_page_published_at`;
+  `bookings.source` (nullable). Frozen artifact
+  `docs/migrations/PROVIDER_PUBLIC_BOOKING_PAGES_V1.sql` (no destructive DDL,
+  no DOWN by policy). `db:push` + seed verified idempotent (×2) on disposable
+  local PostgreSQL 15 only.
+- API: public `GET /booking-pages/:slug` (approved + published only; identical
+  generic 404 for missing/unpublished/unapproved/format-invalid — validated
+  before any DB work; public-safe allow-list projection with NO user/account
+  ids); owner `GET /providers/me/booking-page`,
+  `POST /providers/me/booking-page/publish` (approved-only, idempotent,
+  kebab-case slug from display name, deterministic collision suffix,
+  unique-race retry), `POST /providers/me/booking-page/unpublish`
+  (owner-scoped, idempotent, slug retained). `POST /bookings` accepts optional
+  allowlisted `source` (unknown values dropped, never an error). OpenAPI
+  updated; orval client + zod regenerated.
+- Web: `/book/:slug` public page (loading/error/generic-not-found states,
+  service selection, weekly availability + marketplace timezone, reviews via
+  the existing public endpoint, booking through the SAME BookingModal +
+  slots/bookings endpoints — no duplicated booking logic; allowlisted
+  `?source=` forwarded); dashboard `BookingPageCard` on
+  `/provider/listing-preview` (publish/unpublish, copy, native share, preview,
+  QR generate/download encoding canonical URL + `source=qr-card`; honest
+  no-acquisition-promise copy). New dependency: `qrcode` (web only).
+- Marketplace discovery unchanged at `/providers`; `/providers/:id` public
+  listing target preserved.
+
+### Validation (disposable local PostgreSQL 15; nothing managed touched)
+
+- New API suite `test:booking-page`: 17/17 PASS (slug validation/collision/
+  immutability, publish/unpublish authorization + idempotence, non-leak 404
+  contract incl. defense-in-depth for unapproved-but-flagged rows, payload
+  redaction, active-services-only, booking-from-page with attribution stored,
+  unknown attribution dropped, availability enforcement intact, owner scoping).
+- Web Vitest: 77/77 PASS (60 existing + 17 new incl. axe accessibility on the
+  public page and dashboard card, source allowlist, QR URL correctness).
+- Regressions: API unit 70/70; lifecycle 14/14; availability 3/3; concurrency
+  16/16; first-booking 8/8; rescheduling 12/12; proposals 17/17;
+  client-retention 8/8; pressure 13/13; authorization 7/7.
+- `pnpm run typecheck` / `build` / `build:deploy` PASS; secret scan clean;
+  `git diff --check` clean. Live smoke on the built server: publish → public
+  JSON 200 → SPA `/book/:slug` 200 → generic 404 for unknown slug; visual
+  check of the public page (mobile viewport) and dashboard card (QR render).
+- CI job list updated (`test:booking-page` added to api-tests). Replay/DLQ and
+  Session-080 scope-guard suites not run locally by design (dedicated CI
+  environments; documented in the ledger).
+
+### Boundaries held
+
+- No managed database access; no production deployment; no payments, refunds,
+  reminders, notification persistence, email/SMS, service-area enforcement,
+  marketplace ranking, referral payouts, or fake inventory/reviews. No
+  force-push; no branch deletion; conflict_* branches untouched. Booking,
+  availability, authorization, consent-rescheduling, and concurrency
+  protections unchanged (regression-verified).

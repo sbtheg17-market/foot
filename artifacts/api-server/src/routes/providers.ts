@@ -33,6 +33,7 @@ import {
   generateSlotsForDate,
   type AvailabilityWindow,
 } from "../lib/availability.js";
+import { slugifyDisplayName, slugCandidate } from "../lib/booking-page.js";
 
 const router = Router();
 
@@ -1259,6 +1260,184 @@ router.get(
       },
     });
   }
+);
+
+// ── Provider-owned public booking page (roadmap #11) ─────────────────────────
+//
+// One canonical public booking page per provider at /book/:slug. The slug is
+// generated at first publish from the provider display name (lowercase
+// kebab-case, 3–64 chars, globally unique, deterministic suffix on collision)
+// and is NOT provider-editable afterwards. Providers stay unpublished until
+// they intentionally publish; unpublishing removes public access but never
+// deletes data (the slug is retained so the URL is stable on republish).
+
+type BookingPageProfileRow = {
+  id: number;
+  publicSlug: string | null;
+  bookingPagePublished: boolean;
+  bookingPagePublishedAt: Date | null;
+  verificationStatus: "pending" | "under_review" | "approved" | "rejected";
+};
+
+function bookingPageView(profile: BookingPageProfileRow) {
+  return {
+    slug: profile.publicSlug,
+    published: profile.bookingPagePublished,
+    publishedAt: profile.bookingPagePublishedAt,
+    path: profile.publicSlug ? `/book/${profile.publicSlug}` : null,
+    eligible: profile.verificationStatus === "approved",
+    verificationStatus: profile.verificationStatus,
+  };
+}
+
+/** GET /providers/me/booking-page — owner-scoped publish state. */
+router.get(
+  "/me/booking-page",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+    res.json({ bookingPage: bookingPageView(profile) });
+  },
+);
+
+/** True when another profile already owns this slug. */
+async function slugTaken(slug: string, ownProfileId: number): Promise<boolean> {
+  const [row] = await db
+    .select({ id: providerProfilesTable.id })
+    .from(providerProfilesTable)
+    .where(eq(providerProfilesTable.publicSlug, slug))
+    .limit(1);
+  return Boolean(row && row.id !== ownProfileId);
+}
+
+/** POST /providers/me/booking-page/publish — approved providers only. */
+router.post(
+  "/me/booking-page/publish",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    // Idempotent: already published with a slug → current state, no writes.
+    if (profile.bookingPagePublished && profile.publicSlug) {
+      res.json({ bookingPage: bookingPageView(profile) });
+      return;
+    }
+
+    // Slug immutability: reuse an existing slug (assigned by a prior
+    // publish); otherwise generate from the display name.
+    let slug = profile.publicSlug;
+    if (!slug) {
+      const [account] = await db
+        .select({
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+        })
+        .from(usersTable)
+        .where(eq(usersTable.id, req.user!.sub))
+        .limit(1);
+      const base = slugifyDisplayName(
+        `${account?.firstName ?? ""} ${account?.lastName ?? ""}`.trim(),
+      );
+      for (let attempt = 0; attempt < 50 && !slug; attempt++) {
+        const candidate = slugCandidate(base, attempt);
+        if (!(await slugTaken(candidate, profile.id))) slug = candidate;
+      }
+      // Deterministic safe fallback: the profile id is globally unique.
+      if (!slug) slug = slugCandidate(`${base}-${profile.id}`, 0);
+    }
+
+    const publish = (finalSlug: string) =>
+      db
+        .update(providerProfilesTable)
+        .set({
+          publicSlug: finalSlug,
+          bookingPagePublished: true,
+          bookingPagePublishedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(providerProfilesTable.id, profile.id),
+            eq(providerProfilesTable.userId, req.user!.sub),
+          ),
+        )
+        .returning({
+          id: providerProfilesTable.id,
+          publicSlug: providerProfilesTable.publicSlug,
+          bookingPagePublished: providerProfilesTable.bookingPagePublished,
+          bookingPagePublishedAt: providerProfilesTable.bookingPagePublishedAt,
+          verificationStatus: providerProfilesTable.verificationStatus,
+        });
+
+    let updated: BookingPageProfileRow | undefined;
+    try {
+      [updated] = await publish(slug);
+    } catch (error) {
+      // Concurrent slug race: retry once with the deterministic id suffix.
+      const text = error instanceof Error ? error.message : String(error);
+      if (!text.includes("provider_profiles_public_slug_unique_idx")) throw error;
+      [updated] = await publish(
+        slugCandidate(`${slugifyDisplayName(slug)}-${profile.id}`, 0),
+      );
+    }
+
+    if (!updated) {
+      res.status(500).json({ error: "Booking page could not be published." });
+      return;
+    }
+    res.json({ bookingPage: bookingPageView(updated) });
+  },
+);
+
+/**
+ * POST /providers/me/booking-page/unpublish — owner-scoped. Intentionally not
+ * gated on approval so a provider whose status changed can always take their
+ * page down. Removes public access only; slug and data are retained.
+ */
+router.post(
+  "/me/booking-page/unpublish",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    if (!profile.bookingPagePublished) {
+      res.json({ bookingPage: bookingPageView(profile) });
+      return;
+    }
+
+    const [updated] = await db
+      .update(providerProfilesTable)
+      .set({ bookingPagePublished: false, updatedAt: new Date() })
+      .where(
+        and(
+          eq(providerProfilesTable.id, profile.id),
+          eq(providerProfilesTable.userId, req.user!.sub),
+        ),
+      )
+      .returning({
+        id: providerProfilesTable.id,
+        publicSlug: providerProfilesTable.publicSlug,
+        bookingPagePublished: providerProfilesTable.bookingPagePublished,
+        bookingPagePublishedAt: providerProfilesTable.bookingPagePublishedAt,
+        verificationStatus: providerProfilesTable.verificationStatus,
+      });
+
+    res.json({ bookingPage: bookingPageView(updated ?? profile) });
+  },
 );
 
 async function buildProviderPublic(profileId: number) {

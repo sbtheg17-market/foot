@@ -103,3 +103,11 @@ Files: `artifacts/api-server/src/routes/providers.ts`, `artifacts/web/src/pages/
 
 ## Credit-tight mode
 Do **Task 1 only**, stop, push, then ask for the next task.
+
+## Status note — 2026-08-25 (roadmap #11)
+
+Roadmap #11 (provider-owned public booking pages and share links) is
+implemented: `/book/:providerSlug` public page, publish/unpublish with
+immutable slugs, dashboard share card with QR, and allowlisted booking
+`source` attribution. See `docs/TODO-LEDGER.md` (2026-08-25 section),
+`docs/api-routes.md`, and `docs/data-models.md` for the authoritative state.

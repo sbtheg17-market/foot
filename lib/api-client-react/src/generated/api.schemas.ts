@@ -741,6 +741,8 @@ export interface Booking {
   /** Provider-private care note; included only in provider/admin responses */
   careNotes?: string | null;
   clientNotes?: string | null;
+  /** Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization */
+  source?: string | null;
   cancellationReason?: string | null;
   /** Client first name (joined; present on list responses) */
   clientFirstName?: string | null;
@@ -810,6 +812,57 @@ export interface PublicAvailabilityResponse {
   windows: PublicAvailabilityWindow[];
 }
 
+/**
+ * Owner-scoped publish state for the provider's public booking page
+ */
+export interface BookingPageSettings {
+  /** Canonical public slug; assigned at first publish, then immutable */
+  slug: string | null;
+  published: boolean;
+  publishedAt: string | null;
+  /** Canonical public path (/book/{slug}) once a slug exists */
+  path: string | null;
+  /** True when the provider is approved and may publish */
+  eligible: boolean;
+  verificationStatus: VerificationStatus;
+}
+
+export interface MyBookingPageResponse {
+  bookingPage: BookingPageSettings;
+}
+
+/**
+ * Public-safe provider identity for the booking page (never exposes account/user ids)
+ */
+export interface PublicBookingPageProvider {
+  /** provider_profiles.id — same public identifier used by marketplace discovery */
+  id: number;
+  firstName: string;
+  lastName: string;
+  avatarUrl?: string | null;
+  title: string;
+  bio?: string | null;
+  city: string;
+  serviceAreaNotes?: string | null;
+  /** Numeric string, e.g. "4.85" */
+  rating: string;
+  reviewCount: number;
+  yearsExperience?: number | null;
+  acceptsNewClients: boolean;
+  verificationStatus: VerificationStatus;
+}
+
+export interface PublicBookingPage {
+  slug: string;
+  provider: PublicBookingPageProvider;
+  services: Service[];
+  availability: PublicAvailabilityResponse;
+}
+
+export interface PublicBookingPageResponse {
+  page: PublicBookingPage;
+}
+
 export interface ProviderSlotsResponse {
   /** Effective IANA marketplace timezone */
   timezone: string;
@@ -824,6 +877,20 @@ export interface BookingListResponse {
   offset: number;
 }
 
+/**
+ * Optional allowlisted acquisition-source attribution (provider booking-page share links). Unknown values are dropped server-side; never used for authorization or pricing.
+ */
+export type CreateBookingRequestSource = typeof CreateBookingRequestSource[keyof typeof CreateBookingRequestSource];
+
+
+export const CreateBookingRequestSource = {
+  instagram: 'instagram',
+  'qr-card': 'qr-card',
+  text: 'text',
+  facebook: 'facebook',
+  website: 'website',
+} as const;
+
 export interface CreateBookingRequest {
   /** provider_profiles.id */
   providerId: number;
@@ -836,6 +903,8 @@ export interface CreateBookingRequest {
   postalCode?: string;
   careNotes?: string;
   clientNotes?: string;
+  /** Optional allowlisted acquisition-source attribution (provider booking-page share links). Unknown values are dropped server-side; never used for authorization or pricing. */
+  source?: CreateBookingRequestSource;
 }
 
 export interface UpdateBookingStatusRequest {
