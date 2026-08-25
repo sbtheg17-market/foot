@@ -863,6 +863,7 @@ router.patch(
             throw Object.assign(new Error("OUTSIDE_SERVICE_AREA"), {
               statusCode: 409,
               userMessage: RESCHEDULE_OUTSIDE_SERVICE_AREA_MESSAGE,
+              reason: "outside_service_area",
             });
           }
 
@@ -1002,6 +1003,7 @@ router.patch(
               throw Object.assign(new Error("TRAVEL_BUFFER_CONFLICT"), {
                 statusCode: 409,
                 userMessage: TRAVEL_BUFFER_CONFLICT_MESSAGE,
+                reason: "travel_buffer_conflict",
               });
             }
           }
@@ -1103,9 +1105,11 @@ router.patch(
         return { updatedBooking, originalBooking: booking, rescheduleHistoryId };
       });
     } catch (err: unknown) {
-      const e = err as { statusCode?: number; userMessage?: string };
+      const e = err as { statusCode?: number; userMessage?: string; reason?: string };
       if (e.statusCode) {
-        res.status(e.statusCode).json({ error: e.userMessage });
+        res
+          .status(e.statusCode)
+          .json(e.reason ? { error: e.userMessage, reason: e.reason } : { error: e.userMessage });
         return;
       }
       // Race safety net: a concurrent request took the exact duplicate tuple
