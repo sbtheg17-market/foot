@@ -20,6 +20,8 @@ export interface Booking {
   /** Provider-private care note; included only in provider/admin responses */
   careNotes?: string | null;
   clientNotes?: string | null;
+  /** Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization */
+  source?: string | null;
   cancellationReason?: string | null;
   /** Client first name (joined; present on list responses) */
   clientFirstName?: string | null;

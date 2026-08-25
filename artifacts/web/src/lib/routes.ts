@@ -48,11 +48,18 @@ export const ROUTES = {
   admin: {
     verification: '/admin/verification',
   },
+
+  // ── Provider-owned public booking page (roadmap #11) ─────────────────────────
+  publicBooking: {
+    page: (slug: string) => `/book/${slug}`,
+  },
 } as const;
 
 /**
  * Canonical public listing path for a provider: `/providers/:providerId`.
- * This is the only public share target — no slugs or referral codes.
+ * This is the marketplace-discovery share target (id-based). The
+ * provider-owned public booking page lives at `/book/:providerSlug`
+ * (see publicBookingPagePath) — the two surfaces stay distinct.
  */
 export function publicListingPath(providerId: number | string): string {
   return ROUTES.client.provider(providerId);
@@ -66,6 +73,26 @@ export function publicListingUrl(providerId: number | string): string {
   const path = publicListingPath(providerId);
   if (typeof window === 'undefined') return path;
   return `${window.location.origin}${path}`;
+}
+
+/**
+ * Canonical provider-owned public booking page path: `/book/:providerSlug`.
+ * One page per provider; derives from the same source of truth as the
+ * marketplace. Never carries private data.
+ */
+export function publicBookingPagePath(slug: string): string {
+  return ROUTES.publicBooking.page(slug);
+}
+
+/**
+ * Absolute canonical public booking page URL (SSR-safe). Optionally appends
+ * an allowlisted `source` attribution parameter (e.g. `qr-card`).
+ */
+export function publicBookingPageUrl(slug: string, source?: string): string {
+  const path = publicBookingPagePath(slug);
+  const suffix = source ? `?source=${encodeURIComponent(source)}` : '';
+  if (typeof window === 'undefined') return `${path}${suffix}`;
+  return `${window.location.origin}${path}${suffix}`;
 }
 
 /** Legacy `/portal/*` → canonical `/provider/*` redirect map. */

@@ -846,6 +846,102 @@ export const GetMyProviderReadinessResponse = zod.object({
 
 
 /**
+ * @summary Owner-scoped public booking-page state (slug + publish state)
+ */
+export const GetMyBookingPageResponse = zod.object({
+  "bookingPage": zod.object({
+  "slug": zod.string().nullable().describe('Canonical public slug; assigned at first publish, then immutable'),
+  "published": zod.boolean(),
+  "publishedAt": zod.coerce.date().nullable(),
+  "path": zod.string().nullable().describe('Canonical public path (\/book\/{slug}) once a slug exists'),
+  "eligible": zod.boolean().describe('True when the provider is approved and may publish'),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+}).describe('Owner-scoped publish state for the provider\'s public booking page')
+})
+
+
+/**
+ * Assigns a globally unique lowercase kebab-case slug from the provider display name on first publish (deterministic safe suffix on collision; not provider-editable afterwards) and makes /book/{slug} publicly reachable. Idempotent when already published.
+ * @summary Publish the provider's canonical public booking page (approved providers only)
+ */
+export const PublishMyBookingPageResponse = zod.object({
+  "bookingPage": zod.object({
+  "slug": zod.string().nullable().describe('Canonical public slug; assigned at first publish, then immutable'),
+  "published": zod.boolean(),
+  "publishedAt": zod.coerce.date().nullable(),
+  "path": zod.string().nullable().describe('Canonical public path (\/book\/{slug}) once a slug exists'),
+  "eligible": zod.boolean().describe('True when the provider is approved and may publish'),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+}).describe('Owner-scoped publish state for the provider\'s public booking page')
+})
+
+
+/**
+ * @summary Unpublish the provider's public booking page (removes public access; data retained)
+ */
+export const UnpublishMyBookingPageResponse = zod.object({
+  "bookingPage": zod.object({
+  "slug": zod.string().nullable().describe('Canonical public slug; assigned at first publish, then immutable'),
+  "published": zod.boolean(),
+  "publishedAt": zod.coerce.date().nullable(),
+  "path": zod.string().nullable().describe('Canonical public path (\/book\/{slug}) once a slug exists'),
+  "eligible": zod.boolean().describe('True when the provider is approved and may publish'),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+}).describe('Owner-scoped publish state for the provider\'s public booking page')
+})
+
+
+/**
+ * Canonical provider-owned public booking surface. Missing, unpublished, inactive, and format-invalid slugs all return the same generic non-leaking 404. Derives profile, services, and availability from the same source of truth as marketplace discovery; booking uses the existing slots and bookings endpoints via the returned provider id.
+ * @summary Public provider booking page by slug (published, approved providers only)
+ */
+export const GetPublicBookingPageParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetPublicBookingPageResponse = zod.object({
+  "page": zod.object({
+  "slug": zod.string(),
+  "provider": zod.object({
+  "id": zod.int().describe('provider_profiles.id — same public identifier used by marketplace discovery'),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "avatarUrl": zod.string().nullish(),
+  "title": zod.string(),
+  "bio": zod.string().nullish(),
+  "city": zod.string(),
+  "serviceAreaNotes": zod.string().nullish(),
+  "rating": zod.string().describe('Numeric string, e.g. \"4.85\"'),
+  "reviewCount": zod.int(),
+  "yearsExperience": zod.int().nullish(),
+  "acceptsNewClients": zod.boolean(),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+}).describe('Public-safe provider identity for the booking page (never exposes account\/user ids)'),
+  "services": zod.array(zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "durationMinutes": zod.int(),
+  "priceCents": zod.int().describe('Price in cents (CAD)'),
+  "category": zod.string(),
+  "eligibilityNotes": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date().optional()
+})),
+  "availability": zod.object({
+  "timezone": zod.string().describe('Effective IANA marketplace timezone'),
+  "windows": zod.array(zod.object({
+  "dayOfWeek": zod.int().describe('0 = Sunday … 6 = Saturday'),
+  "startTime": zod.string().describe('Wall-clock start \"HH:MM\" in the effective marketplace timezone'),
+  "endTime": zod.string().describe('Wall-clock end \"HH:MM\" in the effective marketplace timezone')
+}))
+})
+})
+})
+
+
+/**
  * Owner-scoped preview of how the authenticated provider's marketplace listing renders — profile, active services, weekly availability, effective timezone, and real generated 30-minute slots (same engine as public booking). Draft and under-review providers may preview their own listing; this never weakens the anonymous public approval gate. Returns only public-preview-safe fields — no client ids, booking ids, reviewer-private notes, verification documents, or private care notes. Read-only.
  * @summary Owner-scoped preview of the provider's public marketplace listing
  */
@@ -1466,6 +1562,7 @@ export const ListBookingsResponse = zod.object({
   "postalCode": zod.string().nullish(),
   "careNotes": zod.string().nullish().describe('Provider-private care note; included only in provider\/admin responses'),
   "clientNotes": zod.string().nullish(),
+  "source": zod.string().nullish().describe('Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization'),
   "cancellationReason": zod.string().nullish(),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
   "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
@@ -1494,7 +1591,8 @@ export const CreateBookingBody = zod.object({
   "city": zod.string().min(1),
   "postalCode": zod.string().optional(),
   "careNotes": zod.string().optional(),
-  "clientNotes": zod.string().optional()
+  "clientNotes": zod.string().optional(),
+  "source": zod.enum(['instagram', 'qr-card', 'text', 'facebook', 'website']).optional().describe('Optional allowlisted acquisition-source attribution (provider booking-page share links). Unknown values are dropped server-side; never used for authorization or pricing.')
 })
 
 export const CreateBookingResponse = zod.object({
@@ -1510,6 +1608,7 @@ export const CreateBookingResponse = zod.object({
   "postalCode": zod.string().nullish(),
   "careNotes": zod.string().nullish().describe('Provider-private care note; included only in provider\/admin responses'),
   "clientNotes": zod.string().nullish(),
+  "source": zod.string().nullish().describe('Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization'),
   "cancellationReason": zod.string().nullish(),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
   "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
@@ -1593,6 +1692,7 @@ export const GetBookingResponse = zod.object({
   "postalCode": zod.string().nullish(),
   "careNotes": zod.string().nullish().describe('Provider-private care note; included only in provider\/admin responses'),
   "clientNotes": zod.string().nullish(),
+  "source": zod.string().nullish().describe('Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization'),
   "cancellationReason": zod.string().nullish(),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
   "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
@@ -1629,6 +1729,7 @@ export const UpdateBookingStatusResponse = zod.object({
   "postalCode": zod.string().nullish(),
   "careNotes": zod.string().nullish().describe('Provider-private care note; included only in provider\/admin responses'),
   "clientNotes": zod.string().nullish(),
+  "source": zod.string().nullish().describe('Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization'),
   "cancellationReason": zod.string().nullish(),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
   "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
@@ -1717,6 +1818,7 @@ export const AcceptRescheduleRequestResponse = zod.object({
   "postalCode": zod.string().nullish(),
   "careNotes": zod.string().nullish().describe('Provider-private care note; included only in provider\/admin responses'),
   "clientNotes": zod.string().nullish(),
+  "source": zod.string().nullish().describe('Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization'),
   "cancellationReason": zod.string().nullish(),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
   "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),

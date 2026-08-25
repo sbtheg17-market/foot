@@ -117,7 +117,8 @@ jobs:
                    test:provider-application test:provider-resubmission test:provider-status \
                    test:availability test:onboarding test:provider-history \
                    test:provider-notifications test:reviewer-decisions test:provider-readiness \
-                   test:first-booking test:client-retention test:marketplace-events; do
+                   test:first-booking test:client-retention test:marketplace-events \
+                   test:booking-page; do
             echo "::group::$s"
             pnpm run "$s"
             echo "::endgroup::"

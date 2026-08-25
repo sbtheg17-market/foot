@@ -9,6 +9,7 @@ import ClientOnboarding from '@/pages/onboarding/client';
 import ProviderApplicationStatus from '@/pages/provider-application-status';
 import Discover from '@/pages/discover';
 import ProviderProfile from '@/pages/provider-profile';
+import PublicBookingPage from '@/pages/public-booking';
 import ClientBookings from '@/pages/bookings';
 import ClientBookingDetail from '@/pages/booking-detail';
 import PortalDashboard from '@/pages/portal/dashboard';
@@ -100,6 +101,8 @@ function Router() {
       {/* ── Client marketplace ──────────────────────────────────────────── */}
       <Route path={ROUTES.client.discover}>{clientRoute(Discover)}</Route>
       <Route path="/providers/:id">{clientRoute(ProviderProfile)}</Route>
+      {/* Provider-owned public booking page (distinct from marketplace discovery) */}
+      <Route path="/book/:slug">{clientRoute(PublicBookingPage)}</Route>
       <Route path={ROUTES.client.bookings}>{clientRoute(ClientBookings, true)}</Route>
       <Route path="/bookings/:id">{clientRoute(ClientBookingDetail, true)}</Route>
 

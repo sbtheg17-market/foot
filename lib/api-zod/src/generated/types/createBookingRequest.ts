@@ -5,6 +5,7 @@
  * OnCall Foot API — foot rejuvenation marketplace
  * OpenAPI spec version: 0.3.0
  */
+import type { CreateBookingRequestSource } from './createBookingRequestSource';
 
 export interface CreateBookingRequest {
   /** provider_profiles.id */
@@ -18,4 +19,6 @@ export interface CreateBookingRequest {
   postalCode?: string;
   careNotes?: string;
   clientNotes?: string;
+  /** Optional allowlisted acquisition-source attribution (provider booking-page share links). Unknown values are dropped server-side; never used for authorization or pricing. */
+  source?: CreateBookingRequestSource;
 }

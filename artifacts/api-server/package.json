@@ -32,7 +32,8 @@
     "test:client-retention": "node --import tsx/esm --test src/__tests__/client-retention.integration.test.ts",
     "test:rescheduling": "node --import tsx/esm --test src/__tests__/rescheduling-enforcement.integration.test.ts",
     "test:proposals": "node --import tsx/esm --test src/__tests__/reschedule-proposals.integration.test.ts",
-    "test:marketplace-events": "node --import tsx/esm --test src/__tests__/marketplace-events.integration.test.ts"
+    "test:marketplace-events": "node --import tsx/esm --test src/__tests__/marketplace-events.integration.test.ts",
+    "test:booking-page": "node --import tsx/esm --test src/__tests__/public-booking-page.integration.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",

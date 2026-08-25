@@ -60,6 +60,7 @@ import type {
   LoginRequest,
   MeResponse,
   MessageResponse,
+  MyBookingPageResponse,
   NotFoundResponse,
   ProviderApplicationDetailResponse,
   ProviderApplicationStatusResponse,
@@ -73,6 +74,7 @@ import type {
   ProviderSlotsResponse,
   ProviderUnavailableConflictResponse,
   PublicAvailabilityResponse,
+  PublicBookingPageResponse,
   RegisterRequest,
   RejectProviderApplicationRequest,
   RescheduleProposalListResponse,
@@ -2101,6 +2103,304 @@ export function useGetMyProviderReadiness<TData = Awaited<ReturnType<typeof getM
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMyProviderReadinessQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyBookingPageUrl = () => {
+
+
+
+
+  return `/api/providers/me/booking-page`
+}
+
+/**
+ * @summary Owner-scoped public booking-page state (slug + publish state)
+ */
+export const getMyBookingPage = async ( options?: Parameters<typeof customFetch>[1]): Promise<MyBookingPageResponse> => {
+
+  return customFetch<MyBookingPageResponse>(getGetMyBookingPageUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyBookingPageQueryKey = () => {
+    return [
+    `/api/providers/me/booking-page`
+    ] as const;
+    }
+
+
+export const getGetMyBookingPageQueryOptions = <TData = Awaited<ReturnType<typeof getMyBookingPage>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyBookingPage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyBookingPageQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyBookingPage>>> = ({ signal }) => getMyBookingPage({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyBookingPage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyBookingPageQueryResult = NonNullable<Awaited<ReturnType<typeof getMyBookingPage>>>
+export type GetMyBookingPageQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Owner-scoped public booking-page state (slug + publish state)
+ */
+
+export function useGetMyBookingPage<TData = Awaited<ReturnType<typeof getMyBookingPage>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyBookingPage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyBookingPageQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPublishMyBookingPageUrl = () => {
+
+
+
+
+  return `/api/providers/me/booking-page/publish`
+}
+
+/**
+ * Assigns a globally unique lowercase kebab-case slug from the provider display name on first publish (deterministic safe suffix on collision; not provider-editable afterwards) and makes /book/{slug} publicly reachable. Idempotent when already published.
+ * @summary Publish the provider's canonical public booking page (approved providers only)
+ */
+export const publishMyBookingPage = async ( options?: Parameters<typeof customFetch>[1]): Promise<MyBookingPageResponse> => {
+
+  return customFetch<MyBookingPageResponse>(getPublishMyBookingPageUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPublishMyBookingPageMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishMyBookingPage>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof publishMyBookingPage>>, TError,void, TContext> => {
+
+const mutationKey = ['publishMyBookingPage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publishMyBookingPage>>, void> = () => {
+
+
+          return  publishMyBookingPage(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PublishMyBookingPageMutationResult = NonNullable<Awaited<ReturnType<typeof publishMyBookingPage>>>
+
+    export type PublishMyBookingPageMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Publish the provider's canonical public booking page (approved providers only)
+ */
+export const usePublishMyBookingPage = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishMyBookingPage>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof publishMyBookingPage>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPublishMyBookingPageMutationOptions(options));
+    }
+
+export const getUnpublishMyBookingPageUrl = () => {
+
+
+
+
+  return `/api/providers/me/booking-page/unpublish`
+}
+
+/**
+ * @summary Unpublish the provider's public booking page (removes public access; data retained)
+ */
+export const unpublishMyBookingPage = async ( options?: Parameters<typeof customFetch>[1]): Promise<MyBookingPageResponse> => {
+
+  return customFetch<MyBookingPageResponse>(getUnpublishMyBookingPageUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getUnpublishMyBookingPageMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unpublishMyBookingPage>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unpublishMyBookingPage>>, TError,void, TContext> => {
+
+const mutationKey = ['unpublishMyBookingPage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unpublishMyBookingPage>>, void> = () => {
+
+
+          return  unpublishMyBookingPage(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnpublishMyBookingPageMutationResult = NonNullable<Awaited<ReturnType<typeof unpublishMyBookingPage>>>
+
+    export type UnpublishMyBookingPageMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Unpublish the provider's public booking page (removes public access; data retained)
+ */
+export const useUnpublishMyBookingPage = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unpublishMyBookingPage>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unpublishMyBookingPage>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getUnpublishMyBookingPageMutationOptions(options));
+    }
+
+export const getGetPublicBookingPageUrl = (slug: string,) => {
+
+
+
+
+  return `/api/booking-pages/${slug}`
+}
+
+/**
+ * Canonical provider-owned public booking surface. Missing, unpublished, inactive, and format-invalid slugs all return the same generic non-leaking 404. Derives profile, services, and availability from the same source of truth as marketplace discovery; booking uses the existing slots and bookings endpoints via the returned provider id.
+ * @summary Public provider booking page by slug (published, approved providers only)
+ */
+export const getPublicBookingPage = async (slug: string, options?: Parameters<typeof customFetch>[1]): Promise<PublicBookingPageResponse> => {
+
+  return customFetch<PublicBookingPageResponse>(getGetPublicBookingPageUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicBookingPageQueryKey = (slug: string,) => {
+    return [
+    `/api/booking-pages/${slug}`
+    ] as const;
+    }
+
+
+export const getGetPublicBookingPageQueryOptions = <TData = Awaited<ReturnType<typeof getPublicBookingPage>>, TError = ErrorType<NotFoundResponse>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicBookingPage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicBookingPageQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicBookingPage>>> = ({ signal }) => getPublicBookingPage(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicBookingPage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicBookingPageQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicBookingPage>>>
+export type GetPublicBookingPageQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Public provider booking page by slug (published, approved providers only)
+ */
+
+export function useGetPublicBookingPage<TData = Awaited<ReturnType<typeof getPublicBookingPage>>, TError = ErrorType<NotFoundResponse>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicBookingPage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicBookingPageQueryOptions(slug,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

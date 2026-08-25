@@ -30,7 +30,7 @@ export function canNativeShare(): boolean {
 }
 
 /** Clipboard write with a legacy `execCommand` fallback. Returns success. */
-async function copyText(text: string): Promise<boolean> {
+export async function copyText(text: string): Promise<boolean> {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text);

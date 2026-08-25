@@ -93,6 +93,9 @@ One-to-one with users where role = 'provider'.
 | profile_complete | boolean | |
 | years_experience | integer nullable | |
 | accepts_new_clients | boolean | default true |
+| public_slug | text nullable | canonical public booking-page slug (`/book/:slug`); lowercase kebab-case 3–64, globally unique (`provider_profiles_public_slug_unique_idx`); assigned at first publish, not provider-editable afterwards |
+| booking_page_published | boolean | default false — providers stay unpublished until they intentionally publish |
+| booking_page_published_at | timestamp nullable | last transition to published |
 | created_at | timestamp | |
 | updated_at | timestamp | |
 
@@ -134,6 +137,7 @@ A scheduled visit.
 | postal_code | text nullable | |
 | care_notes | text nullable | accessibility or health notes |
 | client_notes | text nullable | general visit notes from client |
+| source | text nullable | privacy-safe allowlisted link attribution (`instagram` \| `qr-card` \| `text` \| `facebook` \| `website`) recorded at creation; unknown values are dropped at the API boundary; never used for authorization and never exposed publicly |
 | cancelled_by | FK → users nullable | who cancelled |
 | cancellation_reason | text nullable | |
 | created_at | timestamp | |

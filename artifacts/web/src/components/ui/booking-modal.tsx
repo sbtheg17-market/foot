@@ -15,6 +15,8 @@ interface BookingModalProps {
   providerId: number;
   providerName: string;
   service: Service;
+  /** Allowlisted acquisition-source attribution (from /book/:slug?source=…). */
+  source?: string | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -24,7 +26,7 @@ function toDateInput(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function BookingModal({ providerId, providerName, service, onClose, onSuccess }: BookingModalProps) {
+export default function BookingModal({ providerId, providerName, service, source, onClose, onSuccess }: BookingModalProps) {
   const [, setLocation] = useLocation();
   const today = useMemo(() => toDateInput(new Date()), []);
   const [date, setDate] = useState(today);
@@ -74,6 +76,7 @@ export default function BookingModal({ providerId, providerName, service, onClos
           city: form.city,
           postalCode: form.postalCode || undefined,
           clientNotes: form.clientNotes || undefined,
+          ...(source ? { source: source as never } : {}),
         },
       },
       {

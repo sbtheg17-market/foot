@@ -59,6 +59,13 @@ public snapshot fields per closed cycle.
 | GET | /providers/:id | public | Provider public profile |
 | GET | /providers/:id/services | public | Provider's active services |
 | GET | /providers/:id/reviews | public | Provider's reviews |
+| GET | /booking-pages/:slug | public | Provider-owned public booking page (published + approved providers only; missing/unpublished/inactive/invalid slugs all return the same generic 404) |
+
+Marketplace discovery (`/providers`) and the provider-owned booking page
+(`/book/:slug` in the web app, backed by `/api/booking-pages/:slug`) are
+distinct surfaces that derive from the same source of truth — profile,
+services, and availability are never duplicated per surface, and booking flows
+through the existing slots + bookings endpoints.
 
 ---
 
@@ -79,6 +86,9 @@ public snapshot fields per closed cycle.
 | POST | /providers/me/verification | provider | Submit verification doc metadata |
 | GET | /providers/me/verification | provider | Own verification status |
 | GET | /providers/me/earnings | provider | Earnings placeholder summary |
+| GET | /providers/me/booking-page | provider (member) | Own public booking-page state (slug, publish state, eligibility) |
+| POST | /providers/me/booking-page/publish | provider (approved) | Publish the canonical public booking page; assigns an immutable kebab-case slug on first publish (deterministic suffix on collision); idempotent |
+| POST | /providers/me/booking-page/unpublish | provider (member) | Remove public access; slug and data retained so republish restores the same URL; idempotent |
 
 ---
 
@@ -95,6 +105,12 @@ public snapshot fields per closed cycle.
 Client booking list, create, detail, and status responses omit provider-private
 `careNotes`. Provider and admin booking responses retain the fields needed for
 their workflows.
+
+`POST /bookings` accepts an optional allowlisted `source` attribution value
+(`instagram`, `qr-card`, `text`, `facebook`, `website`) from provider
+booking-page share links. Unknown values are dropped server-side (never stored,
+never an error); the value is never used for authorization or pricing and is
+never exposed on public endpoints.
 
 ---
 

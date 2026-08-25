@@ -223,3 +223,24 @@ Every string in the UI — labels, buttons, placeholders, descriptions — shoul
 4. **Does it move the user forward?** Every empty state and error has a next step.
 
 The app speaks like a knowledgeable, warm professional — not a form.
+
+## Provider public booking page — 2026-08-25 (roadmap #11)
+
+The provider-owned booking page (`/book/:providerSlug`) is a conversion
+surface a provider shares directly (Instagram bio, texts, QR cards, print,
+their own website). Principles:
+
+- **One canonical page per provider.** The QR code and every share action
+  encode the same `/book/:slug` URL — never campaign-specific duplicates.
+- **Distinct from marketplace discovery** (`/providers`), but derived from the
+  same profile/services/availability source of truth and the same booking flow.
+- **Honest copy.** The dashboard card never promises marketplace client
+  acquisition; sharing the link is provider-driven.
+- **Non-leaking fallbacks.** Missing, unpublished, and inactive providers all
+  render the same calm generic not-found state with a next step
+  ("Browse providers"); no provider state is disclosed.
+- **Mobile-first and accessible**: service selection uses real buttons with
+  `aria-pressed`, the sticky booking CTA explains why it is disabled, the QR
+  image has a descriptive text alternative and a labeled PNG download.
+- **Privacy**: only public-safe provider fields render; attribution `source`
+  parameters are allowlisted and invisible to visitors.

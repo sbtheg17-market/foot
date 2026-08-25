@@ -7,6 +7,7 @@ import {
   integer,
   numeric,
   pgEnum,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { usersTable } from "./users";
@@ -18,27 +19,43 @@ export const verificationStatusEnum = pgEnum("verification_status", [
   "rejected",
 ]);
 
-export const providerProfilesTable = pgTable("provider_profiles", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .notNull()
-    .unique()
-    .references(() => usersTable.id, { onDelete: "cascade" }),
-  title: text("title").notNull().default(""),
-  bio: text("bio"),
-  city: text("city").notNull().default(""),
-  serviceAreaNotes: text("service_area_notes"),
-  verificationStatus: verificationStatusEnum("verification_status")
-    .notNull()
-    .default("pending"),
-  rating: numeric("rating", { precision: 3, scale: 2 }).notNull().default("0"),
-  reviewCount: integer("review_count").notNull().default(0),
-  profileComplete: boolean("profile_complete").notNull().default(false),
-  yearsExperience: integer("years_experience"),
-  acceptsNewClients: boolean("accepts_new_clients").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+export const providerProfilesTable = pgTable(
+  "provider_profiles",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .unique()
+      .references(() => usersTable.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default(""),
+    bio: text("bio"),
+    city: text("city").notNull().default(""),
+    serviceAreaNotes: text("service_area_notes"),
+    verificationStatus: verificationStatusEnum("verification_status")
+      .notNull()
+      .default("pending"),
+    rating: numeric("rating", { precision: 3, scale: 2 }).notNull().default("0"),
+    reviewCount: integer("review_count").notNull().default(0),
+    profileComplete: boolean("profile_complete").notNull().default(false),
+    yearsExperience: integer("years_experience"),
+    acceptsNewClients: boolean("accepts_new_clients").notNull().default(true),
+    // Provider-owned public booking page (roadmap #11). The slug is assigned
+    // at first publish and is NOT provider-editable afterwards (a rename
+    // requires a future redirect/history policy). Providers stay unpublished
+    // until they intentionally publish.
+    publicSlug: text("public_slug"),
+    bookingPagePublished: boolean("booking_page_published")
+      .notNull()
+      .default(false),
+    bookingPagePublishedAt: timestamp("booking_page_published_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    // Global slug uniqueness (NULLs excluded by PostgreSQL semantics).
+    uniqueIndex("provider_profiles_public_slug_unique_idx").on(table.publicSlug),
+  ],
+);
 
 export const insertProviderProfileSchema = createInsertSchema(
   providerProfilesTable
