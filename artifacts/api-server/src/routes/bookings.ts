@@ -29,6 +29,14 @@ import { emitNewBooking } from "../lib/notification-bus.js";
 import { sendPushToUser } from "../lib/push-notifications.js";
 import { recordPreventedBooking } from "../lib/prevented-booking-events.js";
 import { normalizeBookingSource } from "../lib/booking-page.js";
+import {
+  SERVICE_AREA_MESSAGES,
+  TRAVEL_BUFFER_CONFLICT_MESSAGE,
+  RESCHEDULE_OUTSIDE_SERVICE_AREA_MESSAGE,
+  evaluateBookingLocation,
+  getTravelSetupBufferMinutes,
+  loadProviderCoverage,
+} from "../lib/service-area.js";
 
 const router = Router();
 
@@ -354,6 +362,26 @@ router.post(
       return;
     }
 
+    // ── Service-area eligibility enforcement (roadmap #12) ──────────────────
+    // Server-authoritative: applies whenever THIS provider has active
+    // coverage configuration, regardless of which surface (marketplace or
+    // /book/:slug) submitted the request. Any client-asserted eligibility in
+    // the payload is ignored — evaluation always runs from the raw postal
+    // code against the provider's CURRENT active coverage. Providers with no
+    // active configuration keep the existing marketplace behavior
+    // (documented in docs/service-area-travel-policy.md).
+    const coverage = await loadProviderCoverage(db, Number(providerId));
+    const locationCheck = evaluateBookingLocation(coverage, postalCode);
+    if (locationCheck.enforced && locationCheck.result.status !== "eligible") {
+      const status = locationCheck.result.status;
+      res.status(400).json({
+        error: SERVICE_AREA_MESSAGES[status],
+        reason:
+          status === "ineligible" ? "outside_service_area" : "invalid_location",
+      });
+      return;
+    }
+
     // ── Availability enforcement ─────────────────────────────────────────────
     // The whole service duration must fit inside a single availability window
     // (wall-clock in the effective marketplace timezone). Intervals that fall
@@ -393,6 +421,7 @@ router.post(
     );
 
     class ProviderUnavailableError extends Error {}
+    class TravelBufferConflictError extends Error {}
     class DuplicateUnderLockError extends Error {
       constructor(readonly winnerId: number) {
         super("DUPLICATE_UNDER_LOCK");
@@ -438,6 +467,42 @@ router.post(
 
         if (conflict) {
           throw new ProviderUnavailableError();
+        }
+
+        // ── Travel/setup buffer (roadmap #12) ────────────────────────────
+        // The interval, EXPANDED by the centrally managed buffer, must not
+        // touch any other active appointment for this provider — including
+        // the same client's other bookings at a different time (exact
+        // same-tuple duplicates were already reported as duplicate_booking
+        // above). Service duration stays separate from buffer duration.
+        const bufferMinutes = getTravelSetupBufferMinutes();
+        if (bufferMinutes > 0) {
+          const bufferedEnd = new Date(
+            requestedEnd.getTime() + bufferMinutes * 60000,
+          );
+          const [nearMiss] = await tx
+            .select({ id: bookingsTable.id })
+            .from(bookingsTable)
+            .innerJoin(
+              servicesTable,
+              eq(servicesTable.id, bookingsTable.serviceId),
+            )
+            .where(
+              and(
+                eq(bookingsTable.providerId, Number(providerId)),
+                inArray(bookingsTable.status, [
+                  "requested",
+                  "confirmed",
+                  "rescheduled",
+                ]),
+                sql`${bookingsTable.scheduledAt} < ${bufferedEnd}`,
+                sql`${scheduledAtDate} < ${bookingsTable.scheduledAt} + make_interval(mins => ${servicesTable.durationMinutes} + ${bufferMinutes})`,
+              ),
+            )
+            .limit(1);
+          if (nearMiss) {
+            throw new TravelBufferConflictError();
+          }
         }
 
         const [row] = await tx
@@ -487,6 +552,13 @@ router.post(
         res.status(409).json({
           error: PROVIDER_UNAVAILABLE_MESSAGE,
           reason: "provider_unavailable",
+        });
+        return;
+      }
+      if (error instanceof TravelBufferConflictError) {
+        res.status(409).json({
+          error: TRAVEL_BUFFER_CONFLICT_MESSAGE,
+          reason: "travel_buffer_conflict",
         });
         return;
       }
@@ -771,6 +843,29 @@ router.patch(
             });
           }
 
+          // ── Service-area revalidation (roadmap #12) ──────────────────────
+          // Coverage changes apply to FUTURE reschedules: the booking's
+          // stored location must pass the provider's CURRENT active
+          // coverage before its time can move. The existing confirmed
+          // appointment itself stays valid — only the change is blocked.
+          const rescheduleCoverage = await loadProviderCoverage(
+            tx,
+            booking.providerId,
+          );
+          const rescheduleLocation = evaluateBookingLocation(
+            rescheduleCoverage,
+            booking.postalCode,
+          );
+          if (
+            rescheduleLocation.enforced &&
+            rescheduleLocation.result.status !== "eligible"
+          ) {
+            throw Object.assign(new Error("OUTSIDE_SERVICE_AREA"), {
+              statusCode: 409,
+              userMessage: RESCHEDULE_OUTSIDE_SERVICE_AREA_MESSAGE,
+            });
+          }
+
           // The whole service duration must fit inside one availability
           // window (wall-clock in the marketplace timezone) — same rule and
           // wording as booking creation.
@@ -870,6 +965,45 @@ router.patch(
               statusCode: 409,
               userMessage: PROVIDER_UNAVAILABLE_MESSAGE,
             });
+          }
+
+          // ── Travel/setup buffer (roadmap #12) ────────────────────────────
+          // Same rule as booking creation: the rescheduled interval,
+          // expanded by the centrally managed buffer, must not touch any
+          // OTHER active appointment for this provider. The booking being
+          // rescheduled never blocks itself.
+          const bufferMinutes = getTravelSetupBufferMinutes();
+          if (bufferMinutes > 0) {
+            const bufferedEnd = new Date(
+              rescheduleEnd.getTime() + bufferMinutes * 60000,
+            );
+            const [nearMiss] = await tx
+              .select({ id: bookingsTable.id })
+              .from(bookingsTable)
+              .innerJoin(
+                servicesTable,
+                eq(servicesTable.id, bookingsTable.serviceId),
+              )
+              .where(
+                and(
+                  eq(bookingsTable.providerId, booking.providerId),
+                  inArray(bookingsTable.status, [
+                    "requested",
+                    "confirmed",
+                    "rescheduled",
+                  ]),
+                  sql`${bookingsTable.id} <> ${bookingId}`,
+                  sql`${bookingsTable.scheduledAt} < ${bufferedEnd}`,
+                  sql`${rescheduleDate} < ${bookingsTable.scheduledAt} + make_interval(mins => ${servicesTable.durationMinutes} + ${bufferMinutes})`,
+                ),
+              )
+              .limit(1);
+            if (nearMiss) {
+              throw Object.assign(new Error("TRAVEL_BUFFER_CONFLICT"), {
+                statusCode: 409,
+                userMessage: TRAVEL_BUFFER_CONFLICT_MESSAGE,
+              });
+            }
           }
         }
 

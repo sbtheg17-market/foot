@@ -86,7 +86,7 @@ let serviceId: number;
  * Real-slot fixtures (availability enforcement): each call returns a fresh,
  * non-overlapping future slot drawn from the public slots endpoint.
  */
-const SLOT_SPACING_MS = 60 * 60 * 1000;
+const SLOT_SPACING_MS = 120 * 60 * 1000; // covers duration + 30-min travel buffer (roadmap #12)
 const slotPool: string[] = [];
 
 async function loadSlotPool(want: number): Promise<void> {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import {
   useListProviderReviews,
   useCreateBooking,
   useGetProviderSlots,
+  useCheckProviderServiceArea,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/auth';
@@ -311,6 +312,9 @@ function upcomingDays(count: number): Array<{ dateStr: string; weekday: string; 
   return days;
 }
 
+/** Canadian province/territory codes for the eligibility check. */
+const PROVINCE_CODES = ['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'] as const;
+
 function BookingModal({
   providerId, providerName, service, colors, insets, onClose, onSuccess,
 }: {
@@ -326,6 +330,49 @@ function BookingModal({
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [notes, setNotes] = useState('');
+
+  // ── Service-area eligibility (roadmap #12) ────────────────────────────────
+  // Server-authoritative location check BEFORE date/slot selection. A silent
+  // probe (empty location) discovers whether this provider enforces coverage:
+  // `not_configured` keeps the existing marketplace flow (no gate); anything
+  // else requires an `eligible` result before booking fields appear. The
+  // server independently revalidates at booking time regardless.
+  const checkArea = useCheckProviderServiceArea();
+  const [gateRequired, setGateRequired] = useState<boolean | null>(null);
+  const [saProvince, setSaProvince] = useState('');
+  const [saPostal, setSaPostal] = useState('');
+  const [eligibility, setEligibility] = useState<{ status: string; message: string } | null>(null);
+
+  useEffect(() => {
+    checkArea.mutate(
+      { providerId, data: { country: '', province: '', postalCode: '' } },
+      {
+        onSuccess: (res) => setGateRequired(res.eligibility.reason !== 'not_configured'),
+        // Probe failures fail open on the client — the server still enforces.
+        onError: () => setGateRequired(false),
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providerId]);
+
+  const runAreaCheck = () => {
+    if (checkArea.isPending) return;
+    checkArea.mutate(
+      { providerId, data: { country: 'CA', province: saProvince, postalCode: saPostal.trim() } },
+      {
+        onSuccess: (res) => {
+          setEligibility({ status: res.eligibility.status, message: res.eligibility.message });
+          if (res.eligibility.status === 'eligible') {
+            setPostalCode(saPostal.trim());
+          }
+        },
+        onError: () =>
+          Alert.alert('Error', 'We could not check this location right now. Please try again.'),
+      },
+    );
+  };
+
+  const isEligible = !gateRequired || eligibility?.status === 'eligible';
   // Server-provided slots only — mirrors the verified web booking modal and
   // the mobile reschedule modal. The previous free-text date/time entry
   // parsed "YYYY-MM-DDTHH:MM" in the DEVICE timezone, so a traveller (or any
@@ -389,6 +436,28 @@ function BookingModal({
             void refetchSlots();
             return;
           }
+          // Travel/setup buffer (roadmap #12): too close to another
+          // appointment — recover in place like an availability miss.
+          if (reason === 'travel_buffer_conflict') {
+            Alert.alert(
+              'Time unavailable',
+              apiError.data?.error ??
+                'That time is too close to another appointment. Please choose another available time.',
+            );
+            setSelectedSlot(null);
+            void refetchSlots();
+            return;
+          }
+          // Service-area enforcement (roadmap #12): the location, not the
+          // time, is the issue — show the server's plain-language message.
+          if (reason === 'outside_service_area' || reason === 'invalid_location') {
+            Alert.alert(
+              'Service area',
+              apiError.data?.error ??
+                'This provider does not currently serve this area. Check the postal code.',
+            );
+            return;
+          }
           // Booking-race notice (Session 079): the friendly duplicate-booking
           // 409 contract (HTTP 409 + numeric bookingId) means this exact slot is
           // already held by an active booking. Show the approved notice and keep
@@ -426,6 +495,101 @@ function BookingModal({
           </View>
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 20, gap: 16 }} showsVerticalScrollIndicator={false}>
+            {/* Service-area eligibility — before date/slot selection */}
+            {gateRequired === null ? (
+              <View style={styles.slotsLoading} testID="booking-area-probe">
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : gateRequired ? (
+              <View style={{ paddingHorizontal: 20, gap: 10 }} testID="booking-area-check">
+                <Text style={[styles.fieldLabel, { color: colors.foreground }]}>Check your area *</Text>
+                <Text style={{ fontSize: 13, color: colors.mutedForeground }}>
+                  Enter your postal code to confirm this provider serves your area.
+                </Text>
+                <View style={styles.provinceWrap}>
+                  {PROVINCE_CODES.map((code) => {
+                    const selected = saProvince === code;
+                    return (
+                      <TouchableOpacity
+                        key={code}
+                        onPress={() => setSaProvince(code)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={`Province ${code}`}
+                        testID={`booking-area-province-${code}`}
+                        style={[
+                          styles.provinceChip,
+                          {
+                            borderColor: selected ? colors.primary : colors.border,
+                            backgroundColor: selected ? colors.primary : colors.card,
+                          },
+                        ]}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '600', color: selected ? '#fff' : colors.foreground }}>
+                          {code}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <View style={styles.row}>
+                  <View style={{ flex: 1 }}>
+                    <Field label="Postal code *" value={saPostal} onChange={setSaPostal} placeholder="M5V 2T6" colors={colors} />
+                  </View>
+                  <TouchableOpacity
+                    onPress={runAreaCheck}
+                    disabled={checkArea.isPending || !saProvince || !saPostal.trim()}
+                    accessibilityRole="button"
+                    accessibilityLabel="Check availability for your area"
+                    testID="booking-area-check-btn"
+                    style={[
+                      styles.areaCheckBtn,
+                      {
+                        backgroundColor: colors.primary,
+                        opacity: checkArea.isPending || !saProvince || !saPostal.trim() ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    {checkArea.isPending ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Check</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {eligibility && (
+                  <View
+                    accessibilityRole="alert"
+                    testID={`booking-area-result-${eligibility.status}`}
+                    style={[
+                      styles.areaResult,
+                      {
+                        borderColor: eligibility.status === 'eligible' ? '#34d399' : colors.border,
+                        backgroundColor: eligibility.status === 'eligible' ? '#ecfdf5' : colors.secondary,
+                      },
+                    ]}
+                  >
+                    <Feather
+                      name={eligibility.status === 'eligible' ? 'check-circle' : 'alert-circle'}
+                      size={16}
+                      color={eligibility.status === 'eligible' ? '#047857' : colors.mutedForeground}
+                    />
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontSize: 13,
+                        lineHeight: 18,
+                        color: eligibility.status === 'eligible' ? '#065f46' : colors.foreground,
+                      }}
+                    >
+                      {eligibility.message}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : null}
+
+            {isEligible && (<>
             {/* Date strip — same pattern as the reschedule modal */}
             <View>
               <Text style={[styles.fieldLabel, { color: colors.foreground, paddingHorizontal: 20 }]}>Choose a date *</Text>
@@ -551,12 +715,13 @@ function BookingModal({
                 </Text>
               </View>
             </View>
+            </>)}
           </ScrollView>
 
           <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 12, borderTopColor: colors.border }]}>
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={createBooking.isPending || !selectedSlot}
+              disabled={createBooking.isPending || !selectedSlot || !isEligible}
               accessibilityRole="button"
               accessibilityState={{ disabled: createBooking.isPending || !selectedSlot }}
               accessibilityLabel="Request appointment"
@@ -605,6 +770,33 @@ function Field({ label, value, onChange, placeholder, colors, multiline, keyboar
 }
 
 const styles = StyleSheet.create({
+  provinceWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  provinceChip: {
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  areaCheckBtn: {
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    minHeight: 46,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-end',
+  },
+  areaResult: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+  },
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   backBtn: {

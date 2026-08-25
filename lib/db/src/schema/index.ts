@@ -4,6 +4,7 @@
 export * from "./users";
 export * from "./account-roles";
 export * from "./providers";
+export * from "./service-areas";
 export * from "./provider-applications";
 export * from "./provider-application-submissions";
 export * from "./provider-application-events";

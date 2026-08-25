@@ -54,6 +54,7 @@ const unpublished = {
   path: null,
   eligible: true,
   verificationStatus: 'approved',
+  serviceAreaConfigured: true,
 };
 
 const published = {
@@ -63,6 +64,7 @@ const published = {
   path: '/book/sarah-chen',
   eligible: true,
   verificationStatus: 'approved',
+  serviceAreaConfigured: true,
 };
 
 beforeEach(() => {
@@ -71,9 +73,21 @@ beforeEach(() => {
 
 describe('BookingPageCard', () => {
   it('explains that publishing unlocks after approval for unapproved providers', () => {
-    arm({ ...unpublished, eligible: false, verificationStatus: 'pending' });
+    arm({ ...unpublished, eligible: false, verificationStatus: 'pending', serviceAreaConfigured: false });
     renderCard();
     expect(screen.getByTestId('booking-page-not-eligible')).toBeInTheDocument();
+    expect(screen.getByTestId('booking-page-not-eligible')).toHaveTextContent('approved');
+    expect(screen.queryByTestId('booking-page-publish-button')).not.toBeInTheDocument();
+  });
+
+  it('points approved providers at service-area setup before publishing (roadmap #12)', () => {
+    arm({ ...unpublished, eligible: false, serviceAreaConfigured: false });
+    renderCard();
+    expect(screen.getByTestId('booking-page-not-eligible')).toHaveTextContent('areas you serve');
+    expect(screen.getByTestId('booking-page-service-area-link')).toHaveAttribute(
+      'href',
+      '/provider/service-area',
+    );
     expect(screen.queryByTestId('booking-page-publish-button')).not.toBeInTheDocument();
   });
 

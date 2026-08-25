@@ -69,7 +69,7 @@ async function login(email: string, password: string): Promise<string> {
 // Real-slot fixture pool (see booking-concurrency.test.ts): availability
 // enforcement rejects out-of-window/overlapping bookings, so fixtures draw
 // globally non-overlapping real slots from the public slots endpoint.
-const SLOT_SPACING_MS = 60 * 60 * 1000; // Sarah's seeded service is 60 minutes
+const SLOT_SPACING_MS = 120 * 60 * 1000; // 60-min seeded service + 30-min travel buffer (roadmap #12), rounded up
 const slotPool: string[] = [];
 
 async function loadSlotPool(

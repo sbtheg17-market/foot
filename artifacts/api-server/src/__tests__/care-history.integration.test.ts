@@ -63,7 +63,8 @@ let serviceId: number;
 // past bookings, so completed-history fixtures now schedule inside seeded
 // availability (status — not time — is what the history query filters on) and
 // draw globally non-overlapping starts so concurrent creations never collide.
-const SLOT_SPACING_MS = 60 * 60 * 1000;
+// Spacing exceeds duration + the 30-minute travel/setup buffer (roadmap #12).
+const SLOT_SPACING_MS = 120 * 60 * 1000;
 const slotPool: string[] = [];
 
 async function loadSlotPool(want: number): Promise<void> {

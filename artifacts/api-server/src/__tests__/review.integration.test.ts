@@ -61,7 +61,8 @@ let serviceId: number;
 
 // Real-slot fixture pool (availability enforcement): draw non-overlapping
 // future slots inside seeded availability instead of arbitrary timestamps.
-const SLOT_SPACING_MS = 60 * 60 * 1000;
+// Spacing exceeds duration + the 30-minute travel/setup buffer (roadmap #12).
+const SLOT_SPACING_MS = 120 * 60 * 1000;
 const slotPool: string[] = [];
 
 async function loadSlotPool(want: number): Promise<void> {
