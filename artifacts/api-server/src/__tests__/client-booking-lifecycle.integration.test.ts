@@ -73,9 +73,11 @@ let serviceId: number;
  * Real-slot fixtures. Availability enforcement rejects out-of-window bookings,
  * so each distinct logical offset maps to a distinct, non-overlapping real slot
  * drawn from the public slots endpoint. The same offset always returns the same
- * slot within a run, so duplicate/overlap tests stay deterministic.
+ * slot within a run, so duplicate/overlap tests stay deterministic. Spacing
+ * exceeds service duration + the 30-minute travel/setup buffer (roadmap #12)
+ * so fixture bookings never collide with the buffer rule under test elsewhere.
  */
-const SLOT_SPACING_MS = 60 * 60 * 1000;
+const SLOT_SPACING_MS = 120 * 60 * 1000;
 const slotPool: string[] = [];
 
 async function loadSlotPool(want: number): Promise<void> {

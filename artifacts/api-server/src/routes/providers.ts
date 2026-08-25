@@ -9,6 +9,8 @@ import {
   providerNotificationsTable,
   accountRolesTable,
   travelZonesTable,
+  providerServiceAreasTable,
+  providerCoverageAreasTable,
   availabilityTable,
   servicesTable,
   reviewsTable,
@@ -34,6 +36,18 @@ import {
   type AvailabilityWindow,
 } from "../lib/availability.js";
 import { slugifyDisplayName, slugCandidate } from "../lib/booking-page.js";
+import {
+  SERVICE_AREA_MESSAGES,
+  SUPPORTED_COUNTRY_CODES,
+  evaluateServiceAreaEligibility,
+  getTravelSetupBufferMinutes,
+  getTravelSetupBufferSource,
+  isCoverageConfigured,
+  loadProviderCoverage,
+  normalizeCountryCode,
+  normalizeFsaPrefix,
+  normalizeProvinceCode,
+} from "../lib/service-area.js";
 
 const router = Router();
 
@@ -1279,15 +1293,26 @@ type BookingPageProfileRow = {
   verificationStatus: "pending" | "under_review" | "approved" | "rejected";
 };
 
-function bookingPageView(profile: BookingPageProfileRow) {
+function bookingPageView(
+  profile: BookingPageProfileRow,
+  serviceAreaConfigured: boolean,
+) {
   return {
     slug: profile.publicSlug,
     published: profile.bookingPagePublished,
     publishedAt: profile.bookingPagePublishedAt,
     path: profile.publicSlug ? `/book/${profile.publicSlug}` : null,
-    eligible: profile.verificationStatus === "approved",
+    // Publishing requires BOTH approval and an active service-area
+    // configuration with at least one covered postal area (roadmap #12).
+    eligible: profile.verificationStatus === "approved" && serviceAreaConfigured,
     verificationStatus: profile.verificationStatus,
+    serviceAreaConfigured,
   };
+}
+
+/** True when the provider has an active coverage config with ≥1 active prefix. */
+async function hasActiveServiceAreaCoverage(profileId: number): Promise<boolean> {
+  return isCoverageConfigured(await loadProviderCoverage(db, profileId));
 }
 
 /** GET /providers/me/booking-page — owner-scoped publish state. */
@@ -1301,7 +1326,12 @@ router.get(
       res.status(404).json({ error: "Provider profile not found." });
       return;
     }
-    res.json({ bookingPage: bookingPageView(profile) });
+    res.json({
+      bookingPage: bookingPageView(
+        profile,
+        await hasActiveServiceAreaCoverage(profile.id),
+      ),
+    });
   },
 );
 
@@ -1326,9 +1356,24 @@ router.post(
       return;
     }
 
+    const serviceAreaConfigured = await hasActiveServiceAreaCoverage(profile.id);
+
     // Idempotent: already published with a slug → current state, no writes.
     if (profile.bookingPagePublished && profile.publicSlug) {
-      res.json({ bookingPage: bookingPageView(profile) });
+      res.json({ bookingPage: bookingPageView(profile, serviceAreaConfigured) });
+      return;
+    }
+
+    // Roadmap #12 publish gate: a provider must have a valid active
+    // service-area configuration (≥1 covered postal area) before public
+    // online booking can be enabled. Unpublish stays ungated so a provider
+    // can always take their page down.
+    if (!serviceAreaConfigured) {
+      res.status(409).json({
+        error:
+          "Add the areas you serve before publishing. Set at least one postal area in your service-area settings so clients can check availability.",
+        reason: "service_area_required",
+      });
       return;
     }
 
@@ -1394,7 +1439,7 @@ router.post(
       res.status(500).json({ error: "Booking page could not be published." });
       return;
     }
-    res.json({ bookingPage: bookingPageView(updated) });
+    res.json({ bookingPage: bookingPageView(updated, serviceAreaConfigured) });
   },
 );
 
@@ -1414,8 +1459,14 @@ router.post(
       return;
     }
 
+    const unpublishServiceAreaConfigured = await hasActiveServiceAreaCoverage(
+      profile.id,
+    );
+
     if (!profile.bookingPagePublished) {
-      res.json({ bookingPage: bookingPageView(profile) });
+      res.json({
+        bookingPage: bookingPageView(profile, unpublishServiceAreaConfigured),
+      });
       return;
     }
 
@@ -1436,7 +1487,12 @@ router.post(
         verificationStatus: providerProfilesTable.verificationStatus,
       });
 
-    res.json({ bookingPage: bookingPageView(updated ?? profile) });
+    res.json({
+      bookingPage: bookingPageView(
+        updated ?? profile,
+        unpublishServiceAreaConfigured,
+      ),
+    });
   },
 );
 
@@ -2225,6 +2281,269 @@ router.delete(
   }
 );
 
+// ── Service area & coverage (roadmap #12) ─────────────────────────────────────
+//
+// Canada-first provider-managed postal-prefix (FSA) coverage. Owner-scoped:
+// coverage writes always derive the provider from the authenticated user —
+// a provider id is never taken from the request, so cross-provider edits
+// are impossible by construction. Raw coverage entries are returned ONLY
+// to the owner; public surfaces get the safe description + eligibility
+// states, never the prefix list.
+
+/** Owner-facing service-area projection (safe: owner-scoped endpoints only). */
+async function buildOwnServiceArea(profileId: number) {
+  const [config] = await db
+    .select()
+    .from(providerServiceAreasTable)
+    .where(eq(providerServiceAreasTable.providerId, profileId))
+    .limit(1);
+
+  const prefixes = await db
+    .select({
+      id: providerCoverageAreasTable.id,
+      countryCode: providerCoverageAreasTable.countryCode,
+      prefix: providerCoverageAreasTable.prefix,
+      createdAt: providerCoverageAreasTable.createdAt,
+    })
+    .from(providerCoverageAreasTable)
+    .where(
+      and(
+        eq(providerCoverageAreasTable.providerId, profileId),
+        eq(providerCoverageAreasTable.isActive, true),
+      ),
+    )
+    .orderBy(providerCoverageAreasTable.prefix);
+
+  const configured = Boolean(config?.isActive) && prefixes.length > 0;
+
+  return {
+    configured,
+    isActive: config?.isActive ?? false,
+    countryCode: config?.countryCode ?? "CA",
+    provinceCode: config?.provinceCode ?? null,
+    city: config?.city ?? null,
+    publicDescription: config?.publicDescription ?? null,
+    prefixes,
+    // Centrally managed travel/setup buffer — visible to the provider,
+    // provider-specific overrides are DEFERRED (docs/TODO-LEDGER.md).
+    bufferMinutes: getTravelSetupBufferMinutes(),
+    bufferSource: getTravelSetupBufferSource(),
+    publishEligible: configured,
+  };
+}
+
+/** GET /providers/me/service-area — own coverage configuration */
+router.get(
+  "/me/service-area",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+    res.json({ serviceArea: await buildOwnServiceArea(profile.id) });
+  },
+);
+
+/** PUT /providers/me/service-area — create/update own configuration */
+router.put(
+  "/me/service-area",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const { countryCode, provinceCode, city, publicDescription, isActive } =
+      req.body as Record<string, unknown>;
+
+    const country = normalizeCountryCode(countryCode ?? "CA");
+    if (!country || !(SUPPORTED_COUNTRY_CODES as readonly string[]).includes(country)) {
+      res.status(400).json({
+        error: "Only Canada is supported for online service areas right now.",
+      });
+      return;
+    }
+
+    const province = normalizeProvinceCode(provinceCode);
+    if (!province) {
+      res.status(400).json({
+        error: "provinceCode must be a valid Canadian province or territory.",
+      });
+      return;
+    }
+
+    if (city !== undefined && city !== null && typeof city !== "string") {
+      res.status(400).json({ error: "city must be a string." });
+      return;
+    }
+    if (
+      publicDescription !== undefined &&
+      publicDescription !== null &&
+      (typeof publicDescription !== "string" || publicDescription.length > 500)
+    ) {
+      res.status(400).json({
+        error: "publicDescription must be a string of at most 500 characters.",
+      });
+      return;
+    }
+
+    const values = {
+      countryCode: country,
+      provinceCode: province,
+      city: typeof city === "string" && city.trim() ? city.trim() : null,
+      publicDescription:
+        typeof publicDescription === "string" && publicDescription.trim()
+          ? publicDescription.trim()
+          : null,
+      isActive: isActive === undefined ? true : Boolean(isActive),
+      updatedAt: new Date(),
+    };
+
+    await db
+      .insert(providerServiceAreasTable)
+      .values({ providerId: profile.id, ...values })
+      .onConflictDoUpdate({
+        target: providerServiceAreasTable.providerId,
+        set: values,
+      });
+
+    res.json({ serviceArea: await buildOwnServiceArea(profile.id) });
+  },
+);
+
+/** POST /providers/me/service-area/prefixes — add a covered postal area */
+router.post(
+  "/me/service-area/prefixes",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const [config] = await db
+      .select({ id: providerServiceAreasTable.id })
+      .from(providerServiceAreasTable)
+      .where(eq(providerServiceAreasTable.providerId, profile.id))
+      .limit(1);
+    if (!config) {
+      res.status(409).json({
+        error:
+          "Set your service-area country and province before adding postal areas.",
+      });
+      return;
+    }
+
+    const prefix = normalizeFsaPrefix((req.body as Record<string, unknown>)?.["prefix"]);
+    if (!prefix) {
+      res.status(400).json({
+        error:
+          "Enter a valid Canadian postal area — the first three characters of a postal code, for example M5V.",
+      });
+      return;
+    }
+
+    try {
+      const created = await db.transaction(async (tx) => {
+        // Reactivate a previously removed entry instead of duplicating it.
+        const [existing] = await tx
+          .select()
+          .from(providerCoverageAreasTable)
+          .where(
+            and(
+              eq(providerCoverageAreasTable.providerId, profile.id),
+              eq(providerCoverageAreasTable.countryCode, "CA"),
+              eq(providerCoverageAreasTable.prefix, prefix),
+            ),
+          )
+          .orderBy(desc(providerCoverageAreasTable.isActive))
+          .limit(1);
+
+        if (existing?.isActive) {
+          return { row: existing, duplicate: true };
+        }
+        if (existing) {
+          const [reactivated] = await tx
+            .update(providerCoverageAreasTable)
+            .set({ isActive: true })
+            .where(eq(providerCoverageAreasTable.id, existing.id))
+            .returning();
+          return { row: reactivated!, duplicate: false };
+        }
+        const [inserted] = await tx
+          .insert(providerCoverageAreasTable)
+          .values({ providerId: profile.id, countryCode: "CA", prefix })
+          .returning();
+        return { row: inserted!, duplicate: false };
+      });
+
+      if (created.duplicate) {
+        res.status(409).json({
+          error: "This postal area is already in your coverage.",
+        });
+        return;
+      }
+      res.status(201).json({
+        prefix: {
+          id: created.row.id,
+          countryCode: created.row.countryCode,
+          prefix: created.row.prefix,
+          createdAt: created.row.createdAt,
+        },
+      });
+    } catch (error) {
+      // Concurrent duplicate: the partial unique index is the race guard.
+      const text = error instanceof Error ? `${error.message}` : String(error);
+      if (text.includes("provider_coverage_areas_active_prefix_unique_idx")) {
+        res.status(409).json({
+          error: "This postal area is already in your coverage.",
+        });
+        return;
+      }
+      throw error;
+    }
+  },
+);
+
+/** DELETE /providers/me/service-area/prefixes/:prefixId — remove (deactivate) */
+router.delete(
+  "/me/service-area/prefixes/:prefixId",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const prefixId = Number(req.params["prefixId"]);
+    const [updated] = await db
+      .update(providerCoverageAreasTable)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(providerCoverageAreasTable.id, prefixId),
+          // Owner scope in the WHERE clause: another provider's entry is
+          // indistinguishable from a missing one (non-leaking 404).
+          eq(providerCoverageAreasTable.providerId, profile.id),
+          eq(providerCoverageAreasTable.isActive, true),
+        ),
+      )
+      .returning({ id: providerCoverageAreasTable.id });
+
+    if (!updated) {
+      res.status(404).json({ error: "Postal area not found." });
+      return;
+    }
+    res.json({ message: "Postal area removed." });
+  },
+);
+
 /** GET /providers/me/earnings — Earnings summary (placeholder until Stripe Connect) */
 router.get(
   "/me/earnings",
@@ -2412,6 +2731,65 @@ router.get(
   }
 );
 
+/**
+ * POST /providers/:providerId/service-area-check — public eligibility check
+ * for the marketplace booking flow (roadmap #12). Server-authoritative:
+ * returns ONLY a safe eligibility state, the approved public message, and
+ * an allowlisted reason code — never raw coverage entries, and never any
+ * provider-private data. Client input is validated minimally and NOT
+ * retained. Unapproved providers report `unavailable` (indistinguishable
+ * from unconfigured — non-leaking).
+ */
+router.post(
+  "/:providerId/service-area-check",
+  async (req: Request, res: Response): Promise<void> => {
+    const providerId = Number(req.params["providerId"]);
+
+    const [profile] = await db
+      .select({
+        id: providerProfilesTable.id,
+        verificationStatus: providerProfilesTable.verificationStatus,
+      })
+      .from(providerProfilesTable)
+      .where(eq(providerProfilesTable.id, providerId))
+      .limit(1);
+
+    if (!profile) {
+      res.status(404).json({ error: "Provider not found." });
+      return;
+    }
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+
+    if (profile.verificationStatus !== "approved") {
+      res.json({
+        eligibility: {
+          status: "unavailable",
+          reason: "not_configured",
+          message: SERVICE_AREA_MESSAGES["unavailable"],
+        },
+      });
+      return;
+    }
+
+    const coverage = await loadProviderCoverage(db, profile.id);
+    const result = evaluateServiceAreaEligibility(coverage, {
+      country: body["country"],
+      province: body["province"],
+      city: body["city"],
+      postalCode: body["postalCode"],
+    });
+
+    res.json({
+      eligibility: {
+        status: result.status,
+        reason: result.reason,
+        message: SERVICE_AREA_MESSAGES[result.status],
+      },
+    });
+  }
+);
+
 /** GET /providers/:providerId/slots?serviceId&date — Public bookable slots */
 router.get(
   "/:providerId/slots",
@@ -2509,11 +2887,17 @@ router.get(
       return { start, end: start + b.durationMinutes * 60000 };
     });
 
+    // Advisory hint only: a slot is marked taken when it overlaps an active
+    // booking OR falls inside the centrally managed travel/setup buffer
+    // around one (roadmap #12). The transactional booking path remains the
+    // authoritative guard for both rules.
+    const bufferMs = getTravelSetupBufferMinutes() * 60000;
+
     const slots = candidates.map((s) => {
       const start = new Date(s.start).getTime();
       const end = new Date(s.end).getTime();
       const available = !activeIntervals.some(
-        (iv) => iv.start < end && start < iv.end
+        (iv) => iv.start < end + bufferMs && start < iv.end + bufferMs
       );
       return { start: s.start, end: s.end, available };
     });

@@ -206,7 +206,9 @@ describe("availability-enforced booking", () => {
     assert.equal(dup.body["reason"], "duplicate_booking");
     assert.equal(typeof dup.body["bookingId"], "number");
 
-    // 4) An adjacent booking (starts exactly when the first ends) is allowed.
+    // 4) A back-to-back booking (starts exactly when the first ends) is now
+    //    rejected: the 30-minute travel/setup buffer (roadmap #12) needs a
+    //    gap between appointments for the same provider.
     const adjacent = await api("/bookings", {
       method: "POST",
       token: tom,
@@ -218,7 +220,23 @@ describe("availability-enforced booking", () => {
         city: "Toronto",
       }),
     });
-    assert.equal(adjacent.status, 201);
+    assert.equal(adjacent.status, 409);
+    assert.equal(adjacent.body["reason"], "travel_buffer_conflict");
+
+    // 5) A booking separated by exactly the buffer (ends 14:00Z + 30m gap →
+    //    starts 14:30Z) is allowed — the buffer boundary is inclusive.
+    const buffered = await api("/bookings", {
+      method: "POST",
+      token: tom,
+      body: JSON.stringify({
+        providerId: PROVIDER_ID,
+        serviceId: SERVICE_ID,
+        scheduledAt: `${date}T14:30:00.000Z`,
+        address: "2 Main St",
+        city: "Toronto",
+      }),
+    });
+    assert.equal(buffered.status, 201);
   });
 
   it("allows a booking that ends exactly at the window end", async () => {

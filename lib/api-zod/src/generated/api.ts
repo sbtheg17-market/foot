@@ -854,8 +854,9 @@ export const GetMyBookingPageResponse = zod.object({
   "published": zod.boolean(),
   "publishedAt": zod.coerce.date().nullable(),
   "path": zod.string().nullable().describe('Canonical public path (\/book\/{slug}) once a slug exists'),
-  "eligible": zod.boolean().describe('True when the provider is approved and may publish'),
-  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+  "eligible": zod.boolean().describe('True when the provider is approved AND has an active service-area configuration with at least one covered postal area'),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected']),
+  "serviceAreaConfigured": zod.boolean().describe('True when an active service-area configuration with at least one covered postal area exists (publish prerequisite, roadmap #12)')
 }).describe('Owner-scoped publish state for the provider\'s public booking page')
 })
 
@@ -870,8 +871,9 @@ export const PublishMyBookingPageResponse = zod.object({
   "published": zod.boolean(),
   "publishedAt": zod.coerce.date().nullable(),
   "path": zod.string().nullable().describe('Canonical public path (\/book\/{slug}) once a slug exists'),
-  "eligible": zod.boolean().describe('True when the provider is approved and may publish'),
-  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+  "eligible": zod.boolean().describe('True when the provider is approved AND has an active service-area configuration with at least one covered postal area'),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected']),
+  "serviceAreaConfigured": zod.boolean().describe('True when an active service-area configuration with at least one covered postal area exists (publish prerequisite, roadmap #12)')
 }).describe('Owner-scoped publish state for the provider\'s public booking page')
 })
 
@@ -885,8 +887,9 @@ export const UnpublishMyBookingPageResponse = zod.object({
   "published": zod.boolean(),
   "publishedAt": zod.coerce.date().nullable(),
   "path": zod.string().nullable().describe('Canonical public path (\/book\/{slug}) once a slug exists'),
-  "eligible": zod.boolean().describe('True when the provider is approved and may publish'),
-  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected'])
+  "eligible": zod.boolean().describe('True when the provider is approved AND has an active service-area configuration with at least one covered postal area'),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected']),
+  "serviceAreaConfigured": zod.boolean().describe('True when an active service-area configuration with at least one covered postal area exists (publish prerequisite, roadmap #12)')
 }).describe('Owner-scoped publish state for the provider\'s public booking page')
 })
 
@@ -936,7 +939,62 @@ export const GetPublicBookingPageResponse = zod.object({
   "startTime": zod.string().describe('Wall-clock start \"HH:MM\" in the effective marketplace timezone'),
   "endTime": zod.string().describe('Wall-clock end \"HH:MM\" in the effective marketplace timezone')
 }))
+}),
+  "serviceArea": zod.object({
+  "configured": zod.boolean().describe('True when online eligibility checks are available for this page; false reports the `unavailable` state to clients'),
+  "description": zod.string().nullable().describe('Provider-written plain-language service-area summary'),
+  "countryCode": zod.string().nullable(),
+  "provinceCode": zod.string().nullable(),
+  "city": zod.string().nullable()
+}).describe('Public-safe service-area summary (roadmap #12). Contains ONLY the provider-written description and coarse public context — raw coverage entries (FSA prefixes) are never exposed publicly.')
 })
+})
+
+
+/**
+ * Server-authoritative eligibility for the provider-owned public booking page. Returns ONLY a safe eligibility state, the approved public message, and an allowlisted reason code — never raw coverage entries or provider-private data. Client location input is validated minimally and NOT retained. Missing, unpublished, unapproved, and format-invalid slugs return the same generic non-leaking 404 as the page itself.
+ * @summary Public service-area eligibility check for a booking page (roadmap
+ */
+export const CheckBookingPageServiceAreaParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const CheckBookingPageServiceAreaBody = zod.object({
+  "country": zod.string().describe('Country name or code (Canada-first; e.g. \"CA\", \"Canada\")'),
+  "province": zod.string().describe('Province\/territory code or name (e.g. \"ON\", \"Ontario\")'),
+  "city": zod.string().optional().describe('Optional city context'),
+  "postalCode": zod.string().describe('Canadian postal code; normalized server-side')
+}).describe('Minimal client location input for the eligibility check. Validated server-side and NOT retained. No coordinates are ever collected.')
+
+export const CheckBookingPageServiceAreaResponse = zod.object({
+  "eligibility": zod.object({
+  "status": zod.enum(['eligible', 'ineligible', 'needs_review', 'invalid', 'unavailable']).describe('Server-authoritative service-area eligibility state (roadmap'),
+  "reason": zod.string().describe('Allowlisted machine reason code (safe next-step metadata): fsa_match, fsa_not_covered, country_not_served, province_mismatch, missing_location, malformed_postal_code, malformed_location, not_configured'),
+  "message": zod.string().describe('Approved plain-language client-facing message')
+})
+})
+
+
+/**
+ * Same server-authoritative evaluation as the booking-page check, keyed by public provider id for the existing marketplace booking flow. Providers without active coverage report `unavailable` with reason `not_configured` (marketplace booking then proceeds under legacy behavior — enforcement starts once the provider configures coverage).
+ * @summary Public service-area eligibility check for the marketplace flow (roadmap
+ */
+export const CheckProviderServiceAreaParams = zod.object({
+  "providerId": zod.coerce.number().int()
+})
+
+export const CheckProviderServiceAreaBody = zod.object({
+  "country": zod.string().describe('Country name or code (Canada-first; e.g. \"CA\", \"Canada\")'),
+  "province": zod.string().describe('Province\/territory code or name (e.g. \"ON\", \"Ontario\")'),
+  "city": zod.string().optional().describe('Optional city context'),
+  "postalCode": zod.string().describe('Canadian postal code; normalized server-side')
+}).describe('Minimal client location input for the eligibility check. Validated server-side and NOT retained. No coordinates are ever collected.')
+
+export const CheckProviderServiceAreaResponse = zod.object({
+  "eligibility": zod.object({
+  "status": zod.enum(['eligible', 'ineligible', 'needs_review', 'invalid', 'unavailable']).describe('Server-authoritative service-area eligibility state (roadmap'),
+  "reason": zod.string().describe('Allowlisted machine reason code (safe next-step metadata): fsa_match, fsa_not_covered, country_not_served, province_mismatch, missing_location, malformed_postal_code, malformed_location, not_configured'),
+  "message": zod.string().describe('Approved plain-language client-facing message')
 })
 })
 
@@ -1212,6 +1270,99 @@ export const DeleteTravelZoneParams = zod.object({
 })
 
 export const DeleteTravelZoneResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
+ * Owner-scoped Canada-first coverage configuration: country/province, optional city context, plain-language public description, active normalized postal prefixes (FSA), the centrally managed travel/setup buffer, and publish eligibility. Raw coverage entries are returned ONLY here — public surfaces receive safe eligibility states, never the prefix list.
+ * @summary Own service-area configuration and coverage (roadmap
+ */
+export const GetMyServiceAreaResponse = zod.object({
+  "serviceArea": zod.object({
+  "configured": zod.boolean().describe('Active configuration with at least one covered postal area'),
+  "isActive": zod.boolean(),
+  "countryCode": zod.string(),
+  "provinceCode": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "publicDescription": zod.string().nullable(),
+  "prefixes": zod.array(zod.object({
+  "id": zod.int(),
+  "countryCode": zod.string(),
+  "prefix": zod.string().describe('Normalized Canadian FSA (first three postal characters)'),
+  "createdAt": zod.coerce.date()
+})),
+  "bufferMinutes": zod.int().describe('Centrally managed travel\/setup buffer applied between this provider\'s appointments (default 30). Provider-specific overrides are not available in this release.'),
+  "bufferSource": zod.enum(['default', 'environment']),
+  "publishEligible": zod.boolean().describe('Coverage prerequisite for publishing the booking page')
+}).describe('Owner-scoped service-area configuration (roadmap')
+})
+
+
+/**
+ * Upserts the provider's single service-area configuration. Only Canada is accepted in this release; province is validated against the canonical list. Coverage changes apply to FUTURE bookings and future reschedules only — existing confirmed bookings stay valid.
+ * @summary Create or update own service-area configuration
+ */
+export const updateMyServiceAreaBodyPublicDescriptionMax = 500;
+
+
+
+export const UpdateMyServiceAreaBody = zod.object({
+  "countryCode": zod.string().optional().describe('Only \"CA\" is accepted in this release (defaults to CA)'),
+  "provinceCode": zod.string().describe('Canadian province\/territory code or name'),
+  "city": zod.string().nullish(),
+  "publicDescription": zod.string().max(updateMyServiceAreaBodyPublicDescriptionMax).nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateMyServiceAreaResponse = zod.object({
+  "serviceArea": zod.object({
+  "configured": zod.boolean().describe('Active configuration with at least one covered postal area'),
+  "isActive": zod.boolean(),
+  "countryCode": zod.string(),
+  "provinceCode": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "publicDescription": zod.string().nullable(),
+  "prefixes": zod.array(zod.object({
+  "id": zod.int(),
+  "countryCode": zod.string(),
+  "prefix": zod.string().describe('Normalized Canadian FSA (first three postal characters)'),
+  "createdAt": zod.coerce.date()
+})),
+  "bufferMinutes": zod.int().describe('Centrally managed travel\/setup buffer applied between this provider\'s appointments (default 30). Provider-specific overrides are not available in this release.'),
+  "bufferSource": zod.enum(['default', 'environment']),
+  "publishEligible": zod.boolean().describe('Coverage prerequisite for publishing the booking page')
+}).describe('Owner-scoped service-area configuration (roadmap')
+})
+
+
+/**
+ * Accepts a three-character Canadian FSA (e.g. "M5V") or a full postal code (the FSA is derived). Normalized server-side; duplicates of an ACTIVE entry return 409. Requires the service-area configuration to exist first.
+ * @summary Add a covered postal area (Canadian FSA prefix)
+ */
+export const AddMyServiceAreaPrefixBody = zod.object({
+  "prefix": zod.string().describe('Three-character Canadian FSA (e.g. \"M5V\") or a full postal code')
+})
+
+export const AddMyServiceAreaPrefixResponse = zod.object({
+  "prefix": zod.object({
+  "id": zod.int(),
+  "countryCode": zod.string(),
+  "prefix": zod.string().describe('Normalized Canadian FSA (first three postal characters)'),
+  "createdAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * Deactivates the coverage entry (audit-safe; the prefix can be re-added). Owner-scoped — another provider's entry is a non-leaking 404. Existing confirmed bookings stay valid; the change applies to future bookings and future reschedules only.
+ * @summary Remove a covered postal area
+ */
+export const RemoveMyServiceAreaPrefixParams = zod.object({
+  "prefixId": zod.coerce.number().int()
+})
+
+export const RemoveMyServiceAreaPrefixResponse = zod.object({
   "message": zod.string()
 })
 

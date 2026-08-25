@@ -827,6 +827,73 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /booking-pages/{slug}/service-area-check:
+    post:
+      operationId: checkBookingPageServiceArea
+      tags: [booking-pages]
+      summary: Public service-area eligibility check for a booking page (roadmap #12)
+      description: >-
+        Server-authoritative eligibility for the provider-owned public booking
+        page. Returns ONLY a safe eligibility state, the approved public
+        message, and an allowlisted reason code — never raw coverage entries
+        or provider-private data. Client location input is validated minimally
+        and NOT retained. Missing, unpublished, unapproved, and format-invalid
+        slugs return the same generic non-leaking 404 as the page itself.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceAreaCheckRequest"
+      responses:
+        "200":
+          description: Eligibility result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceAreaCheckResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/{providerId}/service-area-check:
+    post:
+      operationId: checkProviderServiceArea
+      tags: [providers]
+      summary: Public service-area eligibility check for the marketplace flow (roadmap #12)
+      description: >-
+        Same server-authoritative evaluation as the booking-page check, keyed
+        by public provider id for the existing marketplace booking flow.
+        Providers without active coverage report `unavailable` with reason
+        `not_configured` (marketplace booking then proceeds under legacy
+        behavior — enforcement starts once the provider configures coverage).
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceAreaCheckRequest"
+      responses:
+        "200":
+          description: Eligibility result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceAreaCheckResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /providers/me/listing-preview:
     get:
       operationId: getMyListingPreview
@@ -1065,6 +1132,132 @@ paths:
       responses:
         "200":
           description: Travel zone removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/service-area:
+    get:
+      operationId: getMyServiceArea
+      tags: [providers]
+      summary: Own service-area configuration and coverage (roadmap #12)
+      description: >-
+        Owner-scoped Canada-first coverage configuration: country/province,
+        optional city context, plain-language public description, active
+        normalized postal prefixes (FSA), the centrally managed travel/setup
+        buffer, and publish eligibility. Raw coverage entries are returned
+        ONLY here — public surfaces receive safe eligibility states, never
+        the prefix list.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Own service-area configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyServiceAreaResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateMyServiceArea
+      tags: [providers]
+      summary: Create or update own service-area configuration
+      description: >-
+        Upserts the provider's single service-area configuration. Only Canada
+        is accepted in this release; province is validated against the
+        canonical list. Coverage changes apply to FUTURE bookings and future
+        reschedules only — existing confirmed bookings stay valid.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateServiceAreaRequest"
+      responses:
+        "200":
+          description: Updated service-area configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyServiceAreaResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/service-area/prefixes:
+    post:
+      operationId: addMyServiceAreaPrefix
+      tags: [providers]
+      summary: Add a covered postal area (Canadian FSA prefix)
+      description: >-
+        Accepts a three-character Canadian FSA (e.g. "M5V") or a full postal
+        code (the FSA is derived). Normalized server-side; duplicates of an
+        ACTIVE entry return 409. Requires the service-area configuration to
+        exist first.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddServiceAreaPrefixRequest"
+      responses:
+        "201":
+          description: Postal area added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceAreaPrefixResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/me/service-area/prefixes/{prefixId}:
+    delete:
+      operationId: removeMyServiceAreaPrefix
+      tags: [providers]
+      summary: Remove a covered postal area
+      description: >-
+        Deactivates the coverage entry (audit-safe; the prefix can be
+        re-added). Owner-scoped — another provider's entry is a non-leaking
+        404. Existing confirmed bookings stay valid; the change applies to
+        future bookings and future reschedules only.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: prefixId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Postal area removed
           content:
             application/json:
               schema:
@@ -3372,9 +3565,16 @@ components:
           description: Canonical public path (/book/{slug}) once a slug exists
         eligible:
           type: boolean
-          description: True when the provider is approved and may publish
+          description: >-
+            True when the provider is approved AND has an active service-area
+            configuration with at least one covered postal area
         verificationStatus:
           $ref: "#/components/schemas/VerificationStatus"
+        serviceAreaConfigured:
+          type: boolean
+          description: >-
+            True when an active service-area configuration with at least one
+            covered postal area exists (publish prerequisite, roadmap #12)
       required:
         - slug
         - published
@@ -3382,6 +3582,7 @@ components:
         - path
         - eligible
         - verificationStatus
+        - serviceAreaConfigured
 
     MyBookingPageResponse:
       type: object
@@ -3451,11 +3652,215 @@ components:
             $ref: "#/components/schemas/Service"
         availability:
           $ref: "#/components/schemas/PublicAvailabilityResponse"
+        serviceArea:
+          $ref: "#/components/schemas/PublicServiceAreaSummary"
       required:
         - slug
         - provider
         - services
         - availability
+        - serviceArea
+
+    PublicServiceAreaSummary:
+      type: object
+      description: >-
+        Public-safe service-area summary (roadmap #12). Contains ONLY the
+        provider-written description and coarse public context — raw coverage
+        entries (FSA prefixes) are never exposed publicly.
+      properties:
+        configured:
+          type: boolean
+          description: >-
+            True when online eligibility checks are available for this page;
+            false reports the `unavailable` state to clients
+        description:
+          type: string
+          nullable: true
+          description: Provider-written plain-language service-area summary
+        countryCode:
+          type: string
+          nullable: true
+        provinceCode:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+      required:
+        - configured
+        - description
+        - countryCode
+        - provinceCode
+        - city
+
+    ServiceAreaEligibilityState:
+      type: string
+      description: Server-authoritative service-area eligibility state (roadmap #12)
+      enum: [eligible, ineligible, needs_review, invalid, unavailable]
+
+    ServiceAreaCheckRequest:
+      type: object
+      description: >-
+        Minimal client location input for the eligibility check. Validated
+        server-side and NOT retained. No coordinates are ever collected.
+      properties:
+        country:
+          type: string
+          description: Country name or code (Canada-first; e.g. "CA", "Canada")
+        province:
+          type: string
+          description: Province/territory code or name (e.g. "ON", "Ontario")
+        city:
+          type: string
+          description: Optional city context
+        postalCode:
+          type: string
+          description: Canadian postal code; normalized server-side
+      required:
+        - country
+        - province
+        - postalCode
+
+    ServiceAreaEligibility:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ServiceAreaEligibilityState"
+        reason:
+          type: string
+          description: >-
+            Allowlisted machine reason code (safe next-step metadata):
+            fsa_match, fsa_not_covered, country_not_served, province_mismatch,
+            missing_location, malformed_postal_code, malformed_location,
+            not_configured
+        message:
+          type: string
+          description: Approved plain-language client-facing message
+      required:
+        - status
+        - reason
+        - message
+
+    ServiceAreaCheckResponse:
+      type: object
+      properties:
+        eligibility:
+          $ref: "#/components/schemas/ServiceAreaEligibility"
+      required:
+        - eligibility
+
+    MyServiceAreaPrefix:
+      type: object
+      properties:
+        id:
+          type: integer
+        countryCode:
+          type: string
+        prefix:
+          type: string
+          description: Normalized Canadian FSA (first three postal characters)
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - countryCode
+        - prefix
+        - createdAt
+
+    MyServiceArea:
+      type: object
+      description: Owner-scoped service-area configuration (roadmap #12)
+      properties:
+        configured:
+          type: boolean
+          description: Active configuration with at least one covered postal area
+        isActive:
+          type: boolean
+        countryCode:
+          type: string
+        provinceCode:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        publicDescription:
+          type: string
+          nullable: true
+        prefixes:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyServiceAreaPrefix"
+        bufferMinutes:
+          type: integer
+          description: >-
+            Centrally managed travel/setup buffer applied between this
+            provider's appointments (default 30). Provider-specific overrides
+            are not available in this release.
+        bufferSource:
+          type: string
+          enum: [default, environment]
+        publishEligible:
+          type: boolean
+          description: Coverage prerequisite for publishing the booking page
+      required:
+        - configured
+        - isActive
+        - countryCode
+        - provinceCode
+        - city
+        - publicDescription
+        - prefixes
+        - bufferMinutes
+        - bufferSource
+        - publishEligible
+
+    MyServiceAreaResponse:
+      type: object
+      properties:
+        serviceArea:
+          $ref: "#/components/schemas/MyServiceArea"
+      required:
+        - serviceArea
+
+    UpdateServiceAreaRequest:
+      type: object
+      properties:
+        countryCode:
+          type: string
+          description: Only "CA" is accepted in this release (defaults to CA)
+        provinceCode:
+          type: string
+          description: Canadian province/territory code or name
+        city:
+          type: string
+          nullable: true
+        publicDescription:
+          type: string
+          nullable: true
+          maxLength: 500
+        isActive:
+          type: boolean
+      required:
+        - provinceCode
+
+    AddServiceAreaPrefixRequest:
+      type: object
+      properties:
+        prefix:
+          type: string
+          description: Three-character Canadian FSA (e.g. "M5V") or a full postal code
+      required:
+        - prefix
+
+    ServiceAreaPrefixResponse:
+      type: object
+      properties:
+        prefix:
+          $ref: "#/components/schemas/MyServiceAreaPrefix"
+      required:
+        - prefix
 
     PublicBookingPageResponse:
       type: object

@@ -245,13 +245,14 @@ describe("rescheduling enforcement", () => {
   });
 
   it("rejects a reschedule overlapping another client's active booking", async () => {
-    // Tom holds 16:00Z–17:00Z (requested = active).
-    const tomBooking = await createBooking(tom, `${date}T16:00:00.000Z`);
+    // Tom holds 16:30Z–17:30Z (requested = active) — 30 min clear of
+    // bookingA's 15:00Z–16:00Z (travel/setup buffer, roadmap #12).
+    const tomBooking = await createBooking(tom, `${date}T16:30:00.000Z`);
     assert.ok(tomBooking > 0);
 
     const res = await patchStatus(jane, bookingA, {
       status: "rescheduled",
-      scheduledAt: `${date}T16:30:00.000Z`, // overlaps 16:00–17:00
+      scheduledAt: `${date}T17:00:00.000Z`, // overlaps 16:30–17:30
     });
     assert.equal(res.status, 409);
     assert.equal(res.body["error"], PROVIDER_UNAVAILABLE_MESSAGE);
@@ -286,18 +287,28 @@ describe("rescheduling enforcement", () => {
     }
   });
 
-  it("client reschedules a confirmed booking to a valid free slot (adjacent is fine)", async () => {
-    // 17:00Z starts exactly when Tom's 16:00Z booking ends — adjacency allowed.
+  it("client reschedules: too-close times are buffer-blocked, buffered slot succeeds", async () => {
+    // 17:30Z starts exactly when Tom's 16:30Z booking ends — back-to-back is
+    // now rejected by the 30-minute travel/setup buffer (roadmap #12).
+    const adjacent = await patchStatus(jane, bookingA, {
+      status: "rescheduled",
+      scheduledAt: `${date}T17:30:00.000Z`,
+    });
+    assert.equal(adjacent.status, 409);
+    assert.equal(adjacent.body["reason"], "travel_buffer_conflict");
+
+    // 20:00Z is ≥30 min clear of every other booking and ends exactly at the
+    // window end — a valid free slot under the buffer rule.
     const res = await patchStatus(jane, bookingA, {
       status: "rescheduled",
-      scheduledAt: `${date}T17:00:00.000Z`,
+      scheduledAt: `${date}T20:00:00.000Z`,
     });
     assert.equal(res.status, 200);
     const booking = res.body["booking"] as Record<string, unknown>;
     assert.equal(booking["status"], "rescheduled");
     assert.equal(
       new Date(String(booking["scheduledAt"])).toISOString(),
-      `${date}T17:00:00.000Z`,
+      `${date}T20:00:00.000Z`,
     );
     // Client-safe projection still holds on the reschedule path.
     assert.ok(!("careNotes" in booking));
@@ -323,7 +334,7 @@ describe("rescheduling enforcement", () => {
     assert.equal(booking["status"], "confirmed");
     assert.equal(
       new Date(String(booking["scheduledAt"])).toISOString(),
-      `${date}T17:00:00.000Z`,
+      `${date}T20:00:00.000Z`,
     );
   });
 

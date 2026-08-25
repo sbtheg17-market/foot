@@ -109,6 +109,26 @@ async function approveProvider(userId: number, profileId: number) {
     .where(eq(providerApplicationsTable.userId, userId));
 }
 
+/**
+ * Configure an active service area with one covered postal area (roadmap
+ * #12): publishing a public booking page now requires active coverage, so
+ * the #11 publish/slug behaviors under test here run with coverage set up.
+ */
+async function configureServiceArea(token: string) {
+  const config = await apiFetch("/providers/me/service-area", {
+    method: "PUT",
+    token,
+    body: JSON.stringify({ countryCode: "CA", provinceCode: "ON", city: "Toronto" }),
+  });
+  assert.equal(config.status, 200, JSON.stringify(config.body));
+  const prefix = await apiFetch("/providers/me/service-area/prefixes", {
+    method: "POST",
+    token,
+    body: JSON.stringify({ prefix: "M5V" }),
+  });
+  assert.equal(prefix.status, 201, JSON.stringify(prefix.body));
+}
+
 async function addWeekdayAvailability(profileId: number) {
   for (let day = 0; day <= 6; day++) {
     await db.insert(availabilityTable).values({
@@ -175,6 +195,7 @@ describe("Provider public booking pages (roadmap #11)", () => {
     providerProfileId = await profileFor(providerUserId);
     await approveProvider(providerUserId, providerProfileId);
     await addWeekdayAvailability(providerProfileId);
+    await configureServiceArea(providerToken);
 
     const [active] = await db
       .insert(servicesTable)
@@ -208,6 +229,7 @@ describe("Provider public booking pages (roadmap #11)", () => {
     twinUserId = twin.userId;
     twinProfileId = await profileFor(twinUserId);
     await approveProvider(twinUserId, twinProfileId);
+    await configureServiceArea(twinToken);
 
     const unapproved = await register(UNAPPROVED_EMAIL, "provider", "Draft", "Provider");
     unapprovedToken = unapproved.token;
@@ -383,6 +405,7 @@ describe("Provider public booking pages (roadmap #11)", () => {
         scheduledAt: slot,
         address: "12 Cedar Ave",
         city: "Toronto",
+        postalCode: "M5V 2T6",
         source: "instagram",
       }),
     });
@@ -408,6 +431,7 @@ describe("Provider public booking pages (roadmap #11)", () => {
         scheduledAt: slot,
         address: "12 Cedar Ave",
         city: "Toronto",
+        postalCode: "M5V 2T6",
         source: "tracking-<script>alert(1)</script>",
       }),
     });
@@ -434,6 +458,7 @@ describe("Provider public booking pages (roadmap #11)", () => {
         scheduledAt: outside,
         address: "12 Cedar Ave",
         city: "Toronto",
+        postalCode: "M5V 2T6",
         source: "qr-card",
       }),
     });

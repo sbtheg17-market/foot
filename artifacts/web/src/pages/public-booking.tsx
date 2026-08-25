@@ -23,6 +23,7 @@ import {
   MapPin, Star, ShieldCheck, Clock, CheckCircle2, CalendarClock, Globe, CalendarX2,
 } from 'lucide-react';
 import BookingModal from '@/components/ui/booking-modal';
+import ServiceAreaCheck, { type EligibilityResult } from '@/components/service-area-check';
 import { ROUTES } from '@/lib/routes';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -68,6 +69,10 @@ export default function PublicBookingPage() {
 
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  // Service-area eligibility (roadmap #12): server-checked BEFORE service and
+  // slot selection. Booking stays hidden until the server says `eligible` —
+  // and the server independently revalidates at booking time regardless.
+  const [eligibility, setEligibility] = useState<EligibilityResult | null>(null);
 
   if (isLoading) {
     return (
@@ -121,6 +126,7 @@ export default function PublicBookingPage() {
   const timezone = page.availability.timezone;
   const selectedService = services.find((s) => s.id === selectedServiceId) ?? null;
   const canBook = me?.user?.role === 'client';
+  const isEligible = eligibility?.status === 'eligible';
 
   const handleBook = () => {
     if (authLoading) return;
@@ -218,6 +224,22 @@ export default function PublicBookingPage() {
           </section>
         )}
 
+        {/* ── Service-area eligibility (roadmap #12) — before services/slots ── */}
+        <ServiceAreaCheck
+          slug={slug}
+          serviceArea={page.serviceArea}
+          eligibility={eligibility}
+          onResult={(result) => {
+            setEligibility(result);
+            // A non-eligible re-check retracts any earlier service choice.
+            if (result?.status !== 'eligible') {
+              setSelectedServiceId(null);
+              setShowBookingModal(false);
+            }
+          }}
+        />
+
+        {isEligible && (
         <section data-testid="public-booking-services">
           <h2 className="text-xl font-serif font-semibold mb-4">Services</h2>
           {services.length === 0 ? (
@@ -253,6 +275,7 @@ export default function PublicBookingPage() {
             </div>
           )}
         </section>
+        )}
 
         {windows.length > 0 && (
           <section data-testid="public-booking-availability">
@@ -305,6 +328,7 @@ export default function PublicBookingPage() {
         </section>
       </div>
 
+      {isEligible && (
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-border max-w-[500px] mx-auto z-40">
         <button
           type="button"
@@ -322,6 +346,7 @@ export default function PublicBookingPage() {
           ) : 'Not accepting new clients'}
         </button>
       </div>
+      )}
 
       {showBookingModal && selectedService && (
         <BookingModal
@@ -329,6 +354,8 @@ export default function PublicBookingPage() {
           providerName={`${provider.firstName} ${provider.lastName}`}
           service={selectedService}
           source={source}
+          initialCity={eligibility?.location.city || undefined}
+          initialPostalCode={eligibility?.location.postalCode || undefined}
           onClose={() => setShowBookingModal(false)}
           onSuccess={() => setShowBookingModal(false)}
         />
