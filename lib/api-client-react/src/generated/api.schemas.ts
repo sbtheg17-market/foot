@@ -822,9 +822,11 @@ export interface BookingPageSettings {
   publishedAt: string | null;
   /** Canonical public path (/book/{slug}) once a slug exists */
   path: string | null;
-  /** True when the provider is approved and may publish */
+  /** True when the provider is approved AND has an active service-area configuration with at least one covered postal area */
   eligible: boolean;
   verificationStatus: VerificationStatus;
+  /** True when an active service-area configuration with at least one covered postal area exists (publish prerequisite, roadmap #12) */
+  serviceAreaConfigured: boolean;
 }
 
 export interface MyBookingPageResponse {
@@ -852,11 +854,124 @@ export interface PublicBookingPageProvider {
   verificationStatus: VerificationStatus;
 }
 
+/**
+ * Public-safe service-area summary (roadmap #12). Contains ONLY the provider-written description and coarse public context — raw coverage entries (FSA prefixes) are never exposed publicly.
+ */
+export interface PublicServiceAreaSummary {
+  /** True when online eligibility checks are available for this page; false reports the `unavailable` state to clients */
+  configured: boolean;
+  /** Provider-written plain-language service-area summary */
+  description: string | null;
+  countryCode: string | null;
+  provinceCode: string | null;
+  city: string | null;
+}
+
 export interface PublicBookingPage {
   slug: string;
   provider: PublicBookingPageProvider;
   services: Service[];
   availability: PublicAvailabilityResponse;
+  serviceArea: PublicServiceAreaSummary;
+}
+
+/**
+ * Server-authoritative service-area eligibility state (roadmap
+ */
+export type ServiceAreaEligibilityState = typeof ServiceAreaEligibilityState[keyof typeof ServiceAreaEligibilityState];
+
+
+export const ServiceAreaEligibilityState = {
+  eligible: 'eligible',
+  ineligible: 'ineligible',
+  needs_review: 'needs_review',
+  invalid: 'invalid',
+  unavailable: 'unavailable',
+} as const;
+
+/**
+ * Minimal client location input for the eligibility check. Validated server-side and NOT retained. No coordinates are ever collected.
+ */
+export interface ServiceAreaCheckRequest {
+  /** Country name or code (Canada-first; e.g. "CA", "Canada") */
+  country: string;
+  /** Province/territory code or name (e.g. "ON", "Ontario") */
+  province: string;
+  /** Optional city context */
+  city?: string;
+  /** Canadian postal code; normalized server-side */
+  postalCode: string;
+}
+
+export interface ServiceAreaEligibility {
+  status: ServiceAreaEligibilityState;
+  /** Allowlisted machine reason code (safe next-step metadata): fsa_match, fsa_not_covered, country_not_served, province_mismatch, missing_location, malformed_postal_code, malformed_location, not_configured */
+  reason: string;
+  /** Approved plain-language client-facing message */
+  message: string;
+}
+
+export interface ServiceAreaCheckResponse {
+  eligibility: ServiceAreaEligibility;
+}
+
+export interface MyServiceAreaPrefix {
+  id: number;
+  countryCode: string;
+  /** Normalized Canadian FSA (first three postal characters) */
+  prefix: string;
+  createdAt: string;
+}
+
+export type MyServiceAreaBufferSource = typeof MyServiceAreaBufferSource[keyof typeof MyServiceAreaBufferSource];
+
+
+export const MyServiceAreaBufferSource = {
+  default: 'default',
+  environment: 'environment',
+} as const;
+
+/**
+ * Owner-scoped service-area configuration (roadmap
+ */
+export interface MyServiceArea {
+  /** Active configuration with at least one covered postal area */
+  configured: boolean;
+  isActive: boolean;
+  countryCode: string;
+  provinceCode: string | null;
+  city: string | null;
+  publicDescription: string | null;
+  prefixes: MyServiceAreaPrefix[];
+  /** Centrally managed travel/setup buffer applied between this provider's appointments (default 30). Provider-specific overrides are not available in this release. */
+  bufferMinutes: number;
+  bufferSource: MyServiceAreaBufferSource;
+  /** Coverage prerequisite for publishing the booking page */
+  publishEligible: boolean;
+}
+
+export interface MyServiceAreaResponse {
+  serviceArea: MyServiceArea;
+}
+
+export interface UpdateServiceAreaRequest {
+  /** Only "CA" is accepted in this release (defaults to CA) */
+  countryCode?: string;
+  /** Canadian province/territory code or name */
+  provinceCode: string;
+  city?: string | null;
+  /** @maxLength 500 */
+  publicDescription?: string | null;
+  isActive?: boolean;
+}
+
+export interface AddServiceAreaPrefixRequest {
+  /** Three-character Canadian FSA (e.g. "M5V") or a full postal code */
+  prefix: string;
+}
+
+export interface ServiceAreaPrefixResponse {
+  prefix: MyServiceAreaPrefix;
 }
 
 export interface PublicBookingPageResponse {

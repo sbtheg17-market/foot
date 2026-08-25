@@ -19,7 +19,7 @@ import {
   useUnpublishMyBookingPage,
 } from '@workspace/api-client-react';
 import { useToast } from '@/hooks/use-toast';
-import { publicBookingPageUrl } from '@/lib/routes';
+import { publicBookingPageUrl, ROUTES } from '@/lib/routes';
 import { canNativeShare, copyText } from '@/components/share-listing-actions';
 
 const SHARE_TITLE = 'OnCall Foot';
@@ -58,8 +58,19 @@ export default function BookingPageCard() {
         toast({ title: 'Booking page published', description: 'Your public booking link is live.' });
         void refresh();
       },
-      onError: () =>
-        toast({ title: "Couldn't publish", description: 'Please try again.', variant: 'destructive' }),
+      onError: (err: unknown) => {
+        const apiError = err as { data?: { error?: string; reason?: string } | null };
+        if (apiError.data?.reason === 'service_area_required') {
+          toast({
+            title: 'Add your service area first',
+            description:
+              'Set at least one postal area in Areas you serve, then publish your page.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        toast({ title: "Couldn't publish", description: 'Please try again.', variant: 'destructive' });
+      },
     });
 
   const handleUnpublish = () =>
@@ -133,7 +144,21 @@ export default function BookingPageCard() {
           className="bg-secondary/60 border border-border rounded-2xl p-4 text-sm text-muted-foreground"
           data-testid="booking-page-not-eligible"
         >
-          Publishing unlocks once your provider application is approved.
+          {bp.verificationStatus !== 'approved' ? (
+            'Publishing unlocks once your provider application is approved.'
+          ) : (
+            <>
+              Publishing unlocks once you've set the areas you serve — clients check their
+              postal code on your page before booking.{' '}
+              <a
+                href={ROUTES.provider.serviceArea}
+                className="font-semibold text-primary hover:underline"
+                data-testid="booking-page-service-area-link"
+              >
+                Set your service area
+              </a>
+            </>
+          )}
         </div>
       ) : !bp.published ? (
         <div data-testid="booking-page-unpublished">

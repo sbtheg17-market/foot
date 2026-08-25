@@ -17,6 +17,9 @@ interface BookingModalProps {
   service: Service;
   /** Allowlisted acquisition-source attribution (from /book/:slug?source=…). */
   source?: string | null;
+  /** Prefill from the service-area eligibility step (roadmap #12). */
+  initialCity?: string;
+  initialPostalCode?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -26,12 +29,17 @@ function toDateInput(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function BookingModal({ providerId, providerName, service, source, onClose, onSuccess }: BookingModalProps) {
+export default function BookingModal({ providerId, providerName, service, source, initialCity, initialPostalCode, onClose, onSuccess }: BookingModalProps) {
   const [, setLocation] = useLocation();
   const today = useMemo(() => toDateInput(new Date()), []);
   const [date, setDate] = useState(today);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [form, setForm] = useState({ address: '', city: '', postalCode: '', clientNotes: '' });
+  const [form, setForm] = useState({
+    address: '',
+    city: initialCity ?? '',
+    postalCode: initialPostalCode ?? '',
+    clientNotes: '',
+  });
 
   const {
     data: slotsRes,
@@ -101,6 +109,26 @@ export default function BookingModal({ providerId, providerName, service, source
           }
           if (reason === 'duplicate_booking') {
             toast.info('You already have a booking for this time. Check your bookings.');
+            return;
+          }
+          // Travel/setup buffer (roadmap #12): the time is too close to
+          // another appointment — recover in place like an availability miss.
+          if (reason === 'travel_buffer_conflict') {
+            toast.info(
+              apiError.data?.error ??
+                'That time is too close to another appointment. Please choose another available time.',
+            );
+            setSelectedSlot(null);
+            void refetchSlots();
+            return;
+          }
+          // Service-area enforcement (roadmap #12): show the server's exact
+          // plain-language message — the location, not the time, is the issue.
+          if (reason === 'outside_service_area' || reason === 'invalid_location') {
+            toast.error(
+              apiError.data?.error ??
+                'This provider does not currently serve this area. Check the postal code.',
+            );
             return;
           }
           const msg = apiError.data?.error ?? 'Could not create booking. Please try again.';

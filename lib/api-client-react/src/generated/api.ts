@@ -21,6 +21,7 @@ import type {
 
 import type {
   AcceptRescheduleResponse,
+  AddServiceAreaPrefixRequest,
   AdminProviderApplicationResponse,
   AdminVerificationQueueResponse,
   ApplicationCompletionResponse,
@@ -61,6 +62,7 @@ import type {
   MeResponse,
   MessageResponse,
   MyBookingPageResponse,
+  MyServiceAreaResponse,
   NotFoundResponse,
   ProviderApplicationDetailResponse,
   ProviderApplicationStatusResponse,
@@ -83,6 +85,9 @@ import type {
   ReviewListResponse,
   ReviewResponse,
   ReviewVerificationDocRequest,
+  ServiceAreaCheckRequest,
+  ServiceAreaCheckResponse,
+  ServiceAreaPrefixResponse,
   ServiceListResponse,
   ServiceResponse,
   SetAvailabilityRequest,
@@ -93,6 +98,7 @@ import type {
   UpdateBookingStatusRequest,
   UpdateProviderApplicationRequest,
   UpdateProviderProfileRequest,
+  UpdateServiceAreaRequest,
   UpdateServiceRequest,
   VerificationDocResponse,
   VerificationStatusResponse
@@ -2413,6 +2419,152 @@ export function useGetPublicBookingPage<TData = Awaited<ReturnType<typeof getPub
 
 
 
+export const getCheckBookingPageServiceAreaUrl = (slug: string,) => {
+
+
+
+
+  return `/api/booking-pages/${slug}/service-area-check`
+}
+
+/**
+ * Server-authoritative eligibility for the provider-owned public booking page. Returns ONLY a safe eligibility state, the approved public message, and an allowlisted reason code — never raw coverage entries or provider-private data. Client location input is validated minimally and NOT retained. Missing, unpublished, unapproved, and format-invalid slugs return the same generic non-leaking 404 as the page itself.
+ * @summary Public service-area eligibility check for a booking page (roadmap
+ */
+export const checkBookingPageServiceArea = async (slug: string,
+    serviceAreaCheckRequest: ServiceAreaCheckRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceAreaCheckResponse> => {
+
+  return customFetch<ServiceAreaCheckResponse>(getCheckBookingPageServiceAreaUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(serviceAreaCheckRequest)
+  }
+);}
+
+
+
+
+
+export const getCheckBookingPageServiceAreaMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkBookingPageServiceArea>>, TError,{slug: string;data: BodyType<ServiceAreaCheckRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkBookingPageServiceArea>>, TError,{slug: string;data: BodyType<ServiceAreaCheckRequest>}, TContext> => {
+
+const mutationKey = ['checkBookingPageServiceArea'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkBookingPageServiceArea>>, {slug: string;data: BodyType<ServiceAreaCheckRequest>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  checkBookingPageServiceArea(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckBookingPageServiceAreaMutationResult = NonNullable<Awaited<ReturnType<typeof checkBookingPageServiceArea>>>
+    export type CheckBookingPageServiceAreaMutationBody = BodyType<ServiceAreaCheckRequest>
+    export type CheckBookingPageServiceAreaMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Public service-area eligibility check for a booking page (roadmap
+ */
+export const useCheckBookingPageServiceArea = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkBookingPageServiceArea>>, TError,{slug: string;data: BodyType<ServiceAreaCheckRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkBookingPageServiceArea>>,
+        TError,
+        {slug: string;data: BodyType<ServiceAreaCheckRequest>},
+        TContext
+      > => {
+      return useMutation(getCheckBookingPageServiceAreaMutationOptions(options));
+    }
+
+export const getCheckProviderServiceAreaUrl = (providerId: number,) => {
+
+
+
+
+  return `/api/providers/${providerId}/service-area-check`
+}
+
+/**
+ * Same server-authoritative evaluation as the booking-page check, keyed by public provider id for the existing marketplace booking flow. Providers without active coverage report `unavailable` with reason `not_configured` (marketplace booking then proceeds under legacy behavior — enforcement starts once the provider configures coverage).
+ * @summary Public service-area eligibility check for the marketplace flow (roadmap
+ */
+export const checkProviderServiceArea = async (providerId: number,
+    serviceAreaCheckRequest: ServiceAreaCheckRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceAreaCheckResponse> => {
+
+  return customFetch<ServiceAreaCheckResponse>(getCheckProviderServiceAreaUrl(providerId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(serviceAreaCheckRequest)
+  }
+);}
+
+
+
+
+
+export const getCheckProviderServiceAreaMutationOptions = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkProviderServiceArea>>, TError,{providerId: number;data: BodyType<ServiceAreaCheckRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkProviderServiceArea>>, TError,{providerId: number;data: BodyType<ServiceAreaCheckRequest>}, TContext> => {
+
+const mutationKey = ['checkProviderServiceArea'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkProviderServiceArea>>, {providerId: number;data: BodyType<ServiceAreaCheckRequest>}> = (props) => {
+          const {providerId,data} = props ?? {};
+
+          return  checkProviderServiceArea(providerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckProviderServiceAreaMutationResult = NonNullable<Awaited<ReturnType<typeof checkProviderServiceArea>>>
+    export type CheckProviderServiceAreaMutationBody = BodyType<ServiceAreaCheckRequest>
+    export type CheckProviderServiceAreaMutationError = ErrorType<NotFoundResponse>
+
+    /**
+ * @summary Public service-area eligibility check for the marketplace flow (roadmap
+ */
+export const useCheckProviderServiceArea = <TError = ErrorType<NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkProviderServiceArea>>, TError,{providerId: number;data: BodyType<ServiceAreaCheckRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkProviderServiceArea>>,
+        TError,
+        {providerId: number;data: BodyType<ServiceAreaCheckRequest>},
+        TContext
+      > => {
+      return useMutation(getCheckProviderServiceAreaMutationOptions(options));
+    }
+
 export const getGetMyListingPreviewUrl = () => {
 
 
@@ -3147,6 +3299,300 @@ export const useDeleteTravelZone = <TError = ErrorType<UnauthorizedResponse | Fo
         TContext
       > => {
       return useMutation(getDeleteTravelZoneMutationOptions(options));
+    }
+
+export const getGetMyServiceAreaUrl = () => {
+
+
+
+
+  return `/api/providers/me/service-area`
+}
+
+/**
+ * Owner-scoped Canada-first coverage configuration: country/province, optional city context, plain-language public description, active normalized postal prefixes (FSA), the centrally managed travel/setup buffer, and publish eligibility. Raw coverage entries are returned ONLY here — public surfaces receive safe eligibility states, never the prefix list.
+ * @summary Own service-area configuration and coverage (roadmap
+ */
+export const getMyServiceArea = async ( options?: Parameters<typeof customFetch>[1]): Promise<MyServiceAreaResponse> => {
+
+  return customFetch<MyServiceAreaResponse>(getGetMyServiceAreaUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyServiceAreaQueryKey = () => {
+    return [
+    `/api/providers/me/service-area`
+    ] as const;
+    }
+
+
+export const getGetMyServiceAreaQueryOptions = <TData = Awaited<ReturnType<typeof getMyServiceArea>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyServiceArea>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyServiceAreaQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyServiceArea>>> = ({ signal }) => getMyServiceArea({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyServiceArea>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyServiceAreaQueryResult = NonNullable<Awaited<ReturnType<typeof getMyServiceArea>>>
+export type GetMyServiceAreaQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Own service-area configuration and coverage (roadmap
+ */
+
+export function useGetMyServiceArea<TData = Awaited<ReturnType<typeof getMyServiceArea>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyServiceArea>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyServiceAreaQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMyServiceAreaUrl = () => {
+
+
+
+
+  return `/api/providers/me/service-area`
+}
+
+/**
+ * Upserts the provider's single service-area configuration. Only Canada is accepted in this release; province is validated against the canonical list. Coverage changes apply to FUTURE bookings and future reschedules only — existing confirmed bookings stay valid.
+ * @summary Create or update own service-area configuration
+ */
+export const updateMyServiceArea = async (updateServiceAreaRequest: UpdateServiceAreaRequest, options?: Parameters<typeof customFetch>[1]): Promise<MyServiceAreaResponse> => {
+
+  return customFetch<MyServiceAreaResponse>(getUpdateMyServiceAreaUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateServiceAreaRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateMyServiceAreaMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyServiceArea>>, TError,{data: BodyType<UpdateServiceAreaRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMyServiceArea>>, TError,{data: BodyType<UpdateServiceAreaRequest>}, TContext> => {
+
+const mutationKey = ['updateMyServiceArea'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMyServiceArea>>, {data: BodyType<UpdateServiceAreaRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateMyServiceArea(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMyServiceAreaMutationResult = NonNullable<Awaited<ReturnType<typeof updateMyServiceArea>>>
+    export type UpdateMyServiceAreaMutationBody = BodyType<UpdateServiceAreaRequest>
+    export type UpdateMyServiceAreaMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Create or update own service-area configuration
+ */
+export const useUpdateMyServiceArea = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyServiceArea>>, TError,{data: BodyType<UpdateServiceAreaRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMyServiceArea>>,
+        TError,
+        {data: BodyType<UpdateServiceAreaRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateMyServiceAreaMutationOptions(options));
+    }
+
+export const getAddMyServiceAreaPrefixUrl = () => {
+
+
+
+
+  return `/api/providers/me/service-area/prefixes`
+}
+
+/**
+ * Accepts a three-character Canadian FSA (e.g. "M5V") or a full postal code (the FSA is derived). Normalized server-side; duplicates of an ACTIVE entry return 409. Requires the service-area configuration to exist first.
+ * @summary Add a covered postal area (Canadian FSA prefix)
+ */
+export const addMyServiceAreaPrefix = async (addServiceAreaPrefixRequest: AddServiceAreaPrefixRequest, options?: Parameters<typeof customFetch>[1]): Promise<ServiceAreaPrefixResponse> => {
+
+  return customFetch<ServiceAreaPrefixResponse>(getAddMyServiceAreaPrefixUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(addServiceAreaPrefixRequest)
+  }
+);}
+
+
+
+
+
+export const getAddMyServiceAreaPrefixMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMyServiceAreaPrefix>>, TError,{data: BodyType<AddServiceAreaPrefixRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addMyServiceAreaPrefix>>, TError,{data: BodyType<AddServiceAreaPrefixRequest>}, TContext> => {
+
+const mutationKey = ['addMyServiceAreaPrefix'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMyServiceAreaPrefix>>, {data: BodyType<AddServiceAreaPrefixRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  addMyServiceAreaPrefix(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddMyServiceAreaPrefixMutationResult = NonNullable<Awaited<ReturnType<typeof addMyServiceAreaPrefix>>>
+    export type AddMyServiceAreaPrefixMutationBody = BodyType<AddServiceAreaPrefixRequest>
+    export type AddMyServiceAreaPrefixMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
+
+    /**
+ * @summary Add a covered postal area (Canadian FSA prefix)
+ */
+export const useAddMyServiceAreaPrefix = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMyServiceAreaPrefix>>, TError,{data: BodyType<AddServiceAreaPrefixRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addMyServiceAreaPrefix>>,
+        TError,
+        {data: BodyType<AddServiceAreaPrefixRequest>},
+        TContext
+      > => {
+      return useMutation(getAddMyServiceAreaPrefixMutationOptions(options));
+    }
+
+export const getRemoveMyServiceAreaPrefixUrl = (prefixId: number,) => {
+
+
+
+
+  return `/api/providers/me/service-area/prefixes/${prefixId}`
+}
+
+/**
+ * Deactivates the coverage entry (audit-safe; the prefix can be re-added). Owner-scoped — another provider's entry is a non-leaking 404. Existing confirmed bookings stay valid; the change applies to future bookings and future reschedules only.
+ * @summary Remove a covered postal area
+ */
+export const removeMyServiceAreaPrefix = async (prefixId: number, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getRemoveMyServiceAreaPrefixUrl(prefixId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveMyServiceAreaPrefixMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMyServiceAreaPrefix>>, TError,{prefixId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeMyServiceAreaPrefix>>, TError,{prefixId: number}, TContext> => {
+
+const mutationKey = ['removeMyServiceAreaPrefix'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeMyServiceAreaPrefix>>, {prefixId: number}> = (props) => {
+          const {prefixId} = props ?? {};
+
+          return  removeMyServiceAreaPrefix(prefixId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveMyServiceAreaPrefixMutationResult = NonNullable<Awaited<ReturnType<typeof removeMyServiceAreaPrefix>>>
+
+    export type RemoveMyServiceAreaPrefixMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Remove a covered postal area
+ */
+export const useRemoveMyServiceAreaPrefix = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeMyServiceAreaPrefix>>, TError,{prefixId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeMyServiceAreaPrefix>>,
+        TError,
+        {prefixId: number},
+        TContext
+      > => {
+      return useMutation(getRemoveMyServiceAreaPrefixMutationOptions(options));
     }
 
 export const getGetMyEarningsUrl = () => {

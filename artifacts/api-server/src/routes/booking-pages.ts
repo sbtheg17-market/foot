@@ -22,6 +22,12 @@ import {
 } from "@workspace/db";
 import { getMarketplaceTimezone } from "../lib/availability.js";
 import { isValidBookingPageSlug } from "../lib/booking-page.js";
+import {
+  SERVICE_AREA_MESSAGES,
+  evaluateServiceAreaEligibility,
+  isCoverageConfigured,
+  loadProviderCoverage,
+} from "../lib/service-area.js";
 
 const router = Router();
 
@@ -75,7 +81,7 @@ router.get("/:slug", async (req: Request, res: Response): Promise<void> => {
 
   const timezone = getMarketplaceTimezone();
 
-  const [services, windows] = await Promise.all([
+  const [services, windows, coverage] = await Promise.all([
     db
       .select({
         id: servicesTable.id,
@@ -103,6 +109,7 @@ router.get("/:slug", async (req: Request, res: Response): Promise<void> => {
       .from(availabilityTable)
       .where(eq(availabilityTable.providerId, provider.id))
       .orderBy(availabilityTable.dayOfWeek, availabilityTable.startTime),
+    loadProviderCoverage(db, provider.id),
   ]);
 
   res.json({
@@ -111,8 +118,74 @@ router.get("/:slug", async (req: Request, res: Response): Promise<void> => {
       provider,
       services,
       availability: { timezone, windows },
+      // Public service-area summary (roadmap #12) — safe fields ONLY. Raw
+      // coverage entries (FSA prefixes) are NEVER exposed publicly; clients
+      // check eligibility via POST /booking-pages/:slug/service-area-check.
+      serviceArea: {
+        configured: isCoverageConfigured(coverage),
+        description: coverage.config?.publicDescription ?? null,
+        countryCode: coverage.config?.countryCode ?? null,
+        provinceCode: coverage.config?.provinceCode ?? null,
+        city: coverage.config?.city ?? null,
+      },
     },
   });
 });
+
+/**
+ * POST /booking-pages/:slug/service-area-check — public eligibility check
+ * for the provider-owned booking page (roadmap #12).
+ *
+ * Server-authoritative and non-leaking: missing, unpublished, unapproved,
+ * and format-invalid slugs return the SAME generic 404 as the page itself.
+ * The response contains ONLY a safe eligibility state, the approved public
+ * message, and an allowlisted reason code — never coverage entries, never
+ * provider-private data. Client location input is validated minimally and
+ * NOT retained.
+ */
+router.post(
+  "/:slug/service-area-check",
+  async (req: Request, res: Response): Promise<void> => {
+    const slug = String(req.params["slug"] ?? "");
+    if (!isValidBookingPageSlug(slug)) {
+      res.status(404).json(NOT_FOUND_BODY);
+      return;
+    }
+
+    const [provider] = await db
+      .select({ id: providerProfilesTable.id })
+      .from(providerProfilesTable)
+      .where(
+        and(
+          eq(providerProfilesTable.publicSlug, slug),
+          eq(providerProfilesTable.bookingPagePublished, true),
+          eq(providerProfilesTable.verificationStatus, "approved"),
+        ),
+      )
+      .limit(1);
+
+    if (!provider) {
+      res.status(404).json(NOT_FOUND_BODY);
+      return;
+    }
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const coverage = await loadProviderCoverage(db, provider.id);
+    const result = evaluateServiceAreaEligibility(coverage, {
+      country: body["country"],
+      province: body["province"],
+      city: body["city"],
+      postalCode: body["postalCode"],
+    });
+
+    res.json({
+      eligibility: {
+        status: result.status,
+        reason: result.reason,
+        message: SERVICE_AREA_MESSAGES[result.status],
+      },
+    });
+  },
+);
 
 export default router;

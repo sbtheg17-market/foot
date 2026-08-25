@@ -1,6 +1,6 @@
 import React from 'react';
 import { useGetMyProviderProfile, useListBookings, useGetMyEarnings } from '@workspace/api-client-react';
-import { Calendar, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, AlertCircle, MapPin } from 'lucide-react';
 import { Link } from 'wouter';
 import ReadinessSummaryCard from '@/components/readiness-summary-card';
 import FirstBookingCard from '@/components/first-booking-card';
@@ -64,6 +64,21 @@ export default function PortalDashboard() {
           <div className="flex-1">
             <h3 className="font-semibold text-foreground">Preview my listing</h3>
             <p className="text-sm text-muted-foreground">See exactly how clients will view and book you.</p>
+          </div>
+        </div>
+      </Link>
+
+      <Link href="/provider/service-area">
+        <div
+          data-testid="dashboard-service-area-link"
+          className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:border-primary/50 transition-colors"
+        >
+          <div className="bg-primary/10 p-2 rounded-full text-primary"><MapPin className="w-5 h-5" /></div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-foreground">Areas you serve</h3>
+            <p className="text-sm text-muted-foreground">
+              Set your postal areas so clients can check availability before booking.
+            </p>
           </div>
         </div>
       </Link>

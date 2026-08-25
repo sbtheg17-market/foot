@@ -24,6 +24,13 @@ import {
   computeProposalDeadline,
   getProviderProposalLimit,
 } from "../lib/reschedule-policy.js";
+import {
+  TRAVEL_BUFFER_CONFLICT_MESSAGE,
+  RESCHEDULE_OUTSIDE_SERVICE_AREA_MESSAGE,
+  evaluateBookingLocation,
+  getTravelSetupBufferMinutes,
+  loadProviderCoverage,
+} from "../lib/service-area.js";
 
 /**
  * Consent-first provider rescheduling (docs/rescheduling-policy.md).
@@ -137,6 +144,17 @@ async function validateProposedTime(
     );
   }
 
+  // Service-area revalidation (roadmap #12): the booking's stored location
+  // must pass the provider's CURRENT active coverage both when a proposal
+  // is created AND again at consent time (this helper runs on both paths).
+  // The existing confirmed appointment stays valid — only the change is
+  // blocked. Providers with no active coverage keep existing behavior.
+  const coverage = await loadProviderCoverage(tx, booking.providerId);
+  const locationCheck = evaluateBookingLocation(coverage, booking.postalCode);
+  if (locationCheck.enforced && locationCheck.result.status !== "eligible") {
+    throw httpError(409, RESCHEDULE_OUTSIDE_SERVICE_AREA_MESSAGE);
+  }
+
   const windows = (await tx
     .select({
       dayOfWeek: availabilityTable.dayOfWeek,
@@ -192,6 +210,33 @@ async function validateProposedTime(
     )
     .limit(1);
   if (conflict) throw httpError(409, UNAVAILABLE_MESSAGE);
+
+  // Travel/setup buffer (roadmap #12): the proposed interval, expanded by
+  // the centrally managed buffer, must not touch any OTHER active
+  // appointment for this provider. Revalidated at proposal creation AND at
+  // consent time (both paths call this helper). The booking being
+  // rescheduled never blocks itself.
+  const bufferMinutes = getTravelSetupBufferMinutes();
+  if (bufferMinutes > 0) {
+    const bufferedEnd = new Date(
+      proposedEnd.getTime() + bufferMinutes * 60000,
+    );
+    const [nearMiss] = await tx
+      .select({ id: bookingsTable.id })
+      .from(bookingsTable)
+      .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
+      .where(
+        and(
+          eq(bookingsTable.providerId, booking.providerId),
+          inArray(bookingsTable.status, ["requested", "confirmed", "rescheduled"]),
+          sql`${bookingsTable.id} <> ${booking.id}`,
+          sql`${bookingsTable.scheduledAt} < ${bufferedEnd}`,
+          sql`${proposedDate} < ${bookingsTable.scheduledAt} + make_interval(mins => ${servicesTable.durationMinutes} + ${bufferMinutes})`,
+        ),
+      )
+      .limit(1);
+    if (nearMiss) throw httpError(409, TRAVEL_BUFFER_CONFLICT_MESSAGE);
+  }
 }
 
 /** True when the booking's CURRENT time is still feasible (future + fits an availability window). */

@@ -7,6 +7,7 @@
  */
 import type { PublicAvailabilityResponse } from './publicAvailabilityResponse';
 import type { PublicBookingPageProvider } from './publicBookingPageProvider';
+import type { PublicServiceAreaSummary } from './publicServiceAreaSummary';
 import type { Service } from './service';
 
 export interface PublicBookingPage {
@@ -14,4 +15,5 @@ export interface PublicBookingPage {
   provider: PublicBookingPageProvider;
   services: Service[];
   availability: PublicAvailabilityResponse;
+  serviceArea: PublicServiceAreaSummary;
 }

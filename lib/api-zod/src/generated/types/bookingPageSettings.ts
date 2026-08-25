@@ -17,7 +17,9 @@ export interface BookingPageSettings {
   publishedAt: Date | null;
   /** Canonical public path (/book/{slug}) once a slug exists */
   path: string | null;
-  /** True when the provider is approved and may publish */
+  /** True when the provider is approved AND has an active service-area configuration with at least one covered postal area */
   eligible: boolean;
   verificationStatus: VerificationStatus;
+  /** True when an active service-area configuration with at least one covered postal area exists (publish prerequisite, roadmap #12) */
+  serviceAreaConfigured: boolean;
 }
