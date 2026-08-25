@@ -1,0 +1,58 @@
+[
+  {
+    "content": "Phase 1: DB schema (Drizzle) + frozen SQL artifact PROVIDER_SERVICE_AREAS_V1.sql",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Server lib service-area.ts (normalization, eligibility evaluator, buffer config)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Provider config API routes + publish gating",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Public eligibility check endpoints (slug + providerId)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Booking/reschedule/proposal enforcement (coverage + buffer) + buffer-aware slots",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: POC validation on disposable local PostgreSQL (core integration test green)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2: OpenAPI updates + orval codegen",
+    "status": "in_progress"
+  },
+  {
+    "content": "Phase 2: Web portal service-area settings page + nav/route",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Public booking page eligibility step (before service/slot selection)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Mobile parity (eligibility before booking + new error handling)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 3: Unit + integration + web/a11y tests, CI wiring (preserve 16-job matrix)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 3: Full validation (typecheck, builds, all suites, migration checks, expo exports, secret scan)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 3: Docs + TODO ledger + continuity records (append-dated)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 4: Branch, commit, push, PR, squash-merge, verify main",
+    "status": "pending"
+  }
+]
