@@ -98,6 +98,7 @@ import type {
   SetAvailabilityRequest,
   SubmitVerificationDocRequest,
   SupportBookingEscalationsResponse,
+  SupportContactResponse,
   TravelZoneListResponse,
   TravelZoneResponse,
   UnauthorizedResponse,
@@ -5465,6 +5466,83 @@ export function useGetOutcomeHistory<TData = Awaited<ReturnType<typeof getOutcom
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetOutcomeHistoryQueryOptions(bookingId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSupportContactUrl = () => {
+
+
+
+
+  return `/api/support/contact`
+}
+
+/**
+ * @summary Public support contact link (env-configured, pilot placeholder fallback)
+ */
+export const getSupportContact = async ( options?: Parameters<typeof customFetch>[1]): Promise<SupportContactResponse> => {
+
+  return customFetch<SupportContactResponse>(getGetSupportContactUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSupportContactQueryKey = () => {
+    return [
+    `/api/support/contact`
+    ] as const;
+    }
+
+
+export const getGetSupportContactQueryOptions = <TData = Awaited<ReturnType<typeof getSupportContact>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupportContact>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSupportContactQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSupportContact>>> = ({ signal }) => getSupportContact({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSupportContact>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSupportContactQueryResult = NonNullable<Awaited<ReturnType<typeof getSupportContact>>>
+export type GetSupportContactQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Public support contact link (env-configured, pilot placeholder fallback)
+ */
+
+export function useGetSupportContact<TData = Awaited<ReturnType<typeof getSupportContact>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupportContact>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSupportContactQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

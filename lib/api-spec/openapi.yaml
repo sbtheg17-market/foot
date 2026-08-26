@@ -2008,6 +2008,19 @@ paths:
 
   # ── Support (minimal, API-first — roadmap #13) ────────────────────────────────
 
+  /support/contact:
+    get:
+      operationId: getSupportContact
+      tags: [support]
+      summary: Public support contact link (env-configured, pilot placeholder fallback)
+      responses:
+        "200":
+          description: The support contact to render in public and portal footers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportContactResponse"
+
   /support/escalations:
     post:
       operationId: createSupportEscalation
@@ -4267,6 +4280,24 @@ components:
           type: string
           format: date-time
       required: [id, bookingId, subject, status, createdAt, updatedAt]
+
+    SupportContactResponse:
+      type: object
+      required: [contact]
+      properties:
+        contact:
+          type: object
+          required: [url, label, isPlaceholder]
+          properties:
+            url:
+              type: string
+              description: "mailto: or http(s) link for reaching support"
+            label:
+              type: string
+              description: Human-readable label (the email address, or a generic label for URLs)
+            isPlaceholder:
+              type: boolean
+              description: True when no SUPPORT_CONTACT_* environment override is configured (pilot placeholder)
 
     EscalationResponse:
       type: object

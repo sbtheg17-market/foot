@@ -25,6 +25,7 @@ import {
 import BookingModal from '@/components/ui/booking-modal';
 import CancellationPolicyNotice from '@/components/cancellation-policy-notice';
 import ServiceAreaCheck, { type EligibilityResult } from '@/components/service-area-check';
+import SupportContactLink from '@/components/support-contact-link';
 import { ROUTES } from '@/lib/routes';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -335,6 +336,14 @@ export default function PublicBookingPage() {
             </div>
           )}
         </section>
+
+        {/* ── Support contact (pilot readiness) — env-configured, server-resolved ── */}
+        <footer
+          className="border-t border-border pt-6 pb-2 text-center"
+          data-testid="public-booking-support-footer"
+        >
+          <SupportContactLink testId="public-booking-support-link" />
+        </footer>
       </div>
 
       {isEligible && (

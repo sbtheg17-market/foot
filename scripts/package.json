@@ -5,10 +5,16 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "smoke:real-browser": "tsx ./src/pilot/smoke-real-browser.ts",
+    "smoke:mobile-emulation": "tsx ./src/pilot/native-device-emulation.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "playwright": "^1.62.1",
     "tsx": "catalog:"
+  },
+  "dependencies": {
+    "@workspace/db": "workspace:*"
   }
 }
