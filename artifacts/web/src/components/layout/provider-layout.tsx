@@ -5,6 +5,7 @@ import { useGetMe, useListBookings, ListBookingsStatus, useGetMyProviderReadines
 import { useProviderNotifications } from '@/hooks/use-provider-notifications';
 import { useUnreadCount } from '@/hooks/use-notification-center';
 import { unresolvedCount } from '@/lib/readiness';
+import SupportContactLink from '@/components/support-contact-link';
 import { ROUTES } from '@/lib/routes';
 
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
@@ -151,6 +152,14 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
       <main className="min-h-full">
         {children}
       </main>
+
+      {/* ── Support contact (pilot readiness) — visible on every portal page ── */}
+      <footer className="px-6 py-6 text-center print:hidden">
+        <SupportContactLink
+          testId="provider-portal-support-link"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+        />
+      </footer>
     </div>
   );
 }

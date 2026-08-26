@@ -15,6 +15,7 @@ import {
   requireRole,
 } from "../middlewares/auth.js";
 import { logger } from "../lib/logger.js";
+import { getSupportContact } from "../lib/support-contact.js";
 import type { BookingStatus } from "../lib/booking-state-machine.js";
 
 /**
@@ -38,6 +39,16 @@ const ESCALATION_NOT_AVAILABLE_MESSAGE =
 
 const TICKET_STATUSES = ["open", "in_progress", "resolved"] as const;
 type TicketStatus = (typeof TICKET_STATUSES)[number];
+
+// ── GET /support/contact — public support contact (pilot readiness) ──────────
+//
+// Env-configured (SUPPORT_CONTACT_URL > SUPPORT_CONTACT_EMAIL > documented
+// placeholder). Public by design: the booking page footer and portal footers
+// render it for signed-out visitors too. Invalid env values throw → 500.
+
+router.get("/contact", (_req: Request, res: Response): void => {
+  res.json({ contact: getSupportContact() });
+});
 
 /** Party-safe ticket projection — never leaks admin notes or other users. */
 function toSafeTicket(ticket: typeof supportTicketsTable.$inferSelect) {

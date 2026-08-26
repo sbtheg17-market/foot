@@ -165,6 +165,8 @@ export * from './submitVerificationDocRequest';
 export * from './submitVerificationDocRequestDocType';
 export * from './supportBookingEscalationsResponse';
 export * from './supportBookingEscalationsResponseBooking';
+export * from './supportContactResponse';
+export * from './supportContactResponseContact';
 export * from './travelZone';
 export * from './travelZoneListResponse';
 export * from './travelZoneResponse';

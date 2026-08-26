@@ -1147,6 +1147,19 @@ export interface EscalationTicket {
   updatedAt: string;
 }
 
+export type SupportContactResponseContact = {
+  /** mailto: or http(s) link for reaching support */
+  url: string;
+  /** Human-readable label (the email address, or a generic label for URLs) */
+  label: string;
+  /** True when no SUPPORT_CONTACT_* environment override is configured (pilot placeholder) */
+  isPlaceholder: boolean;
+};
+
+export interface SupportContactResponse {
+  contact: SupportContactResponseContact;
+}
+
 export interface EscalationResponse {
   ticket: EscalationTicket;
   /** True when a new ticket was created; false for idempotent replays */

@@ -2116,6 +2116,18 @@ export const GetOutcomeHistoryResponse = zod.object({
 
 
 /**
+ * @summary Public support contact link (env-configured, pilot placeholder fallback)
+ */
+export const GetSupportContactResponse = zod.object({
+  "contact": zod.object({
+  "url": zod.string().describe('mailto: or http(s) link for reaching support'),
+  "label": zod.string().describe('Human-readable label (the email address, or a generic label for URLs)'),
+  "isPlaceholder": zod.boolean().describe('True when no SUPPORT_CONTACT_\* environment override is configured (pilot placeholder)')
+})
+})
+
+
+/**
  * @summary Escalate a terminal booking to support (either party, idempotent)
  */
 export const createSupportEscalationBodyMessageMax = 2000;

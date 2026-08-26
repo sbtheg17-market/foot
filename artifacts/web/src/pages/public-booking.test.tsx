@@ -15,6 +15,9 @@ vi.mock('@workspace/api-client-react', () => ({
   useListProviderReviews: vi.fn(),
   useGetMe: vi.fn(),
   useCheckBookingPageServiceArea: vi.fn(),
+  // Support footer (pilot readiness): default to "not loaded" so the footer
+  // renders nothing unless a test opts in.
+  useGetSupportContact: vi.fn(() => ({ data: undefined })),
 }));
 const setLocation = vi.fn();
 vi.mock('wouter', () => ({
