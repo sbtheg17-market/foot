@@ -121,7 +121,7 @@ eligibility (`eligible | ineligible | needs_review | invalid | unavailable`)
 checked BEFORE service/slot selection on `/book/:providerSlug` and in the
 marketplace/mobile booking modal, and a centrally managed 30-minute
 travel/setup buffer enforced on new bookings and all future reschedule paths.
-PR #49 merged 2026-08-25 (`a0083e7`); the 2026-08-26 completion PR fixed the
+PR #49 merged 2026-08-25 (`a0083e7`); the 2026-08-26 completion PR #50 fixed the
 three CI regressions #49 merged with, wired `test:service-area` into CI, and
 recorded the implementation. Authoritative docs: `docs/TODO-LEDGER.md`
 (roadmap #12 section), `docs/service-area-travel-policy.md` (implementation

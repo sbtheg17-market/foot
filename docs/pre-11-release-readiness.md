@@ -118,7 +118,7 @@ in the ledger.
 
 Roadmap #11 (provider public booking pages, PR #48) and #12 (service-area
 eligibility + travel/setup buffer, PR #49 `a0083e7` + the 2026-08-26
-completion PR) are merged since this gate. §7 item 4 and the "no
+completion PR #50) are merged since this gate. §7 item 4 and the "no
 service-area enforcement (infeasible bookings)" top-release-risk line are
 CLOSED: providers now manage Canada-first FSA coverage, eligibility is
 server-authoritative before slot selection, and a centrally managed

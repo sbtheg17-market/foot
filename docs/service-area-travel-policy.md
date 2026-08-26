@@ -205,7 +205,7 @@ implemented**.
 
 Roadmap #12 implemented the postal-prefix allowlist variant of the design
 above (PR #49, squash-merged 2026-08-25 as `a0083e7`, completed by the
-2026-08-26 follow-up PR from `feat/service-area-travel-enforcement`). This
+2026-08-26 follow-up PR #50 from `feat/service-area-travel-enforcement`). This
 section is the authoritative record of what is enforced.
 
 ### Coverage model (approved and shipped)

@@ -14,7 +14,7 @@ them. Append updates with dates; never silently delete an entry.
 | Scheduled reminder delivery | DEFERRED — not implemented | No scheduler, no reminder jobs exist. Design remains open. |
 | Native-device verification | DEFERRED — never performed | See `docs/native-device-checklist.md`. CI's Expo exports/typecheck are NOT native validation. |
 | Payment/refund behavior | DEFERRED — not implemented | Only pure money/status primitives exist (`payments-foundation`); no provider selected, no checkout, no webhooks, no refunds/payouts/invoices changes. |
-| ~~Service-area / travel enforcement~~ | ~~DEFERRED — design only~~ **CLOSED 2026-08-26** | Implemented and merged as roadmap #12 — PR #49 (merged 2026-08-25 as `a0083e7`) plus the 2026-08-26 completion PR (CI wiring, remaining fixture alignment, docs). See the "Roadmap #12" section below and `docs/service-area-travel-policy.md` implementation record. |
+| ~~Service-area / travel enforcement~~ | ~~DEFERRED — design only~~ **CLOSED 2026-08-26** | Implemented and merged as roadmap #12 — PR #49 (merged 2026-08-25 as `a0083e7`) plus the 2026-08-26 completion PR (CI wiring, remaining fixture alignment, docs; PR #50). See the "Roadmap #12" section below and `docs/service-area-travel-policy.md` implementation record. |
 | Cross-provider client-overlap policy change | DEFERRED — operator decision | `docs/booking-overlap-policy.md` recommendation unapproved; behavior unchanged. |
 | Client notification persistence / email / SMS | DEFERRED — not implemented | Provider-only in-app unread persists; no client persistence, no email/SMS. |
 | Production deployment | NOT AUTHORIZED | No CI job deploys. Railway config unchanged. |
@@ -154,7 +154,8 @@ Marketplace discovery stays separate at `/providers`.
 
 Implemented in `feat/service-area-travel-enforcement`. PR #49 (the full
 feature) was squash-merged to `main` on 2026-08-25 as `a0083e7`; a follow-up
-completion PR from the same branch (2026-08-26) closed the three CI
+completion PR from the same branch (2026-08-26, PR #50,
+https://github.com/sbtheg17-market/foot/pull/50) closed the three CI
 regressions PR #49 merged with (pure-unit `DATABASE_URL` guard for the
 DB-free timezone-dst job, travel-buffer-aware slot spacing in the replay/DLQ
 fixture pool, buffer-clear times in the proposals acceptance-revalidation

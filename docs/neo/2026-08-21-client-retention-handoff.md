@@ -1706,3 +1706,11 @@ were reproduced locally against disposable PostgreSQL 15 and fixed on
   deployment; no force-push; no branch deletion; conflict_* branches
   untouched; consent-first rescheduling semantics unchanged; existing
   confirmed bookings never silently cancelled.
+
+### Publication
+
+- Fix commit `51fa842`; docs commit `98b6602`; pushed without force to
+  `feat/service-area-travel-enforcement`.
+- Completion PR #50: https://github.com/sbtheg17-market/foot/pull/50
+  (replacement for merged-and-unreopenable PR #49). Squash-merge SHA recorded
+  in the ledger/PR after all deterministic CI checks pass.
