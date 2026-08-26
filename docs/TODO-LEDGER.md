@@ -218,3 +218,23 @@ is semantically identical to the branch's pushed schema. Full local
 validation green (typecheck, build, build:deploy, root tests, all scripted +
 unscripted API suites, replay/DLQ, web/a11y/tz, smoke incl. the five new #13
 routes, secret scan, `git diff --check`).
+
+## Pilot readiness — Southern Ontario controlled pilot — 2026-08-26
+
+Implemented in `feat/pilot-readiness` (operator authorization + four recorded
+configuration decisions). See `docs/pilot/pilot-readiness-report.md` for the
+authoritative status table.
+
+| Item | Status | Notes |
+|---|---|---|
+| Support contact path | DONE 2026-08-26 | `GET /api/support/contact` (SUPPORT_CONTACT_URL > SUPPORT_CONTACT_EMAIL > placeholder, invalid values throw); footer links on public booking page + provider portal; escalation drill tested. |
+| Real-browser smoke test | DONE 2026-08-26 — ON-DEMAND, NOT CI-GATED (operator decision) | `pnpm run smoke:real-browser` (Playwright/Chromium, 13 steps). Closes the "Real-browser E2E (Playwright) — OPEN" row above in its approved on-demand form; a CI-gated browser job remains OPEN if ever wanted. |
+| Native-device EMULATION checks | DONE 2026-08-26 | `pnpm run smoke:mobile-emulation` (iPhone 13/WebKit, Pixel 5/Chromium, PST tz, deep link, 3G throttle). |
+| Native-device verification (hardware) | STILL DEFERRED — never performed | Manual script now exists: `docs/pilot/native-device-hardware-test-script.md`; run on real iOS 16+/Android 12+ before pilot day 1. |
+| External uptime/error alerting | BLOCKED — external accounts | Procedures documented in `docs/pilot/monitoring-setup.md`; manual daily check accepted for the pilot. |
+| Backup/restore drill (disposable PG) | DONE 2026-08-26 | Dump 181 ms / restore 659 ms / integrity match; RTO ≤30 min, RPO ≤24 h documented. Managed-host backup confirmation remains an operator action; managed DB not accessed. |
+| Secret rotation | DONE 2026-08-26 | Inventory + procedures + live JWT_SECRET drill (old token 401, new login 200) in `docs/pilot/secret-rotation-procedure.md`. |
+| Incident response runbook | DONE 2026-08-26 | P0–P3, comms templates, post-incident template in `docs/pilot/incident-response-runbook.md`. |
+| Provider onboarding package | DONE 2026-08-26 | `provider-onboarding.md`, `provider-setup-checklist.md`, `provider-faq.md`. |
+| Pilot operator actions before day 1 | OPEN | Set real SUPPORT_CONTACT_EMAIL; hardware test run; uptime monitor account (or manual daily check); managed-DB backup confirmation. |
+| Payments, reminders, production deployment | UNCHANGED | Deferred / NOT AUTHORIZED as recorded above. |

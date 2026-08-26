@@ -1735,3 +1735,20 @@ audit-logged, no dashboard UI), web + mobile parity for policy display,
 honest cancel confirms, no-show marking, and escalation buttons. Additive
 frozen migration `CANCELLATION_NO_SHOW_SUPPORT_V1.sql`, disposable-PG tested;
 managed DB not accessed. Full record: `docs/cancellation-no-show-policy.md`.
+
+## Continuation — 2026-08-26 (pilot readiness, Emergent session)
+
+Roadmap #13 was completed and squash-merged (PR #52 → main `1c81695`) after
+fixing one CI regression (pre-#13 suites aligned with the new cancellation
+contract; commit `cc5ae06`, test-only). The pilot readiness review for the
+Southern Ontario controlled pilot (5 providers, St. Catharines → Oakville,
+free pilot, 2–5 weeks) was then implemented on `feat/pilot-readiness`:
+env-configured support contact (`GET /api/support/contact`, footer links on
+the public booking page and provider portal), on-demand real-browser Playwright
+smoke test (Chromium 151, 13/13 PASS ×2), native-device EMULATION checks
+(iPhone 13 WebKit 26.5 + Pixel 5 Chromium incl. 3G throttle, 9/9 PASS —
+hardware verification remains DEFERRED with a manual script), and the full
+pilot operations pack under `docs/pilot/` (readiness report, support workflow
+with tested escalation, monitoring procedures — external alerting BLOCKED on
+accounts, backup/restore drill PASS with measured RTO/RPO, secret rotation
+drill PASS, incident runbook, provider onboarding/checklist/FAQ).

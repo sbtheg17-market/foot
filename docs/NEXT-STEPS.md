@@ -139,3 +139,18 @@ see `docs/cancellation-no-show-policy.md`. Natural next steps, in order:
    payments provider decision).
 4. The standing deferred items in `docs/TODO-LEDGER.md` (reminders, native
    device verification, managed-DB release gate evidence).
+
+## Status note — 2026-08-26 (pilot readiness)
+
+The Southern Ontario controlled-pilot readiness review is implemented
+(`feat/pilot-readiness`): env-configured support contact surfaced on the
+public booking page + provider portal (`GET /api/support/contact`), on-demand
+real-browser smoke test (`pnpm run smoke:real-browser`, Chromium, 13/13),
+native-device emulation checks (`pnpm run smoke:mobile-emulation`, iPhone
+13/WebKit + Pixel 5/Chromium + 3G throttle, 9/9; hardware run DEFERRED with a
+manual script), and the operations pack under `docs/pilot/` (readiness report,
+support workflow, monitoring, backup/restore drill, secret rotation drill,
+incident runbook, provider onboarding/checklist/FAQ). Authoritative:
+`docs/pilot/pilot-readiness-report.md`. Remaining operator actions before
+day 1 are listed there (set the real support email, hardware test run, uptime
+monitor account, managed-DB backup confirmation).
