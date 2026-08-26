@@ -244,3 +244,31 @@ their own website). Principles:
   image has a descriptive text alternative and a labeled PNG download.
 - **Privacy**: only public-safe provider fields render; attribution `source`
   parameters are allowlisted and invisible to visitors.
+
+## Service-area eligibility and travel buffer — 2026-08-26 (roadmap #12)
+
+The provider promise: *"Share your booking page confidently. Clients confirm
+their area before booking, and available times include practical setup/travel
+time."* Principles:
+
+- **Eligibility before commitment.** On `/book/:providerSlug` the client
+  confirms their area (country/province/postal code) BEFORE service and slot
+  selection; slots are never shown to an unconfirmed visitor. The same check
+  gates the marketplace/mobile booking modal.
+- **Plain-language postal guidance.** Providers managing "Areas you serve"
+  (`/provider/service-area`) see: *"In Canada, the first three characters of
+  a postal code identify a local area, for example M5V."* No jargon like
+  "FSA" without explanation.
+- **Calm, non-leaking outcomes.** Each eligibility state renders approved
+  copy with a next step: eligible → proceed; ineligible → check the postal
+  code or try another provider; needs_review → contact the provider before
+  booking; invalid → correct the input; unavailable → online booking is not
+  currently available. Never internal logic, raw coverage lists, or
+  technical errors.
+- **Buffer transparency, not configuration noise.** Providers see the active
+  travel/setup buffer (30 minutes centrally managed) as read-only context in
+  their settings; clients simply see realistic availability. The 409 copy on
+  a buffer conflict asks for another time — it never blames or explains
+  internals.
+- **The server decides.** UI eligibility results are presentation only;
+  every booking/reschedule write revalidates server-side.

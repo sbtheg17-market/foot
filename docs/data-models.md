@@ -229,7 +229,9 @@ Weekly recurring availability for a provider.
 
 ## travel_zones
 
-Areas a provider is willing to travel to.
+Areas a provider is willing to travel to. (Descriptive/legacy — the
+authoritative coverage rule since roadmap #12 is `provider_service_areas` +
+`provider_coverage_areas` below.)
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -238,6 +240,53 @@ Areas a provider is willing to travel to.
 | zone_name | text | label, e.g. "Downtown Toronto" |
 | city | text | |
 | notes | text nullable | travel conditions or fees |
+
+---
+
+## provider_service_areas (roadmap #12)
+
+One service-area configuration per provider. Canada-first: only `CA` is
+accepted by the API in this release (column is country-aware for future
+expansion). Providers without a row are safely unconfigured — public
+eligibility reports `unavailable` and booking-page publishing is blocked
+until at least one covered postal area exists. Frozen additive artifact:
+`docs/migrations/PROVIDER_SERVICE_AREAS_V1.sql`. NO coordinates, geocoding,
+routing, radius, or polygon data is stored.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | serial PK | |
+| provider_id | FK → provider_profiles | unique, cascade delete |
+| country_code | text | default `'CA'`; ISO 3166-1 alpha-2 |
+| province_code | text | canonical Canadian province/territory code, e.g. `ON`; validated at the API boundary |
+| city | text nullable | optional public city context |
+| public_description | text nullable | provider-written plain-language public summary; NEVER the authoritative eligibility rule |
+| is_active | boolean | default true |
+| created_at | timestamp | |
+| updated_at | timestamp | |
+
+## provider_coverage_areas (roadmap #12)
+
+One row per covered Canadian postal prefix (FSA — the first three postal-code
+characters, e.g. `M5V`). Prefixes are normalized (uppercase, no whitespace)
+before insert. Removal deactivates the row (`is_active = false`) so safe
+audit metadata is retained; the partial unique index
+(`provider_coverage_areas_active_prefix_unique_idx`) keeps ACTIVE coverage
+unique per provider while allowing a removed prefix to be re-added. The raw
+prefix list is owner-visible only — never exposed publicly.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | serial PK | |
+| provider_id | FK → provider_profiles | cascade delete |
+| country_code | text | default `'CA'` |
+| prefix | text | normalized FSA |
+| is_active | boolean | default true |
+| created_at | timestamp | |
+
+The travel/setup buffer is centrally managed in application configuration
+(default 30 minutes; environment override `TRAVEL_SETUP_BUFFER_MINUTES`,
+validated 0–240) — no schema exists for it in this release by design.
 
 ---
 

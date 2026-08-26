@@ -415,12 +415,15 @@ describe("consent-first reschedule proposals", () => {
   it("acceptance re-validates the proposed time (slot taken since → 409, proposal stays pending)", async () => {
     const bookingE = await createBooking(jane, `${d3}T15:00:00.000Z`);
     await patchStatus(sarah, bookingE, { status: "confirmed" });
-    const pres = await propose(sarah, bookingE, `${d3}T16:00:00.000Z`, "k-taken-1");
+    // 16:30Z is 30 min clear of bookingE's 15:00Z–16:00Z, so Tom can take it
+    // under the travel/setup buffer (roadmap #12) while still colliding with
+    // the proposed time exactly.
+    const pres = await propose(sarah, bookingE, `${d3}T16:30:00.000Z`, "k-taken-1");
     assert.equal(pres.status, 201);
     const pid = proposalOf(pres.body)["id"] as number;
 
     // Tom takes the proposed slot while the proposal is pending.
-    await createBooking(tom, `${d3}T16:00:00.000Z`);
+    await createBooking(tom, `${d3}T16:30:00.000Z`);
 
     const accept = await api(`/reschedule-requests/${pid}/accept`, { method: "POST", token: jane });
     assert.equal(accept.status, 409);

@@ -8,6 +8,8 @@
  * wall-clock transitions must never change outcomes).
  */
 
+// MUST be first: keeps this pure suite runnable in database-free CI jobs.
+import "./helpers/pure-unit-db-env.js";
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {

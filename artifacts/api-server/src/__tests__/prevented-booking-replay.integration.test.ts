@@ -33,6 +33,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pool } from "@workspace/db";
 import { generateSlotsForDate, getMarketplaceTimezone } from "../lib/availability.js";
+import { DEFAULT_TRAVEL_SETUP_BUFFER_MINUTES } from "../lib/service-area.js";
 
 const API_SERVER_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const REPLAY_SCRIPT = "src/scripts/replay-prevented-bookings.ts";
@@ -270,7 +271,10 @@ async function loadSlotPool(want: number): Promise<void> {
     const slots = generateSlotsForDate({ date, durationMinutes, windows, tz });
     for (const s of slots) {
       const ms = Date.parse(s.start);
-      if (ms - lastMs >= durationMinutes * 60000) {
+      // Pool slots must be bookable back-to-back across subtests: keep the
+      // centrally managed travel/setup buffer (roadmap #12) between the end
+      // of one slot and the start of the next, not just the duration.
+      if (ms - lastMs >= (durationMinutes + DEFAULT_TRAVEL_SETUP_BUFFER_MINUTES) * 60000) {
         slotPool.push(s.start);
         lastMs = ms;
       }
