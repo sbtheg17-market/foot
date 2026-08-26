@@ -3,6 +3,7 @@ import { eq, and, or, sql, getTableColumns, inArray } from "drizzle-orm";
 import {
   db,
   bookingsTable,
+  bookingOutcomeHistoryTable,
   providerProfilesTable,
   servicesTable,
   invoicesTable,
@@ -37,18 +38,28 @@ import {
   getTravelSetupBufferMinutes,
   loadProviderCoverage,
 } from "../lib/service-area.js";
+import {
+  computeCancellationCategory,
+  computeFreeCancellationDeadline,
+  getCancellationNoticeHours,
+  isNoShowMarkableNow,
+  isProviderCancellationReasonCategory,
+  NO_SHOW_TOO_EARLY_MESSAGE,
+  PROVIDER_CANCELLATION_REASON_CATEGORIES,
+} from "../lib/cancellation-policy.js";
 
 const router = Router();
 
 type BookingRow = typeof bookingsTable.$inferSelect;
 
 /**
- * Client booking responses must never expose provider-private clinical notes.
+ * Client booking responses must never expose provider-private clinical notes
+ * or internal actor identifiers (no-show marker user id).
  * Keep this projection at the API boundary so future client consumers cannot
  * accidentally serialize the full database row.
  */
 function toClientSafeBooking(booking: BookingRow) {
-  const { careNotes: _careNotes, ...safeBooking } = booking;
+  const { careNotes: _careNotes, noShowMarkedBy: _noShowMarkedBy, ...safeBooking } = booking;
   return safeBooking;
 }
 
@@ -691,11 +702,12 @@ router.patch(
   async (req: Request, res: Response): Promise<void> => {
     const user = req.user!;
     const bookingId = Number(req.params["bookingId"]);
-    const { status: newStatus, cancellationReason, scheduledAt } =
+    const { status: newStatus, cancellationReason, scheduledAt, reasonCategory } =
       req.body as {
         status?: BookingStatus;
         cancellationReason?: string;
         scheduledAt?: string;
+        reasonCategory?: string;
       };
 
     if (!newStatus) {
@@ -790,6 +802,28 @@ router.patch(
           throw Object.assign(new Error("VALIDATION"), {
             statusCode: 400,
             userMessage: "cancellationReason is required when cancelling.",
+          });
+        }
+        // Roadmap #13: provider cancellations require an allowlisted
+        // structured reason category. The category is shared with the client;
+        // free-text stays support/admin-visible only.
+        if (
+          newStatus === "cancelled" &&
+          role === "provider" &&
+          !isProviderCancellationReasonCategory(reasonCategory)
+        ) {
+          throw Object.assign(new Error("VALIDATION"), {
+            statusCode: 400,
+            userMessage: `reasonCategory is required when a provider cancels. Allowed values: ${PROVIDER_CANCELLATION_REASON_CATEGORIES.join(", ")}.`,
+          });
+        }
+        // Roadmap #13: a no-show can only be recorded after the scheduled
+        // time has passed (provider-only, confirmed-only is enforced by the
+        // state machine above).
+        if (newStatus === "no_show" && !isNoShowMarkableNow(new Date(), booking.scheduledAt)) {
+          throw Object.assign(new Error("NO_SHOW_TOO_EARLY"), {
+            statusCode: 409,
+            userMessage: NO_SHOW_TOO_EARLY_MESSAGE,
           });
         }
         if (newStatus === "rescheduled" && !scheduledAt) {
@@ -1013,9 +1047,22 @@ router.patch(
           status: newStatus,
           updatedAt: new Date(),
         };
+        // Server-computed cancellation policy category (roadmap #13) — the
+        // client is never trusted to assert it.
+        let outcomeCategory: string | null = null;
         if (newStatus === "cancelled") {
           updates.cancelledBy = user.sub;
           if (cancellationReason) updates.cancellationReason = cancellationReason;
+          outcomeCategory = computeCancellationCategory(
+            role,
+            new Date(),
+            booking.scheduledAt,
+          );
+          updates.cancellationCategory = outcomeCategory;
+        }
+        if (newStatus === "no_show") {
+          updates.noShowMarkedBy = user.sub;
+          updates.noShowMarkedAt = new Date();
         }
         if (newStatus === "rescheduled" && rescheduleDate) {
           updates.scheduledAt = rescheduleDate;
@@ -1056,6 +1103,32 @@ router.patch(
             throw new Error("Reschedule history insert did not return a row — rolling back.");
           }
           rescheduleHistoryId = historyRow.id;
+        }
+
+        // Append-only cancellation/no-show outcome history (roadmap #13) —
+        // same transaction as the status write. Never updated or deleted.
+        if (newStatus === "cancelled" || newStatus === "no_show") {
+          const [outcomeRow] = await tx
+            .insert(bookingOutcomeHistoryTable)
+            .values({
+              bookingId,
+              actorUserId: user.sub,
+              actorRole: role as "client" | "provider" | "admin",
+              action: newStatus === "cancelled" ? "cancelled" : "no_show",
+              category: outcomeCategory,
+              reasonCategory:
+                newStatus === "cancelled" && role === "provider" && reasonCategory
+                  ? reasonCategory
+                  : null,
+              // Private free-text — support/admin-visible only.
+              reasonSnapshot: cancellationReason ?? null,
+              previousStatus: booking.status as BookingStatus,
+              newStatus,
+            })
+            .returning({ id: bookingOutcomeHistoryTable.id });
+          if (!outcomeRow) {
+            throw new Error("Outcome history insert did not return a row — rolling back.");
+          }
         }
 
         // Any transition away from `confirmed` makes a pending provider
@@ -1218,6 +1291,178 @@ router.patch(
       booking: role === "client" ? toClientSafeBooking(updatedBooking) : updatedBooking,
     });
   }
+);
+
+// ── Roadmap #13 — owner-scoped ownership helper for read routes ───────────────
+
+async function loadOwnedBookingForRead(
+  bookingId: number,
+  userId: number,
+  role: "client" | "provider" | "admin",
+): Promise<BookingRow> {
+  const [booking] = await db
+    .select()
+    .from(bookingsTable)
+    .where(eq(bookingsTable.id, bookingId))
+    .limit(1);
+  // Non-leaking: missing and unowned bookings are indistinguishable.
+  if (!booking) {
+    throw Object.assign(new Error("NOT_FOUND"), {
+      statusCode: 404,
+      userMessage: "Booking not found.",
+    });
+  }
+  if (role === "client" && booking.clientId !== userId) {
+    throw Object.assign(new Error("NOT_FOUND"), {
+      statusCode: 404,
+      userMessage: "Booking not found.",
+    });
+  }
+  if (role === "provider") {
+    const [profile] = await db
+      .select({ id: providerProfilesTable.id })
+      .from(providerProfilesTable)
+      .where(eq(providerProfilesTable.userId, userId))
+      .limit(1);
+    if (!profile || booking.providerId !== profile.id) {
+      throw Object.assign(new Error("NOT_FOUND"), {
+        statusCode: 404,
+        userMessage: "Booking not found.",
+      });
+    }
+  }
+  return booking;
+}
+
+// ── GET /bookings/:bookingId/cancellation-preview — honest confirm dialogs ────
+//
+// What would happen if the viewer cancelled RIGHT NOW. Server-authoritative;
+// the response contains calm copy and safe fields only — never internal
+// policy logic beyond the public notice window.
+
+router.get(
+  "/:bookingId/cancellation-preview",
+  requireAuth,
+  requireApprovedProviderIfProvider,
+  async (req: Request, res: Response): Promise<void> => {
+    const bookingId = Number(req.params["bookingId"]);
+    const role = req.authz!.activeRole;
+
+    try {
+      const booking = await loadOwnedBookingForRead(bookingId, req.user!.sub, role);
+      const noticeHours = getCancellationNoticeHours();
+
+      const cancellableStatuses: BookingStatus[] = ["requested", "confirmed", "rescheduled"];
+      if (!cancellableStatuses.includes(booking.status as BookingStatus)) {
+        res.json({
+          preview: {
+            outcome: "unavailable",
+            noticeHours,
+            freeUntil: null,
+            message: "This booking can no longer be cancelled.",
+          },
+        });
+        return;
+      }
+
+      if (role === "provider" || role === "admin") {
+        res.json({
+          preview: {
+            outcome: "provider",
+            noticeHours,
+            freeUntil: null,
+            message:
+              "Cancelling on behalf of the client never counts against them. A structured reason is required and the cancellation is recorded.",
+          },
+        });
+        return;
+      }
+
+      const category = computeCancellationCategory(
+        "client",
+        new Date(),
+        booking.scheduledAt,
+      );
+      const freeUntil = computeFreeCancellationDeadline(booking.scheduledAt);
+      if (category === "client_cancelled_early") {
+        res.json({
+          preview: {
+            outcome: "free",
+            noticeHours,
+            freeUntil: freeUntil.toISOString(),
+            message: "Cancelling now is free — you are within the notice window.",
+          },
+        });
+      } else {
+        res.json({
+          preview: {
+            outcome: "late",
+            noticeHours,
+            freeUntil: freeUntil.toISOString(),
+            message: `This is a late cancellation (less than ${noticeHours} hours before the visit). It will be recorded as late — no fee is charged.`,
+          },
+        });
+      }
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; userMessage?: string };
+      if (e.statusCode) {
+        res.status(e.statusCode).json({ error: e.userMessage });
+        return;
+      }
+      throw err;
+    }
+  },
+);
+
+// ── GET /bookings/:bookingId/outcome-history — append-only audit (owner) ──────
+//
+// Owner-scoped cancellation/no-show history, newest first. Cross-party
+// privacy: the private free-text reason snapshot and actor user ids are
+// admin-only; parties see the allowlisted category/reason-category and roles.
+
+router.get(
+  "/:bookingId/outcome-history",
+  requireAuth,
+  requireApprovedProviderIfProvider,
+  async (req: Request, res: Response): Promise<void> => {
+    const bookingId = Number(req.params["bookingId"]);
+    const role = req.authz!.activeRole;
+    const limit = Math.min(Math.max(Number(req.query["limit"] ?? 20) || 20, 1), 50);
+
+    try {
+      await loadOwnedBookingForRead(bookingId, req.user!.sub, role);
+
+      const rows = await db
+        .select()
+        .from(bookingOutcomeHistoryTable)
+        .where(eq(bookingOutcomeHistoryTable.bookingId, bookingId))
+        .orderBy(sql`${bookingOutcomeHistoryTable.id} desc`)
+        .limit(limit);
+
+      res.json({
+        history: rows.map((h) => ({
+          id: h.id,
+          bookingId: h.bookingId,
+          actorRole: h.actorRole,
+          action: h.action,
+          category: h.category,
+          reasonCategory: h.reasonCategory,
+          ...(role === "admin" ? { reasonSnapshot: h.reasonSnapshot, actorUserId: h.actorUserId } : {}),
+          previousStatus: h.previousStatus,
+          newStatus: h.newStatus,
+          createdAt: h.createdAt.toISOString(),
+        })),
+        limit,
+      });
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; userMessage?: string };
+      if (e.statusCode) {
+        res.status(e.statusCode).json({ error: e.userMessage });
+        return;
+      }
+      throw err;
+    }
+  },
 );
 
 export default router;

@@ -11,6 +11,7 @@ export * from "./provider-application-events";
 export * from "./provider-notifications";
 export * from "./services";
 export * from "./bookings";
+export * from "./booking-outcomes";
 export * from "./reschedule";
 export * from "./reviews";
 export * from "./invoices";

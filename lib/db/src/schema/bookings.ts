@@ -48,6 +48,14 @@ export const bookingsTable = pgTable(
     source: text("source"),
     cancelledBy: integer("cancelled_by").references(() => usersTable.id),
     cancellationReason: text("cancellation_reason"),
+    // Roadmap #13 (docs/cancellation-no-show-policy.md) — additive, all
+    // nullable so existing bookings stay safely unconfigured until used.
+    // Server-computed allowlisted policy category recorded at cancellation.
+    cancellationCategory: text("cancellation_category"),
+    // No-show marking metadata: who recorded it and when (provider-only rule
+    // enforced in the API; never derivable after later corrections).
+    noShowMarkedBy: integer("no_show_marked_by").references(() => usersTable.id),
+    noShowMarkedAt: timestamp("no_show_marked_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -77,6 +85,9 @@ export const insertBookingSchema = createInsertSchema(bookingsTable).omit({
   status: true,
   cancelledBy: true,
   cancellationReason: true,
+  cancellationCategory: true,
+  noShowMarkedBy: true,
+  noShowMarkedAt: true,
   createdAt: true,
   updatedAt: true,
 });

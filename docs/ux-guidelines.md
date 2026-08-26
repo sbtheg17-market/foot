@@ -272,3 +272,26 @@ time."* Principles:
   internals.
 - **The server decides.** UI eligibility results are presentation only;
   every booking/reschedule write revalidates server-side.
+
+## Cancellation/no-show UX (roadmap #13 — added 2026-08-26)
+
+- **Policy upfront:** the public booking page (`/book/:slug`) and the client
+  booking detail show the plain-language policy (`CancellationPolicyNotice`,
+  server-provided copy) before any destructive action. Never show internal
+  state identifiers to users.
+- **Honest confirm dialogs:** the cancel confirmation (web dialog + mobile
+  alert) includes the server-computed consequence from
+  `GET /bookings/:id/cancellation-preview` ("free until…" vs "recorded as
+  late — no fee is charged"). The UI mirrors, never computes, policy.
+- **Provider guardrails:** provider cancels require a structured reason
+  category; the portal decline flows send `declined_request` /
+  `reschedule_declined`. No-show marking uses an in-app dialog (never the
+  native browser confirm) that explains the client-visible consequence; the
+  button appears only after the scheduled time (server remains authoritative).
+- **Escalation:** terminal bookings (cancelled/no_show/completed) show
+  "Ask for help with this booking" (web `booking-escalate-button`, mobile
+  `booking-escalate-button`) — duplicate-tap safe (idempotent server + local
+  disabled state). Calm success copy; no dispute jargon.
+- **Accessibility:** the policy notice is a labelled `role="note"`; dialogs
+  reuse the existing AlertDialog semantics; all new states are text-based
+  (never color-only) and axe-tested at the jsdom level.

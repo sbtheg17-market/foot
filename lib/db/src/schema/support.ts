@@ -8,6 +8,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { usersTable } from "./users";
+import { bookingsTable } from "./bookings";
 
 export const ticketStatusEnum = pgEnum("ticket_status", [
   "open",
@@ -21,6 +22,10 @@ export const supportTicketsTable = pgTable("support_tickets", {
     .notNull()
     .references(() => usersTable.id),
   subject: text("subject").notNull(),
+  // Roadmap #13: additive, nullable booking link for cancellation/no-show
+  // escalations. Plain support tickets keep it null. No cascade delete —
+  // booking history is never removed by ticket lifecycle.
+  bookingId: integer("booking_id").references(() => bookingsTable.id),
   status: ticketStatusEnum("status").notNull().default("open"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -40,7 +45,7 @@ export const supportMessagesTable = pgTable("support_messages", {
 
 export const insertSupportTicketSchema = createInsertSchema(
   supportTicketsTable
-).omit({ id: true, status: true, createdAt: true, updatedAt: true });
+).omit({ id: true, status: true, bookingId: true, createdAt: true, updatedAt: true });
 
 export const insertSupportMessageSchema = createInsertSchema(
   supportMessagesTable

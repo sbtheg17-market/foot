@@ -946,7 +946,11 @@ export const GetPublicBookingPageResponse = zod.object({
   "countryCode": zod.string().nullable(),
   "provinceCode": zod.string().nullable(),
   "city": zod.string().nullable()
-}).describe('Public-safe service-area summary (roadmap #12). Contains ONLY the provider-written description and coarse public context — raw coverage entries (FSA prefixes) are never exposed publicly.')
+}).describe('Public-safe service-area summary (roadmap #12). Contains ONLY the provider-written description and coarse public context — raw coverage entries (FSA prefixes) are never exposed publicly.'),
+  "cancellationPolicy": zod.object({
+  "noticeHours": zod.int(),
+  "summary": zod.string()
+}).describe('Public cancellation policy summary (roadmap #13). Safe fields ONLY: the notice window and plain-language copy. Internal state identifiers, categories, and history are never exposed publicly.')
 })
 })
 
@@ -1715,6 +1719,8 @@ export const ListBookingsResponse = zod.object({
   "clientNotes": zod.string().nullish(),
   "source": zod.string().nullish().describe('Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization'),
   "cancellationReason": zod.string().nullish(),
+  "cancellationCategory": zod.string().nullish().describe('Server-computed cancellation policy category (roadmap #13): client_cancelled_early, client_cancelled_late, provider_cancelled, or cancelled_by_support; null until the booking is cancelled'),
+  "noShowMarkedAt": zod.coerce.date().nullish().describe('When the provider recorded a no-show; null otherwise'),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
   "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
   "clientPhone": zod.string().nullish().describe('Client phone (joined; present on list responses)'),
@@ -1761,6 +1767,8 @@ export const CreateBookingResponse = zod.object({
   "clientNotes": zod.string().nullish(),
   "source": zod.string().nullish().describe('Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization'),
   "cancellationReason": zod.string().nullish(),
+  "cancellationCategory": zod.string().nullish().describe('Server-computed cancellation policy category (roadmap #13): client_cancelled_early, client_cancelled_late, provider_cancelled, or cancelled_by_support; null until the booking is cancelled'),
+  "noShowMarkedAt": zod.coerce.date().nullish().describe('When the provider recorded a no-show; null otherwise'),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
   "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
   "clientPhone": zod.string().nullish().describe('Client phone (joined; present on list responses)'),
@@ -1845,6 +1853,8 @@ export const GetBookingResponse = zod.object({
   "clientNotes": zod.string().nullish(),
   "source": zod.string().nullish().describe('Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization'),
   "cancellationReason": zod.string().nullish(),
+  "cancellationCategory": zod.string().nullish().describe('Server-computed cancellation policy category (roadmap #13): client_cancelled_early, client_cancelled_late, provider_cancelled, or cancelled_by_support; null until the booking is cancelled'),
+  "noShowMarkedAt": zod.coerce.date().nullish().describe('When the provider recorded a no-show; null otherwise'),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
   "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
   "clientPhone": zod.string().nullish().describe('Client phone (joined; present on list responses)'),
@@ -1863,7 +1873,8 @@ export const UpdateBookingStatusParams = zod.object({
 
 export const UpdateBookingStatusBody = zod.object({
   "status": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
-  "cancellationReason": zod.string().optional().describe('Required when transitioning to cancelled'),
+  "cancellationReason": zod.string().optional().describe('Required when transitioning to cancelled. Private free text — support\/admin-visible only, never shared cross-party'),
+  "reasonCategory": zod.enum(['illness', 'emergency', 'schedule_conflict', 'client_request', 'declined_request', 'reschedule_declined', 'other']).optional().describe('Required when a PROVIDER cancels (roadmap #13). Allowlisted structured reason shared with the client'),
   "scheduledAt": zod.coerce.date().optional().describe('Required when transitioning to rescheduled')
 })
 
@@ -1882,6 +1893,8 @@ export const UpdateBookingStatusResponse = zod.object({
   "clientNotes": zod.string().nullish(),
   "source": zod.string().nullish().describe('Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization'),
   "cancellationReason": zod.string().nullish(),
+  "cancellationCategory": zod.string().nullish().describe('Server-computed cancellation policy category (roadmap #13): client_cancelled_early, client_cancelled_late, provider_cancelled, or cancelled_by_support; null until the booking is cancelled'),
+  "noShowMarkedAt": zod.coerce.date().nullish().describe('When the provider recorded a no-show; null otherwise'),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
   "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
   "clientPhone": zod.string().nullish().describe('Client phone (joined; present on list responses)'),
@@ -1971,6 +1984,8 @@ export const AcceptRescheduleRequestResponse = zod.object({
   "clientNotes": zod.string().nullish(),
   "source": zod.string().nullish().describe('Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization'),
   "cancellationReason": zod.string().nullish(),
+  "cancellationCategory": zod.string().nullish().describe('Server-computed cancellation policy category (roadmap #13): client_cancelled_early, client_cancelled_late, provider_cancelled, or cancelled_by_support; null until the booking is cancelled'),
+  "noShowMarkedAt": zod.coerce.date().nullish().describe('When the provider recorded a no-show; null otherwise'),
   "clientFirstName": zod.string().nullish().describe('Client first name (joined; present on list responses)'),
   "clientLastName": zod.string().nullish().describe('Client last name (joined; present on list responses)'),
   "clientPhone": zod.string().nullish().describe('Client phone (joined; present on list responses)'),
@@ -2048,6 +2063,152 @@ export const GetReschedulingHistoryResponse = zod.object({
 })),
   "limit": zod.int(),
   "nextCursor": zod.int().nullish()
+})
+
+
+/**
+ * @summary What cancelling right now would mean (owner only, server-computed)
+ */
+export const GetCancellationPreviewParams = zod.object({
+  "bookingId": zod.coerce.number().int()
+})
+
+export const GetCancellationPreviewResponse = zod.object({
+  "preview": zod.object({
+  "outcome": zod.enum(['free', 'late', 'provider', 'unavailable']),
+  "noticeHours": zod.int(),
+  "freeUntil": zod.coerce.date().nullable(),
+  "message": zod.string()
+})
+})
+
+
+/**
+ * @summary Append-only cancellation/no-show outcome history (owner only)
+ */
+export const GetOutcomeHistoryParams = zod.object({
+  "bookingId": zod.coerce.number().int()
+})
+
+export const getOutcomeHistoryQueryLimitDefault = 20;
+export const getOutcomeHistoryQueryLimitMax = 50;
+
+
+
+export const GetOutcomeHistoryQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(getOutcomeHistoryQueryLimitMax).default(getOutcomeHistoryQueryLimitDefault)
+})
+
+export const GetOutcomeHistoryResponse = zod.object({
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "actorRole": zod.enum(['client', 'provider', 'admin']),
+  "action": zod.enum(['cancelled', 'no_show', 'support_corrected']),
+  "category": zod.string().nullable(),
+  "reasonCategory": zod.string().nullable(),
+  "previousStatus": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "newStatus": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "createdAt": zod.coerce.date()
+}).describe('Append-only outcome record. Private fields (reasonSnapshot, actorUserId) are present only in admin responses')),
+  "limit": zod.int()
+})
+
+
+/**
+ * @summary Escalate a terminal booking to support (either party, idempotent)
+ */
+export const createSupportEscalationBodyMessageMax = 2000;
+
+
+
+export const CreateSupportEscalationBody = zod.object({
+  "bookingId": zod.int(),
+  "message": zod.string().max(createSupportEscalationBodyMessageMax).optional().describe('Optional opening message recorded on the ticket')
+})
+
+export const CreateSupportEscalationResponse = zod.object({
+  "ticket": zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int().nullable(),
+  "subject": zod.string(),
+  "status": zod.enum(['open', 'in_progress', 'resolved']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "created": zod.boolean().optional().describe('True when a new ticket was created; false for idempotent replays')
+})
+
+
+/**
+ * @summary Escalations + full outcome history for a booking (support/admin only, audit-logged)
+ */
+export const GetSupportBookingEscalationsParams = zod.object({
+  "bookingId": zod.coerce.number().int()
+})
+
+export const GetSupportBookingEscalationsResponse = zod.object({
+  "booking": zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "scheduledAt": zod.coerce.date(),
+  "cancellationCategory": zod.string().nullable(),
+  "cancellationReason": zod.string().nullable(),
+  "noShowMarkedAt": zod.coerce.date().nullable()
+}),
+  "tickets": zod.array(zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int().nullable(),
+  "subject": zod.string(),
+  "status": zod.enum(['open', 'in_progress', 'resolved']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int(),
+  "actorRole": zod.enum(['client', 'provider', 'admin']),
+  "action": zod.enum(['cancelled', 'no_show', 'support_corrected']),
+  "category": zod.string().nullable(),
+  "reasonCategory": zod.string().nullable(),
+  "previousStatus": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "newStatus": zod.enum(['requested', 'confirmed', 'completed', 'cancelled', 'rescheduled', 'no_show']),
+  "createdAt": zod.coerce.date()
+}).describe('Append-only outcome record. Private fields (reasonSnapshot, actorUserId) are present only in admin responses'))
+}).describe('Internal support view — never exposed to regular clients\/providers')
+
+
+/**
+ * @summary Update escalation state, record mediation outcome, correct a booking, or suspend a party (support/admin only)
+ */
+export const UpdateSupportEscalationParams = zod.object({
+  "ticketId": zod.coerce.number().int()
+})
+
+export const updateSupportEscalationBodyResolutionNoteMax = 2000;
+
+
+
+export const UpdateSupportEscalationBody = zod.object({
+  "status": zod.enum(['open', 'in_progress', 'resolved']).optional(),
+  "resolutionNote": zod.string().max(updateSupportEscalationBodyResolutionNoteMax).optional().describe('Mediation outcome — recorded as a support message'),
+  "correction": zod.object({
+  "status": zod.enum(['completed', 'cancelled']),
+  "reason": zod.string()
+}).optional().describe('Correct a disputed cancelled\/no-show booking outcome. Appends a support_corrected history row; never mutates existing history'),
+  "suspendUserId": zod.int().optional().describe('Trigger the existing account suspension mechanism for a party to the linked booking')
+})
+
+export const UpdateSupportEscalationResponse = zod.object({
+  "ticket": zod.object({
+  "id": zod.int(),
+  "bookingId": zod.int().nullable(),
+  "subject": zod.string(),
+  "status": zod.enum(['open', 'in_progress', 'resolved']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "created": zod.boolean().optional().describe('True when a new ticket was created; false for idempotent replays')
 })
 
 

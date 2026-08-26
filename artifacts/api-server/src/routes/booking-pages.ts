@@ -22,6 +22,7 @@ import {
 } from "@workspace/db";
 import { getMarketplaceTimezone } from "../lib/availability.js";
 import { isValidBookingPageSlug } from "../lib/booking-page.js";
+import { getCancellationPolicySummary } from "../lib/cancellation-policy.js";
 import {
   SERVICE_AREA_MESSAGES,
   evaluateServiceAreaEligibility,
@@ -128,6 +129,10 @@ router.get("/:slug", async (req: Request, res: Response): Promise<void> => {
         provinceCode: coverage.config?.provinceCode ?? null,
         city: coverage.config?.city ?? null,
       },
+      // Public cancellation policy summary (roadmap #13) — safe fields ONLY:
+      // the notice window and approved plain-language copy. Internal state
+      // identifiers, categories, and history are never exposed publicly.
+      cancellationPolicy: getCancellationPolicySummary(),
     },
   });
 });

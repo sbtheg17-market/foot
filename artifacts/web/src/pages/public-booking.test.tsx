@@ -84,6 +84,11 @@ const pageData = {
       provinceCode: 'ON',
       city: 'Toronto',
     },
+    cancellationPolicy: {
+      noticeHours: 24,
+      summary:
+        'Free cancellation until 24 hours before the visit. Later cancellations are recorded as late — no fee is charged.',
+    },
   },
 };
 

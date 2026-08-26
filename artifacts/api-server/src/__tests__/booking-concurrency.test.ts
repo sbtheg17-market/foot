@@ -230,6 +230,9 @@ describe("Concurrent cancels (same actor) — only one wins", () => {
       Array.from({ length: 5 }, () =>
         patchStatus(bookingId, "cancelled", providerToken, {
           cancellationReason: "Concurrent cancel test",
+          // Roadmap #13: provider cancellations require an allowlisted
+          // structured reason category.
+          reasonCategory: "schedule_conflict",
         })
       )
     );
@@ -260,6 +263,9 @@ describe("Concurrent cross-actor cancel race — only one wins", () => {
       ...Array.from({ length: 4 }, () =>
         patchStatus(bookingId, "cancelled", providerToken, {
           cancellationReason: "Provider cancelled (concurrency test)",
+          // Roadmap #13 provider contract — without this, a provider request
+          // that wins the row lock first would 400 instead of racing fairly.
+          reasonCategory: "schedule_conflict",
         })
       ),
     ]);
@@ -351,10 +357,15 @@ describe("Invalid transitions fail safely", () => {
 
   it("cannot transition out of a terminal (cancelled) booking", async () => {
     const bookingId = await createBooking(clientToken, providerProfileId, serviceId);
-    await patchStatus(bookingId, "cancelled", providerToken, { cancellationReason: "test" });
+    const setup = await patchStatus(bookingId, "cancelled", providerToken, {
+      cancellationReason: "test",
+      reasonCategory: "schedule_conflict",
+    });
+    assert.equal(setup.status, 200, `Setup cancel failed: ${JSON.stringify(setup.body)}`);
 
     const retry = await patchStatus(bookingId, "cancelled", providerToken, {
       cancellationReason: "retry cancel",
+      reasonCategory: "schedule_conflict",
     });
     assert.equal(retry.status, 409);
   });

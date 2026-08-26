@@ -186,3 +186,35 @@ confirmed bookings are never silently cancelled by coverage changes.
 | Maximum daily appointment caps | DEFERRED | Explicitly excluded by the #12 authorization. |
 | Manual-review workflow tooling | DEFERRED | `needs_review` routes clients to contact the provider/support; no admin queue exists. |
 | Coverage-change review of existing bookings | DEFERRED | Coverage changes affect future bookings/reschedules only; no proactive review of already-confirmed visits. |
+
+## Roadmap #13 — cancellation/no-show policy + minimal support (2026-08-26)
+
+Implemented and merged from `feat/cancellation-no-show-policy` (spec:
+`docs/roadmap-13-cancellation-no-show-continuity.md`, draft PR #51 — doc only,
+no prior code recovered). See `docs/cancellation-no-show-policy.md` for the
+implementation record.
+
+| Item | Status | Notes |
+|---|---|---|
+| Cancellation policy states + server enforcement | DONE 2026-08-26 | `client_cancelled_early/late`, `provider_cancelled`, `cancelled_by_support`; notice window `CANCELLATION_NOTICE_HOURS` (default 24h, validated). |
+| No-show time-passed rule + marking metadata | DONE 2026-08-26 | Provider-only, confirmed-only, after scheduled time; `no_show_marked_by/at`. |
+| Append-only `booking_outcome_history` | DONE 2026-08-26 | Frozen artifact `CANCELLATION_NO_SHOW_SUPPORT_V1.sql`; disposable-PG tested. |
+| Minimal support workflow (API-first) | DONE 2026-08-26 | Escalations linked via `support_tickets.booking_id`; admin-role view/mediate/correct/suspend; audit-logged. NO dedicated support dashboard UI (by design). |
+| Cancellation fees / refunds / payments | DEFERRED — unchanged | Late cancellations are recorded only; zero money behavior. |
+| Support SLAs, queues, assignment | DEFERRED | Minimal open→in_progress→resolved only. |
+| Automated no-show detection / reliability scoring | DEFERRED | Not built. |
+| Escalation notifications (email/push to support) | DEFERRED | Escalations are visible via the support API only; no delivery guarantees exist repo-wide. |
+
+**2026-08-26 completion note (PR #52 validation):** the branch's first CI run
+failed one job (`Authorization, concurrency and idempotency`) because three
+pre-#13 regression suites still used the old cancellation contract —
+provider cancels without the now-required allowlisted `reasonCategory`, and a
+no-show marked before the scheduled time had passed. Aligned
+`booking-concurrency.test.ts`, `booking-pressure.test.ts`, and
+`reschedule-proposals.integration.test.ts` with the #13 contract (test-only
+change; no production code touched). Migration artifact re-verified against
+disposable PostgreSQL: main schema + `CANCELLATION_NO_SHOW_SUPPORT_V1.sql`
+is semantically identical to the branch's pushed schema. Full local
+validation green (typecheck, build, build:deploy, root tests, all scripted +
+unscripted API suites, replay/DLQ, web/a11y/tz, smoke incl. the five new #13
+routes, secret scan, `git diff --check`).

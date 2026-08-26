@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import {
   getGetBookingReviewQueryKey,
   getListProviderReviewsQueryKey,
+  useCreateSupportEscalation,
   useGetBooking,
   useGetBookingReview,
+  useGetCancellationPreview,
   useGetProviderAvailability,
   useGetProviderById,
   useListProviderServices,
@@ -19,6 +21,7 @@ import ClientReviewForm from '@/components/client-review-form';
 import BookingModal from '@/components/ui/booking-modal';
 import RescheduleModal from '@/components/ui/reschedule-modal';
 import RescheduleProposalCard from '@/components/ui/reschedule-proposal-card';
+import CancellationPolicyNotice from '@/components/cancellation-policy-notice';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -131,6 +134,17 @@ export default function ClientBookingDetail() {
       retry: false,
     },
   });
+  // Server-computed cancellation consequence (roadmap #13) — fetched while a
+  // cancellable booking is shown so the confirm dialog is always honest.
+  const cancellableStatus = ['requested', 'confirmed', 'rescheduled'].includes(booking?.status ?? '');
+  const { data: cancellationPreviewData } = useGetCancellationPreview(bookingId, {
+    query: {
+      enabled: !!booking && cancellableStatus,
+      queryKey: ['booking-cancellation-preview', bookingId],
+    },
+  });
+  const escalate = useCreateSupportEscalation();
+  const [hasEscalated, setHasEscalated] = useState(false);
 
   if (isLoading) {
     return <div className="p-6 pt-12 flex justify-center"><div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin" /></div>;
@@ -173,6 +187,25 @@ export default function ClientBookingDetail() {
   // server remains the final authority on every submission.
   const isRescheduleEligible = booking.status === 'confirmed';
   const rescheduleLoading = providerLoading || servicesLoading;
+  const cancellationPreview = cancellationPreviewData?.preview;
+  // Support escalation (roadmap #13): available on terminal outcomes only.
+  const canEscalate = ['cancelled', 'no_show', 'completed'].includes(booking.status);
+
+  const handleEscalate = () => {
+    if (escalate.isPending || hasEscalated) return;
+    escalate.mutate(
+      { data: { bookingId: booking.id } },
+      {
+        onSuccess: () => {
+          setHasEscalated(true);
+          toast.success('Support request opened. Our team will review this booking and follow up.');
+        },
+        onError: () => {
+          toast.error('Could not open a support request. Please try again.');
+        },
+      },
+    );
+  };
 
   const requestCancel = () => {
     if (isCancelling || !canCancel) {
@@ -457,12 +490,29 @@ export default function ClientBookingDetail() {
           View provider profile
         </button>
         {canCancel && (
+          <>
+            <CancellationPolicyNotice noticeHours={cancellationPreview?.noticeHours ?? 24} />
+            <button
+              onClick={requestCancel}
+              disabled={isCancelling}
+              className="w-full rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-semibold text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isCancelling ? 'Cancelling…' : 'Cancel booking'}
+            </button>
+          </>
+        )}
+        {canEscalate && (
           <button
-            onClick={requestCancel}
-            disabled={isCancelling}
-            className="w-full rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm font-semibold text-destructive hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={handleEscalate}
+            disabled={escalate.isPending || hasEscalated}
+            data-testid="booking-escalate-button"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground shadow-sm hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isCancelling ? 'Cancelling…' : 'Cancel booking'}
+            {hasEscalated
+              ? 'Support request opened ✓'
+              : escalate.isPending
+                ? 'Opening support request…'
+                : 'Ask for help with this booking'}
           </button>
         )}
       </div>
@@ -505,7 +555,10 @@ export default function ClientBookingDetail() {
         <AlertDialogContent data-testid="cancel-booking-dialog">
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription data-testid="cancel-booking-consequence">
+              {cancellationPreview?.message
+                ? `${cancellationPreview.message} `
+                : ''}
               Your provider will be notified and this time slot will be released. This
               cannot be undone.
             </AlertDialogDescription>

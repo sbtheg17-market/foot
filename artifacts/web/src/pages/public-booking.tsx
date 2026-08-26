@@ -23,6 +23,7 @@ import {
   MapPin, Star, ShieldCheck, Clock, CheckCircle2, CalendarClock, Globe, CalendarX2,
 } from 'lucide-react';
 import BookingModal from '@/components/ui/booking-modal';
+import CancellationPolicyNotice from '@/components/cancellation-policy-notice';
 import ServiceAreaCheck, { type EligibilityResult } from '@/components/service-area-check';
 import { ROUTES } from '@/lib/routes';
 
@@ -222,6 +223,14 @@ export default function PublicBookingPage() {
               </div>
             </div>
           </section>
+        )}
+
+        {/* ── Cancellation policy (roadmap #13) — visible before booking ── */}
+        {page.cancellationPolicy && (
+          <CancellationPolicyNotice
+            noticeHours={page.cancellationPolicy.noticeHours}
+            summary={page.cancellationPolicy.summary}
+          />
         )}
 
         {/* ── Service-area eligibility (roadmap #12) — before services/slots ── */}

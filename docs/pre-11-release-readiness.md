@@ -127,3 +127,13 @@ reschedules. All other §7 limitations (native devices, reminders, payments,
 browser E2E, client notification persistence, managed-DB gate) remain OPEN
 and the §8 verdict levels are unchanged. Authoritative state:
 `docs/TODO-LEDGER.md` roadmap #12 section.
+
+## Post-#13 addendum (2026-08-26)
+
+Roadmap #13 (cancellation/no-show policy + minimal support workflow) landed
+after this review; it adds `CANCELLATION_NO_SHOW_SUPPORT_V1.sql` to the frozen
+additive artifacts and two new test suites (`test` pure-unit additions,
+`test:cancellation` integration, wired into CI `api-tests`). The deferred rows
+above are unchanged except service-area (closed by #12) — payments, reminders,
+native-device verification, and the managed-DB gate remain open. See
+`docs/cancellation-no-show-policy.md` and `docs/TODO-LEDGER.md`.

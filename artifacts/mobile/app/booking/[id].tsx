@@ -17,8 +17,10 @@ import {
   getGetBookingReviewQueryKey,
   getListProviderReviewsQueryKey,
   useCreateReview,
+  useCreateSupportEscalation,
   useGetBooking,
   useGetBookingReview,
+  useGetCancellationPreview,
   useGetProviderAvailability,
   useGetProviderById,
   useListProviderServices,
@@ -111,6 +113,19 @@ export default function BookingDetailScreen() {
       retry: false,
     },
   });
+  // Server-computed cancellation consequence (roadmap #13) — keeps the
+  // cancel confirmation honest ("free until…" vs "recorded as late").
+  const { data: cancellationPreviewData } = useGetCancellationPreview(bookingId, {
+    query: {
+      enabled:
+        !!booking &&
+        user?.role !== 'provider' &&
+        ['requested', 'confirmed', 'rescheduled'].includes(booking.status),
+      queryKey: ['booking-cancellation-preview', bookingId],
+    },
+  });
+  const escalate = useCreateSupportEscalation();
+  const [hasEscalated, setHasEscalated] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -157,8 +172,7 @@ export default function BookingDetailScreen() {
   const service = servicesData?.services.find((item) => item.id === booking.serviceId);
   const isProvider = user?.role === 'provider';
   const canCancel = !isProvider && ['requested', 'confirmed', 'rescheduled'].includes(booking.status);
-  const isReviewEligible = !isProvider && booking.status === 'completed';
-  // Reschedule: the server's state machine lets a client reschedule only a
+  const isReviewEligible = !isProvider && booking.status === 'completed';  // Reschedule: the server's state machine lets a client reschedule only a
   // CONFIRMED booking. The action needs the active service (for real slots),
   // so it stays hidden until the service is known — and the server remains
   // the final authority on every submission.
@@ -166,6 +180,15 @@ export default function BookingDetailScreen() {
   const canReschedule = isRescheduleEligible && !!service;
   const rescheduleServiceGone = isRescheduleEligible && !!servicesData && !service;
   const canConfirmReschedule = isProvider && booking.status === 'rescheduled';
+  // No-show (roadmap #13): provider-only, confirmed-only, and only after the
+  // scheduled time has passed. The server enforces all three; this mirror
+  // just hides the action when it cannot succeed.
+  const canMarkNoShow =
+    isProvider &&
+    booking.status === 'confirmed' &&
+    new Date(booking.scheduledAt).getTime() < Date.now();
+  // Support escalation (roadmap #13): terminal outcomes only, either party.
+  const canEscalate = ['cancelled', 'no_show', 'completed'].includes(booking.status);
   const pendingRescheduleMessage = !isProvider && booking.status === 'rescheduled'
     ? 'Your provider has been notified. This visit stays pending until the new time is confirmed.'
     : null;
@@ -220,7 +243,10 @@ export default function BookingDetailScreen() {
       return;
     }
 
-    Alert.alert('Cancel booking?', 'This cannot be undone.', [
+    Alert.alert(
+      'Cancel booking?',
+      `${cancellationPreviewData?.preview?.message ? `${cancellationPreviewData.preview.message} ` : ''}This cannot be undone.`,
+      [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Cancel booking',
@@ -587,6 +613,81 @@ export default function BookingDetailScreen() {
               <Text style={[styles.cancelButtonText, { color: colors.destructive ?? '#B42318' }]}>
                 {isCancelling ? 'Cancelling…' : 'Cancel booking'}
               </Text>
+            </TouchableOpacity>
+          )}
+          {canMarkNoShow && (
+            <TouchableOpacity
+              onPress={() => {
+                if (updateStatus.isPending) return;
+                Alert.alert(
+                  'Mark this booking as a no-show?',
+                  'The client will see this visit recorded as a no-show, with a way to ask support for help. The marking is recorded with your name and the time.',
+                  [
+                    { text: 'Keep booking', style: 'cancel' },
+                    {
+                      text: 'Mark no-show',
+                      style: 'destructive',
+                      onPress: () => {
+                        updateStatus.mutate(
+                          { bookingId: booking.id, data: { status: 'no_show' } },
+                          {
+                            onSuccess: () => {
+                              Alert.alert('No-show recorded', 'The outcome is recorded and visible to the client.');
+                              void refetch();
+                            },
+                            onError: (err) => {
+                              const status = (err as { status?: number }).status;
+                              Alert.alert(
+                                'Could not record no-show',
+                                status === 409
+                                  ? 'A no-show can only be recorded after the scheduled time, on a confirmed booking. Refreshing.'
+                                  : 'Something went wrong. Please try again.',
+                              );
+                              void refetch();
+                            },
+                          },
+                        );
+                      },
+                    },
+                  ],
+                );
+              }}
+              disabled={updateStatus.isPending}
+              accessibilityRole="button"
+              accessibilityLabel="Mark this booking as a no-show"
+              testID="provider-mark-no-show"
+              style={[styles.cancelButton, { borderColor: colors.destructive ?? '#B42318', opacity: updateStatus.isPending ? 0.5 : 1 }]}
+            >
+              <Text style={[styles.cancelButtonText, { color: colors.destructive ?? '#B42318' }]}>Mark no-show</Text>
+            </TouchableOpacity>
+          )}
+          {canEscalate && (
+            <TouchableOpacity
+              onPress={() => {
+                if (escalate.isPending || hasEscalated) return;
+                escalate.mutate(
+                  { data: { bookingId: booking.id } },
+                  {
+                    onSuccess: () => {
+                      setHasEscalated(true);
+                      Alert.alert('Support request opened', 'Our team will review this booking and follow up.');
+                    },
+                    onError: () => {
+                      Alert.alert('Could not open a support request', 'Please try again.');
+                    },
+                  },
+                );
+              }}
+              disabled={escalate.isPending || hasEscalated}
+              accessibilityRole="button"
+              accessibilityLabel="Ask for help with this booking"
+              testID="booking-escalate-button"
+              style={[styles.profileButton, { borderColor: colors.border, backgroundColor: colors.card, opacity: escalate.isPending || hasEscalated ? 0.6 : 1 }]}
+            >
+              <Text style={[styles.profileButtonText, { color: colors.primary }]}>
+                {hasEscalated ? 'Support request opened ✓' : 'Ask for help with this booking'}
+              </Text>
+              <Feather name="help-circle" size={18} color={colors.primary} />
             </TouchableOpacity>
           )}
         </View>

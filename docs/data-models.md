@@ -304,3 +304,41 @@ Document metadata for provider verification (file content stored externally).
 | reviewed_at | timestamp nullable | |
 | status | enum | pending \| approved \| rejected |
 | reviewer_notes | text nullable | |
+
+## Roadmap #13 additions (2026-08-26) — cancellation/no-show + support link
+
+### booking_outcome_history (new, APPEND-ONLY)
+
+Mirrors the `booking_reschedule_history` pattern. Application code never
+UPDATEs or DELETEs rows; outcome writes append in the same transaction as the
+booking status change.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | serial PK | |
+| booking_id | integer FK → bookings.id | indexed with created_at DESC, id DESC |
+| actor_user_id | integer FK → users.id | admin-only in API responses |
+| actor_role | account_role | client / provider / admin |
+| action | booking_outcome_action | `cancelled` / `no_show` / `support_corrected` |
+| category | text nullable | allowlisted policy category |
+| reason_category | text nullable | allowlisted provider reason (shared cross-party) |
+| reason_snapshot | text nullable | private free-text — support/admin-visible only |
+| previous_status / new_status | booking_status | |
+| created_at | timestamp default now() | |
+
+### bookings (additive columns — existing rows stay NULL until used)
+
+| Column | Type | Notes |
+|---|---|---|
+| cancellation_category | text nullable | server-computed at cancellation |
+| no_show_marked_by | integer FK → users.id, nullable | stripped from client projections |
+| no_show_marked_at | timestamp nullable | client-visible timestamp |
+
+### support_tickets (additive column)
+
+| Column | Type | Notes |
+|---|---|---|
+| booking_id | integer FK → bookings.id, nullable | links booking-dispute escalations; plain tickets keep NULL; no cascade delete |
+
+Frozen artifact: `docs/migrations/CANCELLATION_NO_SHOW_SUPPORT_V1.sql`
+(additive-only, no DOWN, disposable-PostgreSQL tested; managed DB not accessed).

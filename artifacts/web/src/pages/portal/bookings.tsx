@@ -5,9 +5,20 @@ import {
   useUpdateBookingStatus,
   ListBookingsStatus,
 } from '@workspace/api-client-react';
-import { Calendar, MapPin, Clock, FileText, Phone, X, Check, CalendarClock } from 'lucide-react';
+import { Calendar, MapPin, Clock, FileText, Phone, X, Check, CalendarClock, UserX } from 'lucide-react';
 import { toast } from 'sonner';
 import RescheduleModal from '@/components/ui/reschedule-modal';
+import CancellationPolicyNotice from '@/components/cancellation-policy-notice';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { formatBookingDateTime, useMarketplaceTimezone } from '@/lib/marketplace-time';
 
 const mapsUrl = (address: string, city: string, postalCode?: string | null) =>
@@ -60,12 +71,15 @@ export default function PortalBookings() {
   const updateStatus = useUpdateBookingStatus();
   // Per-booking in-flight guard: only one action per booking at a time.
   const [pendingId, setPendingId] = useState<number | null>(null);
+  // No-show confirm dialog (roadmap #13): in-app, never the native confirm.
+  const [noShowBookingId, setNoShowBookingId] = useState<number | null>(null);
 
   const handleStatusChange = (
     id: number,
     newStatus: ListBookingsStatus,
     cancellationReason?: string,
     successMessage?: string,
+    reasonCategory?: string,
   ) => {
     if (pendingId !== null) return; // another request is already in flight
     setPendingId(id);
@@ -75,6 +89,9 @@ export default function PortalBookings() {
         data: {
           status: newStatus,
           ...(cancellationReason ? { cancellationReason } : {}),
+          // Roadmap #13: provider cancellations require an allowlisted
+          // structured reason category (shared with the client).
+          ...(reasonCategory ? { reasonCategory: reasonCategory as never } : {}),
         },
       },
       {
@@ -83,6 +100,7 @@ export default function PortalBookings() {
             confirmed: 'Booking accepted ✓',
             cancelled: 'Booking declined',
             completed: 'Marked as completed ✓',
+            no_show: 'No-show recorded',
           };
           toast.success(successMessage ?? labels[newStatus] ?? `Booking marked as ${newStatus.replace('_', ' ')}`);
           refetch();
@@ -147,7 +165,12 @@ export default function PortalBookings() {
 
   return (
     <div className="p-6 pt-10 pb-32 max-w-4xl mx-auto h-full flex flex-col">
-      <h1 className="text-3xl font-serif font-bold text-foreground mb-6">Bookings</h1>
+      <h1 className="text-3xl font-serif font-bold text-foreground mb-4">Bookings</h1>
+
+      {/* Cancellation/no-show policy (roadmap #13) — provider-facing rules */}
+      <div className="mb-6">
+        <CancellationPolicyNotice noticeHours={24} variant="provider" />
+      </div>
 
       <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar" data-testid="booking-status-filters">
         {tabs.map(tab => {
@@ -265,7 +288,7 @@ export default function PortalBookings() {
                     }
                   </button>
                   <button
-                    onClick={() => handleStatusChange(booking.id, 'cancelled', 'Request declined by provider')}
+                    onClick={() => handleStatusChange(booking.id, 'cancelled', 'Request declined by provider', undefined, 'declined_request')}
                     disabled={pendingId === booking.id}
                     className="w-12 h-12 bg-secondary text-secondary-foreground rounded-xl flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -293,7 +316,7 @@ export default function PortalBookings() {
                     }
                   </button>
                   <button
-                    onClick={() => handleStatusChange(booking.id, 'cancelled', 'Reschedule declined by provider', 'Reschedule declined')}
+                    onClick={() => handleStatusChange(booking.id, 'cancelled', 'Reschedule declined by provider', 'Reschedule declined', 'reschedule_declined')}
                     disabled={pendingId === booking.id}
                     data-testid={`booking-${booking.id}-decline-reschedule`}
                     aria-label="Decline reschedule and cancel booking"
@@ -327,6 +350,20 @@ export default function PortalBookings() {
                   >
                     <CalendarClock className="w-5 h-5" /> Reschedule
                   </button>
+                  {/* No-show (roadmap #13): server allows it only AFTER the
+                      scheduled time has passed — the button mirrors that rule
+                      but the server stays authoritative. */}
+                  {new Date(booking.scheduledAt).getTime() < Date.now() && (
+                    <button
+                      onClick={() => setNoShowBookingId(booking.id)}
+                      disabled={pendingId === booking.id}
+                      data-testid={`booking-${booking.id}-no-show`}
+                      aria-label="Mark this booking as a no-show"
+                      className="py-3 px-4 border-2 border-destructive/40 text-destructive bg-destructive/5 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <UserX className="w-5 h-5" /> No-show
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -357,6 +394,36 @@ export default function PortalBookings() {
           }}
         />
       )}
+
+      {/* In-app no-show confirmation (roadmap #13) — explains the
+          client-visible consequence; the server enforces the time-passed rule. */}
+      <AlertDialog open={noShowBookingId !== null} onOpenChange={(open) => { if (!open) setNoShowBookingId(null); }}>
+        <AlertDialogContent data-testid="no-show-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark this booking as a no-show?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The client will see this visit recorded as a no-show, with a way to ask
+              support for help if they believe it is wrong. The marking is recorded with
+              your name and the time — it cannot be undone silently.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="no-show-keep">Keep booking</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="no-show-confirm"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (noShowBookingId !== null) {
+                  handleStatusChange(noShowBookingId, 'no_show', undefined, 'No-show recorded');
+                }
+                setNoShowBookingId(null);
+              }}
+            >
+              Mark no-show
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

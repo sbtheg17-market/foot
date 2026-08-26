@@ -232,3 +232,13 @@ frozen artifact hashes are recorded, but the current managed catalog, managed
 migration history, backup/restore readiness, and production schema match remain
 **BLOCKED / NOT VERIFIED**. Production deployment and schema application are
 **NOT AUTHORIZED**. The default outcome is `No migration applied.`
+
+## Artifact addendum — 2026-08-26 (roadmap #13)
+
+`docs/migrations/CANCELLATION_NO_SHOW_SUPPORT_V1.sql` joins the frozen
+additive artifact set (one enum, one append-only table + index, three nullable
+`bookings` columns, one nullable `support_tickets.booking_id` FK). Additive
+only, no DOWN, never auto-applied; validated against disposable PostgreSQL
+(push ×2 idempotent, seed ×2, startup, destructive-DDL scan). All gate
+requirements and blockers above remain unchanged; the managed database was
+not accessed.
