@@ -111,3 +111,19 @@ scoped session from `origin/main`. Deferred work is scheduled ONLY from
 `docs/TODO-LEDGER.md` (pre-#11 review section, 2026-08-24). Stale open PR #2
 disposition (recommend: close without merge) is an operator decision recorded
 in the ledger.
+
+---
+
+## Addendum — 2026-08-26 (post-#12)
+
+Roadmap #11 (provider public booking pages, PR #48) and #12 (service-area
+eligibility + travel/setup buffer, PR #49 `a0083e7` + the 2026-08-26
+completion PR) are merged since this gate. §7 item 4 and the "no
+service-area enforcement (infeasible bookings)" top-release-risk line are
+CLOSED: providers now manage Canada-first FSA coverage, eligibility is
+server-authoritative before slot selection, and a centrally managed
+30-minute travel/setup buffer applies to new bookings and future
+reschedules. All other §7 limitations (native devices, reminders, payments,
+browser E2E, client notification persistence, managed-DB gate) remain OPEN
+and the §8 verdict levels are unchanged. Authoritative state:
+`docs/TODO-LEDGER.md` roadmap #12 section.

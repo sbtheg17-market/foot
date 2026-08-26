@@ -1,8 +1,12 @@
 # Service-area and travel-buffer policy
 
-**Status:** Design complete; all recommendations are pending operator approval.
-**Scope:** Roadmap item 7 only. This document authorizes no enforcement, geocoding,
-routing, persistence, or migration.
+**Status:** SUPERSEDED for enforcement — roadmap #12 shipped a Canada-first
+postal-prefix (FSA) model with a centrally managed travel/setup buffer. The
+design sections below are preserved as history; the authoritative shipped
+behavior is the "Implementation record — 2026-08-26 (roadmap #12)" section at
+the end of this document.
+**Scope (original):** Roadmap item 7 only. The original document authorized no
+enforcement, geocoding, routing, persistence, or migration.
 
 ## Current state
 
@@ -188,9 +192,83 @@ policy IDs, vendor errors, or another client's address.
 - no coordinate/address leakage;
 - unchanged availability, duplicate, overlap, and cancellation behavior.
 
-## Explicit non-implementation statement
+## Explicit non-implementation statement (historical — as of the design phase)
 
 Postal rejection, radius rejection, polygon rejection, geocoding, coordinates,
 routing, travel-time calculation, travel-buffer enforcement, maximum daily
 appointments, travel-based cancellation, and multi-city persistence are **not
 implemented**.
+
+---
+
+## Implementation record — 2026-08-26 (roadmap #12)
+
+Roadmap #12 implemented the postal-prefix allowlist variant of the design
+above (PR #49, squash-merged 2026-08-25 as `a0083e7`, completed by the
+2026-08-26 follow-up PR from `feat/service-area-travel-enforcement`). This
+section is the authoritative record of what is enforced.
+
+### Coverage model (approved and shipped)
+
+- **Canada-first FSA allowlist.** A provider configures one service-area row
+  (`provider_service_areas`: country `CA` only, canonical province code,
+  optional city, provider-written public description, active flag) plus zero
+  or more coverage entries (`provider_coverage_areas`), one per Canadian FSA
+  — the first three postal-code characters, e.g. `M5V`. Prefixes are
+  normalized (uppercase, no whitespace) at the API boundary; removal
+  deactivates (never destroys) the row; a partial unique index keeps ACTIVE
+  coverage unique per provider. Frozen additive artifact:
+  `docs/migrations/PROVIDER_SERVICE_AREAS_V1.sql`.
+- **No geocoding, routing, radius, polygons, or coordinates** — anywhere.
+  Coverage is a deterministic prefix rule, never a drive-time guarantee.
+- Unconfigured providers are safe by default: public eligibility reports
+  `unavailable`, and publishing a booking page requires active coverage.
+
+### Eligibility (server-authoritative)
+
+States: `eligible | ineligible | needs_review | invalid | unavailable`, each
+with approved plain-language client copy and a small allowlisted reason code
+(`fsa_match`, `fsa_not_covered`, `country_not_served`, `province_mismatch`,
+`missing_location`, `malformed_postal_code`, `malformed_location`,
+`not_configured`). The client is never trusted to decide eligibility; every
+booking/rescheduling transition revalidates against the provider's CURRENT
+active coverage. Out-of-area requests are hard-blocked (409);
+`needs_review` (e.g. province/FSA inconsistency) routes the client to the
+provider/support instead of guessing.
+
+Public checks (rate-limit-friendly, minimal input, no account required):
+`POST /booking-pages/:slug/service-area-check` (public booking page — runs
+BEFORE service and slot selection on `/book/:providerSlug`) and
+`POST /providers/:providerId/service-area-check` (marketplace/mobile booking
+modal). Provider configuration is owner-scoped under
+`/providers/me/service-area*`.
+
+### Travel/setup buffer (approved and shipped)
+
+- **Centrally managed 30-minute default** between a provider's appointments
+  (covers travel, setup, parking, handoff). Service duration stays separate.
+- Environment override `TRAVEL_SETUP_BUFFER_MINUTES` (integer 0–240,
+  validated; invalid values throw — never a silent fallback). Providers see
+  the active value and its source (`default` | `environment`) in their
+  service-area settings. Per-provider overrides remain DEFERRED.
+- Enforced on new bookings, client immediate reschedules, provider proposal
+  creation, and proposal acceptance. Conflict math is instant-based
+  (DST-safe); zero-gap back-to-back appointments conflict.
+- The buffer never alters existing confirmed bookings and never creates a
+  maximum-daily-appointments cap.
+
+### Privacy (enforced)
+
+Public responses expose only the safe summary (country, province, optional
+city, provider-written description, configured flag) and the eligibility
+state/message/reason code. The raw prefix list, private notes, provider
+address, client addresses, user/account identifiers, care notes, and
+technical errors are never exposed publicly. Missing/unpublished/inactive/
+invalid public routes keep the same generic non-leaking behavior as #11.
+
+### Change behavior
+
+Coverage changes affect future bookings and future reschedules only;
+existing confirmed bookings are never silently cancelled. Reschedule paths
+revalidate the booking's stored location against CURRENT coverage and reject
+with a calm, actionable 409 when it no longer passes.

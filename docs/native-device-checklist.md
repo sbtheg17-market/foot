@@ -65,6 +65,15 @@ commit SHA with every run.
 - [ ] `/booking/:id` deep link from a killed app, a backgrounded app, and a
       running app; unauthorized booking ids do not leak details.
 
+### Service-area eligibility (added 2026-08-26, roadmap #12)
+- [ ] Marketplace booking modal: the service-area check (country/province/
+      postal code) runs before slot submission; an ineligible postal code
+      blocks booking with the approved calm copy (no internal details).
+- [ ] Eligible postal code proceeds to slots; a booking within the provider's
+      travel/setup buffer of another appointment is rejected with the
+      approved 409 copy and the client can pick another time.
+- [ ] The raw provider coverage list is never visible anywhere in the app.
+
 ## Store builds
 
 No `eas.json` exists; store-level builds (EAS) remain an operator decision and

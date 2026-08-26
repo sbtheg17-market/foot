@@ -1625,3 +1625,84 @@ final session handoff.
   force-push; no branch deletion; conflict_* branches untouched. Booking,
   availability, authorization, consent-rescheduling, and concurrency
   protections unchanged (regression-verified).
+
+## 2026-08-26 — Session: service-area + travel-buffer completion (roadmap #12)
+
+### Recovery audit first (no duplicated work)
+
+- Baseline `origin/main` = `a0083e7e1492108c10451444eace65d492fadc25`
+  ("feat: enforce provider service areas and travel buffers (#49)"), local
+  checkout equal, clean tree.
+- **PR #49 was found MERGED** (squash `a0083e7`, 2026-08-25) — the handoff
+  premise "closed, not merged" was stale. `git diff
+  origin/feat/service-area-travel-enforcement origin/main` is EMPTY: main
+  already contains the entire feature branch tree (efda40e).
+- `recovery/roadmap-12-prior-session` (`d76ff46`, 2026-08-25 20:35) is a
+  strictly OLDER snapshot: its only delta vs main is the ABSENCE of the
+  `reason` passthrough on reschedule 409s that the later feature commit
+  (`efda40e`, 22:41) added. Nothing unique to recover — superseded; branch
+  preserved untouched.
+- `conflict_250826_1608` inspected read-only: unrelated history (no merge
+  base; Replit auto-snapshot, 83 files, ZERO #12-scoped files). Never merged,
+  never used as a base. No secrets/`.env`/Replit artifacts copied from any
+  ref.
+
+### The actual gap: #49 merged with 3 failing CI jobs + missing CI wiring + no docs
+
+GitHub check runs on `a0083e7`: 13/16 green;
+`timezone-dst`, `api-replay-tests`, `authz-concurrency` FAILED. All three
+were reproduced locally against disposable PostgreSQL 15 and fixed on
+`feat/service-area-travel-enforcement` (brought forward via a normal merge of
+`origin/main` — no reset, no force-push):
+
+1. **timezone-dst**: `service-area.test.ts` (pure unit) transitively imports
+   `@workspace/db`, which throws without `DATABASE_URL`; the job is DB-free
+   by design. Fix: `src/__tests__/helpers/pure-unit-db-env.ts` sets a
+   placeholder `DATABASE_URL` (`??=`, never overrides a real value) imported
+   FIRST by the suite. No production code touched.
+2. **api-replay-tests**: the DLQ fixture slot pool spaced slots by service
+   duration only (60 min); consecutive pool slots violated the 30-minute
+   buffer. Fix: pool spacing = duration + `DEFAULT_TRAVEL_SETUP_BUFFER_MINUTES`.
+3. **authz-concurrency** (`test:proposals`): the acceptance-revalidation
+   fixture had Tom take `d3T16:00Z` back-to-back with bookingE
+   (15:00–16:00Z) — now buffer-blocked. Fix: proposal + Tom's booking moved
+   to `d3T16:30Z` (30 min clear; still an exact collision with the proposed
+   time, preserving the test's intent; the later 18:00Z fixture stays
+   buffer-clear at 30 min).
+4. **CI wiring**: `test:service-area` (30-test integration suite) was never
+   added to the `api-tests` job loop — added.
+5. **Docs**: PR #49 changed no docs beyond the frozen migration artifact.
+   This session recorded the implementation in
+   `service-area-travel-policy.md` (implementation record; status updated,
+   design history preserved), `api-routes.md`, `data-models.md`,
+   `ux-guidelines.md`, `NEXT-STEPS.md`, `TODO-LEDGER.md` (deferred row
+   closed with date + PR; #12 section + deferred follow-ups appended),
+   `pre-11-release-readiness.md` (addendum), `native-device-checklist.md`
+   (#12 mobile checks), and this continuity record.
+
+### Validation (disposable local PostgreSQL 15 only; nothing managed touched)
+
+- `pnpm run typecheck` / `build` / `build:deploy` PASS (artifacts verified).
+- API unit (incl. service-area, 71 tests) PASS — and PASS with
+  `DATABASE_URL` UNSET (the timezone-dst reproduction).
+- Fresh-DB CI-order replications: api-tests job (unit + 18 scripted suites
+  incl. `test:service-area` 30/30 and `test:booking-page`, + 5 unscripted
+  suites) ALL PASS; authz-concurrency job (authorization, concurrency,
+  pressure, rescheduling, proposals) ALL PASS; api-replay-tests job
+  (replay/DLQ on its own fresh DB) 14/14 PASS.
+- Web Vitest / a11y / timezone-DST suites PASS. Migration checks PASS
+  (`db:push` ×2 idempotent, seed ×2 idempotent, frozen-artifact hash + no
+  destructive DDL, server startup + healthz 200 after migration).
+- Secret scan PASS; `git diff --check` PASS.
+- Expo iOS/Android exports BLOCKED locally (arm64 host cannot execute the
+  x86_64 `hermesc` binary — known, ledgered limitation); both export jobs
+  were green in CI on this same code (`a0083e7`) and gate the completion PR.
+- Native-device verification NOT performed (deferred, checklist updated).
+
+### Boundaries held
+
+- No routing/geocoding/radius/polygons/coordinates; no payments/refunds; no
+  reminder delivery; no email/SMS; no managed DB access; no production
+  deployment; no force-push; no branch deletion; conflict_* branches
+  untouched; consent-first rescheduling semantics unchanged; existing
+  confirmed bookings never silently cancelled.

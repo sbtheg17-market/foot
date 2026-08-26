@@ -59,7 +59,9 @@ public snapshot fields per closed cycle.
 | GET | /providers/:id | public | Provider public profile |
 | GET | /providers/:id/services | public | Provider's active services |
 | GET | /providers/:id/reviews | public | Provider's reviews |
-| GET | /booking-pages/:slug | public | Provider-owned public booking page (published + approved providers only; missing/unpublished/inactive/invalid slugs all return the same generic 404) |
+| GET | /booking-pages/:slug | public | Provider-owned public booking page (published + approved providers only; missing/unpublished/inactive/invalid slugs all return the same generic 404). Includes the privacy-safe `serviceArea` public summary (roadmap #12) — never the raw coverage list |
+| POST | /booking-pages/:slug/service-area-check | public | Server-authoritative service-area eligibility check for the public booking page (roadmap #12). Minimal location input (country/province/postal code); returns `eligible \| ineligible \| needs_review \| invalid \| unavailable` with approved copy and an allowlisted reason code. Runs BEFORE service and slot selection on `/book/:providerSlug` |
+| POST | /providers/:providerId/service-area-check | public | Same eligibility check for the marketplace flow (web + mobile booking modal) (roadmap #12) |
 
 Marketplace discovery (`/providers`) and the provider-owned booking page
 (`/book/:slug` in the web app, backed by `/api/booking-pages/:slug`) are
@@ -86,6 +88,10 @@ through the existing slots + bookings endpoints.
 | POST | /providers/me/verification | provider | Submit verification doc metadata |
 | GET | /providers/me/verification | provider | Own verification status |
 | GET | /providers/me/earnings | provider | Earnings placeholder summary |
+| GET | /providers/me/service-area | provider (owner) | Own service-area configuration: country/province/city, public description, active coverage prefixes, and the active travel/setup buffer with its source (`default` \| `environment`) (roadmap #12) |
+| PUT | /providers/me/service-area | provider (owner) | Create/update the single owner-scoped service-area configuration; Canada (`CA`) only in this release; province validated against the canonical list |
+| POST | /providers/me/service-area/prefixes | provider (owner) | Add a covered Canadian postal prefix (FSA, e.g. `M5V`); normalized server-side; duplicate ACTIVE entries return 409; requires the configuration to exist |
+| DELETE | /providers/me/service-area/prefixes/:prefixId | provider (owner) | Remove (deactivate) a covered prefix; the prefix can be re-added later |
 | GET | /providers/me/booking-page | provider (member) | Own public booking-page state (slug, publish state, eligibility) |
 | POST | /providers/me/booking-page/publish | provider (approved) | Publish the canonical public booking page; assigns an immutable kebab-case slug on first publish (deterministic suffix on collision); idempotent |
 | POST | /providers/me/booking-page/unpublish | provider (member) | Remove public access; slug and data retained so republish restores the same URL; idempotent |
@@ -111,6 +117,17 @@ their workflows.
 booking-page share links. Unknown values are dropped server-side (never stored,
 never an error); the value is never used for authorization or pricing and is
 never exposed on public endpoints.
+
+Service-area and travel-buffer enforcement (roadmap #12): booking creation,
+client immediate reschedules (`PATCH /bookings/:id/status` →
+`rescheduled`), provider proposal creation
+(`POST /bookings/:id/reschedule-requests`), and proposal acceptance
+(`POST /reschedule-requests/:id/accept`) all revalidate the location against
+the provider's CURRENT active coverage and reject out-of-area requests with
+409 (`reason: "outside_service_area"`), then enforce the centrally managed
+travel/setup buffer between the provider's appointments with 409
+(`reason: "travel_buffer_conflict"`). The server is authoritative; existing
+confirmed bookings are never silently cancelled by coverage changes.
 
 ---
 

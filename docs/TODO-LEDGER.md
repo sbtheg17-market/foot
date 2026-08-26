@@ -14,7 +14,7 @@ them. Append updates with dates; never silently delete an entry.
 | Scheduled reminder delivery | DEFERRED — not implemented | No scheduler, no reminder jobs exist. Design remains open. |
 | Native-device verification | DEFERRED — never performed | See `docs/native-device-checklist.md`. CI's Expo exports/typecheck are NOT native validation. |
 | Payment/refund behavior | DEFERRED — not implemented | Only pure money/status primitives exist (`payments-foundation`); no provider selected, no checkout, no webhooks, no refunds/payouts/invoices changes. |
-| Service-area / travel enforcement | DEFERRED — design only | `docs/service-area-travel-policy.md` is approval-gated; current behavior is descriptive only. |
+| ~~Service-area / travel enforcement~~ | ~~DEFERRED — design only~~ **CLOSED 2026-08-26** | Implemented and merged as roadmap #12 — PR #49 (merged 2026-08-25 as `a0083e7`) plus the 2026-08-26 completion PR (CI wiring, remaining fixture alignment, docs). See the "Roadmap #12" section below and `docs/service-area-travel-policy.md` implementation record. |
 | Cross-provider client-overlap policy change | DEFERRED — operator decision | `docs/booking-overlap-policy.md` recommendation unapproved; behavior unchanged. |
 | Client notification persistence / email / SMS | DEFERRED — not implemented | Provider-only in-app unread persists; no client persistence, no email/SMS. |
 | Production deployment | NOT AUTHORIZED | No CI job deploys. Railway config unchanged. |
@@ -149,3 +149,39 @@ Marketplace discovery stays separate at `/providers`.
 | Per-channel attribution analytics dashboard | DEFERRED | `bookings.source` is durably recorded; no aggregation/dashboard was built (advanced analytics excluded from #11). |
 | Referral programs / payouts | DEFERRED | Explicitly excluded by the #11 authorization. |
 | Marketplace ranking | DEFERRED | Explicitly excluded by the #11 authorization. |
+
+## Roadmap #12 — service-area eligibility + travel/setup buffer — 2026-08-26
+
+Implemented in `feat/service-area-travel-enforcement`. PR #49 (the full
+feature) was squash-merged to `main` on 2026-08-25 as `a0083e7`; a follow-up
+completion PR from the same branch (2026-08-26) closed the three CI
+regressions PR #49 merged with (pure-unit `DATABASE_URL` guard for the
+DB-free timezone-dst job, travel-buffer-aware slot spacing in the replay/DLQ
+fixture pool, buffer-clear times in the proposals acceptance-revalidation
+fixture), wired `test:service-area` into the `api-tests` CI job (it was
+missing), and recorded the implementation in the docs listed below.
+
+Scope shipped: Canada-first provider-managed FSA (postal-prefix) coverage
+(`provider_service_areas` + `provider_coverage_areas`, frozen artifact
+`docs/migrations/PROVIDER_SERVICE_AREAS_V1.sql`); country/province-aware
+postal normalization; server-authoritative eligibility states
+(`eligible | ineligible | needs_review | invalid | unavailable`) with
+allowlisted reason codes; public eligibility check BEFORE service/slot
+selection on `/book/:providerSlug` and in the marketplace/mobile booking
+modal; provider "Areas you serve" portal page (`/provider/service-area`);
+privacy-safe public service-area summary (raw prefix list never public);
+centrally managed 30-minute travel/setup buffer enforced on booking creation,
+client immediate reschedules, provider proposal creation, and proposal
+acceptance; publishing a booking page requires active coverage. Existing
+confirmed bookings are never silently cancelled by coverage changes.
+
+### Deferred follow-ups from #12 (NOT implemented — do not mark complete)
+
+| Item | Status | Notes |
+|---|---|---|
+| Provider-specific buffer override | DEFERRED | Buffer is centrally managed: 30-minute default, environment override `TRAVEL_SETUP_BUFFER_MINUTES` (validated 0–240; invalid values throw at resolution, never a silent fallback). No per-provider setting. |
+| Countries beyond Canada | DEFERRED | Schema/API are country-aware but only `CA` is accepted; expansion needs per-country normalization rules. |
+| Routing / geocoding / radius / polygons / coordinates | DEFERRED | Explicitly excluded by the #12 authorization; nothing was implemented or stored. |
+| Maximum daily appointment caps | DEFERRED | Explicitly excluded by the #12 authorization. |
+| Manual-review workflow tooling | DEFERRED | `needs_review` routes clients to contact the provider/support; no admin queue exists. |
+| Coverage-change review of existing bookings | DEFERRED | Coverage changes affect future bookings/reschedules only; no proactive review of already-confirmed visits. |

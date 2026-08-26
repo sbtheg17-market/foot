@@ -111,3 +111,18 @@ implemented: `/book/:providerSlug` public page, publish/unpublish with
 immutable slugs, dashboard share card with QR, and allowlisted booking
 `source` attribution. See `docs/TODO-LEDGER.md` (2026-08-25 section),
 `docs/api-routes.md`, and `docs/data-models.md` for the authoritative state.
+
+## Status note — 2026-08-26 (roadmap #12)
+
+Roadmap #12 (service-area eligibility + travel/setup buffer) is implemented
+and merged: Canada-first FSA coverage (`/provider/service-area` portal page,
+owner-scoped `/providers/me/service-area*` API), server-authoritative
+eligibility (`eligible | ineligible | needs_review | invalid | unavailable`)
+checked BEFORE service/slot selection on `/book/:providerSlug` and in the
+marketplace/mobile booking modal, and a centrally managed 30-minute
+travel/setup buffer enforced on new bookings and all future reschedule paths.
+PR #49 merged 2026-08-25 (`a0083e7`); the 2026-08-26 completion PR fixed the
+three CI regressions #49 merged with, wired `test:service-area` into CI, and
+recorded the implementation. Authoritative docs: `docs/TODO-LEDGER.md`
+(roadmap #12 section), `docs/service-area-travel-policy.md` (implementation
+record), `docs/api-routes.md`, `docs/data-models.md`.
