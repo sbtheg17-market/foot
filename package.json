@@ -10,6 +10,8 @@
     "git:check": "bash scripts/check-github-sync.sh",
     "publish:gate": "bash scripts/verify-publication.sh",
     "seed": "pnpm --filter @workspace/api-server run seed",
+    "smoke:real-browser": "pnpm --filter @workspace/scripts run smoke:real-browser",
+    "smoke:mobile-emulation": "pnpm --filter @workspace/scripts run smoke:mobile-emulation",
     "start": "node --enable-source-maps artifacts/api-server/dist/index.mjs",
     "test": "pnpm -r --if-present --filter \"!@workspace/mockup-sandbox\" run test",
     "typecheck:libs": "tsc --build",
