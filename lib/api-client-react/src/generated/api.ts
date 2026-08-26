@@ -32,9 +32,11 @@ import type {
   BookingListResponse,
   BookingRequestRejectedResponse,
   BookingResponse,
+  CancellationPreviewResponse,
   ClientCareHistoryResponse,
   ConflictResponse,
   CreateBookingRequest,
+  CreateEscalationRequest,
   CreateRescheduleRequest,
   CreateReviewRequest,
   CreateServiceRequest,
@@ -43,9 +45,11 @@ import type {
   DuplicateBookingConflictResponse,
   EarningsExportResponse,
   EarningsSummaryResponse,
+  EscalationResponse,
   ForbiddenResponse,
   GetAdminVerificationQueueParams,
   GetClientCareHistoryParams,
+  GetOutcomeHistoryParams,
   GetProviderApplicationSubmissionsParams,
   GetProviderNotificationsParams,
   GetProviderSlotsParams,
@@ -64,6 +68,7 @@ import type {
   MyBookingPageResponse,
   MyServiceAreaResponse,
   NotFoundResponse,
+  OutcomeHistoryResponse,
   ProviderApplicationDetailResponse,
   ProviderApplicationStatusResponse,
   ProviderApplicationSubmissionHistoryResponse,
@@ -92,10 +97,12 @@ import type {
   ServiceResponse,
   SetAvailabilityRequest,
   SubmitVerificationDocRequest,
+  SupportBookingEscalationsResponse,
   TravelZoneListResponse,
   TravelZoneResponse,
   UnauthorizedResponse,
   UpdateBookingStatusRequest,
+  UpdateEscalationRequest,
   UpdateProviderApplicationRequest,
   UpdateProviderProfileRequest,
   UpdateServiceAreaRequest,
@@ -5303,6 +5310,392 @@ export function useGetReschedulingHistory<TData = Awaited<ReturnType<typeof getR
 
 
 
+
+export const getGetCancellationPreviewUrl = (bookingId: number,) => {
+
+
+
+
+  return `/api/bookings/${bookingId}/cancellation-preview`
+}
+
+/**
+ * @summary What cancelling right now would mean (owner only, server-computed)
+ */
+export const getCancellationPreview = async (bookingId: number, options?: Parameters<typeof customFetch>[1]): Promise<CancellationPreviewResponse> => {
+
+  return customFetch<CancellationPreviewResponse>(getGetCancellationPreviewUrl(bookingId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCancellationPreviewQueryKey = (bookingId: number,) => {
+    return [
+    `/api/bookings/${bookingId}/cancellation-preview`
+    ] as const;
+    }
+
+
+export const getGetCancellationPreviewQueryOptions = <TData = Awaited<ReturnType<typeof getCancellationPreview>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(bookingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCancellationPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCancellationPreviewQueryKey(bookingId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCancellationPreview>>> = ({ signal }) => getCancellationPreview(bookingId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookingId !== null && bookingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCancellationPreview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCancellationPreviewQueryResult = NonNullable<Awaited<ReturnType<typeof getCancellationPreview>>>
+export type GetCancellationPreviewQueryError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+
+
+/**
+ * @summary What cancelling right now would mean (owner only, server-computed)
+ */
+
+export function useGetCancellationPreview<TData = Awaited<ReturnType<typeof getCancellationPreview>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(
+ bookingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCancellationPreview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCancellationPreviewQueryOptions(bookingId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetOutcomeHistoryUrl = (bookingId: number,
+    params?: GetOutcomeHistoryParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/bookings/${bookingId}/outcome-history?${stringifiedParams}` : `/api/bookings/${bookingId}/outcome-history`
+}
+
+/**
+ * @summary Append-only cancellation/no-show outcome history (owner only)
+ */
+export const getOutcomeHistory = async (bookingId: number,
+    params?: GetOutcomeHistoryParams, options?: Parameters<typeof customFetch>[1]): Promise<OutcomeHistoryResponse> => {
+
+  return customFetch<OutcomeHistoryResponse>(getGetOutcomeHistoryUrl(bookingId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOutcomeHistoryQueryKey = (bookingId: number,
+    params?: GetOutcomeHistoryParams,) => {
+    return [
+    `/api/bookings/${bookingId}/outcome-history`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetOutcomeHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getOutcomeHistory>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(bookingId: number,
+    params?: GetOutcomeHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOutcomeHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOutcomeHistoryQueryKey(bookingId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOutcomeHistory>>> = ({ signal }) => getOutcomeHistory(bookingId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookingId !== null && bookingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOutcomeHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOutcomeHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getOutcomeHistory>>>
+export type GetOutcomeHistoryQueryError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+
+
+/**
+ * @summary Append-only cancellation/no-show outcome history (owner only)
+ */
+
+export function useGetOutcomeHistory<TData = Awaited<ReturnType<typeof getOutcomeHistory>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse>>(
+ bookingId: number,
+    params?: GetOutcomeHistoryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOutcomeHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOutcomeHistoryQueryOptions(bookingId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSupportEscalationUrl = () => {
+
+
+
+
+  return `/api/support/escalations`
+}
+
+/**
+ * @summary Escalate a terminal booking to support (either party, idempotent)
+ */
+export const createSupportEscalation = async (createEscalationRequest: CreateEscalationRequest, options?: Parameters<typeof customFetch>[1]): Promise<EscalationResponse> => {
+
+  return customFetch<EscalationResponse>(getCreateSupportEscalationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createEscalationRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateSupportEscalationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSupportEscalation>>, TError,{data: BodyType<CreateEscalationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSupportEscalation>>, TError,{data: BodyType<CreateEscalationRequest>}, TContext> => {
+
+const mutationKey = ['createSupportEscalation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSupportEscalation>>, {data: BodyType<CreateEscalationRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSupportEscalation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSupportEscalationMutationResult = NonNullable<Awaited<ReturnType<typeof createSupportEscalation>>>
+    export type CreateSupportEscalationMutationBody = BodyType<CreateEscalationRequest>
+    export type CreateSupportEscalationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Escalate a terminal booking to support (either party, idempotent)
+ */
+export const useCreateSupportEscalation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSupportEscalation>>, TError,{data: BodyType<CreateEscalationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSupportEscalation>>,
+        TError,
+        {data: BodyType<CreateEscalationRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateSupportEscalationMutationOptions(options));
+    }
+
+export const getGetSupportBookingEscalationsUrl = (bookingId: number,) => {
+
+
+
+
+  return `/api/support/bookings/${bookingId}/escalations`
+}
+
+/**
+ * @summary Escalations + full outcome history for a booking (support/admin only, audit-logged)
+ */
+export const getSupportBookingEscalations = async (bookingId: number, options?: Parameters<typeof customFetch>[1]): Promise<SupportBookingEscalationsResponse> => {
+
+  return customFetch<SupportBookingEscalationsResponse>(getGetSupportBookingEscalationsUrl(bookingId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSupportBookingEscalationsQueryKey = (bookingId: number,) => {
+    return [
+    `/api/support/bookings/${bookingId}/escalations`
+    ] as const;
+    }
+
+
+export const getGetSupportBookingEscalationsQueryOptions = <TData = Awaited<ReturnType<typeof getSupportBookingEscalations>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(bookingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupportBookingEscalations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSupportBookingEscalationsQueryKey(bookingId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSupportBookingEscalations>>> = ({ signal }) => getSupportBookingEscalations(bookingId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: bookingId !== null && bookingId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSupportBookingEscalations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSupportBookingEscalationsQueryResult = NonNullable<Awaited<ReturnType<typeof getSupportBookingEscalations>>>
+export type GetSupportBookingEscalationsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Escalations + full outcome history for a booking (support/admin only, audit-logged)
+ */
+
+export function useGetSupportBookingEscalations<TData = Awaited<ReturnType<typeof getSupportBookingEscalations>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ bookingId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSupportBookingEscalations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSupportBookingEscalationsQueryOptions(bookingId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateSupportEscalationUrl = (ticketId: number,) => {
+
+
+
+
+  return `/api/support/escalations/${ticketId}`
+}
+
+/**
+ * @summary Update escalation state, record mediation outcome, correct a booking, or suspend a party (support/admin only)
+ */
+export const updateSupportEscalation = async (ticketId: number,
+    updateEscalationRequest: UpdateEscalationRequest, options?: Parameters<typeof customFetch>[1]): Promise<EscalationResponse> => {
+
+  return customFetch<EscalationResponse>(getUpdateSupportEscalationUrl(ticketId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateEscalationRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateSupportEscalationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupportEscalation>>, TError,{ticketId: number;data: BodyType<UpdateEscalationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateSupportEscalation>>, TError,{ticketId: number;data: BodyType<UpdateEscalationRequest>}, TContext> => {
+
+const mutationKey = ['updateSupportEscalation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateSupportEscalation>>, {ticketId: number;data: BodyType<UpdateEscalationRequest>}> = (props) => {
+          const {ticketId,data} = props ?? {};
+
+          return  updateSupportEscalation(ticketId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateSupportEscalationMutationResult = NonNullable<Awaited<ReturnType<typeof updateSupportEscalation>>>
+    export type UpdateSupportEscalationMutationBody = BodyType<UpdateEscalationRequest>
+    export type UpdateSupportEscalationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Update escalation state, record mediation outcome, correct a booking, or suspend a party (support/admin only)
+ */
+export const useUpdateSupportEscalation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateSupportEscalation>>, TError,{ticketId: number;data: BodyType<UpdateEscalationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateSupportEscalation>>,
+        TError,
+        {ticketId: number;data: BodyType<UpdateEscalationRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateSupportEscalationMutationOptions(options));
+    }
 
 export const getCreateReviewUrl = () => {
 

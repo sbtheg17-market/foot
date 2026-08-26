@@ -1949,6 +1949,164 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /bookings/{bookingId}/cancellation-preview:
+    get:
+      operationId: getCancellationPreview
+      tags: [bookings]
+      summary: What cancelling right now would mean (owner only, server-computed)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancellation consequence preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancellationPreviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bookings/{bookingId}/outcome-history:
+    get:
+      operationId: getOutcomeHistory
+      tags: [bookings]
+      summary: Append-only cancellation/no-show outcome history (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Outcome history, newest first (private fields admin-only)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutcomeHistoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Support (minimal, API-first — roadmap #13) ────────────────────────────────
+
+  /support/escalations:
+    post:
+      operationId: createSupportEscalation
+      tags: [support]
+      summary: Escalate a terminal booking to support (either party, idempotent)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEscalationRequest"
+      responses:
+        "201":
+          description: Escalation ticket created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EscalationResponse"
+        "200":
+          description: An unresolved escalation for this booking already exists — returned as-is
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EscalationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /support/bookings/{bookingId}/escalations:
+    get:
+      operationId: getSupportBookingEscalations
+      tags: [support]
+      summary: Escalations + full outcome history for a booking (support/admin only, audit-logged)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Internal support view (never exposed to regular users)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportBookingEscalationsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /support/escalations/{ticketId}:
+    patch:
+      operationId: updateSupportEscalation
+      tags: [support]
+      summary: Update escalation state, record mediation outcome, correct a booking, or suspend a party (support/admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEscalationRequest"
+      responses:
+        "200":
+          description: Updated escalation (and corrected booking when requested)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EscalationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
   # ── Reviews ───────────────────────────────────────────────────────────────────
 
   /reviews:
@@ -3433,6 +3591,18 @@ components:
         cancellationReason:
           type: string
           nullable: true
+        cancellationCategory:
+          type: string
+          nullable: true
+          description: >-
+            Server-computed cancellation policy category (roadmap #13):
+            client_cancelled_early, client_cancelled_late, provider_cancelled,
+            or cancelled_by_support; null until the booking is cancelled
+        noShowMarkedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the provider recorded a no-show; null otherwise
         clientFirstName:
           type: string
           nullable: true
@@ -3654,12 +3824,30 @@ components:
           $ref: "#/components/schemas/PublicAvailabilityResponse"
         serviceArea:
           $ref: "#/components/schemas/PublicServiceAreaSummary"
+        cancellationPolicy:
+          $ref: "#/components/schemas/PublicCancellationPolicySummary"
       required:
         - slug
         - provider
         - services
         - availability
         - serviceArea
+        - cancellationPolicy
+
+    PublicCancellationPolicySummary:
+      type: object
+      description: >-
+        Public cancellation policy summary (roadmap #13). Safe fields ONLY:
+        the notice window and plain-language copy. Internal state identifiers,
+        categories, and history are never exposed publicly.
+      properties:
+        noticeHours:
+          type: integer
+        summary:
+          type: string
+      required:
+        - noticeHours
+        - summary
 
     PublicServiceAreaSummary:
       type: object
@@ -3966,13 +4154,192 @@ components:
           $ref: "#/components/schemas/BookingStatus"
         cancellationReason:
           type: string
-          description: Required when transitioning to cancelled
+          description: >-
+            Required when transitioning to cancelled. Private free text —
+            support/admin-visible only, never shared cross-party
+        reasonCategory:
+          type: string
+          enum: [illness, emergency, schedule_conflict, client_request, declined_request, reschedule_declined, other]
+          description: >-
+            Required when a PROVIDER cancels (roadmap #13). Allowlisted
+            structured reason shared with the client
         scheduledAt:
           type: string
           format: date-time
           description: Required when transitioning to rescheduled
       required:
         - status
+
+    # ── Cancellation/no-show policy schemas (roadmap #13) ─────────────────────
+
+    CancellationPreviewResponse:
+      type: object
+      properties:
+        preview:
+          type: object
+          properties:
+            outcome:
+              type: string
+              enum: [free, late, provider, unavailable]
+            noticeHours:
+              type: integer
+            freeUntil:
+              type: string
+              format: date-time
+              nullable: true
+            message:
+              type: string
+          required: [outcome, noticeHours, freeUntil, message]
+      required: [preview]
+
+    OutcomeHistoryEntry:
+      type: object
+      description: >-
+        Append-only outcome record. Private fields (reasonSnapshot,
+        actorUserId) are present only in admin responses
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        actorRole:
+          type: string
+          enum: [client, provider, admin]
+        action:
+          type: string
+          enum: [cancelled, no_show, support_corrected]
+        category:
+          type: string
+          nullable: true
+        reasonCategory:
+          type: string
+          nullable: true
+        previousStatus:
+          $ref: "#/components/schemas/BookingStatus"
+        newStatus:
+          $ref: "#/components/schemas/BookingStatus"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, bookingId, actorRole, action, category, reasonCategory, previousStatus, newStatus, createdAt]
+
+    OutcomeHistoryResponse:
+      type: object
+      properties:
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/OutcomeHistoryEntry"
+        limit:
+          type: integer
+      required: [history, limit]
+
+    # ── Support workflow schemas (minimal, API-first — roadmap #13) ───────────
+
+    CreateEscalationRequest:
+      type: object
+      properties:
+        bookingId:
+          type: integer
+        message:
+          type: string
+          maxLength: 2000
+          description: Optional opening message recorded on the ticket
+      required: [bookingId]
+
+    EscalationTicket:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+          nullable: true
+        subject:
+          type: string
+        status:
+          type: string
+          enum: [open, in_progress, resolved]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, bookingId, subject, status, createdAt, updatedAt]
+
+    EscalationResponse:
+      type: object
+      properties:
+        ticket:
+          $ref: "#/components/schemas/EscalationTicket"
+        created:
+          type: boolean
+          description: True when a new ticket was created; false for idempotent replays
+      required: [ticket]
+
+    SupportBookingEscalationsResponse:
+      type: object
+      description: Internal support view — never exposed to regular clients/providers
+      properties:
+        booking:
+          type: object
+          properties:
+            id:
+              type: integer
+            status:
+              $ref: "#/components/schemas/BookingStatus"
+            scheduledAt:
+              type: string
+              format: date-time
+            cancellationCategory:
+              type: string
+              nullable: true
+            cancellationReason:
+              type: string
+              nullable: true
+            noShowMarkedAt:
+              type: string
+              format: date-time
+              nullable: true
+          required: [id, status, scheduledAt, cancellationCategory, cancellationReason, noShowMarkedAt]
+        tickets:
+          type: array
+          items:
+            $ref: "#/components/schemas/EscalationTicket"
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/OutcomeHistoryEntry"
+      required: [booking, tickets, history]
+
+    UpdateEscalationRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, in_progress, resolved]
+        resolutionNote:
+          type: string
+          maxLength: 2000
+          description: Mediation outcome — recorded as a support message
+        correction:
+          type: object
+          description: >-
+            Correct a disputed cancelled/no-show booking outcome. Appends a
+            support_corrected history row; never mutates existing history
+          properties:
+            status:
+              type: string
+              enum: [completed, cancelled]
+            reason:
+              type: string
+          required: [status, reason]
+        suspendUserId:
+          type: integer
+          description: >-
+            Trigger the existing account suspension mechanism for a party to
+            the linked booking
 
     # ── Reschedule proposal schemas (consent-first provider rescheduling) ─────
 

@@ -744,6 +744,10 @@ export interface Booking {
   /** Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization */
   source?: string | null;
   cancellationReason?: string | null;
+  /** Server-computed cancellation policy category (roadmap #13): client_cancelled_early, client_cancelled_late, provider_cancelled, or cancelled_by_support; null until the booking is cancelled */
+  cancellationCategory?: string | null;
+  /** When the provider recorded a no-show; null otherwise */
+  noShowMarkedAt?: string | null;
   /** Client first name (joined; present on list responses) */
   clientFirstName?: string | null;
   /** Client last name (joined; present on list responses) */
@@ -867,12 +871,21 @@ export interface PublicServiceAreaSummary {
   city: string | null;
 }
 
+/**
+ * Public cancellation policy summary (roadmap #13). Safe fields ONLY: the notice window and plain-language copy. Internal state identifiers, categories, and history are never exposed publicly.
+ */
+export interface PublicCancellationPolicySummary {
+  noticeHours: number;
+  summary: string;
+}
+
 export interface PublicBookingPage {
   slug: string;
   provider: PublicBookingPageProvider;
   services: Service[];
   availability: PublicAvailabilityResponse;
   serviceArea: PublicServiceAreaSummary;
+  cancellationPolicy: PublicCancellationPolicySummary;
 }
 
 /**
@@ -1022,12 +1035,178 @@ export interface CreateBookingRequest {
   source?: CreateBookingRequestSource;
 }
 
+/**
+ * Required when a PROVIDER cancels (roadmap #13). Allowlisted structured reason shared with the client
+ */
+export type UpdateBookingStatusRequestReasonCategory = typeof UpdateBookingStatusRequestReasonCategory[keyof typeof UpdateBookingStatusRequestReasonCategory];
+
+
+export const UpdateBookingStatusRequestReasonCategory = {
+  illness: 'illness',
+  emergency: 'emergency',
+  schedule_conflict: 'schedule_conflict',
+  client_request: 'client_request',
+  declined_request: 'declined_request',
+  reschedule_declined: 'reschedule_declined',
+  other: 'other',
+} as const;
+
 export interface UpdateBookingStatusRequest {
   status: BookingStatus;
-  /** Required when transitioning to cancelled */
+  /** Required when transitioning to cancelled. Private free text — support/admin-visible only, never shared cross-party */
   cancellationReason?: string;
+  /** Required when a PROVIDER cancels (roadmap #13). Allowlisted structured reason shared with the client */
+  reasonCategory?: UpdateBookingStatusRequestReasonCategory;
   /** Required when transitioning to rescheduled */
   scheduledAt?: string;
+}
+
+export type CancellationPreviewResponsePreviewOutcome = typeof CancellationPreviewResponsePreviewOutcome[keyof typeof CancellationPreviewResponsePreviewOutcome];
+
+
+export const CancellationPreviewResponsePreviewOutcome = {
+  free: 'free',
+  late: 'late',
+  provider: 'provider',
+  unavailable: 'unavailable',
+} as const;
+
+export type CancellationPreviewResponsePreview = {
+  outcome: CancellationPreviewResponsePreviewOutcome;
+  noticeHours: number;
+  freeUntil: string | null;
+  message: string;
+};
+
+export interface CancellationPreviewResponse {
+  preview: CancellationPreviewResponsePreview;
+}
+
+export type OutcomeHistoryEntryActorRole = typeof OutcomeHistoryEntryActorRole[keyof typeof OutcomeHistoryEntryActorRole];
+
+
+export const OutcomeHistoryEntryActorRole = {
+  client: 'client',
+  provider: 'provider',
+  admin: 'admin',
+} as const;
+
+export type OutcomeHistoryEntryAction = typeof OutcomeHistoryEntryAction[keyof typeof OutcomeHistoryEntryAction];
+
+
+export const OutcomeHistoryEntryAction = {
+  cancelled: 'cancelled',
+  no_show: 'no_show',
+  support_corrected: 'support_corrected',
+} as const;
+
+/**
+ * Append-only outcome record. Private fields (reasonSnapshot, actorUserId) are present only in admin responses
+ */
+export interface OutcomeHistoryEntry {
+  id: number;
+  bookingId: number;
+  actorRole: OutcomeHistoryEntryActorRole;
+  action: OutcomeHistoryEntryAction;
+  category: string | null;
+  reasonCategory: string | null;
+  previousStatus: BookingStatus;
+  newStatus: BookingStatus;
+  createdAt: string;
+}
+
+export interface OutcomeHistoryResponse {
+  history: OutcomeHistoryEntry[];
+  limit: number;
+}
+
+export interface CreateEscalationRequest {
+  bookingId: number;
+  /**
+     * Optional opening message recorded on the ticket
+     * @maxLength 2000
+     */
+  message?: string;
+}
+
+export type EscalationTicketStatus = typeof EscalationTicketStatus[keyof typeof EscalationTicketStatus];
+
+
+export const EscalationTicketStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  resolved: 'resolved',
+} as const;
+
+export interface EscalationTicket {
+  id: number;
+  bookingId: number | null;
+  subject: string;
+  status: EscalationTicketStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EscalationResponse {
+  ticket: EscalationTicket;
+  /** True when a new ticket was created; false for idempotent replays */
+  created?: boolean;
+}
+
+export type SupportBookingEscalationsResponseBooking = {
+  id: number;
+  status: BookingStatus;
+  scheduledAt: string;
+  cancellationCategory: string | null;
+  cancellationReason: string | null;
+  noShowMarkedAt: string | null;
+};
+
+/**
+ * Internal support view — never exposed to regular clients/providers
+ */
+export interface SupportBookingEscalationsResponse {
+  booking: SupportBookingEscalationsResponseBooking;
+  tickets: EscalationTicket[];
+  history: OutcomeHistoryEntry[];
+}
+
+export type UpdateEscalationRequestStatus = typeof UpdateEscalationRequestStatus[keyof typeof UpdateEscalationRequestStatus];
+
+
+export const UpdateEscalationRequestStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  resolved: 'resolved',
+} as const;
+
+export type UpdateEscalationRequestCorrectionStatus = typeof UpdateEscalationRequestCorrectionStatus[keyof typeof UpdateEscalationRequestCorrectionStatus];
+
+
+export const UpdateEscalationRequestCorrectionStatus = {
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
+
+/**
+ * Correct a disputed cancelled/no-show booking outcome. Appends a support_corrected history row; never mutates existing history
+ */
+export type UpdateEscalationRequestCorrection = {
+  status: UpdateEscalationRequestCorrectionStatus;
+  reason: string;
+};
+
+export interface UpdateEscalationRequest {
+  status?: UpdateEscalationRequestStatus;
+  /**
+     * Mediation outcome — recorded as a support message
+     * @maxLength 2000
+     */
+  resolutionNote?: string;
+  /** Correct a disputed cancelled/no-show booking outcome. Appends a support_corrected history row; never mutates existing history */
+  correction?: UpdateEscalationRequestCorrection;
+  /** Trigger the existing account suspension mechanism for a party to the linked booking */
+  suspendUserId?: number;
 }
 
 export type RescheduleProposalStatus = typeof RescheduleProposalStatus[keyof typeof RescheduleProposalStatus];
@@ -1484,6 +1663,14 @@ limit?: number;
  * Keyset cursor (id of the last row from the previous page)
  */
 cursor?: number;
+};
+
+export type GetOutcomeHistoryParams = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
 };
 
 export type ListInvoicesParams = {

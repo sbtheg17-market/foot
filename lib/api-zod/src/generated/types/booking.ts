@@ -23,6 +23,10 @@ export interface Booking {
   /** Privacy-safe allowlisted link attribution recorded at creation (instagram, qr-card, text, facebook, website); never exposed publicly and never used for authorization */
   source?: string | null;
   cancellationReason?: string | null;
+  /** Server-computed cancellation policy category (roadmap #13): client_cancelled_early, client_cancelled_late, provider_cancelled, or cancelled_by_support; null until the booking is cancelled */
+  cancellationCategory?: string | null;
+  /** When the provider recorded a no-show; null otherwise */
+  noShowMarkedAt?: Date | null;
   /** Client first name (joined; present on list responses) */
   clientFirstName?: string | null;
   /** Client last name (joined; present on list responses) */

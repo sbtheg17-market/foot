@@ -6,11 +6,14 @@
  * OpenAPI spec version: 0.3.0
  */
 import type { BookingStatus } from './bookingStatus';
+import type { UpdateBookingStatusRequestReasonCategory } from './updateBookingStatusRequestReasonCategory';
 
 export interface UpdateBookingStatusRequest {
   status: BookingStatus;
-  /** Required when transitioning to cancelled */
+  /** Required when transitioning to cancelled. Private free text — support/admin-visible only, never shared cross-party */
   cancellationReason?: string;
+  /** Required when a PROVIDER cancels (roadmap #13). Allowlisted structured reason shared with the client */
+  reasonCategory?: UpdateBookingStatusRequestReasonCategory;
   /** Required when transitioning to rescheduled */
   scheduledAt?: Date;
 }
