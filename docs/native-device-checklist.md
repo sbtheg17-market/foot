@@ -78,3 +78,11 @@ commit SHA with every run.
 
 No `eas.json` exists; store-level builds (EAS) remain an operator decision and
 are out of scope for CI.
+
+## Roadmap #13 additions to verify on real devices (2026-08-26 — NOT yet performed)
+
+- Client cancel alert shows the server preview copy (free vs late) on iOS/Android.
+- Provider "Mark no-show" appears only for past confirmed bookings; alert flow works.
+- "Ask for help with this booking" opens an escalation and disables after success.
+- Native alerts (RN `Alert.alert`) are no-ops in web export — these flows were
+  verified via API + jsdom only. Native-device verification remains DEFERRED.

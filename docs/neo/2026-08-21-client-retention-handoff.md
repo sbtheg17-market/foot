@@ -1714,3 +1714,24 @@ were reproduced locally against disposable PostgreSQL 15 and fixed on
 - Completion PR #50: https://github.com/sbtheg17-market/foot/pull/50
   (replacement for merged-and-unreopenable PR #49). Squash-merge SHA recorded
   in the ledger/PR after all deterministic CI checks pass.
+
+---
+
+## Session addendum — 2026-08-26 (roadmap #13 implemented)
+
+Recovery first: the prior #13 session's workspace was inspected (fresh clone
+of `main` @ `a3121c5`, zero local commits/stashes/changes) — NO code was
+recovered; the continuity doc (`docs/roadmap-13-cancellation-no-show-continuity.md`,
+draft PR #51) was the only prior artifact and served as the spec.
+
+Implemented on `feat/cancellation-no-show-policy` from `a3121c5`:
+server-authoritative cancellation categories (early/late/provider/support)
+with a validated 24h notice window, provider reason-category guardrails,
+no-show time-passed rule with actor/timestamp metadata, append-only
+`booking_outcome_history`, cancellation preview + owner-scoped history
+endpoints, public policy summary on booking pages, minimal API-first support
+workflow (escalations linked to bookings, admin view/mediate/correct/suspend,
+audit-logged, no dashboard UI), web + mobile parity for policy display,
+honest cancel confirms, no-show marking, and escalation buttons. Additive
+frozen migration `CANCELLATION_NO_SHOW_SUPPORT_V1.sql`, disposable-PG tested;
+managed DB not accessed. Full record: `docs/cancellation-no-show-policy.md`.

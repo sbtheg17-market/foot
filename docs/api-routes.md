@@ -177,3 +177,22 @@ confirmed bookings are never silently cancelled by coverage changes.
 | GET | /admin/support/tickets | admin | All support tickets |
 | PATCH | /admin/support/tickets/:id/status | admin | Update ticket status |
 | POST | /admin/support/tickets/:id/messages | admin | Respond to ticket |
+
+## Cancellation/no-show + minimal support (roadmap #13 — added 2026-08-26)
+
+| Method | Route | Auth | Notes |
+|---|---|---|---|
+| GET | `/api/bookings/:id/cancellation-preview` | owner (client/provider/admin) | Server-computed consequence of cancelling now: `free` / `late` / `provider` / `unavailable`, notice hours, `freeUntil`, calm copy. Non-owners: non-leaking 404. |
+| GET | `/api/bookings/:id/outcome-history` | owner | Append-only cancellation/no-show history, newest first. `reasonSnapshot`/`actorUserId` are admin-only (cross-party redaction). |
+| POST | `/api/support/escalations` | client/provider (booking party) | Escalate a TERMINAL booking (cancelled/no_show/completed) into a support ticket (`support_tickets.booking_id`). Idempotent per unresolved booking+user escalation. |
+| GET | `/api/support/bookings/:bookingId/escalations` | admin (support role) | Tickets + FULL outcome history incl. private fields. Audit-logged. Never callable by regular users (403). |
+| PATCH | `/api/support/escalations/:ticketId` | admin (support role) | Update state (`open`/`in_progress`/`resolved`), record mediation note, correct a disputed outcome (`completed`/`cancelled` + mandatory reason → `support_corrected` history row), or suspend a booking party (`users.is_active=false`). Audit-logged. |
+
+`PATCH /api/bookings/:id/status` changes (#13): cancelling computes and stores
+`cancellationCategory` (client_cancelled_early / client_cancelled_late /
+provider_cancelled / cancelled_by_support); providers must send an allowlisted
+`reasonCategory`; `no_show` additionally requires the scheduled time to have
+passed and records `noShowMarkedBy`/`noShowMarkedAt`. Every cancel/no-show
+appends a `booking_outcome_history` row in the same transaction.
+Public `GET /api/booking-pages/:slug` now includes
+`cancellationPolicy: { noticeHours, summary }` (safe fields only).

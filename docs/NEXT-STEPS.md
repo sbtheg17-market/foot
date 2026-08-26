@@ -126,3 +126,16 @@ three CI regressions #49 merged with, wired `test:service-area` into CI, and
 recorded the implementation. Authoritative docs: `docs/TODO-LEDGER.md`
 (roadmap #12 section), `docs/service-area-travel-policy.md` (implementation
 record), `docs/api-routes.md`, `docs/data-models.md`.
+
+## After roadmap #13 (2026-08-26)
+
+#13 (cancellation/no-show policy + minimal support workflow) is implemented —
+see `docs/cancellation-no-show-policy.md`. Natural next steps, in order:
+
+1. Controlled pilot readiness review: #13 was the last blocker named in the
+   continuity spec for a pilot with real users.
+2. Support escalation notifications (a support inbox signal beyond the API).
+3. Cancellation-fee policy design (money movement stays deferred until the
+   payments provider decision).
+4. The standing deferred items in `docs/TODO-LEDGER.md` (reminders, native
+   device verification, managed-DB release gate evidence).
