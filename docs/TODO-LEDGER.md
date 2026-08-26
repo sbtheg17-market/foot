@@ -204,3 +204,17 @@ implementation record.
 | Support SLAs, queues, assignment | DEFERRED | Minimal open→in_progress→resolved only. |
 | Automated no-show detection / reliability scoring | DEFERRED | Not built. |
 | Escalation notifications (email/push to support) | DEFERRED | Escalations are visible via the support API only; no delivery guarantees exist repo-wide. |
+
+**2026-08-26 completion note (PR #52 validation):** the branch's first CI run
+failed one job (`Authorization, concurrency and idempotency`) because three
+pre-#13 regression suites still used the old cancellation contract —
+provider cancels without the now-required allowlisted `reasonCategory`, and a
+no-show marked before the scheduled time had passed. Aligned
+`booking-concurrency.test.ts`, `booking-pressure.test.ts`, and
+`reschedule-proposals.integration.test.ts` with the #13 contract (test-only
+change; no production code touched). Migration artifact re-verified against
+disposable PostgreSQL: main schema + `CANCELLATION_NO_SHOW_SUPPORT_V1.sql`
+is semantically identical to the branch's pushed schema. Full local
+validation green (typecheck, build, build:deploy, root tests, all scripted +
+unscripted API suites, replay/DLQ, web/a11y/tz, smoke incl. the five new #13
+routes, secret scan, `git diff --check`).

@@ -460,6 +460,12 @@ describe("consent-first reschedule proposals", () => {
     const clientNoShow = await patchStatus(jane, bookingF, { status: "no_show" });
     assert.equal(clientNoShow.status, 409); // clients can never mark no-show
 
+    // Roadmap #13: a no-show may only be recorded AFTER the scheduled time
+    // has passed — backdate the confirmed booking before the valid marking.
+    await db
+      .update(bookingsTable)
+      .set({ scheduledAt: new Date(Date.now() - 60 * 60 * 1000) })
+      .where(eq(bookingsTable.id, bookingF));
     const ok = await patchStatus(sarah, bookingF, { status: "no_show" });
     assert.equal(ok.status, 200);
   });

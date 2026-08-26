@@ -395,6 +395,8 @@ describe("Success (200/201) responses reflect the persisted write", () => {
 
     const { status, body } = await patchStatus(bookingId, "cancelled", providerToken, {
       cancellationReason: "Consistency check",
+      // Roadmap #13: provider cancellations require an allowlisted reason category.
+      reasonCategory: "schedule_conflict",
     });
     assert.equal(status, 200);
     const patchedBooking = body["booking"] as Record<string, unknown>;
@@ -430,10 +432,13 @@ describe("Retry safety — duplicate requests are rejected cleanly", () => {
     const bookingId = await createBooking(clientToken, providerProfileId, serviceId);
     await patchStatus(bookingId, "cancelled", providerToken, {
       cancellationReason: "Original cancel",
+      // Roadmap #13: provider cancellations require an allowlisted reason category.
+      reasonCategory: "schedule_conflict",
     });
 
     const retry = await patchStatus(bookingId, "cancelled", providerToken, {
       cancellationReason: "Retry cancel",
+      reasonCategory: "schedule_conflict",
     });
     assert.equal(retry.status, 409);
     assert.ok(typeof retry.body["error"] === "string");
