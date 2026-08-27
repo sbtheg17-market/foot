@@ -1,76 +1,55 @@
+/**
+ * Provider Approval Status & Activation Hub — /provider/application-status.
+ *
+ * The single provider-facing answer to "what is happening, what have I
+ * completed, what's stopping bookings, and what should I do next". Composes
+ * the owner-scoped GET /providers/me/activation-status summary (readable in
+ * every application state) with the existing status view (submission history,
+ * server-gated reset/resubmit) and the existing BookingPageCard
+ * publish/share/preview/QR tools. All state, capability flags, and milestone
+ * truth come from the server; this page renders them and never invents
+ * progress, approval claims, or demand.
+ *
+ * Reviewer-private notes, raw document references, platform pilot metrics,
+ * retention intent, and risk flags are never present in the consumed payloads.
+ */
 import React, { useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetProviderApplicationStatusQueryKey,
+  getGetMyProviderActivationStatusQueryKey,
   useGetMe,
+  useGetMyProviderActivationStatus,
   useGetProviderApplicationStatus,
   useResetProviderApplication,
   useSubmitProviderApplication,
 } from '@workspace/api-client-react';
 import { ROUTES } from '@/lib/routes';
 import { SubmissionHistoryTimeline } from '@/components/submission-history-timeline';
-
-/**
- * Provider application status screen — Phase 1 micro-checkpoint 3.
- *
- * Reads the server-authoritative status view from GET /providers/application/status
- * (published in MC2). All action visibility and next-step copy is derived from
- * server-provided fields (`nextAction`, `canReset`, `canResubmit`, `canEdit`);
- * the client never duplicates that authorization logic. The provider-visible
- * `rejectionReason` and public `previousSubmissions` summary are surfaced only
- * for the owner; reviewer-private notes are never rendered because they are
- * never present in the response payload.
- */
-
-const statusHeadline: Record<string, { eyebrow: string; title: string; body: string }> = {
-  draft: {
-    eyebrow: 'Application status',
-    title: 'Pick up where you left off',
-    body: "Finish the remaining onboarding steps to send your application in for review.",
-  },
-  under_review: {
-    eyebrow: 'Application status',
-    title: 'Your application is with our review team',
-    body: 'We are checking your profile and credentials so clients can book with confidence. We will update this space when there is a decision.',
-  },
-  approved: {
-    eyebrow: 'Application status',
-    title: "You're approved",
-    body: 'Your provider account is active. You can accept bookings and manage clients.',
-  },
-  rejected: {
-    eyebrow: 'Application status',
-    title: 'A little more information is needed',
-    body: 'Please review the reviewer notes below, reset the application to draft, update the flagged details, and resubmit when ready.',
-  },
-  suspended: {
-    eyebrow: 'Application status',
-    title: 'Your provider application is paused',
-    body: 'Provider access is currently paused. Please contact support if you need help understanding the next step.',
-  },
-};
-
-function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '—';
-  try {
-    return new Date(value).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
-  } catch {
-    return value;
-  }
-}
+import BookingPageCard from '@/components/booking-page-card';
+import ActivationHero from '@/components/activation-hub/activation-hero';
+import ActivationChecklist from '@/components/activation-hub/activation-checklist';
+import VerificationCard from '@/components/activation-hub/verification-card';
+import BookingReadinessCards from '@/components/activation-hub/booking-readiness-cards';
+import { HelpSection, ValueSection } from '@/components/activation-hub/hub-info-sections';
 
 export default function ProviderApplicationStatus() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const meQuery = useGetMe();
-  const meLoading = meQuery.isLoading;
-  const meError = meQuery.error;
   const me = meQuery.data;
 
+  const activationQuery = useGetMyProviderActivationStatus({
+    query: {
+      enabled: Boolean(me?.user),
+      retry: false,
+      queryKey: getGetMyProviderActivationStatusQueryKey(),
+    },
+  });
+  const activation = activationQuery.data?.activation;
+
+  // Existing status view: submission history + server-gated recovery actions.
   const statusQuery = useGetProviderApplicationStatus({
     query: {
       enabled: Boolean(me?.user),
@@ -80,74 +59,54 @@ export default function ProviderApplicationStatus() {
   });
   const view = statusQuery.data?.status;
 
-  const invalidateStatus = () =>
-    queryClient.invalidateQueries({
-      queryKey: getGetProviderApplicationStatusQueryKey(),
-    });
-
-  const resetMutation = useResetProviderApplication({
-    mutation: { onSuccess: invalidateStatus },
-  });
-  const submitMutation = useSubmitProviderApplication({
-    mutation: { onSuccess: invalidateStatus },
-  });
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: getGetProviderApplicationStatusQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getGetMyProviderActivationStatusQueryKey() });
+  };
+  const resetMutation = useResetProviderApplication({ mutation: { onSuccess: invalidate } });
+  const submitMutation = useSubmitProviderApplication({ mutation: { onSuccess: invalidate } });
 
   useEffect(() => {
-    if (!meLoading && (meError || !me?.user)) {
+    if (!meQuery.isLoading && (meQuery.error || !me?.user)) {
       setLocation(ROUTES.login, { replace: true });
-      return;
     }
-    // Route out of this screen when the server-derived state says another
-    // surface is the right destination. Drafts belong in the onboarding
-    // funnel; approved providers belong in their portal.
-    if (view?.status === 'draft') {
-      setLocation(ROUTES.onboarding.provider, { replace: true });
-    } else if (view?.status === 'approved') {
-      setLocation(ROUTES.provider.root, { replace: true });
-    }
-  }, [view, me, meError, meLoading, setLocation]);
+  }, [me, meQuery.error, meQuery.isLoading, setLocation]);
 
   // ── Loading ──────────────────────────────────────────────────────────────
-  if (meLoading || statusQuery.isLoading) {
+  if (meQuery.isLoading || activationQuery.isLoading) {
     return (
-      <StatusShell>
+      <HubShell>
         <div
-          data-testid="application-status-loading"
-          className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
+          data-testid="activation-hub-loading"
+          className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"
           role="status"
-          aria-label="Loading application status"
+          aria-label="Loading your application status"
         />
-      </StatusShell>
+      </HubShell>
     );
   }
 
   // ── Unauthorized (no session or /me failed) ─────────────────────────────
-  if (meError || !me?.user) {
+  if (meQuery.error || !me?.user) {
     return (
-      <StatusShell>
-        <p
-          data-testid="application-status-unauthorized"
-          className="text-sm text-muted-foreground"
-        >
+      <HubShell>
+        <p data-testid="activation-hub-unauthorized" className="text-sm text-muted-foreground">
           Redirecting to sign in…
         </p>
-      </StatusShell>
+      </HubShell>
     );
   }
 
-  // ── No application yet (owner is a provider member without a draft row) ─
-  if (statusQuery.isError || !view) {
-    const status = (statusQuery.error as { status?: number } | undefined)?.status;
+  // ── Error / empty states ─────────────────────────────────────────────────
+  if (activationQuery.isError || !activation) {
+    const status = (activationQuery.error as { status?: number } | undefined)?.status;
     if (status === 404) {
       return (
-        <StatusShell>
+        <HubShell>
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">
             Application status
           </p>
-          <h1
-            data-testid="application-status-empty-title"
-            className="mt-3 font-serif text-3xl font-bold text-foreground"
-          >
+          <h1 data-testid="activation-hub-empty-title" className="mt-3 font-serif text-3xl font-bold text-foreground">
             Start your provider application
           </h1>
           <p className="mt-4 text-sm leading-6 text-muted-foreground">
@@ -155,188 +114,154 @@ export default function ProviderApplicationStatus() {
           </p>
           <Link
             href={ROUTES.onboarding.provider}
-            data-testid="application-status-start-cta"
-            className="mt-8 w-full rounded-xl bg-primary px-4 py-3 text-center font-semibold text-primary-foreground"
+            data-testid="activation-hub-start-cta"
+            className="mt-8 inline-flex rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground"
           >
             Start onboarding
           </Link>
-        </StatusShell>
+        </HubShell>
       );
     }
     if (status === 403) {
       return (
-        <StatusShell>
-          <p
-            data-testid="application-status-forbidden"
-            className="text-sm text-muted-foreground"
-          >
+        <HubShell>
+          <p data-testid="activation-hub-forbidden" className="text-sm text-muted-foreground">
             You don&apos;t have access to a provider application on this account.
           </p>
           <Link
             href={ROUTES.client.discover}
-            data-testid="application-status-continue-client-cta"
-            className="mt-6 text-sm font-medium text-muted-foreground hover:text-foreground"
+            data-testid="activation-hub-continue-client-cta"
+            className="mt-6 inline-flex text-sm font-medium text-muted-foreground hover:text-foreground"
           >
             Continue as a client
           </Link>
-        </StatusShell>
+        </HubShell>
       );
     }
     return (
-      <StatusShell>
-        <p
-          data-testid="application-status-error"
-          className="text-sm text-destructive"
-        >
+      <HubShell>
+        <p data-testid="activation-hub-error" className="text-sm text-destructive" role="alert">
           We couldn&apos;t load your application status. Please try again in a moment.
         </p>
         <button
-          data-testid="application-status-retry"
+          data-testid="activation-hub-retry"
           type="button"
-          onClick={() => statusQuery.refetch()}
+          onClick={() => activationQuery.refetch()}
           className="mt-6 rounded-xl border border-border px-4 py-2 text-sm font-medium"
         >
           Try again
         </button>
-      </StatusShell>
+      </HubShell>
     );
   }
 
-  // ── Loaded — view is present ────────────────────────────────────────────
-  const copy = statusHeadline[view.status] ?? statusHeadline.under_review!;
-  const isRejected = view.status === 'rejected';
+  // ── Loaded ───────────────────────────────────────────────────────────────
+  const isRejected = activation.applicationStatus === 'rejected';
 
   return (
-    <StatusShell>
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">
-        {copy.eyebrow}
-      </p>
-      <h1
-        data-testid="application-status-title"
-        className="mt-3 font-serif text-3xl font-bold text-foreground"
-      >
-        {copy.title}
-      </h1>
-      <p
-        data-testid="application-status-body"
-        className="mt-4 text-sm leading-6 text-muted-foreground"
-      >
-        {copy.body}
-      </p>
+    <HubShell>
+      <ActivationHero firstName={me.user.firstName} activation={activation} />
 
-      {/* Current status card */}
-      <div className="mt-8 w-full rounded-2xl border border-border bg-card p-5 text-left">
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-foreground">Current status</span>
-          <span
-            data-testid="application-status-pill"
-            className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold capitalize text-secondary-foreground"
-          >
-            {view.status.replace('_', ' ')}
-          </span>
-        </div>
-        {view.submittedAt && (
-          <p className="mt-3 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">Submitted:</span>{' '}
-            <span data-testid="application-status-submitted-at">
-              {formatDateTime(view.submittedAt)}
-            </span>
-          </p>
-        )}
-        {view.reviewedAt && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">Reviewed:</span>{' '}
-            <span data-testid="application-status-reviewed-at">
-              {formatDateTime(view.reviewedAt)}
-            </span>
-          </p>
-        )}
-      </div>
-
-      {/* Rejection reason (owner-visible; reviewerNotes never appears) */}
-      {isRejected && view.rejectionReason && (
-        <div
-          data-testid="application-status-rejection-card"
-          className="mt-6 w-full rounded-2xl border border-destructive/40 bg-destructive/5 p-5 text-left"
+      {/* Rejected-application recovery (provider-visible reason only) */}
+      {isRejected && (
+        <section
+          id="activation-feedback"
+          aria-labelledby="activation-feedback-heading"
+          data-testid="activation-feedback"
+          className="rounded-2xl border border-destructive/40 bg-destructive/5 p-5"
         >
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-destructive">
+          <h2 id="activation-feedback-heading" className="text-xs font-semibold uppercase tracking-[0.12em] text-destructive">
             Reviewer feedback
+          </h2>
+          <p data-testid="activation-rejection-reason" className="mt-2 text-sm leading-6 text-foreground">
+            {activation.rejectionReason ??
+              "We need a small update before we can complete your review. Contact support and we'll help you continue."}
           </p>
-          <p
-            data-testid="application-status-rejection-reason"
-            className="mt-2 text-sm leading-6 text-foreground"
-          >
-            {view.rejectionReason}
-          </p>
-        </div>
+        </section>
       )}
 
-      {/* Submission history timeline (MC6) — current status + prior closed
-          rejected cycles, keyset-paginated. Public snapshot fields only. */}
-      <SubmissionHistoryTimeline currentView={view} />
+      {/* Server-gated recovery actions (same mutations as before) */}
+      {(activation.canReset || activation.canResubmit) && (
+        <div className="flex flex-col gap-3 sm:flex-row" data-testid="activation-actions">
+          {activation.canReset && (
+            <button
+              data-testid="activation-reset-cta"
+              type="button"
+              disabled={resetMutation.isPending}
+              onClick={() => resetMutation.mutate()}
+              className="rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {resetMutation.isPending ? 'Resetting…' : 'Reset to draft'}
+            </button>
+          )}
+          {activation.canResubmit && (
+            <button
+              data-testid="activation-resubmit-cta"
+              type="button"
+              disabled={submitMutation.isPending}
+              onClick={() => submitMutation.mutate()}
+              className="rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60"
+            >
+              {submitMutation.isPending ? 'Sending…' : 'Submit for review'}
+            </button>
+          )}
+        </div>
+      )}
+      {(resetMutation.isError || submitMutation.isError) && (
+        <p data-testid="activation-mutation-error" role="alert" className="text-xs text-destructive">
+          Something went wrong. Please try again in a moment.
+        </p>
+      )}
 
-      {/* Action row — every action is server-gated */}
-      <div className="mt-8 flex w-full flex-col gap-3">
-        {view.canReset && (
-          <button
-            data-testid="application-status-reset-cta"
-            type="button"
-            disabled={resetMutation.isPending}
-            onClick={() => resetMutation.mutate()}
-            className="w-full rounded-xl bg-primary px-4 py-3 text-center font-semibold text-primary-foreground disabled:opacity-60"
-          >
-            {resetMutation.isPending ? 'Resetting…' : 'Reset to draft'}
-          </button>
-        )}
-        {view.canResubmit && (
-          <button
-            data-testid="application-status-resubmit-cta"
-            type="button"
-            disabled={submitMutation.isPending}
-            onClick={() => submitMutation.mutate()}
-            className="w-full rounded-xl bg-primary px-4 py-3 text-center font-semibold text-primary-foreground disabled:opacity-60"
-          >
-            {submitMutation.isPending ? 'Sending…' : 'Submit for review'}
-          </button>
-        )}
-        {view.canEdit && (
-          <Link
-            href={ROUTES.onboarding.provider}
-            data-testid="application-status-edit-cta"
-            className="w-full rounded-xl border border-border px-4 py-3 text-center font-semibold text-foreground"
-          >
-            Continue editing
-          </Link>
-        )}
+      <ActivationChecklist activation={activation} />
+      <VerificationCard activation={activation} />
+      <BookingReadinessCards activation={activation} />
+
+      {/* Booking page: publish, preview, copy, native share, QR (existing card) */}
+      <section
+        id="activation-booking-page"
+        aria-labelledby="activation-booking-page-heading"
+        data-testid="activation-booking-page"
+      >
+        <h2 id="activation-booking-page-heading" className="font-serif text-xl font-bold text-foreground">
+          Share and grow
+        </h2>
+        <p className="mt-1.5 mb-3 text-sm text-muted-foreground" data-testid="activation-share-copy">
+          {activation.milestones.bookingPagePublished
+            ? 'Your booking page is live. Share one link with clients so they can see your services, confirm their area, and book available times.'
+            : "Once your page is ready, you'll have one professional booking link to share by text, social profile, QR code, email, or your website."}
+        </p>
+        <BookingPageCard />
+      </section>
+
+      <ValueSection />
+
+      {/* Submission history (existing timeline; provider-visible snapshots only) */}
+      {view && <SubmissionHistoryTimeline currentView={view} />}
+
+      <HelpSection />
+
+      <div className="text-center">
         <Link
           href={ROUTES.client.discover}
-          data-testid="application-status-continue-client-cta"
-          className="mt-2 text-center text-sm font-medium text-muted-foreground hover:text-foreground"
+          data-testid="activation-continue-client-cta"
+          className="text-sm font-medium text-muted-foreground hover:text-foreground"
         >
           Continue as a client
         </Link>
       </div>
-
-      {(resetMutation.isError || submitMutation.isError) && (
-        <p
-          data-testid="application-status-mutation-error"
-          className="mt-4 text-xs text-destructive"
-        >
-          Something went wrong. Please try again in a moment.
-        </p>
-      )}
-    </StatusShell>
+    </HubShell>
   );
 }
 
-function StatusShell({ children }: { children: React.ReactNode }) {
+function HubShell({ children }: { children: React.ReactNode }) {
   return (
     <main
-      data-testid="application-status-page"
-      className="min-h-[100dvh] bg-background px-6 py-12"
+      data-testid="activation-hub-page"
+      className="min-h-[100dvh] bg-background px-4 py-10 sm:px-6"
     >
-      <div className="mx-auto flex w-full max-w-[520px] flex-col items-center text-center">
-        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-3xl font-bold text-primary-foreground shadow-lg">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-2xl font-bold text-primary-foreground shadow-lg">
           O
         </div>
         {children}
