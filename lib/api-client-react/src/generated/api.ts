@@ -69,6 +69,8 @@ import type {
   MyServiceAreaResponse,
   NotFoundResponse,
   OutcomeHistoryResponse,
+  PilotMetricsResponse,
+  PilotRetentionResponse,
   ProviderApplicationDetailResponse,
   ProviderApplicationStatusResponse,
   ProviderApplicationSubmissionHistoryResponse,
@@ -106,6 +108,7 @@ import type {
   UnauthorizedResponse,
   UpdateBookingStatusRequest,
   UpdateEscalationRequest,
+  UpdatePilotRetentionRequest,
   UpdateProviderApplicationRequest,
   UpdateProviderProfileRequest,
   UpdateServiceAreaRequest,
@@ -4061,6 +4064,155 @@ export const useSubmitVerificationDoc = <TError = ErrorType<BadRequestResponse |
         TContext
       > => {
       return useMutation(getSubmitVerificationDocMutationOptions(options));
+    }
+
+export const getGetAdminPilotMetricsUrl = () => {
+
+
+
+
+  return `/api/admin/pilot/metrics`
+}
+
+/**
+ * @summary Pilot operations metrics (admin only)
+ */
+export const getAdminPilotMetrics = async ( options?: Parameters<typeof customFetch>[1]): Promise<PilotMetricsResponse> => {
+
+  return customFetch<PilotMetricsResponse>(getGetAdminPilotMetricsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminPilotMetricsQueryKey = () => {
+    return [
+    `/api/admin/pilot/metrics`
+    ] as const;
+    }
+
+
+export const getGetAdminPilotMetricsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminPilotMetrics>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPilotMetrics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminPilotMetricsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminPilotMetrics>>> = ({ signal }) => getAdminPilotMetrics({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminPilotMetrics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminPilotMetricsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminPilotMetrics>>>
+export type GetAdminPilotMetricsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Pilot operations metrics (admin only)
+ */
+
+export function useGetAdminPilotMetrics<TData = Awaited<ReturnType<typeof getAdminPilotMetrics>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminPilotMetrics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminPilotMetricsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePilotProviderRetentionUrl = (providerId: number,) => {
+
+
+
+
+  return `/api/admin/pilot/providers/${providerId}/retention`
+}
+
+/**
+ * @summary Record a provider's pilot retention intent (admin only)
+ */
+export const updatePilotProviderRetention = async (providerId: number,
+    updatePilotRetentionRequest: UpdatePilotRetentionRequest, options?: Parameters<typeof customFetch>[1]): Promise<PilotRetentionResponse> => {
+
+  return customFetch<PilotRetentionResponse>(getUpdatePilotProviderRetentionUrl(providerId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updatePilotRetentionRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdatePilotProviderRetentionMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePilotProviderRetention>>, TError,{providerId: number;data: BodyType<UpdatePilotRetentionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePilotProviderRetention>>, TError,{providerId: number;data: BodyType<UpdatePilotRetentionRequest>}, TContext> => {
+
+const mutationKey = ['updatePilotProviderRetention'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePilotProviderRetention>>, {providerId: number;data: BodyType<UpdatePilotRetentionRequest>}> = (props) => {
+          const {providerId,data} = props ?? {};
+
+          return  updatePilotProviderRetention(providerId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePilotProviderRetentionMutationResult = NonNullable<Awaited<ReturnType<typeof updatePilotProviderRetention>>>
+    export type UpdatePilotProviderRetentionMutationBody = BodyType<UpdatePilotRetentionRequest>
+    export type UpdatePilotProviderRetentionMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Record a provider's pilot retention intent (admin only)
+ */
+export const useUpdatePilotProviderRetention = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePilotProviderRetention>>, TError,{providerId: number;data: BodyType<UpdatePilotRetentionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePilotProviderRetention>>,
+        TError,
+        {providerId: number;data: BodyType<UpdatePilotRetentionRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdatePilotProviderRetentionMutationOptions(options));
     }
 
 export const getGetAdminVerificationQueueUrl = (params?: GetAdminVerificationQueueParams,) => {

@@ -1407,6 +1407,60 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /admin/pilot/metrics:
+    get:
+      operationId: getAdminPilotMetrics
+      tags: [admin]
+      summary: Pilot operations metrics (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Full pilot operations metric payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PilotMetricsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/pilot/providers/{providerId}/retention:
+    patch:
+      operationId: updatePilotProviderRetention
+      tags: [admin]
+      summary: Record a provider's pilot retention intent (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePilotRetentionRequest"
+      responses:
+        "200":
+          description: Retention intent recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PilotRetentionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /admin/verification/queue:
     get:
       operationId: getAdminVerificationQueue
@@ -5059,6 +5113,144 @@ components:
       required:
         - docType
         - fileName
+
+    PilotRetentionIntent:
+      type: string
+      enum: [yes, "no", unknown]
+
+    UpdatePilotRetentionRequest:
+      type: object
+      properties:
+        retentionIntent:
+          $ref: "#/components/schemas/PilotRetentionIntent"
+      required:
+        - retentionIntent
+
+    PilotRetentionResponse:
+      type: object
+      properties:
+        retention:
+          type: object
+          properties:
+            providerId:
+              type: string
+            retentionIntent:
+              $ref: "#/components/schemas/PilotRetentionIntent"
+            updatedAt:
+              type: string
+          required: [providerId, retentionIntent, updatedAt]
+      required: [retention]
+
+    PilotProviderMetrics:
+      type: object
+      properties:
+        providerId:
+          type: string
+        providerName:
+          type: string
+        approvalStatus:
+          type: string
+        activationStatus:
+          type: string
+          enum: [not_started, in_progress, ready_to_publish, published, first_booking, active]
+        onboardingMilestones:
+          type: object
+          properties:
+            accountCreated: { type: boolean }
+            profileCompleted: { type: boolean }
+            verificationSubmitted: { type: boolean }
+            approved: { type: boolean }
+            serviceAreaConfigured: { type: boolean }
+            serviceConfigured: { type: boolean }
+            availabilityConfigured: { type: boolean }
+            bookingPagePublished: { type: boolean }
+            firstBookingReceived: { type: boolean }
+          required: [accountCreated, profileCompleted, verificationSubmitted, approved, serviceAreaConfigured, serviceConfigured, availabilityConfigured, bookingPagePublished, firstBookingReceived]
+        bookingPagePublished:
+          type: boolean
+        firstBookingAt:
+          type: string
+          nullable: true
+        bookings:
+          type: integer
+        completions:
+          type: integer
+        cancellations:
+          type: integer
+        noShows:
+          type: integer
+        completionRate:
+          type: number
+          nullable: true
+        cancellationRate:
+          type: number
+          nullable: true
+        noShowRate:
+          type: number
+          nullable: true
+        repeatClientRate:
+          type: number
+          nullable: true
+        attributedBookings:
+          type: integer
+        retentionIntent:
+          $ref: "#/components/schemas/PilotRetentionIntent"
+        retentionUpdatedAt:
+          type: string
+          nullable: true
+        riskFlags:
+          type: array
+          items:
+            type: string
+      required: [providerId, providerName, approvalStatus, activationStatus, onboardingMilestones, bookingPagePublished, firstBookingAt, bookings, completions, cancellations, noShows, completionRate, cancellationRate, noShowRate, repeatClientRate, attributedBookings, retentionIntent, retentionUpdatedAt, riskFlags]
+
+    PilotMetricsResponse:
+      type: object
+      properties:
+        pilot:
+          type: object
+          properties:
+            startDate: { type: string }
+            endDate: { type: string }
+            isProjected: { type: boolean }
+            configWarning: { type: string, nullable: true }
+            providerTarget: { type: integer }
+            generatedAt: { type: string }
+          required: [startDate, endDate, isProjected, configWarning, providerTarget, generatedAt]
+        summary:
+          type: object
+          properties:
+            approvedProviders: { type: integer }
+            activatedProviders: { type: integer }
+            activationRate: { type: number, nullable: true }
+            providersWithPublishedBookingPage: { type: integer }
+            providersWithAttributedBookings: { type: integer }
+            totalBookings: { type: integer }
+            completedBookings: { type: integer }
+            cancelledBookings: { type: integer }
+            noShowBookings: { type: integer }
+            completionRate: { type: number, nullable: true }
+            cancellationRate: { type: number, nullable: true }
+            noShowRate: { type: number, nullable: true }
+            supportEscalations: { type: integer }
+            retentionYes: { type: integer }
+            retentionNo: { type: integer }
+            retentionUnknown: { type: integer }
+          required: [approvedProviders, activatedProviders, activationRate, providersWithPublishedBookingPage, providersWithAttributedBookings, totalBookings, completedBookings, cancelledBookings, noShowBookings, completionRate, cancellationRate, noShowRate, supportEscalations, retentionYes, retentionNo, retentionUnknown]
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PilotProviderMetrics"
+        sourceAttribution:
+          type: array
+          items:
+            type: object
+            properties:
+              source: { type: string }
+              bookings: { type: integer }
+              percentage: { type: number, nullable: true }
+            required: [source, bookings, percentage]
+      required: [pilot, summary, providers, sourceAttribution]
 
     AdminVerificationQueueItem:
       type: object

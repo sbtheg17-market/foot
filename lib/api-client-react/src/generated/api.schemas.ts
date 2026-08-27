@@ -1573,6 +1573,116 @@ export interface SubmitVerificationDocRequest {
   notes?: string;
 }
 
+export type PilotRetentionIntent = typeof PilotRetentionIntent[keyof typeof PilotRetentionIntent];
+
+
+export const PilotRetentionIntent = {
+  yes: 'yes',
+  no: 'no',
+  unknown: 'unknown',
+} as const;
+
+export interface UpdatePilotRetentionRequest {
+  retentionIntent: PilotRetentionIntent;
+}
+
+export type PilotRetentionResponseRetention = {
+  providerId: string;
+  retentionIntent: PilotRetentionIntent;
+  updatedAt: string;
+};
+
+export interface PilotRetentionResponse {
+  retention: PilotRetentionResponseRetention;
+}
+
+export type PilotProviderMetricsActivationStatus = typeof PilotProviderMetricsActivationStatus[keyof typeof PilotProviderMetricsActivationStatus];
+
+
+export const PilotProviderMetricsActivationStatus = {
+  not_started: 'not_started',
+  in_progress: 'in_progress',
+  ready_to_publish: 'ready_to_publish',
+  published: 'published',
+  first_booking: 'first_booking',
+  active: 'active',
+} as const;
+
+export type PilotProviderMetricsOnboardingMilestones = {
+  accountCreated: boolean;
+  profileCompleted: boolean;
+  verificationSubmitted: boolean;
+  approved: boolean;
+  serviceAreaConfigured: boolean;
+  serviceConfigured: boolean;
+  availabilityConfigured: boolean;
+  bookingPagePublished: boolean;
+  firstBookingReceived: boolean;
+};
+
+export interface PilotProviderMetrics {
+  providerId: string;
+  providerName: string;
+  approvalStatus: string;
+  activationStatus: PilotProviderMetricsActivationStatus;
+  onboardingMilestones: PilotProviderMetricsOnboardingMilestones;
+  bookingPagePublished: boolean;
+  firstBookingAt: string | null;
+  bookings: number;
+  completions: number;
+  cancellations: number;
+  noShows: number;
+  completionRate: number | null;
+  cancellationRate: number | null;
+  noShowRate: number | null;
+  repeatClientRate: number | null;
+  attributedBookings: number;
+  retentionIntent: PilotRetentionIntent;
+  retentionUpdatedAt: string | null;
+  riskFlags: string[];
+}
+
+export type PilotMetricsResponsePilot = {
+  startDate: string;
+  endDate: string;
+  isProjected: boolean;
+  configWarning: string | null;
+  providerTarget: number;
+  generatedAt: string;
+};
+
+export type PilotMetricsResponseSummary = {
+  approvedProviders: number;
+  activatedProviders: number;
+  activationRate: number | null;
+  providersWithPublishedBookingPage: number;
+  providersWithAttributedBookings: number;
+  totalBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  noShowBookings: number;
+  completionRate: number | null;
+  cancellationRate: number | null;
+  noShowRate: number | null;
+  supportEscalations: number;
+  retentionYes: number;
+  retentionNo: number;
+  retentionUnknown: number;
+};
+
+export type PilotMetricsResponseSourceAttributionItem = {
+  source: string;
+  bookings: number;
+  percentage: number | null;
+};
+
+export interface PilotMetricsResponse {
+  pilot: PilotMetricsResponsePilot;
+  summary: PilotMetricsResponseSummary;
+  providers: PilotProviderMetrics[];
+  sourceAttribution: PilotMetricsResponseSourceAttributionItem[];
+}
+
 export type AdminVerificationQueueItemProvider = {
   id: number;
   userId: number;

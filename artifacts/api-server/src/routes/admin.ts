@@ -9,6 +9,7 @@ import {
   usersTable,
 } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
+import adminPilotRouter from "./admin-pilot.js";
 import { createApplicationNotification } from "../lib/application-notifications.js";
 import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
 
@@ -16,6 +17,9 @@ const router = Router();
 
 // All admin routes require admin role
 router.use(requireAuth, requireRole("admin"));
+
+// Pilot Operations Dashboard (admin-only; inherits the gate above).
+router.use("/pilot", adminPilotRouter);
 
 // ── GET /admin/verification/queue ─────────────────────────────────────────────
 
