@@ -168,6 +168,8 @@ confirmed bookings are never silently cancelled by coverage changes.
 | Method | Path | Access | Description |
 |--------|------|--------|-------------|
 | GET | /admin/metrics | admin | Platform health metrics |
+| GET | /admin/pilot/metrics | admin | Pilot operations metrics: window, summary, per-provider activation milestones/outcomes/risk flags, source attribution. Privacy-redacted (no client identity, addresses, notes, or document references). Access audit-logged. `docs/pilot/pilot-metrics-dashboard.md` |
+| PATCH | /admin/pilot/providers/:providerId/retention | admin | Upsert provider retention intent (`yes`/`no`/`unknown`); admin actor recorded in `updated_by` |
 | GET | /admin/users | admin | All users (paginated) |
 | GET | /admin/users/:id | admin | User detail |
 | PATCH | /admin/users/:id/status | admin | Activate/deactivate user |

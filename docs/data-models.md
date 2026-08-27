@@ -372,3 +372,21 @@ activity, and the earnings estimate are derived live from existing tables
 (`bookings`, `services`, `users`, `provider_profiles`) on every request.
 Rates use resolved bookings (`completed + cancelled + no_show`) as the
 denominator. Nothing is persisted by these endpoints.
+
+## pilot_provider_retention (2026-08-28 — Pilot Operations Dashboard Part 1)
+
+Frozen artifact: `docs/migrations/PILOT_PROVIDER_RETENTION_V1.sql`
+(additive-only: one enum + one table; disposable-PG tested — fresh apply
+PASS, re-apply fails loudly by policy, `db:push` ×2 and seed ×2 PASS).
+
+| column | type | notes |
+|---|---|---|
+| id | serial PK | |
+| provider_id | integer FK → provider_profiles, UNIQUE | one row per provider; no cascade delete |
+| retention_intent | enum pilot_retention_intent | `yes` \| `no` \| `unknown` (default) |
+| updated_by | integer FK → users | admin actor (audit) |
+| updated_at | timestamp | |
+
+Admin-only via `/admin/pilot` routes; never exposed to providers, clients, or
+public endpoints. All other pilot metrics are derived live from existing
+tables — no additional persistence.

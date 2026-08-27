@@ -119,7 +119,8 @@ jobs:
                    test:provider-notifications test:reviewer-decisions test:provider-readiness \
                    test:first-booking test:client-retention test:marketplace-events \
                    test:booking-page test:service-area test:cancellation \
-                   test:provider-dashboard test:registration test:verification; do
+                   test:provider-dashboard test:registration test:verification \
+                   test:pilot-metrics; do
             echo "::group::$s"
             pnpm run "$s"
             echo "::endgroup::"

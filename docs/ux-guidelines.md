@@ -338,3 +338,11 @@ time."* Principles:
 - **Submission mechanics:** loading label + disabled button while pending,
   double-tap guard, `role="alert"` error container that receives focus,
   `role="status"` success confirmation, mobile-width layout, axe-clean.
+
+## Pilot operations metrics (Part 1 note, 2026-08-28)
+
+Any surface that renders pilot metrics must show honest empty copy for
+undefined rates ("No completed appointments yet") — never a mathematically
+misleading `0%` — and must present thresholds as nonjudgmental operating
+aids, never provider rankings or public scores. The `/admin/pilot` UI
+conventions land with Part 2.

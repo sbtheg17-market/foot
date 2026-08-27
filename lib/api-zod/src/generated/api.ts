@@ -1536,6 +1536,95 @@ export const SubmitVerificationDocResponse = zod.object({
 
 
 /**
+ * @summary Pilot operations metrics (admin only)
+ */
+export const GetAdminPilotMetricsResponse = zod.object({
+  "pilot": zod.object({
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "isProjected": zod.boolean(),
+  "configWarning": zod.string().nullable(),
+  "providerTarget": zod.int(),
+  "generatedAt": zod.string()
+}),
+  "summary": zod.object({
+  "approvedProviders": zod.int(),
+  "activatedProviders": zod.int(),
+  "activationRate": zod.number().nullable(),
+  "providersWithPublishedBookingPage": zod.int(),
+  "providersWithAttributedBookings": zod.int(),
+  "totalBookings": zod.int(),
+  "completedBookings": zod.int(),
+  "cancelledBookings": zod.int(),
+  "noShowBookings": zod.int(),
+  "completionRate": zod.number().nullable(),
+  "cancellationRate": zod.number().nullable(),
+  "noShowRate": zod.number().nullable(),
+  "supportEscalations": zod.int(),
+  "retentionYes": zod.int(),
+  "retentionNo": zod.int(),
+  "retentionUnknown": zod.int()
+}),
+  "providers": zod.array(zod.object({
+  "providerId": zod.string(),
+  "providerName": zod.string(),
+  "approvalStatus": zod.string(),
+  "activationStatus": zod.enum(['not_started', 'in_progress', 'ready_to_publish', 'published', 'first_booking', 'active']),
+  "onboardingMilestones": zod.object({
+  "accountCreated": zod.boolean(),
+  "profileCompleted": zod.boolean(),
+  "verificationSubmitted": zod.boolean(),
+  "approved": zod.boolean(),
+  "serviceAreaConfigured": zod.boolean(),
+  "serviceConfigured": zod.boolean(),
+  "availabilityConfigured": zod.boolean(),
+  "bookingPagePublished": zod.boolean(),
+  "firstBookingReceived": zod.boolean()
+}),
+  "bookingPagePublished": zod.boolean(),
+  "firstBookingAt": zod.string().nullable(),
+  "bookings": zod.int(),
+  "completions": zod.int(),
+  "cancellations": zod.int(),
+  "noShows": zod.int(),
+  "completionRate": zod.number().nullable(),
+  "cancellationRate": zod.number().nullable(),
+  "noShowRate": zod.number().nullable(),
+  "repeatClientRate": zod.number().nullable(),
+  "attributedBookings": zod.int(),
+  "retentionIntent": zod.enum(['yes', 'no', 'unknown']),
+  "retentionUpdatedAt": zod.string().nullable(),
+  "riskFlags": zod.array(zod.string())
+})),
+  "sourceAttribution": zod.array(zod.object({
+  "source": zod.string(),
+  "bookings": zod.int(),
+  "percentage": zod.number().nullable()
+}))
+})
+
+
+/**
+ * @summary Record a provider's pilot retention intent (admin only)
+ */
+export const UpdatePilotProviderRetentionParams = zod.object({
+  "providerId": zod.coerce.number().int()
+})
+
+export const UpdatePilotProviderRetentionBody = zod.object({
+  "retentionIntent": zod.enum(['yes', 'no', 'unknown'])
+})
+
+export const UpdatePilotProviderRetentionResponse = zod.object({
+  "retention": zod.object({
+  "providerId": zod.string(),
+  "retentionIntent": zod.enum(['yes', 'no', 'unknown']),
+  "updatedAt": zod.string()
+})
+})
+
+
+/**
  * @summary List all pending verification documents (admin only)
  */
 export const getAdminVerificationQueueQueryStatusDefault = `pending`;
