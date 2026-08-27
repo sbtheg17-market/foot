@@ -329,7 +329,7 @@ record: `docs/provider-verification-onboarding-policy.md`.
 | Item | Status | Notes |
 |---|---|---|
 | Part 1: metrics API + retention storage | DONE 2026-08-28 | `GET /admin/pilot/metrics` + `PATCH /admin/pilot/providers/:id/retention` under the admin gate; vertical-neutral activation/outcome/source/retention metrics; frozen artifact `PILOT_PROVIDER_RETENTION_V1.sql`; CI-gated `test:pilot-metrics` (14 tests). `docs/pilot/pilot-metrics-dashboard.md`. |
-| Part 2: `/admin/pilot` UI + CSV export | PLANNED | Summary cards, provider health table, dependency-free source chart, weekly prompts, client-side CSV. Must not rebuild Part 1 calculations/auth/persistence. |
+| Part 2: `/admin/pilot` UI + CSV export | DONE 2026-08-28 | PR #62: platform-admin-only page over the Part 1 hooks (no duplication); summary cards, activation ladder, provider health table, retention control, dependency-free source chart, review prompts, privacy-safe client-side CSV; 34 new web tests + axe. `docs/pilot/pilot-metrics-dashboard.md` (Part 2 section). |
 | Part 3: weekly review pack | PLANNED | Operator guide, decision rules, closure docs. |
 | Pilot cohort/allowlist | DEFERRED | `approvedProviders` counts ALL approved profiles; introduce an explicit cohort before relying on rates once non-pilot providers exist. |
 | Metrics on pre-Gate-B DBs | DOCUMENTED | The metrics read reads `booking_page_published` (#11 Gate B-pending column); internal admin tool requires current schema. |
@@ -372,3 +372,14 @@ This is a platform-admin pilot dashboard.
 Organization-admin/workspace/workforce functionality remains FUTURE and NOT IMPLEMENTED.
 Provider-facing dashboard remains FUTURE and is not part of this branch.
 ```
+
+### Pilot Operations Dashboard — Part 2 handoff (2026-08-28)
+
+Part 2 (`/admin/pilot` UI + CSV) is implemented on
+`feat/pilot-operations-dashboard-ui` (PR #62, baseline main
+`4285bb8991b4d9abbc3bac0d8f486e4b6b9e0401`). Full status block and Part 3
+handoff (weekly review pack — NOT STARTED; files Part 3 must not duplicate):
+`docs/pilot/pilot-metrics-dashboard.md` (Part 2 section). Strategic
+boundary unchanged: platform-admin tool; organization/workspace/workforce
+functionality remains FUTURE and NOT IMPLEMENTED (see
+`docs/neo/2026-08-21-client-retention-handoff.md`).

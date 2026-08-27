@@ -290,3 +290,18 @@ This is a platform-admin pilot dashboard.
 Organization-admin/workspace/workforce functionality remains FUTURE and NOT IMPLEMENTED.
 Provider-facing dashboard remains FUTURE and is not part of this branch.
 ```
+
+## Status note — 2026-08-28 (Pilot Operations Dashboard Part 2 — admin UI)
+
+The platform-administrator `/admin/pilot` dashboard UI is implemented on
+`feat/pilot-operations-dashboard-ui` (PR #62) over the merged Part 1 API,
+with zero Part 1 duplication: pilot window context (incl. projected-window
+guidance), summary cards with quiet threshold aids and honest
+undefined-rate copy, activation/readiness ladder, provider health table
+with non-punitive follow-up labels, retention-intent control (Part 1 PATCH
+hook; failure preserves the previous value), dependency-free source
+attribution chart, weekly review prompts, and a privacy-safe client-side
+CSV export (allowlisted columns, RFC 4180 + formula-injection safe).
+Web tests 180/180 (34 new), typecheck/build/build:deploy/secret-scan clean.
+Authoritative doc: `docs/pilot/pilot-metrics-dashboard.md` (Part 2 section).
+Part 3 next: weekly review pack — do NOT rebuild Parts 1 or 2.

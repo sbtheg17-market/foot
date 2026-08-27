@@ -1913,3 +1913,45 @@ This is a platform-admin pilot dashboard.
 Organization-admin/workspace/workforce functionality remains FUTURE and NOT IMPLEMENTED.
 Provider-facing dashboard remains FUTURE and is not part of this branch.
 ```
+
+## Session addendum — 2026-08-28 (Pilot Operations Dashboard Part 2 — admin UI, Emergent session)
+
+Part 2 (`/admin/pilot` UI, source chart, retention control, CSV export) is
+implemented on `feat/pilot-operations-dashboard-ui` (PR #62) over the merged
+Part 1 API with zero duplication of Part 1 calculations, persistence,
+authorization, migration, or contracts. Full section-by-section record and
+the mandated status block: `docs/pilot/pilot-metrics-dashboard.md`
+(Part 2 section). Web tests 180/180 (34 new: 24 dashboard + 10 CSV);
+typecheck/build/build:deploy/diff-check/secret-scan all PASS locally;
+API/PostgreSQL suites run in CI. Graphify CLI was unavailable in this
+session's environment (graph artifacts present at baseline `c2c6c10`,
+now stale); ordinary source and Git inspection was used per policy —
+a manual graph refresh after this merge is recommended but non-blocking.
+
+```text
+Strategic model:
+Current product mode: provider-led appointment platform.
+Current vertical: mobile foot care pilot.
+Current pilot: five providers in Southern Ontario.
+Platform admin: internal Foot operator (/admin/pilot, /admin/verification).
+Organization admin: FUTURE, NOT IMPLEMENTED.
+Provider/vendor: individual or contracted service delivery role.
+Client: service recipient/booker.
+```
+
+```text
+Strategic boundary:
+This is a platform-admin pilot dashboard.
+Organization-admin/workspace/workforce functionality remains FUTURE and NOT IMPLEMENTED.
+Provider-facing dashboard remains FUTURE and is not part of this branch.
+No organization/workspace/tenant/agency/team/client-group/franchise/roster
+tables, routes, roles, UI, or abstractions were introduced in Part 2.
+```
+
+Direct platform-to-provider assumptions surfaced while building Part 2 (for
+the future organization/workspace review — documented only, NOT refactored):
+`/admin/pilot` metrics treat every approved provider as platform-owned
+(`approvedProviders` counts ALL approved profiles — the existing
+pilot-cohort ledger item); retention intent is a platform-admin judgment
+with no organization scoping; support escalations aggregate platform-wide.
+All acceptable for the current provider-led mode.

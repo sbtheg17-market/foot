@@ -3091,3 +3091,43 @@ no secrets or generated junk committed.
 **Build state at end:** Part 1 COMPLETE and merged on `main`. Next agent
 starts Part 2 (`/admin/pilot` UI + source chart + CSV) from current `main`
 over the generated hooks, without rebuilding Part 1.
+
+---
+### Session — Pilot Operations Dashboard Part 2: /admin/pilot UI (2026-08-28, Emergent session)
+**Agent:** Emergent (E1)
+**Scope:** `M` (web UI + web tests + docs; zero backend/schema/API change)
+
+**What was done:**
+- Verified baseline `origin/main` = `4285bb8991b4d9abbc3bac0d8f486e4b6b9e0401`
+  (clean tree) and branched `feat/pilot-operations-dashboard-ui`.
+- Built the platform-administrator-only `/admin/pilot` page over the merged
+  Part 1 API via the generated hooks (`useGetAdminPilotMetrics`,
+  `useUpdatePilotProviderRetention`) — no duplication of Part 1 logic:
+  - `artifacts/web/src/pages/admin/pilot.tsx` (+ route in `lib/routes.ts`,
+    `App.tsx`)
+  - `artifacts/web/src/components/admin-pilot/`: pilot-context-card,
+    summary-cards, activation-overview, provider-health-table,
+    retention-control, pilot-source-chart, review-prompts, pilot-format
+  - `artifacts/web/src/lib/pilot-csv.ts`: client-side allowlisted CSV
+    (recordType rows, RFC 4180, formula-injection guard, dated filename)
+- States: loading (no data flash), 401 sign-in, 403 platform-admin
+  restriction, retryable error, empty/zero-data, projected-window notice.
+- Tests: `src/__tests__/pilot-dashboard.test.tsx` (24) +
+  `src/lib/pilot-csv.test.ts` (10), incl. axe scans and CSV privacy.
+
+**Validation:** web tests 180/180 PASS · full workspace typecheck PASS ·
+`pnpm run build` PASS · `pnpm run build:deploy` PASS · `git diff --check`
+PASS · `scripts/secret-scan.sh` PASS. NOT RUN locally (no PostgreSQL /
+running server in this container): api-server suites, smoke,
+real-browser/mobile emulation — covered by CI on PR #62 / available
+on demand. Nothing unrun is claimed as passed.
+
+**Boundaries held:** no new API routes/migrations; no organization/
+workspace/tenant concepts; no provider-facing exposure of pilot metrics;
+no client PII in UI or CSV; no chart library; no managed DB access; no
+production deployment; no force-push; no `conflict_*` branch touched.
+
+**Build state at end:** PR #62 open
+(https://github.com/sbtheg17-market/foot/pull/62), squash-merge gated on
+green CI. Part 3 (weekly review pack) NOT STARTED — next agent starts it
+from current `main` without rebuilding Parts 1 or 2.

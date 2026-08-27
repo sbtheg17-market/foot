@@ -172,3 +172,118 @@ This is a platform-admin pilot dashboard.
 Organization-admin/workspace/workforce functionality remains FUTURE and NOT IMPLEMENTED.
 Provider-facing dashboard remains FUTURE and is not part of this branch.
 ```
+
+## Part 2 — `/admin/pilot` dashboard UI (2026-08-28)
+
+**Route:** `/admin/pilot` (web, wouter). **Platform administrator only** — an
+internal Foot operator surface. It is not a provider dashboard, not an
+organization-administrator dashboard, not an agency/workforce console, and
+not client-facing. Server authorization is authoritative (Part 1
+`requireAuth + requireRole("admin")`); the page renders no metric data until
+the authorized fetch succeeds (no sensitive flash), with distinct 401
+(sign-in) and 403 (platform-administrator restriction) states and a retry
+state for other failures.
+
+**Part 1 reuse (no duplication):** consumes `useGetAdminPilotMetrics` and
+`useUpdatePilotProviderRetention` (`@workspace/api-client-react`, generated).
+No new API routes, no schema/migration change, no authorization logic in the
+client, no metric recalculation — display derivations only (e.g. "providers
+with first booking" counts rows where `firstBookingAt` is set).
+
+**Sections** (`artifacts/web/src/pages/admin/pilot.tsx` +
+`artifacts/web/src/components/admin-pilot/`):
+
+- **Pilot context:** window dates, five-provider target and Southern Ontario
+  framing as display context only, `Projected window` badge + "configure
+  PILOT_START_DATE and PILOT_END_DATE" guidance when projected,
+  `configWarning` passthrough, generated-at timestamp.
+- **Summary cards:** approved/activated (+rate), published pages, providers
+  with first booking, total bookings, completion/cancellation/no-show rates,
+  support escalations, retention rollup. Thresholds are quiet text aids
+  (activation 80%, completion 85%, cancellation ≤20%, no-show ≤10%,
+  escalations ≤3), status is never color-only, and undefined rates show
+  honest empty copy ("No completed appointments yet") — never `0%`.
+- **Activation/readiness ladder:** the nine Part 1 onboarding milestones in
+  journey order with per-step provider counts; read-only, framed as
+  "who could use a hand", never mutates provider setup.
+- **Provider health table:** provider, activation status, booking page,
+  first booking, bookings/completed/cancelled/no-shows, completion rate,
+  retention intent, follow-up signal. Semantic table with sr-only caption,
+  row headers, and horizontal-scroll overflow strategy on small screens.
+  No sorting (kept simple), no ranking, no client identity, no documents/
+  notes/addresses/tracking data.
+- **Follow-up labels (non-punitive):** `not_activated` → "Setup incomplete",
+  `not_published` → "Ready but not shared", `no_booking_yet` → "No booking
+  yet", `high_cancellation_rate` → "Review cancellations",
+  `high_no_show_rate` → "Review no-shows", `retention_risk` → "Check in with
+  provider". Internal operator aids only.
+- **Retention control:** Yes/No/Unknown native select per provider (labeled
+  "Retention intent for {name}", keyboard accessible), PATCHes via the Part 1
+  hook, shows a subtle role="status" "Saved" confirmation, and on failure
+  preserves the previous value and reports the error. `updatedBy` is never
+  displayed.
+- **Source attribution chart:** dependency-free CSS horizontal bars (no
+  Recharts); label + count + percentage as text, bars decorative
+  (aria-hidden); `unknown` renders as "Direct / unknown"; zero-data state.
+- **Weekly review prompts:** factual, cautious "review/check/assess" prompts
+  derived from returned numbers only (publish gap, share gap, elevated
+  no-show/cancellation vs guardrails, escalations present) with an explicit
+  "not automated diagnosis" note and an all-quiet state.
+
+**CSV export (client-side; no new endpoint, no export library):**
+`artifacts/web/src/lib/pilot-csv.ts` builds the file from the already
+authorized metrics payload. Unified allowlisted header with a `recordType`
+column (`summary` / `provider` / `source_attribution`); every row carries
+pilot start/end dates, the projected-window indicator, generation timestamp
+and provider target. RFC 4180 escaping (quote doubling, CRLF), spreadsheet
+formula-injection protection for strings starting `=`, `+`, `-`, `@`
+(numbers untouched), dated filename
+`pilot-operations-metrics-YYYY-MM-DD.csv`. Excluded by construction: client
+PII, addresses/postal codes, care/reviewer/support notes, document
+references, application details, tokens, raw tracking parameters, and
+audit identifiers (`updatedBy`). Undefined rates stay empty cells.
+
+**Accessibility/mobile:** landmarks (`main`, labeled sections, h1/h2
+hierarchy), labeled controls, keyboard-operable retention select, status
+conveyed by text, axe scans clean on loaded and empty states (jsdom level;
+color-contrast excluded as non-deterministic without real rendering).
+Responsive: card grid collapses (2 → 3 → 5 columns), table scrolls
+horizontally inside its container at small widths.
+
+**Known limitations:** no column sorting; the dashboard needs the current
+schema (Part 1 schema-drift note applies); "providers with first booking" is
+derived client-side; hardware-device verification remains the standing
+deferred ledger item.
+
+**Part 3 handoff:** build the weekly review pack (operator guide, decision
+rules, closure docs) from current `main`. Part 3 must NOT duplicate:
+`artifacts/api-server/src/lib/pilot-metrics.ts`,
+`artifacts/api-server/src/routes/admin-pilot.ts`,
+`artifacts/web/src/pages/admin/pilot.tsx`,
+`artifacts/web/src/components/admin-pilot/*`,
+`artifacts/web/src/lib/pilot-csv.ts`,
+`docs/migrations/PILOT_PROVIDER_RETENTION_V1.sql`.
+
+```text
+Pilot Operations Dashboard status:
+Part 1 metrics API + retention storage: MERGED.
+Part 2 admin UI + source chart + CSV: COMPLETE.
+Part 3 weekly review pack: NOT STARTED.
+Baseline main SHA: 4285bb8991b4d9abbc3bac0d8f486e4b6b9e0401
+Current branch: feat/pilot-operations-dashboard-ui
+Current head SHA: 61fa0e39c88121f443c5bd01b4f3fda0edb0911b (code; this docs commit lands on the same PR)
+PR: https://github.com/sbtheg17-market/foot/pull/62
+Merge SHA: pending at time of writing — squash-merge after CI green; exact SHA in Git history and the final session report
+Admin route: /admin/pilot (platform administrator only)
+Part 1 hooks reused: useGetAdminPilotMetrics; useUpdatePilotProviderRetention (generated, unmodified)
+UI sections implemented: pilot context, summary cards, activation ladder, provider health table, retention control, source chart, review prompts, CSV export, loading/401/403/error/empty states
+CSV status: client-generated, allowlisted columns, RFC 4180 + formula-injection safe, privacy exclusions test-enforced
+Accessibility: axe clean (loaded + empty, jsdom level); labels/landmarks/keyboard covered by tests
+Mobile emulation: NOT RUN this session (needs running server + PostgreSQL); responsive layout implemented and unit-tested at DOM level; on-demand `pnpm run smoke:mobile-emulation` available
+Tests: web 180/180 PASS (34 new Part 2); full typecheck PASS; build PASS; build:deploy PASS; git diff --check PASS; secret scan PASS; API/PG suites via CI
+CI: pending at time of writing — merge gated on green
+Known limitations: no column sorting; requires current schema; providersWithFirstBooking derived client-side
+Uncommitted work: NONE after this commit
+Exact Part 3 next action: weekly review pack (operator guide, decision rules, closure docs) from current main
+Files Part 3 must not duplicate: listed above
+```
