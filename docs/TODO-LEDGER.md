@@ -256,3 +256,21 @@ for metric definitions, thresholds, and honest-scope decisions.
 | On-time rate metric | DEFERRED | Appointment start times are not tracked anywhere in the schema. |
 | Average rating on dashboard | DEFERRED | Reviews exist; deferred until review volume is meaningful for 5 pilot providers. |
 | Dashboard response caching | DEFERRED | Single-query read is cheap at pilot scale. |
+
+## Registration "Internal server error" blocker — FIXED 2026-08-27
+
+Mobile registration (Samsung/Android Chrome, 2026-08-26 test) failed with a
+generic "Internal server error". Root cause: a TOCTOU race in
+`POST /auth/register` — two concurrent identical submissions (mobile
+double-tap fires before the submit button's pending state renders) both
+passed the duplicate-email SELECT pre-check; the losing INSERT violated the
+`users.email` unique constraint and the unhandled PostgreSQL error surfaced
+as 500 via the global handler.
+
+| Item | Status | Notes |
+|---|---|---|
+| API: 23505 unique-violation → safe 409 | DONE 2026-08-27 | Same conflict copy as the pre-check; other failures still 500. `artifacts/api-server/src/routes/auth.ts`. |
+| Web: synchronous duplicate-submission guard | DONE 2026-08-27 | `submittingRef` in `register.tsx`; button-disable via isPending lags one render. |
+| Web: safe error UX | DONE 2026-08-27 | 5xx → "We couldn't create your account right now. Please try again." + support contact link; 409 → account-exists + sign-in guidance; 400 → field-specific messages; focus moves to the alert; label/id + autoComplete added. |
+| Tests | DONE 2026-08-27 | `test:registration` (12 API subtests incl. 4-way concurrent race, wired into CI scripted loop); 12 web tests incl. axe. Independent E2E verification: concurrent race 1×201 + N×409, mobile-viewport (360×800) registration + double-tap pass. |
+| Rate limiting on auth endpoints | DEFERRED | Not required to fix this defect; consider before public launch. |
