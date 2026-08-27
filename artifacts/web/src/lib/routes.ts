@@ -48,6 +48,8 @@ export const ROUTES = {
   // ── Admin ───────────────────────────────────────────────────────────────────
   admin: {
     verification: '/admin/verification',
+    // Platform-administrator-only pilot operations dashboard (Part 2).
+    pilot: '/admin/pilot',
   },
 
   // ── Provider-owned public booking page (roadmap #11) ─────────────────────────

@@ -26,6 +26,7 @@ import PortalListingPreview from '@/pages/portal/listing-preview';
 import PortalTravelZones from '@/pages/portal/travel-zones';
 import PortalServiceArea from '@/pages/portal/service-area';
 import AdminVerification from '@/pages/admin/verification';
+import AdminPilot from '@/pages/admin/pilot';
 import ProviderLayout from '@/components/layout/provider-layout';
 import ClientLayout from '@/components/layout/client-layout';
 import { ROUTES, LEGACY_PORTAL_REDIRECTS } from '@/lib/routes';
@@ -114,6 +115,7 @@ function Router() {
 
       {/* ── Admin ────────────────────────────────────────────────────────── */}
       <Route path={ROUTES.admin.verification} component={AdminVerification} />
+      <Route path={ROUTES.admin.pilot} component={AdminPilot} />
 
       <Route component={NotFound} />
     </Switch>
