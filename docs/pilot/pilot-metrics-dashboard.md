@@ -124,3 +124,51 @@ calculations, retention persistence, the migration artifact, authorization,
 or the OpenAPI contract. Undefined rates must render the honest empty copy;
 thresholds (activation 80%, completion 85%, cancellation ≤20%, no-show ≤10%,
 escalations ≤3) are display aids, not API values.
+
+## Continuity handoff — end of Part 1 (2026-08-28)
+
+```text
+Pilot Operations Dashboard status:
+Part 1 metrics API + retention storage: COMPLETE
+Part 2 admin UI + chart + CSV: NOT STARTED
+Part 3 weekly review pack: NOT STARTED
+
+Baseline main SHA: 6f5778198470c70e763e8d8ee54003c5662d17f8
+Current branch: main (Part 1 merged via PR #60)
+Current head SHA: d7dcf115f39e8e2eddc8362f1347da1a4992079c
+Uncommitted files: NONE
+Committed files: 34 files in PR #60 (metrics lib + routes + schema +
+  migration artifact + OpenAPI/clients + tests + docs + env example + CI)
+PR: https://github.com/sbtheg17-market/foot/pull/60 — MERGED
+Migration artifact: docs/migrations/PILOT_PROVIDER_RETENTION_V1.sql — frozen
+  additive artifact; sha256
+  ceaac6d50e6336fe4c13281ab7de5fc36eca7d96262a771c16a3f8647bf90cad;
+  disposable-PG fresh apply PASS / re-apply fails loudly per policy /
+  db:push ×2 + seed ×2 PASS; Gate B-pending; managed DB NOT accessed
+API routes: GET /api/admin/pilot/metrics;
+  PATCH /api/admin/pilot/providers/:providerId/retention
+Metric definitions implemented: everything in "Definitions (exact)" above —
+  window resolution w/ safe projected fallback, activation milestones +
+  status ladder, first value/active signals, outcome rates, repeat-client
+  rate, source attribution (unknown grouping), support escalations,
+  retention rollup, risk flags; vertical-neutral throughout
+Authorization behavior: both routes under routes/admin.ts requireAuth +
+  requireRole("admin"); 401/403 verified by integration tests; access and
+  writes audit-logged with the admin actor
+Privacy boundaries: enforced by the redaction suite in
+  pilot-metrics.integration.test.ts (see "Privacy rules" above)
+Tests passed: CI 16/16 GREEN on merged SHA d7dcf11, incl. the CI-gated
+  test:pilot-metrics suite (14 tests) and pilot-window unit tests
+Tests not run: none outstanding for Part 1
+CI status: GREEN (16/16 on d7dcf115f39e8e2eddc8362f1347da1a4992079c)
+Exact next action: build Part 2 /admin/pilot UI over the generated
+  useGetAdminPilotMetrics / useUpdatePilotProviderRetention hooks; do NOT
+  rebuild Part 1 calculations, persistence, migration, auth, or contract
+```
+
+```text
+Strategic boundary:
+This is a platform-admin pilot dashboard.
+Organization-admin/workspace/workforce functionality remains FUTURE and NOT IMPLEMENTED.
+Provider-facing dashboard remains FUTURE and is not part of this branch.
+```

@@ -333,3 +333,42 @@ record: `docs/provider-verification-onboarding-policy.md`.
 | Part 3: weekly review pack | PLANNED | Operator guide, decision rules, closure docs. |
 | Pilot cohort/allowlist | DEFERRED | `approvedProviders` counts ALL approved profiles; introduce an explicit cohort before relying on rates once non-pilot providers exist. |
 | Metrics on pre-Gate-B DBs | DOCUMENTED | The metrics read reads `booking_page_published` (#11 Gate B-pending column); internal admin tool requires current schema. |
+
+### Pilot Operations Dashboard — continuity handoff (2026-08-28)
+
+```text
+Pilot Operations Dashboard status:
+Part 1 metrics API + retention storage: COMPLETE
+Part 2 admin UI + chart + CSV: NOT STARTED
+Part 3 weekly review pack: NOT STARTED
+
+Baseline main SHA: 6f5778198470c70e763e8d8ee54003c5662d17f8
+Current branch: main (Part 1 merged via PR #60)
+Current head SHA: d7dcf115f39e8e2eddc8362f1347da1a4992079c
+Uncommitted files: NONE
+Committed files: 34 files in PR #60
+PR: https://github.com/sbtheg17-market/foot/pull/60 — MERGED
+Migration artifact: docs/migrations/PILOT_PROVIDER_RETENTION_V1.sql (frozen,
+  additive; sha256 ceaac6d5…bf90cad; Gate B-pending; managed DB NOT accessed)
+API routes: GET /api/admin/pilot/metrics;
+  PATCH /api/admin/pilot/providers/:providerId/retention
+Metric definitions implemented: window fallback, activation milestones/ladder,
+  outcome + repeat-client rates, source attribution, escalations, retention
+  rollup, risk flags (vertical-neutral)
+Authorization behavior: admin-only (requireAuth + requireRole("admin")),
+  401/403 test-enforced, audit-logged
+Privacy boundaries: redaction test-enforced (no client identity/addresses/
+  notes/document references/tracking parameters)
+Tests passed: CI 16/16 GREEN on merged SHA d7dcf11 (incl. test:pilot-metrics)
+Tests not run: none outstanding; no local rerun in the handoff session
+CI status: GREEN
+Exact next action: Part 2 /admin/pilot UI from current main; do NOT rebuild
+  Part 1
+```
+
+```text
+Strategic boundary:
+This is a platform-admin pilot dashboard.
+Organization-admin/workspace/workforce functionality remains FUTURE and NOT IMPLEMENTED.
+Provider-facing dashboard remains FUTURE and is not part of this branch.
+```

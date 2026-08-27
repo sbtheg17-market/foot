@@ -1832,3 +1832,84 @@ booking-page/rescheduling/lifecycle/integration), mobile emulation 9/9,
 real-browser smoke 13/13 — all PASS. Follow-up recorded in the ledger: ~24
 other `/providers/me/*` routes still use the bare-select `getOwnProfile()`.
 Full record: `docs/provider-verification-onboarding-policy.md`.
+
+## Session addendum — 2026-08-28 (Pilot Operations Dashboard Part 1 — continuity handoff, Emergent session)
+
+Part 1 of the Pilot Operations Dashboard is COMPLETE, merged, and CI-green.
+This addendum is the authoritative continuity record; the next agent must NOT
+rebuild any Part 1 work.
+
+```text
+Pilot Operations Dashboard status:
+Part 1 metrics API + retention storage: COMPLETE
+Part 2 admin UI + chart + CSV: NOT STARTED
+Part 3 weekly review pack: NOT STARTED
+
+Baseline main SHA: 6f5778198470c70e763e8d8ee54003c5662d17f8
+Current branch: main (Part 1 merged via PR #60; this handoff on docs/pilot-metrics-part1-handoff)
+Current head SHA: d7dcf115f39e8e2eddc8362f1347da1a4992079c
+Uncommitted files: NONE
+Committed files: 34 files in PR #60 — artifacts/api-server/src/lib/pilot-metrics.ts;
+  artifacts/api-server/src/routes/admin-pilot.ts; artifacts/api-server/src/routes/admin.ts;
+  artifacts/api-server/src/__tests__/pilot-metrics.integration.test.ts;
+  artifacts/api-server/src/__tests__/pilot-window.test.ts;
+  lib/db/src/schema/pilot-retention.ts (+ schema index);
+  docs/migrations/PILOT_PROVIDER_RETENTION_V1.sql; lib/api-spec/openapi.yaml;
+  regenerated clients (lib/api-client-react, lib/api-zod incl. generated types);
+  docs (pilot/pilot-metrics-dashboard.md, api-routes.md, data-models.md,
+  managed-db-release-gate.md, NEXT-STEPS.md, TODO-LEDGER.md, ux-guidelines.md);
+  .env.example; .github/workflows/ci.yml; artifacts/api-server/package.json
+PR: https://github.com/sbtheg17-market/foot/pull/60 — MERGED into main
+Migration artifact: docs/migrations/PILOT_PROVIDER_RETENTION_V1.sql — frozen,
+  additive-only (enum pilot_retention_intent + table pilot_provider_retention,
+  unique provider FK, admin actor FK, no cascade delete); no IF NOT EXISTS, no
+  DOWN, never auto-applied; sha256
+  ceaac6d50e6336fe4c13281ab7de5fc36eca7d96262a771c16a3f8647bf90cad
+  (re-verified against the managed-db gate record this session); disposable-PG
+  fresh apply PASS, re-apply fails loudly per policy, db:push ×2 + seed ×2
+  PASS; Gate B-pending like the other frozen artifacts
+API routes: GET /api/admin/pilot/metrics;
+  PATCH /api/admin/pilot/providers/:providerId/retention
+  (both mounted in routes/admin.ts under requireAuth + requireRole("admin"))
+Metric definitions implemented: pilot window (env PILOT_START_DATE /
+  PILOT_END_DATE / PILOT_PROVIDER_TARGET with safe projected fallback that
+  never crashes on invalid config); activation milestones (approved, complete
+  profile, verification submitted, availability, ≥1 service); activation
+  status ladder; first-booking/first-value + active signals; outcome rates
+  (completed/cancelled/no-show, null-safe denominators); repeat-client rate;
+  source attribution with unknown grouping; support escalations; retention
+  rollup; risk flags (not_activated, not_published, no_booking_yet,
+  high_cancellation_rate >0.20, high_no_show_rate >0.10, retention_risk).
+  Vertical-neutral; PILOT_PROVIDER_TARGET (default 5) is display-only, never
+  a denominator
+Authorization behavior: 401 unauthenticated and 403 non-admin on BOTH routes;
+  enforced by the router gate and verified in
+  pilot-metrics.integration.test.ts; metric reads and retention writes are
+  audit-logged with the admin actor
+Privacy boundaries: payload never contains client identity/emails/phones,
+  full addresses or postal codes, care/reviewer/support notes, document
+  references, or raw tracking parameters; enforced by the redaction test suite
+Tests passed: CI on merged SHA d7dcf11 — ALL 16 checks GREEN, including API
+  tests (disposable PostgreSQL), Authorization/concurrency/idempotency,
+  Migration checks (disposable PostgreSQL), full workspace typecheck, secret
+  scan, and the scripted suite loop containing test:pilot-metrics
+  (14 integration tests) plus the pilot-window unit tests
+Tests not run: none outstanding for Part 1; this handoff session did not
+  rerun suites locally (container lacks pnpm/Node 24/PostgreSQL) — CI on the
+  exact merged SHA is the deterministic validation record; the migration
+  artifact sha256 was re-verified locally this session
+CI status: GREEN (16/16 check runs success on
+  d7dcf115f39e8e2eddc8362f1347da1a4992079c)
+Exact next action: start Part 2 (/admin/pilot UI + source chart + CSV export)
+  from current main using the generated useGetAdminPilotMetrics /
+  useUpdatePilotProviderRetention hooks (@workspace/api-client-react); do NOT
+  rebuild Part 1 calculations, retention persistence, the migration artifact,
+  authorization, or the OpenAPI contract
+```
+
+```text
+Strategic boundary:
+This is a platform-admin pilot dashboard.
+Organization-admin/workspace/workforce functionality remains FUTURE and NOT IMPLEMENTED.
+Provider-facing dashboard remains FUTURE and is not part of this branch.
+```

@@ -247,3 +247,46 @@ Full model + definitions: `docs/pilot/pilot-metrics-dashboard.md`.
 Part 2 next: `/admin/pilot` UI + CSV export over the generated
 `useGetAdminPilotMetrics`/`useUpdatePilotProviderRetention` hooks — do NOT
 rebuild Part 1 calculations, persistence, or authorization.
+
+## Continuity handoff — 2026-08-28 (Pilot Operations Dashboard Part 1 COMPLETE)
+
+```text
+Pilot Operations Dashboard status:
+Part 1 metrics API + retention storage: COMPLETE
+Part 2 admin UI + chart + CSV: NOT STARTED
+Part 3 weekly review pack: NOT STARTED
+
+Baseline main SHA: 6f5778198470c70e763e8d8ee54003c5662d17f8
+Current branch: main (Part 1 merged via PR #60)
+Current head SHA: d7dcf115f39e8e2eddc8362f1347da1a4992079c
+Uncommitted files: NONE
+Committed files: 34 files in PR #60 (routes, metrics lib, schema, migration
+  artifact, OpenAPI + regenerated clients, tests, docs, .env.example, CI)
+PR: https://github.com/sbtheg17-market/foot/pull/60 — MERGED
+Migration artifact: docs/migrations/PILOT_PROVIDER_RETENTION_V1.sql (frozen,
+  additive; sha256 ceaac6d5…bf90cad; disposable-PG checks PASS; Gate B-pending)
+API routes: GET /api/admin/pilot/metrics;
+  PATCH /api/admin/pilot/providers/:providerId/retention
+Metric definitions implemented: pilot window w/ safe projected fallback,
+  activation milestones + status ladder, outcome rates, repeat-client rate,
+  source attribution (unknown grouping), support escalations, retention
+  rollup, risk flags — vertical-neutral, PILOT_PROVIDER_TARGET display-only
+Authorization behavior: requireAuth + requireRole("admin") on both routes
+  (401/403 test-enforced); reads and writes audit-logged
+Privacy boundaries: no client identity, addresses/postal codes, notes,
+  document references, or tracking parameters — redaction test-enforced
+Tests passed: CI 16/16 GREEN on d7dcf11 (incl. test:pilot-metrics 14 tests,
+  pilot-window unit tests, migration checks, authz/concurrency, secret scan)
+Tests not run: none outstanding for Part 1; suites not rerun locally in the
+  handoff session — CI on the exact merged SHA is the validation record
+CI status: GREEN (16/16 on d7dcf115f39e8e2eddc8362f1347da1a4992079c)
+Exact next action: build Part 2 /admin/pilot UI from current main over the
+  generated hooks; do NOT rebuild Part 1 logic, persistence, auth, or contract
+```
+
+```text
+Strategic boundary:
+This is a platform-admin pilot dashboard.
+Organization-admin/workspace/workforce functionality remains FUTURE and NOT IMPLEMENTED.
+Provider-facing dashboard remains FUTURE and is not part of this branch.
+```
