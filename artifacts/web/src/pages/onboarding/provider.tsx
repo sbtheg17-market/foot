@@ -763,7 +763,16 @@ export default function ProviderOnboarding() {
   const application = applicationQuery.data?.application;
   const [step, setStep] = useState<Step>('profile');
   const [initError, setInitError] = useState('');
+  const [showWelcome, setShowWelcome] = useState(false);
   const startedRef = useRef(false);
+
+  // One-time post-signup confirmation (set by /signup on provider success).
+  useEffect(() => {
+    if (sessionStorage.getItem('oncallfoot_provider_welcome')) {
+      sessionStorage.removeItem('oncallfoot_provider_welcome');
+      setShowWelcome(true);
+    }
+  }, []);
 
   // Start onboarding for users without provider role
   useEffect(() => {
@@ -832,6 +841,20 @@ export default function ProviderOnboarding() {
   return (
     <main className="min-h-[100dvh] bg-background px-5 py-8">
       <div className="mx-auto w-full max-w-[600px]">
+        {showWelcome && (
+          <div
+            role="status"
+            data-testid="provider-signup-success"
+            className="mb-6 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm"
+          >
+            <p className="font-semibold text-primary">Your provider account is ready.</p>
+            <p className="mt-1 text-muted-foreground">
+              Next, set up your services, availability, and booking page. Your application is
+              reviewed before your listing goes live.
+            </p>
+          </div>
+        )}
+
         <div className="mb-6">
           <p className="mb-1 text-sm font-semibold uppercase tracking-[0.16em] text-primary">Provider onboarding</p>
           <h1 className="font-serif text-3xl font-bold text-foreground">Build your provider profile</h1>

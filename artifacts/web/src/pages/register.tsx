@@ -86,6 +86,11 @@ export default function Register() {
       {
         onSuccess: (res) => {
           localStorage.setItem('oncallfoot_token', res.token);
+          if (res.user.role === 'provider') {
+            // One-time welcome on the onboarding page so a new provider knows
+            // the account exists and what happens next.
+            sessionStorage.setItem('oncallfoot_provider_welcome', '1');
+          }
           setLocation(nextRoute(res.user));
         },
         onError: (err) => {
