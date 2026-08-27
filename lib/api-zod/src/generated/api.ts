@@ -1406,6 +1406,88 @@ export const GetMyEarningsExportResponse = zod.object({
 
 
 /**
+ * Aggregated read-only dashboard for the authenticated approved provider: today's bookings, next booking, upcoming bookings (next 30 days), personal performance metrics, acquisition-source attribution, recent activity, and an earnings preview. All values are derived live from existing tables on every request — nothing is persisted and no event is emitted. Client names are privacy-trimmed (first name + last initial) and locations expose only the FSA/postal prefix or city, never the full address.
+ * @summary Owner-scoped provider dashboard data (read-only)
+ */
+export const GetMyProviderDashboardResponse = zod.object({
+  "providerId": zod.int(),
+  "providerName": zod.string(),
+  "slug": zod.string().nullable(),
+  "bookingPagePublished": zod.boolean(),
+  "bookingUrl": zod.string().nullable().describe('Canonical public booking path (\/book\/:slug) when published, otherwise null'),
+  "todayBookingsCount": zod.int(),
+  "nextBooking": zod.object({
+  "id": zod.int(),
+  "date": zod.coerce.date(),
+  "clientName": zod.string(),
+  "serviceName": zod.string(),
+  "location": zod.string(),
+  "status": zod.enum(['requested', 'confirmed', 'rescheduled'])
+}).nullable(),
+  "upcomingBookings": zod.array(zod.object({
+  "id": zod.int(),
+  "date": zod.coerce.date(),
+  "clientName": zod.string().describe('Privacy-trimmed client label (first name + last initial)'),
+  "serviceName": zod.string(),
+  "location": zod.string().describe('FSA\/postal prefix when available, otherwise city — never the full address'),
+  "status": zod.enum(['requested', 'confirmed', 'rescheduled'])
+})),
+  "metrics": zod.object({
+  "completionRate": zod.number().describe('completed \/ resolved bookings (0–1); 0 when nothing is resolved'),
+  "cancellationRate": zod.number().describe('cancelled \/ resolved bookings (0–1)'),
+  "noShowRate": zod.number().describe('no-shows \/ resolved bookings (0–1)'),
+  "repeatClientRate": zod.number().describe('Share of clients with a completed booking who completed at least twice (0–1)'),
+  "totalBookings": zod.int(),
+  "completedBookings": zod.int(),
+  "cancelledBookings": zod.int(),
+  "noShowBookings": zod.int(),
+  "resolvedBookings": zod.int().describe('completed + cancelled + no_show — the denominator for all rates')
+}),
+  "sourceAttribution": zod.object({
+  "instagram": zod.int(),
+  "qrCard": zod.int(),
+  "text": zod.int(),
+  "facebook": zod.int(),
+  "website": zod.int(),
+  "other": zod.int(),
+  "unknown": zod.int()
+}).describe('Booking counts grouped by allowlisted acquisition source (`qr-card` is exposed as `qrCard`). `unknown` counts bookings recorded without attribution; `other` is reserved for future allowlist growth.'),
+  "recentActivity": zod.array(zod.object({
+  "type": zod.enum(['booking', 'reschedule', 'cancellation', 'no_show']),
+  "date": zod.coerce.date().describe('When the booking last changed (booking updatedAt)'),
+  "clientName": zod.string().describe('Privacy-trimmed client label (first name + last initial)'),
+  "serviceName": zod.string(),
+  "status": zod.string()
+})),
+  "earningsPreview": zod.object({
+  "estimatedMonthlyCents": zod.int().nullable().describe('Sum of service prices for bookings completed this month (marketplace timezone); null when nothing completed this month. Estimate only — payments are not enabled and no money moves through the platform.'),
+  "available": zod.boolean().describe('Always false until payments are enabled')
+}),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * The same personal performance metrics object served by /providers/me/dashboard, exposed separately so clients can refresh metrics independently of the full dashboard payload.
+ * @summary Owner-scoped provider performance metrics (read-only)
+ */
+export const GetMyProviderMetricsResponse = zod.object({
+  "metrics": zod.object({
+  "completionRate": zod.number().describe('completed \/ resolved bookings (0–1); 0 when nothing is resolved'),
+  "cancellationRate": zod.number().describe('cancelled \/ resolved bookings (0–1)'),
+  "noShowRate": zod.number().describe('no-shows \/ resolved bookings (0–1)'),
+  "repeatClientRate": zod.number().describe('Share of clients with a completed booking who completed at least twice (0–1)'),
+  "totalBookings": zod.int(),
+  "completedBookings": zod.int(),
+  "cancelledBookings": zod.int(),
+  "noShowBookings": zod.int(),
+  "resolvedBookings": zod.int().describe('completed + cancelled + no_show — the denominator for all rates')
+}),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Get own verification docs and overall status
  */
 export const GetMyVerificationResponse = zod.object({

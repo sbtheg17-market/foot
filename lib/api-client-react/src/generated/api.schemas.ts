@@ -1390,6 +1390,123 @@ export interface EarningsExportResponse {
   items: EarningsExportItem[];
 }
 
+export type ProviderDashboardBookingStatus = typeof ProviderDashboardBookingStatus[keyof typeof ProviderDashboardBookingStatus];
+
+
+export const ProviderDashboardBookingStatus = {
+  requested: 'requested',
+  confirmed: 'confirmed',
+  rescheduled: 'rescheduled',
+} as const;
+
+export interface ProviderDashboardBooking {
+  id: number;
+  date: string;
+  /** Privacy-trimmed client label (first name + last initial) */
+  clientName: string;
+  serviceName: string;
+  /** FSA/postal prefix when available, otherwise city — never the full address */
+  location: string;
+  status: ProviderDashboardBookingStatus;
+}
+
+export interface ProviderPerformanceMetrics {
+  /** completed / resolved bookings (0–1); 0 when nothing is resolved */
+  completionRate: number;
+  /** cancelled / resolved bookings (0–1) */
+  cancellationRate: number;
+  /** no-shows / resolved bookings (0–1) */
+  noShowRate: number;
+  /** Share of clients with a completed booking who completed at least twice (0–1) */
+  repeatClientRate: number;
+  totalBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  noShowBookings: number;
+  /** completed + cancelled + no_show — the denominator for all rates */
+  resolvedBookings: number;
+}
+
+/**
+ * Booking counts grouped by allowlisted acquisition source (`qr-card` is exposed as `qrCard`). `unknown` counts bookings recorded without attribution; `other` is reserved for future allowlist growth.
+ */
+export interface ProviderSourceAttribution {
+  instagram: number;
+  qrCard: number;
+  text: number;
+  facebook: number;
+  website: number;
+  other: number;
+  unknown: number;
+}
+
+export type ProviderActivityItemType = typeof ProviderActivityItemType[keyof typeof ProviderActivityItemType];
+
+
+export const ProviderActivityItemType = {
+  booking: 'booking',
+  reschedule: 'reschedule',
+  cancellation: 'cancellation',
+  no_show: 'no_show',
+} as const;
+
+export interface ProviderActivityItem {
+  type: ProviderActivityItemType;
+  /** When the booking last changed (booking updatedAt) */
+  date: string;
+  /** Privacy-trimmed client label (first name + last initial) */
+  clientName: string;
+  serviceName: string;
+  status: string;
+}
+
+export interface ProviderEarningsPreview {
+  /** Sum of service prices for bookings completed this month (marketplace timezone); null when nothing completed this month. Estimate only — payments are not enabled and no money moves through the platform. */
+  estimatedMonthlyCents: number | null;
+  /** Always false until payments are enabled */
+  available: boolean;
+}
+
+export type ProviderDashboardResponseNextBookingStatus = typeof ProviderDashboardResponseNextBookingStatus[keyof typeof ProviderDashboardResponseNextBookingStatus];
+
+
+export const ProviderDashboardResponseNextBookingStatus = {
+  requested: 'requested',
+  confirmed: 'confirmed',
+  rescheduled: 'rescheduled',
+} as const;
+
+export type ProviderDashboardResponseNextBooking = {
+  id: number;
+  date: string;
+  clientName: string;
+  serviceName: string;
+  location: string;
+  status: ProviderDashboardResponseNextBookingStatus;
+} | null;
+
+export interface ProviderDashboardResponse {
+  providerId: number;
+  providerName: string;
+  slug: string | null;
+  bookingPagePublished: boolean;
+  /** Canonical public booking path (/book/:slug) when published, otherwise null */
+  bookingUrl: string | null;
+  todayBookingsCount: number;
+  nextBooking: ProviderDashboardResponseNextBooking;
+  upcomingBookings: ProviderDashboardBooking[];
+  metrics: ProviderPerformanceMetrics;
+  sourceAttribution: ProviderSourceAttribution;
+  recentActivity: ProviderActivityItem[];
+  earningsPreview: ProviderEarningsPreview;
+  updatedAt: string;
+}
+
+export interface ProviderMetricsResponse {
+  metrics: ProviderPerformanceMetrics;
+  updatedAt: string;
+}
+
 export type VerificationDocStatus = typeof VerificationDocStatus[keyof typeof VerificationDocStatus];
 
 

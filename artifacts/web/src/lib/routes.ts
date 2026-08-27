@@ -21,7 +21,7 @@ export const ROUTES = {
   // ── Provider portal (canonical) ──────────────────────────────────────────
   provider: {
     root: '/provider',
-    dashboard: '/provider',
+    dashboard: '/provider/dashboard',
     bookings: '/provider/bookings',
     services: '/provider/services',
     availability: '/provider/availability',

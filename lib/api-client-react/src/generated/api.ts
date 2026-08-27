@@ -72,7 +72,9 @@ import type {
   ProviderApplicationDetailResponse,
   ProviderApplicationStatusResponse,
   ProviderApplicationSubmissionHistoryResponse,
+  ProviderDashboardResponse,
   ProviderListResponse,
+  ProviderMetricsResponse,
   ProviderNotificationListResponse,
   ProviderNotificationReadResponse,
   ProviderNotificationUnreadCountResponse,
@@ -3745,6 +3747,162 @@ export function useGetMyEarningsExport<TData = Awaited<ReturnType<typeof getMyEa
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMyEarningsExportQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyProviderDashboardUrl = () => {
+
+
+
+
+  return `/api/providers/me/dashboard`
+}
+
+/**
+ * Aggregated read-only dashboard for the authenticated approved provider: today's bookings, next booking, upcoming bookings (next 30 days), personal performance metrics, acquisition-source attribution, recent activity, and an earnings preview. All values are derived live from existing tables on every request — nothing is persisted and no event is emitted. Client names are privacy-trimmed (first name + last initial) and locations expose only the FSA/postal prefix or city, never the full address.
+ * @summary Owner-scoped provider dashboard data (read-only)
+ */
+export const getMyProviderDashboard = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderDashboardResponse> => {
+
+  return customFetch<ProviderDashboardResponse>(getGetMyProviderDashboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyProviderDashboardQueryKey = () => {
+    return [
+    `/api/providers/me/dashboard`
+    ] as const;
+    }
+
+
+export const getGetMyProviderDashboardQueryOptions = <TData = Awaited<ReturnType<typeof getMyProviderDashboard>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyProviderDashboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyProviderDashboard>>> = ({ signal }) => getMyProviderDashboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyProviderDashboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyProviderDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getMyProviderDashboard>>>
+export type GetMyProviderDashboardQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Owner-scoped provider dashboard data (read-only)
+ */
+
+export function useGetMyProviderDashboard<TData = Awaited<ReturnType<typeof getMyProviderDashboard>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderDashboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyProviderDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyProviderMetricsUrl = () => {
+
+
+
+
+  return `/api/providers/me/metrics`
+}
+
+/**
+ * The same personal performance metrics object served by /providers/me/dashboard, exposed separately so clients can refresh metrics independently of the full dashboard payload.
+ * @summary Owner-scoped provider performance metrics (read-only)
+ */
+export const getMyProviderMetrics = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderMetricsResponse> => {
+
+  return customFetch<ProviderMetricsResponse>(getGetMyProviderMetricsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyProviderMetricsQueryKey = () => {
+    return [
+    `/api/providers/me/metrics`
+    ] as const;
+    }
+
+
+export const getGetMyProviderMetricsQueryOptions = <TData = Awaited<ReturnType<typeof getMyProviderMetrics>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderMetrics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyProviderMetricsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyProviderMetrics>>> = ({ signal }) => getMyProviderMetrics({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyProviderMetrics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyProviderMetricsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyProviderMetrics>>>
+export type GetMyProviderMetricsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Owner-scoped provider performance metrics (read-only)
+ */
+
+export function useGetMyProviderMetrics<TData = Awaited<ReturnType<typeof getMyProviderMetrics>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderMetrics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyProviderMetricsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
