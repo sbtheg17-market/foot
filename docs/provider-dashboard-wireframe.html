@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Provider Dashboard — READ-ONLY CONCEPT WIREFRAME (not production)</title>
+<style>
+  :root{--ink:#1d1d1f;--mut:#6b7280;--line:#d9d9de;--card:#ffffff;--bg:#f4f4f2;--acc:#0f5132;--warn:#7a5b00;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Georgia,'Times New Roman',serif;}
+  .banner{background:#7a1f1f;color:#fff;text-align:center;padding:10px 16px;font-weight:bold;letter-spacing:.04em}
+  .wrap{max-width:420px;margin:0 auto;padding:16px;display:grid;gap:14px}
+  header.hero,section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+  h1{font-size:1.35rem;margin:0}
+  h2{font-size:1rem;margin:0 0 8px}
+  p{margin:6px 0}
+  .mut{color:var(--mut);font-size:.9rem}
+  .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:.75rem}
+  .impl{border-color:#9ae2b6;background:#eefaf2;color:var(--acc)}
+  .wire{border-color:#f1d98a;background:#fdf7e3;color:var(--warn)}
+  .fut{background:#f0f0f0;color:#555}
+  .btn{display:inline-block;border:1.5px solid var(--ink);border-radius:999px;padding:8px 14px;font-weight:bold;font-size:.9rem;margin-top:8px}
+  ul{margin:8px 0;padding-left:20px}
+  li{margin:4px 0}
+  .row{display:flex;justify-content:space-between;gap:8px;border-top:1px dashed var(--line);padding:8px 0;font-size:.9rem}
+  .desktop-note{border:1px dashed var(--line);border-radius:12px;padding:12px;background:#fbfbf9}
+  footer{padding:8px 16px 32px;text-align:center}
+  @media (min-width:900px){.wrap{max-width:920px;grid-template-columns:1.2fr .8fr}.span{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="banner" role="note">READ-ONLY CONCEPT — NOT CONNECTED TO PRODUCTION DATA OR ROUTES</div>
+<main class="wrap">
+  <header class="hero span">
+    <p class="mut">Concept wireframe for the future evolution of /provider/dashboard.
+    Legend: <span class="pill impl">implemented today</span>
+    <span class="pill wire">exists, needs wiring</span>
+    <span class="pill fut">future / deferred</span>.
+    All names and numbers below are illustrative placeholders, not real data.</p>
+  </header>
+
+  <section aria-labelledby="w-today">
+    <h2 id="w-today">1 · Today at a glance <span class="pill impl">implemented today</span></h2>
+    <h1>Good morning, Jordan</h1>
+    <p>You have 2 appointments today.</p>
+    <p class="mut">Next: 1:30 PM — Alex M., Routine nail care (L2R)</p>
+    <p class="mut">Empty-state copy: “No appointments today. Your booking page is ready to share when you are.”</p>
+  </section>
+
+  <section aria-labelledby="w-next">
+    <h2 id="w-next">2 · Next best action <span class="pill wire">exists, needs wiring</span></h2>
+    <p><strong>Add availability so your booking page can show real times.</strong></p>
+    <p class="mut">Why: availability keeps your link accurate and protects your schedule.</p>
+    <span class="btn">Set availability</span>
+    <p class="mut">Source of truth: the Activation Hub nextAction (already served by the API). One action at a time. No urgency tricks.</p>
+  </section>
+
+  <section aria-labelledby="w-upcoming">
+    <h2 id="w-upcoming">3 · Upcoming work <span class="pill impl">implemented today</span></h2>
+    <div class="row"><span>Today 1:30 PM · Routine nail care</span><span>Confirmed</span></div>
+    <div class="row"><span>Thu 10:00 AM · Home visit</span><span>Confirmed</span></div>
+    <div class="row"><span>Pending reschedule request (1) <span class="pill wire">needs wiring</span></span><span>Review</span></div>
+    <p class="mut">Actions reuse existing booking flows — view, review reschedule, cancel where eligible, mark no-show where eligible.</p>
+  </section>
+
+  <section aria-labelledby="w-share">
+    <h2 id="w-share">4 · Booking-link growth card <span class="pill impl">implemented today</span></h2>
+    <p><strong>Your page is live.</strong> foot.example/book/jordan-footcare</p>
+    <span class="btn">Copy link</span> <span class="btn">Share</span> <span class="btn">QR</span> <span class="btn">Preview</span>
+    <p class="mut">Share your page anywhere clients already find you — Instagram bio, Facebook post, text after a visit, Google Business Profile, printed QR, email signature, website.</p>
+  </section>
+
+  <section aria-labelledby="w-schedule">
+    <h2 id="w-schedule">5 · Schedule control</h2>
+    <p><span class="pill impl">implemented today</span> Manage availability · Manage services · View service areas</p>
+    <p><span class="pill fut">future / deferred</span> Block off time · Add an emergency opening (requires the Availability Exceptions model — not implemented; no live buttons exist)</p>
+  </section>
+
+  <section aria-labelledby="w-health">
+    <h2 id="w-health">6 · Business health <span class="pill impl">implemented today</span></h2>
+    <ul>
+      <li>Completion rate: shown only with resolved bookings</li>
+      <li>Cancellation / no-show rates: honest empty states below volume</li>
+      <li>Repeat-client signal · Source mix (own data only)</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="w-activity">
+    <h2 id="w-activity">7 · Recent activity <span class="pill impl">implemented today</span></h2>
+    <p class="mut">Latest booking-state changes (collapsed by default). True append-only event history is future/deferred.</p>
+  </section>
+
+  <section aria-labelledby="w-ready">
+    <h2 id="w-ready">8 · Account readiness <span class="pill impl">implemented today</span></h2>
+    <p>Setup progress lives in the Activation Hub — compact entry only, never duplicated here.</p>
+    <span class="btn">View setup progress</span>
+  </section>
+
+  <section aria-labelledby="w-support">
+    <h2 id="w-support">9 · Support <span class="pill impl">implemented today</span></h2>
+    <p>Need help? Contact Foot support.</p>
+  </section>
+
+  <section class="span desktop-note" aria-labelledby="w-desktop">
+    <h2 id="w-desktop">Desktop adaptation note</h2>
+    <p class="mut">≥900px: two columns — schedule (today, next action, upcoming) left; growth &amp; health (share card, metrics, readiness, support) right. Mobile order defines priority; desktop never reorders meaning. Touch targets ≥44px, text labels beside all colors, one h1, labelled sections, honest loading/empty/error states.</p>
+  </section>
+</main>
+<footer class="mut">READ-ONLY CONCEPT — NOT CONNECTED TO PRODUCTION DATA OR ROUTES. No scripts, no external assets, no production imports. See docs/provider-dashboard-readonly-overview.md.</footer>
+</body>
+</html>
