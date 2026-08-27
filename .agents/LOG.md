@@ -3190,3 +3190,57 @@ on green CI. Pilot Operations Dashboard Parts 1–3 CLOSED — the dashboard is
 operated weekly per `docs/pilot/weekly-pilot-review.md`. Next best action:
 Provider Approval Status Page (evidence-guided conversion priority), then
 Provider Dashboard, then Availability Exceptions.
+
+---
+### Session — Provider Approval Status & Activation Hub (2026-08-28, Emergent session)
+**Agent:** Emergent (E1)
+**Scope:** `M` (one read-only API endpoint + hub page rebuild + tests + docs; no schema change)
+
+**What was done:**
+- Verified baseline `origin/main` = `65f4eee9a8e762b65981c62659870603d9131ce3`;
+  branched `feat/provider-approval-status-hub`. Graphify-first discovery: five
+  queries (milestone representation, approval/rejection enforcement,
+  publish/readiness rules, portal patterns, ownership gating) verified
+  against source before editing.
+- Contract-first API: `GET /providers/me/activation-status` in OpenAPI +
+  regenerated clients; route gated requireAuth + provider membership
+  (readable in every application state; admin/client 403). Composes existing
+  rules only: `buildStatusView`, `computeReadiness`,
+  `hasActiveServiceAreaCoverage` (#12), `bookingPageView` (#11),
+  status-level verification, LIMIT-1 first-booking probe. Read-only; no
+  migration.
+- Rebuilt `/provider/application-status` as the Activation Hub: status hero
+  (plain-language label, truthful progress, server-derived next action),
+  grouped 9-milestone checklist with locked pre-approval steps and deep
+  links, verification card with needs-update resubmission recovery + privacy
+  statement, booking-readiness cards, share-and-grow embedding the existing
+  BookingPageCard, honest value + help/trust sections, preserved
+  rejected-state recovery (reason, reset/resubmit, timeline). Removed the
+  old draft/approved auto-redirects (hub now serves those states —
+  intentional). Readiness page cross-links to the hub.
+- Tests: `test:activation-status` (11) wired into the CI scripted loop; 15
+  web tests incl. axe on approved + rejected states; honest-copy guards
+  (no reminder/payment/guarantee claims).
+- Docs: `docs/provider-approval-status-hub.md` (authoritative) + appends to
+  api-routes, data-models, ux-guidelines, native-device-checklist,
+  NEXT-STEPS, TODO ledger (incl. printable QR share-kit conversion candidate
+  documented-only), Neo handoff, this log.
+
+**Validation:** typecheck/build/build:deploy PASS · root tests api 132/132 +
+web 195/195 · activation suite 11/11 · regressions 182/182 (13 suites) ·
+live auth smoke 401/403/403-admin/200 · hub mobile smoke 10/10 @390×844 ·
+emulation 9/9 · real-browser 13/13 · diff check + secret scan PASS · CI on
+PR #64 gates merge.
+
+**Boundaries held:** no provider-dashboard/earnings/payments/ranking/
+org-workspace/client-group/white-label/uploads/OCR/reminders/automated
+approval; retention intent and pilot metrics never provider-visible; no
+managed DB; no production deployment; no force-push; conflict branches
+untouched.
+
+**Build state at end:** PR #64
+(https://github.com/sbtheg17-market/foot/pull/64) open, squash-merge gated
+on green CI. Next: post-merge Graphify refresh, then Provider Dashboard
+gap-closure (quick availability actions, reschedule/cancel/no-show from
+dashboard, support entry), then Availability Exceptions — guided by weekly
+pilot review evidence.

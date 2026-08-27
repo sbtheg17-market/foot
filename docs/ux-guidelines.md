@@ -370,3 +370,33 @@ conventions land with Part 2.
 - **Charts.** Dependency-free CSS bars only; values always as text; bars
   `aria-hidden`. Review prompts use cautious "review / check / assess"
   wording and state they are not automated diagnosis.
+
+## Provider Approval Status & Activation Hub (2026-08-28)
+
+- **Guided, not bureaucratic.** One hero (status pill + one-sentence
+  explanation + truthful progress + single "Next step" card), completed
+  milestones grouped into one compact positive strip, remaining steps as
+  action rows with "why this matters" microcopy and direct deep links to the
+  existing destinations. Never more than the real remaining steps; no fake
+  progress; approval-gated steps show "Available after approval" instead of
+  links that would land on a 403.
+- **Truthful conversion copy.** Status labels are plain-language
+  ("Finish setting up", "Under review", "Update needed", "Account needs
+  attention"); celebratory copy ("Your booking page is live", "You're up and
+  running") appears only when the server proves the state. The value section
+  lists implemented behavior only — no reminder, payment, demand, or revenue
+  claims anywhere on the page (guarded by tests).
+- **Recovery-first error states.** Rejected applications show only the
+  provider-visible reason with a support fallback sentence; verification
+  `needs_update` pairs friendly copy with the existing resubmission route;
+  suspended states route to support. Loading/error/404/403 states are
+  explicit; errors are generic.
+- **Accessibility.** Single `main` + labelled sections + one h1; status via
+  text pills (never color alone); progress bar with accessible label;
+  `role="alert"` errors; sr-only step-state suffixes; axe-clean on approved
+  and rejected states; verified at 390×844 with zero horizontal overflow and
+  keyboard-reachable actions.
+- **Reuse over duplication.** The publish/share/QR surface is the existing
+  `BookingPageCard`; history is the existing submission timeline; support is
+  the existing `SupportContactLink`. The hub adds copy and composition, not
+  new business UI.

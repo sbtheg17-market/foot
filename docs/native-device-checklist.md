@@ -95,3 +95,17 @@ are out of scope for CI.
 - Repo emulation suite 9/9 PASS; real-browser smoke 13/13 PASS.
 - Real-hardware verification of the onboarding flow remains DEFERRED with the
   rest of this checklist.
+
+## Provider Approval Status & Activation Hub (2026-08-28 — emulation PASS, hardware DEFERRED)
+
+- Activation hub (`/provider/application-status`) targeted smoke at 390×844
+  (Chromium, real cookie sign-in): hero, status pill, truthful progress
+  count, next-action deep link, checklist, verification card, readiness
+  cards, help section, zero horizontal overflow, keyboard focus on
+  interactive elements — 10/10 PASS.
+- Repo emulation suite rerun with the hub built in: 9/9 PASS (iPhone 13
+  WebKit + Pixel 5 Chromium profiles); real-browser smoke 13/13 PASS.
+- The Expo app keeps its existing application-status screen (unchanged
+  `GET /providers/application/status`); native hub parity is a deferred
+  follow-up (see TODO ledger). Real-hardware verification remains DEFERRED
+  with the rest of this checklist.
