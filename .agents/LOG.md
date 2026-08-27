@@ -3003,3 +3003,49 @@ awaiting explicit policy and data-model approval before implementation.
 
 **Build state at end:** design complete locally; implementation remains blocked
 on explicit operator approval of the policy and data model.
+
+---
+### Session — Graphify continuity workflow (2026, Emergent session)
+**Agent:** Emergent (E1)
+**Scope:** `S` (developer/continuity tooling + docs only; zero product-code change)
+
+**What was done:**
+- Verified baseline `origin/main` = `daa097bbf62ee3b1e6b5c285e979a1bec24de706`
+  and branched `chore/add-graphify-continuity-workflow`.
+- Installed Graphify 0.9.50 locally via `uv tool install "graphifyy[sql]"`
+  (isolated Python tool; NOT in the pnpm dependency graph, Docker, deploy, or CI).
+- Installed the project-scoped agent skill: `.agents/skills/graphify/SKILL.md`
+  (+ `references/`). No strict mode, no Git hooks, no MCP/HTTP server.
+- Added `.graphifyignore` (excludes `.env*` except `.env.example`, keys,
+  `var/`, runtime data, builds, caches, agent memory, attached assets) and
+  extended `.gitignore` for `graphify-out/` local-only cache/cost/temp files.
+- Built the initial graph CODE-ONLY + LOCAL (`graphify extract . --code-only`,
+  then `cluster-only . --no-label` — zero LLM/API usage): 4272 nodes,
+  7769 edges, 284 communities, built from commit `daa097bb`. SQL migration
+  artifacts under `docs/migrations/` are parsed (e.g.
+  `booking_outcome_history` → `bookings`/`users` REFERENCES edges, EXTRACTED).
+- Committed portable artifacts only: `graphify-out/graph.json`,
+  `GRAPH_REPORT.md`, `graph.html`, `manifest.json`.
+- Secret-scanned graph output: keyword hits are code symbol NAMES only
+  (`signToken()`, `pushTokensTable`, …); a value-pattern scan (gh tokens,
+  sk-, AKIA, connection strings, private-key blocks) found nothing; no `.env`
+  content in the graph. `scripts/secret-scan.sh` run over tracked files.
+- Wrote `docs/graphify-continuity-workflow.md` and appended (never rewrote)
+  Graphify guidance to `AGENTS.md`, `docs/NEXT-STEPS.md`,
+  `docs/TODO-LEDGER.md`, and `docs/neo/2026-08-21-client-retention-handoff.md`,
+  including the mandatory future-handoff line: "Graphify status: …".
+- Decided AGAINST `package.json` `graphify:*` scripts (Python tool not
+  guaranteed in every dev environment; workspace scripts are product commands).
+
+**Validation:** `git diff --check` PASS · `pnpm run typecheck` PASS ·
+`pnpm run build` PASS · `pnpm run build:deploy` PASS · `pnpm test` PASS
+(api-server 132/132, web 136/136) · graph secret scan CLEAN.
+
+**Boundaries held:** no runtime/deploy/CI dependency added; no managed-DB or
+live PostgreSQL introspection; no external API keys; no query logging; no
+public Graphify server; no Git hooks; docs/PDF/image semantic extraction and
+LLM community naming DEFERRED pending operator approval.
+
+**Build state at end:** graph committed and current at `daa097bb`; refresh
+manually after major merged work (`graphify extract . --code-only` +
+`cluster-only . --no-label`), then re-run both secret scans before committing.

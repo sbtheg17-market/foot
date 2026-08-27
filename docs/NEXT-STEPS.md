@@ -178,3 +178,25 @@ unique-violation, and the signup page prevents duplicate submissions, shows
 client-safe errors (never "Internal server error"), and moves focus to the
 error summary. Regression suite: `test:registration` (CI-gated). See the
 TODO-LEDGER 2026-08-27 registration section.
+
+## Graphify continuity aid
+
+Before beginning a substantial continuation, query the local repository graph if `graphify-out/graph.json` exists:
+
+```bash
+graphify query "<task-specific architecture question>"
+graphify path "<symbol or concept A>" "<symbol or concept B>"
+graphify explain "<symbol or concept>"
+```
+
+Use Graphify to identify relevant source, docs, migrations, and dependencies before editing. Treat `EXTRACTED` links as direct source evidence and `INFERRED` links as leads that must be verified in code.
+
+Graphify is optional and non-blocking. If it is unavailable or stale, continue with normal Git/source inspection. Never graph secrets, `.env` files, runtime data, managed-database contents, or credentials. Do not use Graphify as a production service, a CI gate, or a reason to skip tests.
+
+Handoff-template line for every future Neo handoff:
+
+```text
+Graphify status: report whether graphify-out/ is present, its latest refresh commit/date, whether code-only or full extraction was used, and whether a refresh is recommended.
+```
+
+Setup, privacy boundaries, refresh policy: `docs/graphify-continuity-workflow.md`.

@@ -1770,3 +1770,26 @@ no new dependencies; privacy-trimmed client names and FSA/city locations.
 Deferred honestly: availability exceptions (emergency slots / block-off
 dates), calendar view, on-time rate, dashboard rating display — recorded in
 `docs/TODO-LEDGER.md`. Full record: `docs/provider-dashboard.md`.
+
+## Graphify continuity aid
+
+Before beginning a substantial continuation, query the local repository graph if `graphify-out/graph.json` exists:
+
+```bash
+graphify query "<task-specific architecture question>"
+graphify path "<symbol or concept A>" "<symbol or concept B>"
+graphify explain "<symbol or concept>"
+```
+
+Use Graphify to identify relevant source, docs, migrations, and dependencies before editing. Treat `EXTRACTED` links as direct source evidence and `INFERRED` links as leads that must be verified in code.
+
+Graphify is optional and non-blocking. If it is unavailable or stale, continue with normal Git/source inspection. Never graph secrets, `.env` files, runtime data, managed-database contents, or credentials. Do not use Graphify as a production service, a CI gate, or a reason to skip tests.
+
+Full workflow, privacy boundaries, and refresh policy:
+`docs/graphify-continuity-workflow.md`.
+
+Every future Neo handoff must include this line:
+
+```text
+Graphify status: report whether graphify-out/ is present, its latest refresh commit/date, whether code-only or full extraction was used, and whether a refresh is recommended.
+```
