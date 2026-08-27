@@ -8,6 +8,7 @@
 import type { ProviderActivityItem } from './providerActivityItem';
 import type { ProviderDashboardBooking } from './providerDashboardBooking';
 import type { ProviderDashboardResponseNextBooking } from './providerDashboardResponseNextBooking';
+import type { ProviderDashboardResponsePendingReschedules } from './providerDashboardResponsePendingReschedules';
 import type { ProviderEarningsPreview } from './providerEarningsPreview';
 import type { ProviderPerformanceMetrics } from './providerPerformanceMetrics';
 import type { ProviderSourceAttribution } from './providerSourceAttribution';
@@ -22,6 +23,8 @@ export interface ProviderDashboardResponse {
   todayBookingsCount: number;
   nextBooking: ProviderDashboardResponseNextBooking;
   upcomingBookings: ProviderDashboardBooking[];
+  /** Client-initiated reschedule requests awaiting the provider's confirm/decline (bookings currently in status `rescheduled`; state machine rescheduled → confirmed | cancelled). Count plus the privacy-trimmed soonest request only — reviewing and acting stays in the existing bookings workflow. */
+  pendingReschedules: ProviderDashboardResponsePendingReschedules;
   metrics: ProviderPerformanceMetrics;
   sourceAttribution: ProviderSourceAttribution;
   recentActivity: ProviderActivityItem[];

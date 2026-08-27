@@ -265,3 +265,20 @@ reschedule count line) into `/provider/dashboard`, reusing
 `GET /providers/me/activation-status` and existing booking rows. Small,
 evidence-backed, zero new schema. Availability Exceptions (Phase B) follows
 per the established roadmap, gated on weekly-review evidence.
+
+## Status update (2026-08-28) — Phase A implemented
+
+The Phase A completion wiring recommended by this blueprint is now
+IMPLEMENTED on the existing `/provider/dashboard`
+(`feat/provider-dashboard-phase-a-actions`): the Activation Hub's
+server-derived `nextAction` renders as a Next Best Action card (existing
+`GET /providers/me/activation-status` hook reused; no logic duplicated), and
+pending client reschedule requests (`rescheduled` bookings) are surfaced
+with a count + privacy-trimmed soonest request and a deep link to the
+existing bookings Reschedules tab (`?tab=rescheduled`).
+`GET /providers/me/dashboard` gained a `pendingReschedules` field derived
+from rows it already loads — no new endpoint, no schema change, no
+migration. Priority: reschedule work above the next action only when
+present. Details in `docs/provider-dashboard.md` (Phase A section).
+Phase B (Availability Exceptions) remains DEFERRED and evidence-gated;
+Phases C–E unchanged.

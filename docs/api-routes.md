@@ -243,3 +243,16 @@ The hub web page (`/provider/application-status`) otherwise consumes only
 existing endpoints (`/providers/application/status` for submission history,
 `/providers/me/booking-page` via the existing BookingPageCard,
 `/support/contact`, and the existing reset/resubmit mutations).
+
+## Update (2026-08-28) — Provider Dashboard Phase A
+
+`GET /providers/me/dashboard` response extended with `pendingReschedules`:
+`{ count, nextRequest }` — client-initiated reschedule requests awaiting the
+provider's confirm/decline (bookings currently in status `rescheduled`).
+Derived from the booking rows the endpoint already loads (owner-scoped,
+read-only, no additional query, not capped by the 30-day upcoming window).
+`nextRequest` is the soonest requested time and carries the same privacy
+trims as the rest of the payload (first name + last initial, FSA/city —
+never full addresses; no client PII beyond existing authorized provider
+booking display). No new endpoint, no schema change, no migration. OpenAPI
+(`lib/api-spec/openapi.yaml`) updated and clients regenerated.

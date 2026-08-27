@@ -124,3 +124,66 @@ See `lib/api-spec/openapi.yaml` (`ProviderDashboardResponse`,
   (loading/error/empty states, greeting, quick actions, metrics + zero state,
   chart + empty state, 7/30 toggle, collapsible activity, earnings preview,
   axe scans on loaded and empty renders).
+
+## Phase A (2026-08-28) — Next Best Action + Pending Reschedule visibility
+
+Evolution of the existing dashboard (PR #54, blueprinted in
+`docs/provider-dashboard-readonly-overview.md`) — not a rebuild. Two
+additions, both composed from existing systems:
+
+- **Next Best Action card**
+  (`artifacts/web/src/components/dashboard/next-best-action.tsx`): renders
+  the server-derived, journey-ordered `nextAction` from the existing
+  Activation Hub endpoint `GET /providers/me/activation-status`
+  (existing `useGetMyProviderActivationStatus` hook, shared query key with
+  the hub). No activation/business logic is recomputed client-side. One
+  plain-language heading, one "why it matters" sentence, one primary action
+  per state. Deep links reuse existing routes only (`/onboarding/provider`,
+  `/provider/profile`, `/provider/service-area`, `/provider/services`,
+  `/provider/availability`, `/provider/application-status`);
+  `publish_booking_page` / `share_booking_page` scroll to the dashboard's
+  existing BookingPageCard (`#booking-link-card`) instead of duplicating
+  publish/share UI; `all_set` links to the server-proven `bookingPage.path`.
+  Pre-approval and paused states point to the legitimate status hub — never
+  a dead/forbidden route. Loading is a small skeleton; errors fall back to a
+  quiet status-hub link; the card never blocks the rest of the dashboard.
+  No fake urgency, scarcity, or "clients are waiting" claims (guarded by
+  tests).
+- **Pending Reschedules card**
+  (`artifacts/web/src/components/dashboard/pending-reschedules.tsx`):
+  surfaces client-initiated reschedule requests — bookings in status
+  `rescheduled` (state machine `rescheduled → confirmed | cancelled`; only
+  clients write this status, providers use consent-first proposals). Data
+  comes from the same owner-scoped dashboard read: the response now includes
+  `pendingReschedules: { count, nextRequest }`, computed from the booking
+  rows the endpoint already loads (no new query, no new endpoint, no schema
+  change, not capped by the 30-day upcoming window). `nextRequest` is the
+  soonest requested time with the exact same privacy trims as every other
+  booking in this payload (first name + last initial, FSA/city — never a
+  full address). Zero state is a calm one-line row ("No pending schedule
+  changes"). The card only links into the existing bookings workflow
+  (`/provider/bookings?tab=rescheduled`; the bookings page now reads an
+  allowlisted `?tab=` deep-link param). Nothing is auto-accepted,
+  auto-declined, or auto-cancelled — consent/approval semantics unchanged.
+
+**Action priority decision (evidence-based):** a `rescheduled` booking holds
+a live appointment unconfirmed until the provider confirms or declines, and
+the requested time itself expires as it passes — so when
+`pendingReschedules.count > 0` the reschedule card renders **above** the
+Next Best Action card. Otherwise the nextAction leads and the
+schedule-change row stays compact. Resulting hierarchy: header/today + next
+appointment → [pending reschedules ⇄ next best action] → quick actions →
+existing content (readiness, first booking, upcoming, metrics, booking
+link, activity, earnings) unchanged.
+
+**Tests:** API — `test:provider-dashboard` extended to 17 (zero state,
+owner-scoped count unbounded by the 30-day window, soonest-first ordering,
+privacy trims incl. no full last name in the pending summary, read-only /
+no-mutation). Web —
+`artifacts/web/src/__tests__/provider-dashboard-actions.test.tsx` (22 tests:
+every nextAction code with truthful heading + deep link, loading/error
+fallback that never blocks the dashboard, publish/share scroll, honest
+under-review copy guard, pending zero/one/many, review deep link, priority
+ordering both ways, privacy-trimmed rendering, `?tab=` allowlist, axe on
+both action states). Verified live at 390×844 (no horizontal overflow;
+review link lands on the existing Reschedules tab).

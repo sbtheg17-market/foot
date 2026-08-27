@@ -454,3 +454,14 @@ Recommended priority: after Provider Dashboard gap-closure; only with pilot
 | Dashboard trends / true event-history timeline | FUTURE / DEFERRED (Phase C remainder) | Only if providers ask "am I improving?" in weekly reviews. No analytics pipeline authorized. |
 | Provider Offer & Engagement system | FUTURE / DEFERRED (Phase D) | Constraints pre-recorded in `provider-dashboard-future-boundaries.md` (consent, caps, no fake scarcity, moderation, audit). Reminders remain demand-gated per existing decision rule. |
 | Organization/workspace expansion | FUTURE / DEFERRED (Phase E) | NOT IMPLEMENTED; compatibility documented without tenancy work. |
+
+### Provider Dashboard Phase A — actions wiring (2026-08-28)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Phase A completion — next-best-action card + pending-reschedule visibility | DONE 2026-08-28 | `feat/provider-dashboard-phase-a-actions`: existing `/provider/dashboard` evolved (not rebuilt). Next Best Action card reuses `GET /providers/me/activation-status` `nextAction` (existing hook, shared query key); Pending Reschedules card fed by `pendingReschedules { count, nextRequest }` added to the existing `GET /providers/me/dashboard` read model (derived from rows already loaded — no new endpoint, no schema change). Deep links: existing provider routes, dashboard BookingPageCard scroll, and `/provider/bookings?tab=rescheduled` (new allowlisted `?tab=` param on the existing bookings page). Priority: reschedule work first only when count > 0. API 17/17; web 217/217 (22 new); full regression loops green; mobile emulation 9/9; real-browser 13/13. |
+| Availability Exceptions (block-off, emergency openings) | FUTURE / DEFERRED (Phase B) | Unchanged — first new model in the roadmap; gate on weekly-review evidence. NOT pre-built in Phase A. |
+| Dashboard trends / event-history timeline | FUTURE / DEFERRED (Phase C remainder) | Unchanged. |
+| Provider Offer & Engagement system | FUTURE / DEFERRED (Phase D) | Unchanged; constraints pre-recorded. |
+| Organization/workspace expansion | FUTURE / DEFERRED (Phase E) | Unchanged; NOT IMPLEMENTED. |
+| Graphify artifact refresh post-merge | TODO | Still pending from PR #64/#65; refresh after major merged roadmap work per continuity workflow (deferred this session — feature delivery had priority). |

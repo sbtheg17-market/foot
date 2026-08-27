@@ -3290,3 +3290,49 @@ on CI + push credentials. Recommended next actual build: **Phase A
 completion** — wire the Activation Hub `nextAction` card + pending-reschedule
 count into `/provider/dashboard` (no schema), then Availability Exceptions
 (Phase B) gated on weekly-review evidence.
+
+## 2026-08-28 — Provider Dashboard Phase A: Activation Hub wiring + pending reschedule visibility
+
+**Branch:** `feat/provider-dashboard-phase-a-actions` (baseline main
+`e7210daff6894f5df00fbac7c7c4b532d3be5ccf`, PR #65).
+
+**What shipped (evolution of the existing dashboard — nothing rebuilt):**
+- `components/dashboard/next-best-action.tsx`: Next Best Action card on
+  `/provider/dashboard`, rendering the server-derived `nextAction` from the
+  existing `GET /providers/me/activation-status` (existing generated hook,
+  shared query key with the hub). One primary action per state; deep links
+  reuse existing routes; publish/share scroll to the existing
+  BookingPageCard; `all_set` links to the server-proven `bookingPage.path`;
+  under-review/update-needed/paused link to the status hub. Loading skeleton
+  + quiet error fallback; never blocks the dashboard.
+- `components/dashboard/pending-reschedules.tsx`: pending client reschedule
+  requests (`rescheduled` bookings; state machine rescheduled → confirmed |
+  cancelled) with count + privacy-trimmed soonest request and a deep link to
+  `/provider/bookings?tab=rescheduled`. Zero state = calm one-line row.
+- `GET /providers/me/dashboard`: additive `pendingReschedules
+  { count, nextRequest }` derived from booking rows the handler already
+  loads (owner-scoped, read-only, same privacy trims, unbounded by the
+  30-day window). No new endpoint, no schema change, no migration. OpenAPI +
+  orval clients regenerated.
+- `pages/portal/bookings.tsx`: allowlisted `?tab=` initial-tab deep link
+  (exported `initialBookingsTab`, test-covered).
+- Action priority (documented in `docs/provider-dashboard.md`): pending
+  reschedule card above the next action only when count > 0.
+
+**Validation (seeded disposable local PostgreSQL 15):** typecheck PASS ·
+build PASS · build:deploy PASS · root tests api unit 132/132 + web 217/217
+(22 new in `provider-dashboard-actions.test.tsx`) · scripted API loop
+24 suites 299/299 (provider-dashboard 17/17 with 4 new pending-reschedule
+tests; activation-status 11/11) · authz-concurrency loop 65/65
+(authorization 7/7, rescheduling 12/12, proposals 17/17) · mobile emulation
+9/9 · real-browser smoke 13/13 · live 390×844 verification (priority order,
+deep link lands on Reschedules tab, zero horizontal overflow) ·
+`git diff --check` PASS · `scripts/secret-scan.sh` PASS.
+
+**Boundaries held:** no new dashboard/booking/scheduling engine; no
+payments/reminders/offers; no availability exceptions (Phase B deferred);
+no org/workspace; no platform metrics, retention intent, risk flags,
+reviewer-private data, or client PII beyond existing authorized display; no
+managed DB; no production deployment. Graphify CLI unavailable in this
+environment — inventory done by direct source inspection; artifact refresh
+remains a post-merge TODO.

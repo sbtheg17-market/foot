@@ -183,3 +183,14 @@ Organization-admin/workforce dashboard: FUTURE, NOT IMPLEMENTED.
 - Web: `artifacts/web/src/__tests__/provider-activation-hub.test.tsx`
   (15 tests: states, hero copy, checklist locking, deep links, readiness
   cards, share states, recovery actions, honest-copy guards, axe).
+
+## Reuse update (2026-08-28) — dashboard Next Best Action (Phase A)
+
+The provider dashboard (`/provider/dashboard`) now renders this hub's
+server-derived `nextAction` as a Next Best Action card, consuming the same
+owner-scoped `GET /providers/me/activation-status` read via the existing
+generated hook (shared query key — one cached request across hub and
+dashboard). The hub remains the authoritative activation surface: the
+dashboard card deep-links back here for `wait_for_review`,
+`review_update_needed`, and `contact_support` states and never recomputes
+or contradicts hub truth. No endpoint or schema change was needed.

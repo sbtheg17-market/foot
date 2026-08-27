@@ -163,6 +163,14 @@ let tomorrowConfirmedId: number;
 let plus10RequestedId: number;
 let plus45ConfirmedId: number;
 
+// Pending reschedule fixtures (Phase A) — separate provider so the existing
+// metric/window assertions above stay untouched.
+let reschedProviderToken: string;
+let reschedProviderId: number;
+let reschedServiceId: number;
+let reschedSoonId: number;
+let reschedLaterId: number;
+
 type InsertStatus = (typeof bookingsTable.$inferInsert)["status"];
 
 async function insertBooking(opts: {
@@ -172,13 +180,15 @@ async function insertBooking(opts: {
   source?: string | null;
   updatedAt?: Date;
   postalCode?: string | null;
+  providerId?: number;
+  serviceId?: number;
 }): Promise<number> {
   const [row] = await db
     .insert(bookingsTable)
     .values({
       clientId: opts.clientId,
-      providerId,
-      serviceId,
+      providerId: opts.providerId ?? providerId,
+      serviceId: opts.serviceId ?? serviceId,
       status: opts.status,
       scheduledAt: opts.scheduledAt,
       address: "12 Test Lane",
@@ -299,6 +309,40 @@ before(async () => {
     scheduledAt: new Date(now.getTime() + 45 * DAY),
     source: null,
   });
+
+  // Pending reschedules (Phase A): client-initiated `rescheduled` bookings
+  // awaiting the provider's confirm/decline, on a dedicated provider.
+  const resched = await register(
+    `dash-resched-${suffix}@oncallfoot.test`,
+    "provider",
+    "Robin",
+    "Provider",
+  );
+  reschedProviderToken = resched.token;
+  reschedProviderId = await approveProvider(resched.userId);
+  reschedServiceId = await createService(reschedProviderId);
+
+  reschedSoonId = await insertBooking({
+    clientId: clientAId,
+    status: "rescheduled",
+    scheduledAt: new Date(now.getTime() + 3 * DAY),
+    providerId: reschedProviderId,
+    serviceId: reschedServiceId,
+  });
+  reschedLaterId = await insertBooking({
+    clientId: clientBId,
+    status: "rescheduled",
+    scheduledAt: new Date(now.getTime() + 40 * DAY), // beyond the 30-day upcoming window
+    providerId: reschedProviderId,
+    serviceId: reschedServiceId,
+  });
+  await insertBooking({
+    clientId: clientBId,
+    status: "confirmed",
+    scheduledAt: new Date(now.getTime() + 2 * DAY),
+    providerId: reschedProviderId,
+    serviceId: reschedServiceId,
+  });
 });
 
 // ── Authorization ─────────────────────────────────────────────────────────────
@@ -369,6 +413,7 @@ describe("provider dashboard empty state", () => {
       estimatedMonthlyCents: null,
       available: false,
     });
+    assert.deepEqual(r.body["pendingReschedules"], { count: 0, nextRequest: null });
   });
 });
 
@@ -468,5 +513,59 @@ describe("provider dashboard data", () => {
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.deepEqual(r.body["metrics"], body["metrics"]);
     assert.equal(typeof r.body["updatedAt"], "string");
+  });
+});
+
+// ── Pending reschedules (Phase A) ─────────────────────────────────────────────
+
+describe("provider dashboard pending reschedules", () => {
+  it("reports zero pending reschedules honestly when none exist", async () => {
+    const r = await apiFetch("/providers/me/dashboard", { token: providerToken });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.deepEqual(r.body["pendingReschedules"], { count: 0, nextRequest: null });
+  });
+
+  it("counts only the owner's rescheduled bookings, soonest request first, unbounded by the 30-day window", async () => {
+    const r = await apiFetch("/providers/me/dashboard", { token: reschedProviderToken });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const pending = r.body["pendingReschedules"] as JsonBody;
+    assert.equal(pending["count"], 2);
+    const nextRequest = pending["nextRequest"] as JsonBody;
+    assert.equal(nextRequest["id"], reschedSoonId);
+    assert.equal(nextRequest["status"], "rescheduled");
+    // The 40-day request is counted even though it is outside upcomingBookings.
+    const upcomingIds = (r.body["upcomingBookings"] as Array<JsonBody>).map((b) => b["id"]);
+    assert.ok(
+      !upcomingIds.includes(reschedLaterId),
+      "beyond-window request must not be in upcomingBookings",
+    );
+  });
+
+  it("keeps the same privacy trims on the pending summary", async () => {
+    const r = await apiFetch("/providers/me/dashboard", { token: reschedProviderToken });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const nextRequest = (r.body["pendingReschedules"] as JsonBody)["nextRequest"] as JsonBody;
+    assert.equal(nextRequest["clientName"], "Alex M.");
+    assert.equal(nextRequest["location"], "L2R");
+    assert.ok(
+      !JSON.stringify(r.body).includes("12 Test Lane"),
+      "full street address must never appear in the dashboard payload",
+    );
+    assert.ok(
+      !JSON.stringify(r.body["pendingReschedules"]).includes("Morgan"),
+      "full client last name must never appear in the pending summary",
+    );
+  });
+
+  it("never mutates booking status (read-only)", async () => {
+    await apiFetch("/providers/me/dashboard", { token: reschedProviderToken });
+    await apiFetch("/providers/me/dashboard", { token: reschedProviderToken });
+    const rows = await db
+      .select({ id: bookingsTable.id, status: bookingsTable.status })
+      .from(bookingsTable)
+      .where(eq(bookingsTable.providerId, reschedProviderId));
+    const statusById = new Map(rows.map((row) => [row.id, row.status]));
+    assert.equal(statusById.get(reschedSoonId), "rescheduled");
+    assert.equal(statusById.get(reschedLaterId), "rescheduled");
   });
 });
