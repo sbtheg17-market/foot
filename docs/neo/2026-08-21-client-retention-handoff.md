@@ -1788,8 +1788,19 @@ Graphify is optional and non-blocking. If it is unavailable or stale, continue w
 Full workflow, privacy boundaries, and refresh policy:
 `docs/graphify-continuity-workflow.md`.
 
-Every future Neo handoff must include this line:
+Every future Neo handoff must include this compact block (update the baseline
+SHA whenever the graph is refreshed):
 
 ```text
-Graphify status: report whether graphify-out/ is present, its latest refresh commit/date, whether code-only or full extraction was used, and whether a refresh is recommended.
+Graphify status:
+- Main graph artifact baseline: c2c6c10cc93a7f1f3b025fcf9ff5320283255044
+- Extraction mode: CODE-ONLY LOCAL
+- Graph files: graphify-out/graph.json, GRAPH_REPORT.md, graph.html, manifest.json
+- Refresh policy: manual after major merged roadmap work or significant refactor
+- Refresh command:
+  graphify extract . --code-only
+  graphify cluster-only . --no-label
+- Safety: no external APIs, no managed DB introspection, no public Graphify server, no hooks, no CI gate, query logging disabled
+- Before substantial work: query Graphify first, then verify output against source and Git history
+- If current HEAD differs materially from the graph baseline: graph is potentially stale; refresh is recommended but non-blocking
 ```
