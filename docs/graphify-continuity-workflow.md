@@ -45,6 +45,63 @@ graphify explain "booking_outcome_history"
 directed route does not exist. `graphify query` truncates to a token budget;
 use `--budget` or narrower questions for deep dives.
 
+## Handoff status block (required in every future Neo handoff)
+
+Copy this block into each handoff and update the baseline SHA after any
+graph refresh:
+
+```text
+Graphify status:
+- Main graph artifact baseline: c2c6c10cc93a7f1f3b025fcf9ff5320283255044
+- Extraction mode: CODE-ONLY LOCAL
+- Graph files: graphify-out/graph.json, GRAPH_REPORT.md, graph.html, manifest.json
+- Refresh policy: manual after major merged roadmap work or significant refactor
+- Refresh command:
+  graphify extract . --code-only
+  graphify cluster-only . --no-label
+- Safety: no external APIs, no managed DB introspection, no public Graphify server, no hooks, no CI gate, query logging disabled
+- Before substantial work: query Graphify first, then verify output against source and Git history
+- If current HEAD differs materially from the graph baseline: graph is potentially stale; refresh is recommended but non-blocking
+```
+
+## Worked example — queries verified against source
+
+These queries were run against the committed graph and every cited result was
+verified in source (do the same before acting on any graph output):
+
+```bash
+graphify query "Where are provider approvals, booking source attribution, cancellations, no-shows, service areas, and provider profiles represented?"
+graphify query "What authorization patterns protect existing admin and provider routes?"
+graphify query "How is source attribution recorded and exposed?"
+```
+
+Verified findings:
+
+- **Provider profiles / approvals:** `providerProfilesTable` →
+  `lib/db/src/schema/providers.ts` L22; `providerApplicationsTable` →
+  `lib/db/src/schema/provider-applications.ts` L31; admin review statuses
+  (`pending`/`under_review`/`approved`/`rejected`) in
+  `artifacts/api-server/src/routes/admin.ts`.
+- **Service areas:** `providerServiceAreasTable` (L28) and
+  `providerCoverageAreasTable` (L71) in `lib/db/src/schema/service-areas.ts`.
+- **Cancellations / no-shows:** `artifacts/api-server/src/routes/bookings.ts`
+  + `src/lib/booking-state-machine.ts` + `src/lib/cancellation-policy.ts`;
+  append-only history table in
+  `docs/migrations/CANCELLATION_NO_SHOW_SUPPORT_V1.sql`
+  (`booking_outcome_history` REFERENCES `bookings`/`users`, EXTRACTED edges).
+- **Authorization patterns:** `requireAuth` (L96) + `requireRole(...)` (L126)
+  in `artifacts/api-server/src/middlewares/auth.ts`; the admin router mounts
+  `router.use(requireAuth, requireRole("admin"))`
+  (`routes/admin.ts` L18); provider routes use
+  `requireAuth, requireRole("provider")` per-route (`routes/providers.ts`).
+- **Source attribution:** recorded at booking creation via the allowlisted
+  `bookings.source` column (`lib/db/src/schema/bookings.ts` ~L45–48,
+  privacy-safe); aggregated in `routes/providers.ts` (acquisition-source
+  grouping, `qr-card` → `qrCard`, ~L2659–2755) and exposed on the provider
+  dashboard response; rendered by `SourceAttributionChart` / `SOURCE_ROWS`
+  (`artifacts/web/src/components/dashboard/source-attribution-chart.tsx`
+  L23 / L9).
+
 ## Agent workflow
 
 For any significant continuation task, Neo (or any agent) should:
