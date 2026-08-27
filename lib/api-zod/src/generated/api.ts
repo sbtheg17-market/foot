@@ -1508,10 +1508,17 @@ export const GetMyVerificationResponse = zod.object({
 /**
  * @summary Submit a credential document for admin review
  */
+export const submitVerificationDocBodyFileNameMin = 3;
+export const submitVerificationDocBodyFileNameMax = 200;
+
+export const submitVerificationDocBodyNotesMax = 1000;
+
+
+
 export const SubmitVerificationDocBody = zod.object({
   "docType": zod.enum(['license', 'insurance', 'certification', 'other']),
-  "fileName": zod.string().describe('URL or descriptive reference to the document'),
-  "notes": zod.string().optional().describe('Optional context for the reviewer')
+  "fileName": zod.string().min(submitVerificationDocBodyFileNameMin).max(submitVerificationDocBodyFileNameMax).describe('URL or descriptive reference to the document'),
+  "notes": zod.string().max(submitVerificationDocBodyNotesMax).optional().describe('Optional context for the reviewer')
 })
 
 export const SubmitVerificationDocResponse = zod.object({

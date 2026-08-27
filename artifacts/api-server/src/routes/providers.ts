@@ -3197,13 +3197,37 @@ router.get(
 
 // ── Verification / Credentials ────────────────────────────────────────────────
 
+const ALLOWED_DOC_TYPES = ["license", "insurance", "certification", "other"];
+const MAX_DOC_REFERENCE_LENGTH = 200;
+const MAX_REVIEWER_NOTES_LENGTH = 1000;
+
+/**
+ * Drift-safe narrow profile lookup for the verification flow. getOwnProfile()
+ * selects every schema column, so on a database where the Gate B-pending
+ * booking-page columns (docs/migrations/PROVIDER_PUBLIC_BOOKING_PAGES_V1.sql)
+ * are not applied yet it fails with 42703 ("column public_slug does not
+ * exist") and onboarding document submission surfaced as a generic 500.
+ * Verification only needs signup-era columns, so select exactly those.
+ */
+async function getOwnVerificationProfile(userId: number) {
+  const rows = await db
+    .select({
+      id: providerProfilesTable.id,
+      verificationStatus: providerProfilesTable.verificationStatus,
+    })
+    .from(providerProfilesTable)
+    .where(eq(providerProfilesTable.userId, userId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 /** GET /providers/me/verification — Own docs + overall status */
 router.get(
   "/me/verification",
   requireAuth,
   requireRole("provider"),
   async (req: Request, res: Response): Promise<void> => {
-    const profile = await getOwnProfile(req.user!.sub);
+    const profile = await getOwnVerificationProfile(req.user!.sub);
     if (!profile) {
       res.status(404).json({ error: "Provider profile not found." });
       return;
@@ -3228,49 +3252,94 @@ router.post(
   requireAuth,
   requireRole("provider"),
   async (req: Request, res: Response): Promise<void> => {
-    const profile = await getOwnProfile(req.user!.sub);
+    const profile = await getOwnVerificationProfile(req.user!.sub);
     if (!profile) {
       res.status(404).json({ error: "Provider profile not found." });
       return;
     }
 
     const { docType, fileName, notes } = req.body as {
-      docType?: string;
-      fileName?: string;
-      notes?: string;
+      docType?: unknown;
+      fileName?: unknown;
+      notes?: unknown;
     };
 
-    const ALLOWED_DOC_TYPES = ["license", "insurance", "certification", "other"];
-    if (!docType || !ALLOWED_DOC_TYPES.includes(docType)) {
+    if (typeof docType !== "string" || !ALLOWED_DOC_TYPES.includes(docType)) {
       res.status(400).json({ error: `docType must be one of: ${ALLOWED_DOC_TYPES.join(", ")}.` });
       return;
     }
-    if (!fileName || fileName.trim().length < 3) {
+    const reference = typeof fileName === "string" ? fileName.trim() : "";
+    if (reference.length < 3) {
       res.status(400).json({ error: "fileName (document URL or reference) is required." });
       return;
     }
-
-    // If provider was in "pending" state with no submissions, bump to under_review
-    const [inserted] = await db
-      .insert(verificationDocsTable)
-      .values({
-        providerId: profile.id,
-        docType,
-        fileName: fileName.trim(),
-        reviewerNotes: notes?.trim() ?? null,
-        status: "pending",
-      })
-      .returning();
-
-    // Auto-advance provider's overall status to under_review when they submit their first doc
-    if (profile.verificationStatus === "pending") {
-      await db
-        .update(providerProfilesTable)
-        .set({ verificationStatus: "under_review", updatedAt: new Date() })
-        .where(eq(providerProfilesTable.id, profile.id));
+    if (reference.length > MAX_DOC_REFERENCE_LENGTH) {
+      res.status(400).json({
+        error: `fileName must be at most ${MAX_DOC_REFERENCE_LENGTH} characters.`,
+      });
+      return;
+    }
+    if (notes !== undefined && notes !== null && typeof notes !== "string") {
+      res.status(400).json({ error: "notes must be a string." });
+      return;
+    }
+    const trimmedNotes = typeof notes === "string" ? notes.trim() : "";
+    if (trimmedNotes.length > MAX_REVIEWER_NOTES_LENGTH) {
+      res.status(400).json({
+        error: `notes must be at most ${MAX_REVIEWER_NOTES_LENGTH} characters.`,
+      });
+      return;
     }
 
-    res.status(201).json({ doc: inserted });
+    // One transaction for the whole submission: lock the profile row to
+    // serialize double-taps/retries per provider, return the identical
+    // pending doc when one already exists (idempotent — no duplicate records
+    // under retry or concurrency), insert exactly one record, then
+    // auto-advance pending → under_review. All-or-nothing: a failure rolls
+    // back both the doc and the status bump (no orphaned records).
+    const doc = await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select id from provider_profiles where id = ${profile.id} for update`,
+      );
+
+      const existing = await tx
+        .select()
+        .from(verificationDocsTable)
+        .where(
+          and(
+            eq(verificationDocsTable.providerId, profile.id),
+            eq(verificationDocsTable.docType, docType),
+            eq(verificationDocsTable.fileName, reference),
+            eq(verificationDocsTable.status, "pending"),
+          ),
+        )
+        .limit(1);
+      if (existing[0]) return existing[0];
+
+      const [inserted] = await tx
+        .insert(verificationDocsTable)
+        .values({
+          providerId: profile.id,
+          docType,
+          fileName: reference,
+          reviewerNotes: trimmedNotes.length > 0 ? trimmedNotes : null,
+          status: "pending",
+        })
+        .returning();
+      if (!inserted) {
+        throw new Error("verification doc insert returned no row");
+      }
+
+      if (profile.verificationStatus === "pending") {
+        await tx
+          .update(providerProfilesTable)
+          .set({ verificationStatus: "under_review", updatedAt: new Date() })
+          .where(eq(providerProfilesTable.id, profile.id));
+      }
+      return inserted;
+    });
+
+    res.status(201).json({ doc });
   }
 );
 
