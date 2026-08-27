@@ -400,3 +400,28 @@ conventions land with Part 2.
   `BookingPageCard`; history is the existing submission timeline; support is
   the existing `SupportContactLink`. The hub adds copy and composition, not
   new business UI.
+
+## Provider Dashboard Phase A (2026-08-28)
+
+- **One next step at a time.** The dashboard's Next Best Action card shows a
+  single server-derived step (Activation Hub `nextAction`) with a
+  plain-language heading, one sentence of "why it matters", and exactly one
+  primary action. No stacked competing CTAs at the top of the page; no fake
+  urgency, scarcity, ranking, or "clients are waiting" claims (test-guarded).
+- **Time-sensitive work outranks setup guidance.** Pending client reschedule
+  requests render above the next action only when they exist (a
+  `rescheduled` booking holds a live appointment until the provider acts and
+  the requested time expires as it passes); the zero state is a calm
+  one-line "No pending schedule changes" row.
+- **Truthful states, existing destinations.** Under-review / update-needed /
+  paused states link to the Approval Status hub (never a dead or forbidden
+  route); publish/share scroll to the existing BookingPageCard; `all_set`
+  links to the server-proven public page path. Nothing claims approval or a
+  live page the server cannot prove.
+- **Non-blocking by design.** The action card's loading state is a small
+  skeleton and its error state is a quiet status-hub link — the rest of the
+  dashboard always renders.
+- **Accessibility.** Labelled sections and headings, text status labels
+  beside icons (never color alone), visible focus rings, native
+  links/buttons for keyboard use; axe-clean in both action states; verified
+  live at 390×844 with zero horizontal overflow.

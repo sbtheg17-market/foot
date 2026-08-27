@@ -2178,3 +2178,26 @@ Provider Dashboard: initial version IMPLEMENTED (PR #54); evolution
 Organization-admin/workforce dashboard: FUTURE, NOT IMPLEMENTED.
 Provider Offer & Engagement system: FUTURE, NOT IMPLEMENTED.
 ```
+
+## Continuity update (2026-08-28) — Provider Dashboard Phase A shipped
+
+Phase A of the dashboard evolution is implemented on
+`feat/provider-dashboard-phase-a-actions`: the Activation Hub `nextAction`
+now renders as the dashboard's Next Best Action card (endpoint/hook reused,
+no duplicated activation logic), and client-initiated pending reschedules
+(`rescheduled` bookings) are visible on the dashboard with a count +
+privacy-trimmed soonest request, deep-linking into the existing bookings
+Reschedules tab. The only API change is an additive `pendingReschedules`
+field on the existing owner-scoped `GET /providers/me/dashboard` response —
+no new endpoint, no schema change, no migration. Reschedule consent/approval
+semantics untouched (nothing auto-accepts/declines/cancels).
+
+```text
+Strategic role boundary (2026-08-28, Phase A shipped — append-only):
+Platform-admin Pilot Operations Dashboard: IMPLEMENTED.
+Provider Approval Status & Activation Hub: IMPLEMENTED (PR #64).
+Provider Dashboard: IMPLEMENTED (PR #54) + Phase A actions wiring (this task).
+Availability Exceptions: DEFERRED — Phase B, evidence-gated.
+Provider Offer & Engagement system: FUTURE, NOT IMPLEMENTED.
+Organization-admin/workforce dashboard: FUTURE, NOT IMPLEMENTED.
+```

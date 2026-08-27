@@ -377,3 +377,36 @@ Availability Exceptions (first schema work, evidence-gated). Recommended
 next build: Phase A completion wiring. Strategic boundary re-recorded:
 organization/workspace/workforce and offer/engagement systems FUTURE, NOT
 IMPLEMENTED.
+
+## Status note — 2026-08-28 (Provider Dashboard Phase A — actions wiring)
+
+Phase A completion is DONE on `feat/provider-dashboard-phase-a-actions`
+(baseline main `e7210da`, PR #65). The existing `/provider/dashboard`
+(PR #54) now surfaces: (1) a **Next Best Action card** rendering the
+Activation Hub's server-derived `nextAction`
+(`GET /providers/me/activation-status` via the existing
+`useGetMyProviderActivationStatus` hook — shared query key, no duplicated
+logic) with truthful copy and deep links to existing routes only
+(publish/share resolve to the existing BookingPageCard; pre-approval/paused
+states to the status hub); and (2) a **Pending Reschedules card** for
+client-initiated `rescheduled` bookings awaiting the provider's
+confirm/decline, fed by a `pendingReschedules { count, nextRequest }`
+extension of the existing `GET /providers/me/dashboard` read model (derived
+from rows already loaded; no new endpoint; no schema change) and
+deep-linking to the existing bookings Reschedules tab via a new allowlisted
+`?tab=` param. Action priority: reschedule work above nextAction only when
+count > 0 (a `rescheduled` booking holds a live appointment until the
+provider acts). Verified on a seeded disposable local PostgreSQL 15:
+typecheck/build/build:deploy PASS; root tests api unit 132/132 + web
+217/217 (22 new); scripted API loop 24 suites 299/299
+(provider-dashboard 17/17 incl. 4 new pending-reschedule tests;
+activation-status 11/11; booking-page 17/17; service-area 30/30;
+cancellation 22/22; pilot-metrics 14/14); authz-concurrency loop 65/65
+(authorization 7/7, concurrency 16/16, pressure 13/13, rescheduling 12/12,
+proposals 17/17); mobile emulation 9/9; real-browser smoke 13/13; live
+390×844 dashboard verification (priority ordering, deep link to
+Reschedules tab, zero horizontal overflow); diff check + secret scan PASS.
+Strategic boundary unchanged: Availability Exceptions remains Phase B
+(DEFERRED, evidence-gated); Provider Offer & Engagement and
+organization/workspace remain FUTURE, NOT IMPLEMENTED. Authoritative doc:
+`docs/provider-dashboard.md` (Phase A section).
