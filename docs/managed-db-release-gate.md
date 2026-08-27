@@ -258,3 +258,17 @@ loudly as expected, column type/nullability matches the schema).
 `dc978ccac702affed54c95449a06ed43b30e913a8583208d263d359a9c36f06b`.
 All gate requirements and blockers above remain unchanged; the managed
 database was not accessed.
+
+## Artifact addendum — 2026-08-28 (pilot operations dashboard, Part 1)
+
+`docs/migrations/PILOT_PROVIDER_RETENTION_V1.sql` joins the frozen additive
+artifact set: one new enum (`pilot_retention_intent`) and one new table
+(`pilot_provider_retention`, unique provider FK + admin actor FK, no cascade
+delete). Additive only, no `IF NOT EXISTS` (drift fails loudly per policy),
+no DOWN, never auto-applied. Validated against disposable PostgreSQL
+(fresh apply PASS, re-apply fails loudly as expected, `db:push` ×2
+idempotent, seed ×2, table shape matches the Drizzle schema). `sha256sum` at
+the reviewed checkout:
+`ceaac6d50e6336fe4c13281ab7de5fc36eca7d96262a771c16a3f8647bf90cad`.
+All gate requirements and blockers above remain unchanged; the managed
+database was not accessed.

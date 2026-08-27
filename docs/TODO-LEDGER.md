@@ -323,3 +323,13 @@ record: `docs/provider-verification-onboarding-policy.md`.
 | Web/mobile conversion UX | DONE 2026-08-28 | Honest purpose/success copy, safe recoverable-failure copy + support link, focus to error alert, double-tap guard, values preserved, mobile-width E2E PASS (incl. under drift). Onboarding + portal credentials + Expo parity. |
 | Tests | DONE 2026-08-28 | New CI-gated `test:verification` (13 tests) + 11 web tests (`provider-verification-step`, incl. axe). Regression: registration 15, onboarding 23, provider-application 8, authorization 7, service-area 30, cancellation 22, booking-page 17, rescheduling 12, lifecycle 14, integration 16 — all PASS. Mobile emulation 9/9; real-browser smoke 13/13. |
 | AUDIT FOLLOW-UP: bare-select getOwnProfile | OPEN 2026-08-28 | ~24 other `/providers/me/*` portal routes (services, availability, travel zones, service-area config, listing preview, booking-page mgmt) still select every profile column and would 500 for approved providers on a pre-Gate-B database. Booking-page routes legitimately need the #11 artifact; the rest could adopt narrow selects in a follow-up. Deliberately not broadened here. |
+
+## Pilot Operations Dashboard (admin-only, three parts) — 2026-08-28
+
+| Item | Status | Notes |
+|---|---|---|
+| Part 1: metrics API + retention storage | DONE 2026-08-28 | `GET /admin/pilot/metrics` + `PATCH /admin/pilot/providers/:id/retention` under the admin gate; vertical-neutral activation/outcome/source/retention metrics; frozen artifact `PILOT_PROVIDER_RETENTION_V1.sql`; CI-gated `test:pilot-metrics` (14 tests). `docs/pilot/pilot-metrics-dashboard.md`. |
+| Part 2: `/admin/pilot` UI + CSV export | PLANNED | Summary cards, provider health table, dependency-free source chart, weekly prompts, client-side CSV. Must not rebuild Part 1 calculations/auth/persistence. |
+| Part 3: weekly review pack | PLANNED | Operator guide, decision rules, closure docs. |
+| Pilot cohort/allowlist | DEFERRED | `approvedProviders` counts ALL approved profiles; introduce an explicit cohort before relying on rates once non-pilot providers exist. |
+| Metrics on pre-Gate-B DBs | DOCUMENTED | The metrics read reads `booking_page_published` (#11 Gate B-pending column); internal admin tool requires current schema. |

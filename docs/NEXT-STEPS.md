@@ -232,3 +232,18 @@ link on true failures, values preserved. New CI-gated suite
 TODO ledger: ~24 other `/providers/me/*` routes still use the bare-select
 `getOwnProfile()` and would 500 for approved providers on pre-Gate-B
 databases.
+
+## Status note — 2026-08-28 (Pilot Operations Dashboard Part 1 — metrics API)
+
+Admin-only pilot metrics foundation is in: `GET /api/admin/pilot/metrics`
+(pilot window incl. projected fallback, summary, per-provider activation
+milestones/outcomes/risk flags, source attribution) and
+`PATCH /api/admin/pilot/providers/:providerId/retention` (upsert, admin actor
+audited), both under the admin gate. New table `pilot_provider_retention`
+(frozen artifact `PILOT_PROVIDER_RETENTION_V1.sql`). Vertical-neutral metric
+logic; privacy-redacted payload (no client identity/addresses/notes/
+references — test-enforced). CI-gated `test:pilot-metrics` (14 tests).
+Full model + definitions: `docs/pilot/pilot-metrics-dashboard.md`.
+Part 2 next: `/admin/pilot` UI + CSV export over the generated
+`useGetAdminPilotMetrics`/`useUpdatePilotProviderRetention` hooks — do NOT
+rebuild Part 1 calculations, persistence, or authorization.
