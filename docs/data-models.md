@@ -305,6 +305,23 @@ Document metadata for provider verification (file content stored externally).
 | status | enum | pending \| approved \| rejected |
 | reviewer_notes | text nullable | |
 
+Submission bounds (server-enforced, 2026-08-28): `doc_type` allowlisted
+(license/insurance/certification/other), `file_name` is a credential
+*reference* (3–200 chars — never an upload), `reviewer_notes` ≤ 1000 chars.
+Writes are transactional (profile row locked) and idempotent per
+(provider, type, reference) while pending. References and notes are internal
+review data: owner + admin only, never public.
+
+### provider_applications.rejection_reason — frozen artifact added (2026-08-28)
+
+The schema-defined `provider_applications.rejection_reason` column had no
+frozen migration artifact (recorded OPEN in `docs/TODO-LEDGER.md`). The
+provider onboarding recovery added the additive artifact
+`docs/migrations/PROVIDER_APPLICATION_REJECTION_REASON_V1.sql` (one nullable
+text column; disposable-PG tested: fresh apply PASS, re-apply fails loudly by
+policy). It is Gate B-pending like the other frozen artifacts; the managed
+database was not accessed.
+
 ## Roadmap #13 additions (2026-08-26) — cancellation/no-show + support link
 
 ### booking_outcome_history (new, APPEND-ONLY)

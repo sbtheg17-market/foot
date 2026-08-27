@@ -317,3 +317,24 @@ time."* Principles:
   need an availability-exceptions model that does not exist yet, so the quick
   actions link to real, working surfaces instead (availability, share link,
   bookings).
+
+## Provider verification submission (onboarding recovery, 2026-08-28)
+
+- **Purpose copy is honest and specific:** "Submit the reference details for
+  one credential so we can review your provider application." A credential
+  reference is not a document upload — the security explainer stays visible.
+- **Success copy never overpromises:** "Document submitted. Your application
+  is still under review. We'll let you know if anything else is needed."
+  Submitting a document never tells a provider they are approved or bookable.
+- **Recoverable server failure (5xx/network):** "We couldn't submit this
+  document right now. Your information has not been lost. Please try again or
+  contact support." — with the server-resolved support contact link. The raw
+  "Internal server error" string is never rendered. Entered values stay in
+  the form.
+- **Field-specific validation:** "Choose a document type." / "Enter a
+  document reference." / "Keep the reference within the allowed length
+  (200 characters max)." — mirrored client-side for immediate feedback,
+  enforced server-side as the source of truth.
+- **Submission mechanics:** loading label + disabled button while pending,
+  double-tap guard, `role="alert"` error container that receives focus,
+  `role="status"` success confirmation, mobile-width layout, axe-clean.

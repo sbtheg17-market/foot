@@ -211,3 +211,24 @@ Graphify status:
 ```
 
 Setup, privacy boundaries, refresh policy: `docs/graphify-continuity-workflow.md`.
+
+## Status note — 2026-08-28 (provider verification onboarding recovered)
+
+The onboarding "Internal server error" on verification-document submission is
+fixed. Root cause: both `/providers/me/verification` routes resolved the
+profile via `getOwnProfile()`, whose bare Drizzle `select()` emits every
+schema column — on databases missing the Gate B-pending booking-page columns
+(#11 artifacts), PostgreSQL 42703 surfaced as an unhandled 500 before any
+validation or persistence. The routes now read only signup-era columns
+(mirroring the PR #56 signup convention), submission is transactional and
+idempotent (profile row lock; identical pending submission returns the same
+record; status bump rolls back with the insert), and inputs are bounded
+(reference 3–200, notes ≤ 1000). The onboarding schema audit added the
+missing frozen artifact `PROVIDER_APPLICATION_REJECTION_REASON_V1.sql`.
+Conversion UX: honest purpose/success/error copy, focus management, support
+link on true failures, values preserved. New CI-gated suite
+`test:verification` (13 tests) + 11 web tests. Full record:
+`docs/provider-verification-onboarding-policy.md`. Follow-up recorded in the
+TODO ledger: ~24 other `/providers/me/*` routes still use the bare-select
+`getOwnProfile()` and would 500 for approved providers on pre-Gate-B
+databases.

@@ -305,3 +305,21 @@ fix; both 201 after).
 | Docs/PDF/image semantic extraction | DEFERRED | Requires a configured LLM backend and explicit operator privacy approval. Code + SQL migration artifacts are covered by the deterministic build. |
 | LLM community naming | DEFERRED | `GRAPH_REPORT.md` shows `Community N` placeholders (`--no-label`). Optional later with an approved backend. |
 | Auto graph Git hooks / CI rebuild | NOT ENABLED | By policy; manual refresh after major merged work only. |
+
+## Provider verification onboarding recovery — 2026-08-28
+
+Root cause evidenced on disposable PostgreSQL: `getOwnProfile()` bare
+`select()` emitted the Gate B-pending `provider_profiles` booking-page
+columns → 42703 → unhandled 500 on both `/providers/me/verification` routes,
+**before** validation/persistence (no orphaned records ever existed). Full
+record: `docs/provider-verification-onboarding-policy.md`.
+
+| Item | Status | Notes |
+|---|---|---|
+| API: verification routes drift-safe | DONE 2026-08-28 | Narrow signup-era column select (`id`, `verification_status`) mirrors the PR #56 convention; GET+POST work on current and pre-Gate-B schemas. `artifacts/api-server/src/routes/providers.ts`. |
+| API: bounded validation | DONE 2026-08-28 | `docType` allowlist; reference 3–200 chars; notes ≤ 1000; type-checked bodies; client-safe 400s; nothing persisted on invalid input. OpenAPI bounds added; clients regenerated. |
+| API: transactional idempotent submission | DONE 2026-08-28 | Profile row lock serializes double-taps; identical pending submission returns the existing record (4-way concurrency test: exactly one record); insert + pending→under_review bump commit/roll back together; rejected docs allow resubmission. |
+| Frozen artifact: rejection_reason | DONE 2026-08-28 | Closes the OPEN 2026-08-28 gap above: `docs/migrations/PROVIDER_APPLICATION_REJECTION_REASON_V1.sql` (additive, no IF NOT EXISTS per gate policy). Disposable-PG: fresh apply PASS, re-apply fails loudly (expected), push×2/seed×2 PASS. Managed DB NOT accessed — Gate B-pending. |
+| Web/mobile conversion UX | DONE 2026-08-28 | Honest purpose/success copy, safe recoverable-failure copy + support link, focus to error alert, double-tap guard, values preserved, mobile-width E2E PASS (incl. under drift). Onboarding + portal credentials + Expo parity. |
+| Tests | DONE 2026-08-28 | New CI-gated `test:verification` (13 tests) + 11 web tests (`provider-verification-step`, incl. axe). Regression: registration 15, onboarding 23, provider-application 8, authorization 7, service-area 30, cancellation 22, booking-page 17, rescheduling 12, lifecycle 14, integration 16 — all PASS. Mobile emulation 9/9; real-browser smoke 13/13. |
+| AUDIT FOLLOW-UP: bare-select getOwnProfile | OPEN 2026-08-28 | ~24 other `/providers/me/*` portal routes (services, availability, travel zones, service-area config, listing preview, booking-page mgmt) still select every profile column and would 500 for approved providers on a pre-Gate-B database. Booking-page routes legitimately need the #11 artifact; the rest could adopt narrow selects in a follow-up. Deliberately not broadened here. |
