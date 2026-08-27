@@ -1572,6 +1572,35 @@ export type ProviderDashboardResponseNextBooking = {
   status: ProviderDashboardResponseNextBookingStatus;
 } | null;
 
+export type ProviderDashboardResponsePendingReschedulesNextRequestStatus = typeof ProviderDashboardResponsePendingReschedulesNextRequestStatus[keyof typeof ProviderDashboardResponsePendingReschedulesNextRequestStatus];
+
+
+export const ProviderDashboardResponsePendingReschedulesNextRequestStatus = {
+  rescheduled: 'rescheduled',
+} as const;
+
+/**
+ * The pending request with the soonest requested time, privacy-trimmed exactly like every other booking in this payload (first name + last initial, FSA/city — never a full address).
+ */
+export type ProviderDashboardResponsePendingReschedulesNextRequest = {
+  id: number;
+  date: string;
+  clientName: string;
+  serviceName: string;
+  location: string;
+  status: ProviderDashboardResponsePendingReschedulesNextRequestStatus;
+} | null;
+
+/**
+ * Client-initiated reschedule requests awaiting the provider's confirm/decline (bookings currently in status `rescheduled`; state machine rescheduled → confirmed | cancelled). Count plus the privacy-trimmed soonest request only — reviewing and acting stays in the existing bookings workflow.
+ */
+export type ProviderDashboardResponsePendingReschedules = {
+  /** @minimum 0 */
+  count: number;
+  /** The pending request with the soonest requested time, privacy-trimmed exactly like every other booking in this payload (first name + last initial, FSA/city — never a full address). */
+  nextRequest: ProviderDashboardResponsePendingReschedulesNextRequest;
+};
+
 export interface ProviderDashboardResponse {
   providerId: number;
   providerName: string;
@@ -1582,6 +1611,8 @@ export interface ProviderDashboardResponse {
   todayBookingsCount: number;
   nextBooking: ProviderDashboardResponseNextBooking;
   upcomingBookings: ProviderDashboardBooking[];
+  /** Client-initiated reschedule requests awaiting the provider's confirm/decline (bookings currently in status `rescheduled`; state machine rescheduled → confirmed | cancelled). Count plus the privacy-trimmed soonest request only — reviewing and acting stays in the existing bookings workflow. */
+  pendingReschedules: ProviderDashboardResponsePendingReschedules;
   metrics: ProviderPerformanceMetrics;
   sourceAttribution: ProviderSourceAttribution;
   recentActivity: ProviderActivityItem[];

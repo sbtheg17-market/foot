@@ -1472,6 +1472,10 @@ export const GetMyEarningsExportResponse = zod.object({
  * Aggregated read-only dashboard for the authenticated approved provider: today's bookings, next booking, upcoming bookings (next 30 days), personal performance metrics, acquisition-source attribution, recent activity, and an earnings preview. All values are derived live from existing tables on every request — nothing is persisted and no event is emitted. Client names are privacy-trimmed (first name + last initial) and locations expose only the FSA/postal prefix or city, never the full address.
  * @summary Owner-scoped provider dashboard data (read-only)
  */
+export const getMyProviderDashboardResponsePendingReschedulesCountMin = 0;
+
+
+
 export const GetMyProviderDashboardResponse = zod.object({
   "providerId": zod.int(),
   "providerName": zod.string(),
@@ -1495,6 +1499,17 @@ export const GetMyProviderDashboardResponse = zod.object({
   "location": zod.string().describe('FSA\/postal prefix when available, otherwise city — never the full address'),
   "status": zod.enum(['requested', 'confirmed', 'rescheduled'])
 })),
+  "pendingReschedules": zod.object({
+  "count": zod.int().min(getMyProviderDashboardResponsePendingReschedulesCountMin),
+  "nextRequest": zod.object({
+  "id": zod.int(),
+  "date": zod.coerce.date(),
+  "clientName": zod.string(),
+  "serviceName": zod.string(),
+  "location": zod.string(),
+  "status": zod.enum(['rescheduled'])
+}).nullable().describe('The pending request with the soonest requested time, privacy-trimmed exactly like every other booking in this payload (first name + last initial, FSA\/city — never a full address).')
+}).describe('Client-initiated reschedule requests awaiting the provider\'s confirm\/decline (bookings currently in status `rescheduled`; state machine rescheduled → confirmed | cancelled). Count plus the privacy-trimmed soonest request only — reviewing and acting stays in the existing bookings workflow.'),
   "metrics": zod.object({
   "completionRate": zod.number().describe('completed \/ resolved bookings (0–1); 0 when nothing is resolved'),
   "cancellationRate": zod.number().describe('cancelled \/ resolved bookings (0–1)'),

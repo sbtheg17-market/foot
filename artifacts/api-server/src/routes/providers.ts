@@ -2986,6 +2986,17 @@ router.get(
       (r) => localDateKey(r.scheduledAt, timezone) === todayKey,
     ).length;
 
+    // Phase A: client-initiated reschedules awaiting the provider's
+    // confirm/decline (state machine: rescheduled → confirmed | cancelled).
+    // Derived from the rows already loaded above — no extra query, no window
+    // cap (a request past the 30-day upcoming window still needs attention).
+    // Soonest requested time first; the summary reuses the same
+    // privacy-trimmed booking view as every other booking in this payload.
+    // Read-only: no status is ever changed here.
+    const pendingRescheduleRows = rows
+      .filter((r) => r.status === "rescheduled")
+      .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+
     const upcoming = active
       .filter((r) => r.scheduledAt >= now && r.scheduledAt <= windowEnd)
       .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime())
@@ -3027,6 +3038,12 @@ router.get(
       todayBookingsCount,
       nextBooking: upcoming[0] ? dashboardBookingView(upcoming[0]) : null,
       upcomingBookings: upcoming.map(dashboardBookingView),
+      pendingReschedules: {
+        count: pendingRescheduleRows.length,
+        nextRequest: pendingRescheduleRows[0]
+          ? dashboardBookingView(pendingRescheduleRows[0])
+          : null,
+      },
       metrics: computeDashboardMetrics(rows),
       sourceAttribution: computeSourceAttribution(rows),
       recentActivity,

@@ -26,8 +26,23 @@ const mapsUrl = (address: string, city: string, postalCode?: string | null) =>
 
 const telUrl = (phone: string) => `tel:${phone.replace(/[^+\d]/g, '')}`;
 
+const TAB_IDS = ['requested', 'rescheduled', 'confirmed', 'completed'] as const;
+
+/**
+ * Deep-link support (?tab=rescheduled from the dashboard's pending
+ * reschedule card). Allowlisted against the visible tabs; anything else
+ * falls back to the default tab.
+ */
+export function initialBookingsTab(): ListBookingsStatus {
+  if (typeof window === 'undefined') return 'requested';
+  const tab = new URLSearchParams(window.location.search).get('tab');
+  return (TAB_IDS as readonly string[]).includes(tab ?? '')
+    ? (tab as ListBookingsStatus)
+    : 'requested';
+}
+
 export default function PortalBookings() {
-  const [activeTab, setActiveTab] = useState<ListBookingsStatus>('requested');
+  const [activeTab, setActiveTab] = useState<ListBookingsStatus>(initialBookingsTab);
 
   // Single fetch; filtering is local + presentational (no booking writes).
   const { data, isLoading, refetch } = useListBookings(

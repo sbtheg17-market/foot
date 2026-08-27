@@ -5170,6 +5170,51 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ProviderDashboardBooking"
+        pendingReschedules:
+          type: object
+          description: >-
+            Client-initiated reschedule requests awaiting the provider's
+            confirm/decline (bookings currently in status `rescheduled`;
+            state machine rescheduled → confirmed | cancelled). Count plus
+            the privacy-trimmed soonest request only — reviewing and acting
+            stays in the existing bookings workflow.
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            nextRequest:
+              type: object
+              nullable: true
+              description: >-
+                The pending request with the soonest requested time,
+                privacy-trimmed exactly like every other booking in this
+                payload (first name + last initial, FSA/city — never a full
+                address).
+              properties:
+                id:
+                  type: integer
+                date:
+                  type: string
+                  format: date-time
+                clientName:
+                  type: string
+                serviceName:
+                  type: string
+                location:
+                  type: string
+                status:
+                  type: string
+                  enum: [rescheduled]
+              required:
+                - id
+                - date
+                - clientName
+                - serviceName
+                - location
+                - status
+          required:
+            - count
+            - nextRequest
         metrics:
           $ref: "#/components/schemas/ProviderPerformanceMetrics"
         sourceAttribution:
@@ -5192,6 +5237,7 @@ components:
         - todayBookingsCount
         - nextBooking
         - upcomingBookings
+        - pendingReschedules
         - metrics
         - sourceAttribution
         - recentActivity
