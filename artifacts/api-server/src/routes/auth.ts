@@ -1,11 +1,9 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   accountRolesTable,
   db,
-  providerApplicationsTable,
-  providerProfilesTable,
   usersTable,
   registerSchema,
   loginSchema,
@@ -93,19 +91,27 @@ router.post("/register", async (req, res) => {
       });
 
       if (created.role === "provider") {
-        const [profile] = await tx
-          .insert(providerProfilesTable)
-          .values({ userId: created.id })
-          .returning({ id: providerProfilesTable.id });
+        // Provisioning names ONLY the columns signup needs. Drizzle's insert
+        // builder lists EVERY schema column (`values (default, …)`), so a
+        // deployed database whose newest additive provider columns are still
+        // pending Gate B migration (e.g. provider_profiles.public_slug,
+        // provider_applications.rejection_reason) fails with 42703
+        // "column does not exist" — a provider-only 500 while client signup
+        // works. Signup must never depend on post-signup feature columns;
+        // every other column here has a database-side default.
+        const profileResult = await tx.execute<{ id: number }>(
+          sql`insert into provider_profiles (user_id) values (${created.id}) returning id`,
+        );
+        const profileId = profileResult.rows[0]?.id;
 
-        if (!profile) {
+        if (!profileId) {
           throw new Error("Provider profile insert did not return a row.");
         }
 
-        await tx.insert(providerApplicationsTable).values({
-          userId: created.id,
-          providerProfileId: profile.id,
-        });
+        await tx.execute(
+          sql`insert into provider_applications (user_id, provider_profile_id)
+              values (${created.id}, ${profileId})`,
+        );
       }
 
       return created;

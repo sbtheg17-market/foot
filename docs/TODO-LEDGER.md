@@ -274,3 +274,25 @@ as 500 via the global handler.
 | Web: safe error UX | DONE 2026-08-27 | 5xx → "We couldn't create your account right now. Please try again." + support contact link; 409 → account-exists + sign-in guidance; 400 → field-specific messages; focus moves to the alert; label/id + autoComplete added. |
 | Tests | DONE 2026-08-27 | `test:registration` (12 API subtests incl. 4-way concurrent race, wired into CI scripted loop); 12 web tests incl. axe. Independent E2E verification: concurrent race 1×201 + N×409, mobile-viewport (360×800) registration + double-tap pass. |
 | Rate limiting on auth endpoints | DEFERRED | Not required to fix this defect; consider before public launch. |
+
+## Provider signup provisioning failure — FIXED 2026-08-28
+
+After PR #55, mobile testing still failed with the safe generic error — but
+only for "I'm providing care". Root cause: Drizzle's insert builder lists
+EVERY schema column (`values (default, …)`), so on a deployed database whose
+newest additive provider columns are still pending the frozen Gate B
+migrations (`provider_profiles.public_slug`/booking-page columns from #11;
+`provider_applications.rejection_reason` has no frozen artifact at all), the
+provider-only provisioning INSERT failed with 42703 "column does not exist"
+→ 500. Client signup never touches those tables, so it kept working. The
+failure occurred AFTER the user INSERT inside the transaction; rollback was
+clean (no orphaned users). Reproduced deterministically on a disposable
+PostgreSQL with those columns dropped (client 201 / provider 500 before the
+fix; both 201 after).
+
+| Item | Status | Notes |
+|---|---|---|
+| API: provisioning inserts name only signup-required columns | DONE 2026-08-28 | `provider_profiles (user_id)` + `provider_applications (user_id, provider_profile_id)` explicit-column SQL inside the same transaction; all other columns have DB defaults. Signup no longer depends on post-signup feature columns. `artifacts/api-server/src/routes/auth.ts`. |
+| Web: provider post-signup next step | DONE 2026-08-28 | One-time "Your provider account is ready" notice on `/onboarding/provider` (honest: review required before the listing goes live). |
+| Tests | DONE 2026-08-28 | `test:registration` now 15 subtests: drift-simulation (Gate B pending columns) 201 + records verified; trigger-forced provisioning failure → safe 500, full rollback, retry 201; 4-way concurrent provider race → one 201/one profile+application. 2 new web tests. |
+| Gate B reminder | OPEN | Full provider features (#11 booking pages, rejection reasons) still require the frozen migrations to be applied to the managed DB under Gate B. Signup no longer blocks on them. |

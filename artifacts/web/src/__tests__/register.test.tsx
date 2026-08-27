@@ -72,6 +72,7 @@ function fillForm() {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 describe('registration success', () => {
@@ -109,6 +110,19 @@ describe('registration success', () => {
     const payload = mutate.mock.calls[0]![0] as { data: Record<string, unknown> };
     expect(payload.data.roleIntent).toBe('provider');
     expect(setLocation).toHaveBeenCalledWith('/onboarding/provider');
+    // One-time onboarding welcome flag so the provider sees a clear next step.
+    expect(sessionStorage.getItem('oncallfoot_provider_welcome')).toBe('1');
+  });
+
+  it('does not set the provider welcome flag for client signups', () => {
+    setupMutate((_payload, callbacks) => {
+      callbacks.onSuccess?.({ token: 'test-token', user: { role: 'client' } });
+      callbacks.onSettled?.();
+    });
+    render(<Register />);
+    fillForm();
+    fireEvent.click(screen.getByTestId('register-submit-button'));
+    expect(sessionStorage.getItem('oncallfoot_provider_welcome')).toBeNull();
   });
 });
 

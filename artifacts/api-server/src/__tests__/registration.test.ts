@@ -18,7 +18,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 
 const PORT = process.env["PORT"] ?? "8080";
@@ -226,5 +226,121 @@ describe("auth regression", () => {
 
   it("authenticated routes still reject missing tokens", async () => {
     assert.equal((await apiFetch("/auth/me")).status, 401);
+  });
+});
+
+describe("provider provisioning", () => {
+  const providerPayload = (email: string) =>
+    registerPayload({ email, roleIntent: "provider", role: "provider" });
+
+  async function providerRecords(email: string) {
+    const result = await db.execute<{
+      user_id: number;
+      profile_id: number;
+      application_id: number;
+      status: string;
+    }>(sql`
+      select u.id as user_id, p.id as profile_id, a.id as application_id, a.status
+      from users u
+      join provider_profiles p on p.user_id = u.id
+      join provider_applications a on a.user_id = u.id and a.provider_profile_id = p.id
+      where u.email = ${email}`);
+    return result.rows;
+  }
+
+  it("REGRESSION: provider signup succeeds when newer additive provider columns are absent (Gate B pending)", async () => {
+    // Simulates a deployed database whose newest additive provider columns
+    // are still pending the frozen Gate B migrations (docs/migrations/*):
+    // provider_profiles booking-page columns (#11) and
+    // provider_applications.rejection_reason. Drizzle's insert builder lists
+    // every schema column, so signup previously failed 42703 → 500 on such a
+    // database — provider-only, while client signup worked.
+    await db.execute(sql`alter table provider_applications drop column if exists rejection_reason`);
+    await db.execute(sql`drop index if exists provider_profiles_public_slug_unique_idx`);
+    await db.execute(sql`
+      alter table provider_profiles
+        drop column if exists public_slug,
+        drop column if exists booking_page_published,
+        drop column if exists booking_page_published_at`);
+    try {
+      const email = `provider-signup-test-drift-${suffix}@example.test`;
+      const r = await apiFetch("/auth/register", { method: "POST", body: providerPayload(email) });
+      assert.equal(r.status, 201, r.raw.slice(0, 300));
+      const user = r.body["user"] as JsonBody;
+      assert.equal(user["role"], "provider");
+      assert.equal((user["providerApplication"] as JsonBody)["status"], "draft");
+
+      // Success is not masked: the required records genuinely exist.
+      const rows = await providerRecords(email);
+      assert.equal(rows.length, 1, "profile + application must exist");
+      assert.equal(rows[0]!.status, "draft");
+    } finally {
+      // Restore schema parity (same DDL as the frozen artifacts).
+      await db.execute(sql`alter table provider_profiles add column if not exists public_slug text`);
+      await db.execute(
+        sql`alter table provider_profiles add column if not exists booking_page_published boolean default false not null`,
+      );
+      await db.execute(
+        sql`alter table provider_profiles add column if not exists booking_page_published_at timestamp`,
+      );
+      await db.execute(
+        sql`create unique index if not exists provider_profiles_public_slug_unique_idx on provider_profiles (public_slug)`,
+      );
+      await db.execute(sql`alter table provider_applications add column if not exists rejection_reason text`);
+    }
+  });
+
+  it("rolls back the whole registration when provisioning fails, then a retry succeeds", async () => {
+    const email = `provider-signup-test-retry-${suffix}@example.test`;
+    await db.execute(sql`
+      create or replace function reg_test_fail_provisioning() returns trigger as $$
+      begin raise exception 'reg-test forced provisioning failure'; end;
+      $$ language plpgsql`);
+    await db.execute(sql`
+      create trigger reg_test_block_applications
+      before insert on provider_applications
+      for each row execute function reg_test_fail_provisioning()`);
+    try {
+      const r = await apiFetch("/auth/register", { method: "POST", body: providerPayload(email) });
+      assert.equal(r.status, 500);
+      assert.equal(r.body["error"], "Internal server error", "safe generic body only");
+      assert.ok(
+        !r.raw.toLowerCase().includes("provisioning failure"),
+        "must not leak SQL/exception details",
+      );
+
+      // Full rollback — no orphaned user, profile, or application.
+      const users = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.email, email));
+      assert.equal(users.length, 0, "failed provisioning must not orphan a user");
+    } finally {
+      await db.execute(sql`drop trigger if exists reg_test_block_applications on provider_applications`);
+      await db.execute(sql`drop function if exists reg_test_fail_provisioning`);
+    }
+
+    // Retry with the same email now succeeds (idempotent recovery), with
+    // exactly one profile and one application.
+    const retry = await apiFetch("/auth/register", { method: "POST", body: providerPayload(email) });
+    assert.equal(retry.status, 201, retry.raw.slice(0, 300));
+    const rows = await providerRecords(email);
+    assert.equal(rows.length, 1, "exactly one profile + application after retry");
+  });
+
+  it("concurrent duplicate PROVIDER submissions create exactly one account and one application", async () => {
+    const email = `provider-signup-test-race-${suffix}@example.test`;
+    const attempts = await Promise.all(
+      Array.from({ length: 4 }, () =>
+        apiFetch("/auth/register", { method: "POST", body: providerPayload(email) }),
+      ),
+    );
+    const statuses = attempts.map((a) => a.status).sort();
+    assert.equal(statuses.filter((s) => s === 201).length, 1, `exactly one create: ${statuses}`);
+    assert.equal(statuses.filter((s) => s === 409).length, 3, `losers must conflict: ${statuses}`);
+    assert.ok(!statuses.includes(500), `no internal server error: ${statuses}`);
+
+    const rows = await providerRecords(email);
+    assert.equal(rows.length, 1, "no duplicate provider profiles/applications");
   });
 });
