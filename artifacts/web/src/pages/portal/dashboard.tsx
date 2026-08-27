@@ -14,6 +14,8 @@ import ReadinessSummaryCard from '@/components/readiness-summary-card';
 import FirstBookingCard from '@/components/first-booking-card';
 import BookingPageCard from '@/components/booking-page-card';
 import QuickActions from '@/components/dashboard/quick-actions';
+import NextBestActionCard from '@/components/dashboard/next-best-action';
+import PendingReschedules from '@/components/dashboard/pending-reschedules';
 import UpcomingBookings from '@/components/dashboard/upcoming-bookings';
 import PerformanceMetrics from '@/components/dashboard/performance-metrics';
 import SourceAttributionChart from '@/components/dashboard/source-attribution-chart';
@@ -72,6 +74,13 @@ export default function PortalDashboard() {
 
   const firstName = data.providerName.split(' ')[0] || 'there';
   const next = data.nextBooking;
+  const pendingReschedules = data.pendingReschedules;
+  // Action priority (Phase A, documented in docs/provider-dashboard.md):
+  // a client-initiated reschedule holds a live appointment unconfirmed until
+  // the provider confirms or declines, and the requested time itself expires
+  // — so it outranks setup guidance when present. Otherwise the server's
+  // nextAction leads and the schedule-change row stays compact.
+  const scheduleFirst = pendingReschedules.count > 0;
 
   return (
     <div className="p-6 pt-10 pb-32 max-w-4xl mx-auto space-y-8" data-testid="provider-dashboard">
@@ -111,6 +120,26 @@ export default function PortalDashboard() {
           </p>
         )}
       </header>
+
+      {scheduleFirst ? (
+        <>
+          <PendingReschedules
+            pending={pendingReschedules}
+            timezone={timezone}
+            timezoneReady={timezoneReady}
+          />
+          <NextBestActionCard />
+        </>
+      ) : (
+        <>
+          <NextBestActionCard />
+          <PendingReschedules
+            pending={pendingReschedules}
+            timezone={timezone}
+            timezoneReady={timezoneReady}
+          />
+        </>
+      )}
 
       <QuickActions />
 
