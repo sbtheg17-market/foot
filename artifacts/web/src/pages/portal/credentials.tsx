@@ -75,8 +75,9 @@ export default function PortalCredentials() {
         setForm({ docType: 'license', fileName: '', notes: '' });
       },
       onError: (err: unknown) => {
-        const msg = (err as { error?: string })?.error ?? 'Failed to submit credential';
-        toast.error(msg);
+        const e = err as { status?: number; data?: { error?: string } | null };
+        if (e.status === 400) toast.error(e.data?.error ?? 'Please check the document details and try again.');
+        else toast.error("We couldn't submit this document right now. Your information has not been lost. Please try again or contact support.");
       },
     },
   });
@@ -90,11 +91,23 @@ export default function PortalCredentials() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.fileName.trim()) {
-      toast.error('Please provide a document URL or reference');
+    if (submitMutation.isPending) return; // double-tap guard
+    const reference = form.fileName.trim();
+    if (!reference) {
+      toast.error('Enter a document reference.');
       return;
     }
-    submitMutation.mutate({ data: form });
+    if (reference.length > 200) {
+      toast.error('Keep the reference within the allowed length (200 characters max).');
+      return;
+    }
+    if (form.notes.trim().length > 1000) {
+      toast.error('Keep reviewer notes within the allowed length (1000 characters max).');
+      return;
+    }
+    submitMutation.mutate({
+      data: { docType: form.docType, fileName: reference, notes: form.notes.trim() || undefined },
+    });
   };
 
   if (isLoading) {

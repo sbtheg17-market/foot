@@ -537,8 +537,13 @@ function VerificationStep({
   const docs = verQuery.data?.docs ?? [];
 
   const addDoc = () => {
+    if (submitDoc.isPending) return; // double-tap guard
     setFormError('');
-    if (!fileName.trim() || fileName.trim().length < 3) { setFormError('Document reference must be at least 3 characters.'); return; }
+    const reference = fileName.trim();
+    if (!reference) { setFormError('Enter a document reference.'); return; }
+    if (reference.length < 3) { setFormError('Document reference must be at least 3 characters.'); return; }
+    if (reference.length > 200) { setFormError('Keep the reference within the allowed length (200 characters max).'); return; }
+    if (notes.trim().length > 1000) { setFormError('Keep reviewer notes within the allowed length (1000 characters max).'); return; }
     submitDoc.mutate(
       { data: { docType, fileName: fileName.trim(), notes: notes.trim() || undefined } },
       {
@@ -550,7 +555,11 @@ function VerificationStep({
           setShowForm(false);
           setSaved(true);
         },
-        onError: (err) => setFormError(apiError(err, 'Could not submit document.')),
+        onError: (err) => {
+          const e = err as { status?: number; data?: { error?: string } | null };
+          if (e.status === 400) setFormError(e.data?.error ?? 'Please check the document details and try again.');
+          else setFormError("We couldn't submit this document right now. Your information has not been lost. Please try again or contact support.");
+        },
       },
     );
   };

@@ -1560,9 +1560,16 @@ export const SubmitVerificationDocRequestDocType = {
 
 export interface SubmitVerificationDocRequest {
   docType: SubmitVerificationDocRequestDocType;
-  /** URL or descriptive reference to the document */
+  /**
+     * URL or descriptive reference to the document
+     * @minLength 3
+     * @maxLength 200
+     */
   fileName: string;
-  /** Optional context for the reviewer */
+  /**
+     * Optional context for the reviewer
+     * @maxLength 1000
+     */
   notes?: string;
 }
 

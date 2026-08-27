@@ -85,8 +85,8 @@ through the existing slots + bookings endpoints.
 | GET | /providers/me/travel-zones | provider | Get travel zones |
 | POST | /providers/me/travel-zones | provider | Add a travel zone |
 | DELETE | /providers/me/travel-zones/:id | provider | Remove a travel zone |
-| POST | /providers/me/verification | provider | Submit verification doc metadata |
-| GET | /providers/me/verification | provider | Own verification status |
+| POST | /providers/me/verification | provider | Submit a credential document reference (`docType` ∈ license/insurance/certification/other; `fileName` 3–200 chars; optional `notes` ≤ 1000 chars). Transactional and idempotent: an identical pending submission (same type + reference) returns the existing record — retries/double-taps never create duplicates. First doc auto-advances verification pending → under_review. Drift-safe: reads only signup-era profile columns, so it works before the Gate B artifacts are applied |
+| GET | /providers/me/verification | provider | Own verification status + submitted docs (drift-safe narrow profile read) |
 | GET | /providers/me/earnings | provider | Earnings placeholder summary |
 | GET | /providers/me/dashboard | provider (approved) | Owner-scoped read-only dashboard aggregate: today's count, next/upcoming bookings (30-day window), performance metrics, source attribution, recent activity, earnings preview. Privacy-trimmed client names (first name + last initial) and FSA/city locations — never full addresses. Access is audit-logged. See `docs/provider-dashboard.md` |
 | GET | /providers/me/metrics | provider (approved) | The same performance-metrics object served independently (completion/cancellation/no-show/repeat-client rates over resolved bookings) |

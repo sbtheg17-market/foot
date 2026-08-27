@@ -19,6 +19,7 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ROUTES } from '@/lib/routes';
+import SupportContactLink from '@/components/support-contact-link';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -524,12 +525,17 @@ const DOC_TYPES = [
   { value: 'other', label: 'Other credential' },
 ];
 
+// Server-enforced bounds (POST /providers/me/verification); mirrored here for
+// immediate, field-specific feedback.
+const MAX_REFERENCE_LENGTH = 200;
+const MAX_NOTES_LENGTH = 1000;
+
 interface VerificationStepProps {
   onNext: () => void;
   onBack: () => void;
 }
 
-function VerificationStep({ onNext, onBack }: VerificationStepProps) {
+export function VerificationStep({ onNext, onBack }: VerificationStepProps) {
   const verQuery = useGetMyVerification({ query: { queryKey: ['my-verification'] } });
   const submitDoc = useSubmitVerificationDoc();
   const qc = useQueryClient();
@@ -541,17 +547,42 @@ function VerificationStep({ onNext, onBack }: VerificationStepProps) {
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [serverFailed, setServerFailed] = useState(false);
+  const formErrorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (formError) formErrorRef.current?.focus();
+  }, [formError]);
 
   const docs = verQuery.data?.docs ?? [];
 
   const addDoc = () => {
+    if (submitDoc.isPending) return; // double-tap guard
     setFormError('');
-    if (!fileName.trim() || fileName.trim().length < 3) {
+    setServerFailed(false);
+    if (!docType) {
+      setFormError('Choose a document type.');
+      return;
+    }
+    const reference = fileName.trim();
+    if (!reference) {
+      setFormError('Enter a document reference.');
+      return;
+    }
+    if (reference.length < 3) {
       setFormError('Document reference must be at least 3 characters.');
       return;
     }
+    if (reference.length > MAX_REFERENCE_LENGTH) {
+      setFormError(`Keep the reference within the allowed length (${MAX_REFERENCE_LENGTH} characters max).`);
+      return;
+    }
+    if (notes.trim().length > MAX_NOTES_LENGTH) {
+      setFormError(`Keep reviewer notes within the allowed length (${MAX_NOTES_LENGTH} characters max).`);
+      return;
+    }
     submitDoc.mutate(
-      { data: { docType, fileName: fileName.trim(), notes: notes.trim() || undefined } },
+      { data: { docType, fileName: reference, notes: notes.trim() || undefined } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: ['my-verification'] });
@@ -561,7 +592,17 @@ function VerificationStep({ onNext, onBack }: VerificationStepProps) {
           setShowForm(false);
           setSaved(true);
         },
-        onError: (err) => setFormError(apiError(err, 'Could not submit document.')),
+        onError: (err) => {
+          const e = err as { status?: number; data?: { error?: string } | null };
+          if (e.status === 400) {
+            setFormError(e.data?.error ?? 'Please check the document details and try again.');
+          } else {
+            // 5xx / network: never surface "Internal server error"; the
+            // entered values stay in the form.
+            setFormError("We couldn't submit this document right now. Your information has not been lost. Please try again or contact support.");
+            setServerFailed(true);
+          }
+        },
       },
     );
   };
@@ -575,11 +616,11 @@ function VerificationStep({ onNext, onBack }: VerificationStepProps) {
   return (
     <div>
       <h2 className="font-serif text-2xl font-bold text-foreground mb-1">Verification documents</h2>
-      <p className="text-sm text-muted-foreground mb-2">Submit references to your credentials for our admin team to review. At least one document is required.</p>
+      <p className="text-sm text-muted-foreground mb-2">Submit the reference details for one credential so we can review your provider application. At least one document is required.</p>
       <p className="text-xs text-muted-foreground mb-6 bg-secondary/50 rounded-lg px-3 py-2">For security, we accept document references (e.g. a license number, issuing body, or document identifier). Our team will contact you if originals are needed.</p>
 
       {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
-      {saved && !showForm && <div role="status" className="mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">Document submitted for review ✓</div>}
+      {saved && !showForm && <div role="status" data-testid="verification-success-status" className="mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">{"Document submitted. Your application is still under review. We'll let you know if anything else is needed."}</div>}
 
       {verQuery.isLoading ? (
         <div className="flex justify-center py-8"><div className="h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
@@ -608,30 +649,37 @@ function VerificationStep({ onNext, onBack }: VerificationStepProps) {
 
           {showForm ? (
             <div className="rounded-2xl border border-border bg-card p-4 mb-4 space-y-3">
-              {formError && <p className="text-sm text-destructive">{formError}</p>}
+              {formError && (
+                <div ref={formErrorRef} tabIndex={-1} role="alert" data-testid="verification-error-alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive outline-none">
+                  <p>{formError}</p>
+                  {serverFailed && (
+                    <SupportContactLink testId="verification-support-link" className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-destructive underline" />
+                  )}
+                </div>
+              )}
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium text-foreground">Document type</span>
-                <select value={docType} onChange={(e) => setDocType(e.target.value as SubmitVerificationDocRequestDocType)} className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none ring-primary focus:ring-2">
+                <select data-testid="verification-doc-type-select" value={docType} onChange={(e) => setDocType(e.target.value as SubmitVerificationDocRequestDocType)} className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none ring-primary focus:ring-2">
                   {DOC_TYPES.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
                 </select>
               </label>
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium text-foreground">Document reference <span className="text-destructive">*</span></span>
-                <input value={fileName} onChange={(e) => setFileName(e.target.value)} placeholder="e.g. License #RPN-12345, issued by College of Nurses" className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none ring-primary focus:ring-2" />
+                <input data-testid="verification-reference-input" value={fileName} onChange={(e) => setFileName(e.target.value)} maxLength={MAX_REFERENCE_LENGTH} placeholder="e.g. License #RPN-12345, issued by College of Nurses" className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none ring-primary focus:ring-2" />
               </label>
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium text-foreground">Notes for reviewer <span className="text-muted-foreground font-normal">(optional)</span></span>
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Any context that helps our team verify this credential" className="w-full resize-none rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none ring-primary focus:ring-2" />
+                <textarea data-testid="verification-notes-input" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={MAX_NOTES_LENGTH} rows={2} placeholder="Any context that helps our team verify this credential" className="w-full resize-none rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none ring-primary focus:ring-2" />
               </label>
               <div className="flex gap-2">
                 <button type="button" onClick={() => { setShowForm(false); setFormError(''); }} className="flex-1 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground">Cancel</button>
-                <button type="button" onClick={addDoc} disabled={submitDoc.isPending} className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+                <button type="button" data-testid="verification-submit-btn" onClick={addDoc} disabled={submitDoc.isPending} aria-busy={submitDoc.isPending} className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60">
                   {submitDoc.isPending ? 'Submitting…' : 'Submit document'}
                 </button>
               </div>
             </div>
           ) : (
-            <button type="button" onClick={() => { setShowForm(true); setFormError(''); }} className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-primary hover:bg-card/50 transition-colors mb-4">
+            <button type="button" data-testid="verification-add-doc-btn" onClick={() => { setShowForm(true); setFormError(''); }} className="w-full rounded-xl border border-dashed border-border px-4 py-3 text-sm font-medium text-primary hover:bg-card/50 transition-colors mb-4">
               + Add document
             </button>
           )}

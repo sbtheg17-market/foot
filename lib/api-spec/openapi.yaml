@@ -5049,9 +5049,12 @@ components:
           enum: [license, insurance, certification, other]
         fileName:
           type: string
+          minLength: 3
+          maxLength: 200
           description: URL or descriptive reference to the document
         notes:
           type: string
+          maxLength: 1000
           description: Optional context for the reviewer
       required:
         - docType

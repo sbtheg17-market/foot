@@ -242,3 +242,19 @@ only, no DOWN, never auto-applied; validated against disposable PostgreSQL
 (push ×2 idempotent, seed ×2, startup, destructive-DDL scan). All gate
 requirements and blockers above remain unchanged; the managed database was
 not accessed.
+
+## Artifact addendum — 2026-08-28 (provider onboarding recovery)
+
+`docs/migrations/PROVIDER_APPLICATION_REJECTION_REASON_V1.sql` joins the
+frozen additive artifact set. The onboarding schema audit found that the
+schema-defined `provider_applications.rejection_reason` column (selected by
+the owner `/providers/application*` routes) had no frozen artifact at all —
+so under Gate B it would never reach the managed database. The artifact adds
+one nullable text column, additive only, no `IF NOT EXISTS` (drift fails
+loudly per policy), no DOWN, never auto-applied. Validated against disposable
+PostgreSQL (push ×2 idempotent, seed ×2, fresh apply PASS, re-apply fails
+loudly as expected, column type/nullability matches the schema).
+`sha256sum` at the reviewed checkout:
+`dc978ccac702affed54c95449a06ed43b30e913a8583208d263d359a9c36f06b`.
+All gate requirements and blockers above remain unchanged; the managed
+database was not accessed.

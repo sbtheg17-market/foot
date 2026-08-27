@@ -137,3 +137,11 @@ additive artifacts and two new test suites (`test` pure-unit additions,
 above are unchanged except service-area (closed by #12) — payments, reminders,
 native-device verification, and the managed-DB gate remain open. See
 `docs/cancellation-no-show-policy.md` and `docs/TODO-LEDGER.md`.
+
+Provider onboarding recovery (2026-08-28) landed after this review: the
+verification-document submission 500 (Gate B drift, 42703 via bare-select
+`getOwnProfile()`) is fixed drift-safe/transactional/idempotent, the missing
+frozen artifact `PROVIDER_APPLICATION_REJECTION_REASON_V1.sql` was added
+(Gate B-pending, managed DB not accessed), and CI gained the
+`test:verification` suite. See
+`docs/provider-verification-onboarding-policy.md`.

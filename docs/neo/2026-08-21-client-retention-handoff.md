@@ -1804,3 +1804,31 @@ Graphify status:
 - Before substantial work: query Graphify first, then verify output against source and Git history
 - If current HEAD differs materially from the graph baseline: graph is potentially stale; refresh is recommended but non-blocking
 ```
+
+## Session addendum — 2026-08-28 (provider verification onboarding recovery, Emergent session)
+
+The active provider conversion blocker — "Internal server error" on
+verification-document submission during onboarding — was reproduced on a
+disposable PostgreSQL and fixed on `fix/provider-onboarding-verification-flow`.
+Evidenced root cause: `getOwnProfile()`'s bare Drizzle `select()` emits every
+`provider_profiles` schema column, so on a database missing the Gate B-pending
+booking-page columns (#11 artifacts) both `/providers/me/verification` routes
+failed with PostgreSQL 42703 (`column "public_slug" does not exist`) →
+unhandled 500, **before any validation or persistence** (never after
+persistence; no orphaned records). Fix mirrors the PR #56 signup convention:
+narrow signup-era column select, plus bounded validation (reference 3–200,
+notes ≤ 1000, allowlisted type), and a transactional idempotent submission
+(profile row lock; identical pending submission returns the existing record;
+insert + pending→under_review bump roll back together; rejected docs can be
+resubmitted). Conversion UX per policy: honest purpose/success copy, safe
+recoverable-failure copy + support contact link, focus management, double-tap
+guard, preserved values — web onboarding, portal credentials, and Expo
+parity. The onboarding schema audit added the missing frozen artifact
+`PROVIDER_APPLICATION_REJECTION_REASON_V1.sql` (Gate B-pending; managed DB
+NOT accessed; disposable-PG fresh-apply/re-apply/push×2/seed×2 checks PASS).
+New CI-gated `test:verification` (13 tests) + 11 web tests; regression suites
+(registration/onboarding/application/authorization/service-area/cancellation/
+booking-page/rescheduling/lifecycle/integration), mobile emulation 9/9,
+real-browser smoke 13/13 — all PASS. Follow-up recorded in the ledger: ~24
+other `/providers/me/*` routes still use the bare-select `getOwnProfile()`.
+Full record: `docs/provider-verification-onboarding-policy.md`.

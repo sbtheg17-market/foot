@@ -86,3 +86,12 @@ are out of scope for CI.
 - "Ask for help with this booking" opens an escalation and disables after success.
 - Native alerts (RN `Alert.alert`) are no-ops in web export — these flows were
   verified via API + jsdom only. Native-device verification remains DEFERRED.
+
+## Provider verification onboarding (2026-08-28 — emulation PASS, hardware DEFERRED)
+
+- Provider signup → onboarding → verification-document submission → honest
+  under-review success copy: PASS at Pixel 5 viewport (Chromium emulation),
+  on both the current schema and the Gate B drift simulation.
+- Repo emulation suite 9/9 PASS; real-browser smoke 13/13 PASS.
+- Real-hardware verification of the onboarding flow remains DEFERRED with the
+  rest of this checklist.
