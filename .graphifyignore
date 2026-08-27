@@ -1,0 +1,51 @@
+# Dependencies, builds, generated output
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.expo/
+artifacts/**/dist/
+artifacts/**/build/
+artifacts/**/coverage/
+
+# Runtime data and test artifacts
+var/
+test_reports/
+artifacts/**/var/
+*.sqlite
+*.sqlite3
+*.db
+*.log
+
+# Secrets and local environment configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials/
+secrets/
+
+# VCS/editor/platform noise
+.git/
+.github/
+.replit
+.replit.nix
+.replit*
+.DS_Store
+
+# Graphify local-only cache/log data
+graphify-out/cache/
+graphify-out/cost.json
+
+# Local agent working memory and uploaded prompt/session material (untracked)
+memory/
+.agents/memory/
+attached_assets/
+.emergent/
+.pnpm-store/
+.cache/
+.local/

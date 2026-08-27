@@ -1,0 +1,132 @@
+# Graphify Continuity Workflow
+
+**Added:** 2026 continuity-infrastructure task (branch
+`chore/add-graphify-continuity-workflow`).
+**Status:** optional, local-first developer/agent aid. Not a product feature.
+
+## Purpose
+
+- Graphify is a **local-first codebase continuity aid** for OnCall Foot
+  (`sbtheg17-market/foot`).
+- It maps code, tracked docs, frozen SQL migration artifacts
+  (`docs/migrations/*.sql`), and configuration into a queryable knowledge
+  graph (`graphify-out/graph.json`, `GRAPH_REPORT.md`, `graph.html`,
+  `manifest.json`).
+- It reduces duplicate investigation and improves handoffs between agent
+  sessions (Neo, Replit, Emergent, etc.).
+- It is **not** an application feature, production service, deployment
+  dependency, analytics system, or source of truth. `origin/main` source code
+  and the docs under `docs/` remain authoritative.
+
+## Installation (development environments only)
+
+Graphify is a Python CLI installed as an isolated tool — it is **never** part
+of the Node/pnpm dependency graph, Docker images, deploy scripts, or CI:
+
+```bash
+uv tool install "graphifyy[sql]"     # preferred (the [sql] extra parses docs/migrations/*.sql)
+graphify --version                   # verify (this repo's graph was built with 0.9.50)
+```
+
+The project-scoped agent skill lives at `.agents/skills/graphify/SKILL.md`
+(installed via `graphify install --project --platform agents`). It is
+instructional only and blocks nothing.
+
+## Commands
+
+```bash
+graphify query "How does provider signup work?"
+graphify query "What code enforces travel/setup buffers?"
+graphify path "register" "provider_profiles"
+graphify explain "booking_outcome_history"
+```
+
+`graphify path` searches directed edges by default; add `--undirected` when a
+directed route does not exist. `graphify query` truncates to a token budget;
+use `--budget` or narrower questions for deep dives.
+
+## Agent workflow
+
+For any significant continuation task, Neo (or any agent) should:
+
+1. fetch and inspect current Git state (`git fetch origin --prune`, verify
+   `origin/main` SHA per `AGENTS.md`);
+2. read the relevant continuity handoff (`docs/NEXT-STEPS.md`,
+   `docs/neo/…-handoff.md`, `.agents/LOG.md`);
+3. query Graphify for architecture and dependency context;
+4. verify Graphify results against source before making edits;
+5. treat `EXTRACTED` edges as direct evidence and `INFERRED` edges as
+   hypotheses to verify;
+6. inspect Git history/PRs/branches before recovering any work;
+7. never use Graphify as justification to skip tests or code review.
+
+## Privacy and security
+
+- Code AST extraction is **local and deterministic** (tree-sitter). No code
+  leaves the machine.
+- **No external API key is used by default.** Community labeling was skipped
+  (`cluster-only --no-label`); communities appear as `Community N`
+  placeholders. Semantic extraction of docs/PDFs/images and LLM community
+  naming require a configured backend and **explicit operator approval**.
+- `.env` files, secrets, runtime data (`var/`, `artifacts/**/var/`), local
+  databases, `attached_assets/`, agent memory, and generated build output are
+  excluded via `.graphifyignore`.
+- Query logging remains **disabled**.
+- No public/shared Graphify HTTP server is authorized
+  (`graphify serve --transport http` is prohibited).
+- Live managed-database introspection is **prohibited**
+  (`graphify extract . --postgres …` must never be run against the managed
+  DB; this repo's DB gates are in `docs/managed-db-release-gate.md`).
+
+## Update policy
+
+- Refresh the graph manually after major merged roadmap work or a significant
+  refactor:
+  ```bash
+  graphify extract . --code-only
+  graphify cluster-only . --no-label   # regenerates GRAPH_REPORT.md + graph.html without any LLM
+  ```
+- Do **not** require it in CI.
+- Do **not** enable auto Git hooks (`graphify hook install`) unless expressly
+  authorized later.
+- Before committing a refresh, inspect graph outputs and perform the secret
+  scan:
+  ```bash
+  rg -n -i "api[_-]?key|secret|password|token|private[_-]?key|database_url|authorization: bearer" graphify-out/ || true
+  bash scripts/secret-scan.sh
+  ```
+  Symbol *names* (e.g. `signToken()`, `pushTokensTable`) are expected; secret
+  *values* are not. If a value appears, do not commit — fix
+  `.graphifyignore`, delete `graphify-out/`, rebuild, and rescan.
+
+## Committed vs. ignored artifacts
+
+Committed (portable team artifacts): `graphify-out/graph.json`,
+`graphify-out/GRAPH_REPORT.md`, `graphify-out/graph.html`,
+`graphify-out/manifest.json`.
+
+Ignored (local-only, see `.gitignore`): `graphify-out/cache/`,
+`graphify-out/cost.json`, `graphify-out/.graphify_analysis.json`,
+`graphify-out/.graphify_root`.
+
+## Package scripts decision
+
+No `graphify:*` scripts were added to `package.json`. The workspace scripts
+are all pnpm-workspace product commands, and Graphify (a Python `uv` tool) is
+not guaranteed in every developer environment — a workspace script would be
+misleading and could be mistaken for a build dependency. Run the CLI
+directly. No build/test/deploy script depends on Graphify.
+
+## Limitations
+
+- The graph is an aid, not authoritative documentation.
+- It can contain inferred relationships (`INFERRED` edges) that must be
+  source-verified before acting on them.
+- Code-only extraction may not provide full semantic mapping of non-code
+  documents (the 2026 initial build skipped ~76 markdown docs and 4 images
+  from LLM extraction by design; the SQL migration artifacts *are* parsed via
+  the `[sql]` extra).
+- Full document/PDF/media extraction requires a configured backend and
+  explicit privacy approval.
+- The graph goes stale: `GRAPH_REPORT.md` records the commit it was built
+  from — compare with `git rev-parse HEAD`.

@@ -74,3 +74,9 @@ artifacts/api-server/var/
 
 # External test-harness reports (agent tooling output, not repository artifacts)
 /test_reports/
+
+# Graphify local-only cache/cost data (portable graph artifacts ARE committed)
+graphify-out/cache/
+graphify-out/cost.json
+graphify-out/.graphify_analysis.json
+graphify-out/.graphify_root
