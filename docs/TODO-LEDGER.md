@@ -418,3 +418,28 @@ Do not infer organization, tenant, provider affiliation, client-group, or
 Future conversion direction: Provider Approval Status Page, then Provider
   Dashboard, then Availability Exceptions — guided by pilot evidence.
 ```
+
+### Provider Approval Status & Activation Hub (2026-08-28)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Approval Status & Activation Hub | DONE 2026-08-28 | PR #64: `/provider/application-status` evolved into the guided hub (status hero, 9 true milestones, next-action, verification recovery, readiness cards, BookingPageCard share section, value/help sections). New owner-scoped read-only `GET /providers/me/activation-status` (no schema change). `test:activation-status` 11/11 + 15 web tests; regressions 182/182; mobile smoke 10/10 @390×844. |
+| Expo-native activation hub parity | DEFERRED | Mobile app keeps the existing application-status screen (unchanged `/application/status` API). Bring hub milestones/next-action to Expo when provider mobile usage justifies it. |
+| Provider Dashboard gap-closure | NEXT MAJOR PROVIDER SURFACE (FUTURE) | Existing `/provider/dashboard` already covers today/next/outcomes/share/activity. Remaining per roadmap: quick availability actions, reschedule/cancel/no-show actions from the dashboard, support entry point. Build after hub evidence from pilot weekly reviews. |
+| Graphify artifact refresh post-merge | TODO | Refresh after PR #64 merges (continuity workflow: refresh after major merged roadmap work). Current baseline `96b7102`. |
+
+```text
+Conversion candidate observed while building the hub (documented only — NOT implemented):
+Problem observed: providers without a social/web presence have no low-effort
+  offline way to share their booking link; the hub/share card offers link,
+  native share, and on-screen QR only.
+Provider value: printable one-pager/QR card to hand to clients or post at a
+  clinic/pharmacy corkboard — offline client acquisition for mobile foot care.
+Client value: an easy, trusted route to the booking page without typing a URL.
+Evidence needed: weekly pilot reviews showing published-but-no-booking
+  providers whose stated blocker is "nowhere to share the link"; direct
+  provider requests for printable material.
+Dependency: existing booking-page QR feature (#11); no backend work expected.
+Recommended priority: after Provider Dashboard gap-closure; only with pilot
+  evidence.
+```

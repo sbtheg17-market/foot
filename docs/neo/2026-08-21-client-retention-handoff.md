@@ -2053,3 +2053,65 @@ Graphify status:
 - Before substantial work: query Graphify first, then verify output against source and Git history
 - If current HEAD differs materially from the graph baseline: graph is potentially stale; refresh is recommended but non-blocking
 ```
+
+## Session addendum — 2026-08-28 (Provider Approval Status & Activation Hub, Emergent session)
+
+The first post-dashboard conversion build is DONE on
+`feat/provider-approval-status-hub` (PR #64,
+https://github.com/sbtheg17-market/foot/pull/64, baseline main
+`65f4eee9a8e762b65981c62659870603d9131ce3`).
+
+What shipped: `/provider/application-status` evolved in place into the
+provider-facing Approval Status & Activation Hub — status hero with
+plain-language labels ("Finish setting up" / "Under review" / "Approved" /
+"Update needed" / "Account needs attention"), truthful 9-milestone progress,
+a server-derived next best action with deep links to existing routes, a
+grouped activation checklist (approval-gated steps shown as locked, never as
+dead links), status-level verification with friendly needs-update
+resubmission recovery and the verbatim privacy statement, booking-readiness
+cards, a share-and-grow section embedding the existing BookingPageCard
+(publish/preview/copy/native share/QR — zero duplication), an honest
+"What Foot handles for you" section (implemented behavior only), help &
+trust, and the preserved rejected-state recovery (provider-visible reason,
+server-gated reset/resubmit, submission timeline). Entry points: existing
+auth/onboarding flows plus a readiness-page cross-link; no duplicate portal
+navigation. The former draft→onboarding / approved→portal auto-redirects were
+deliberately replaced by the hub serving those states — the only intentional
+behavior change on the page.
+
+API: one new owner-scoped, read-only endpoint
+`GET /providers/me/activation-status` (requireAuth + provider membership —
+readable in every application state, which the approved-only `/me/*` routes
+cannot provide; clients and platform admins get 403 with no provider-view
+bypass). It composes existing rules only (`buildStatusView`,
+`computeReadiness`, `hasActiveServiceAreaCoverage` #12, `bookingPageView`
+#11, status-level verification, LIMIT-1 first-booking probe). No schema
+change, no migration, no writes. Redaction contract tested: no reviewer
+notes, reviewer identity, document references/file names, internal scoring,
+pilot metrics, retention intent, risk flags, client data, or audit metadata.
+
+Validation: typecheck PASS · build PASS · build:deploy PASS · root
+`pnpm test` PASS (api unit 132/132, web 195/195 incl. 15 new hub tests with
+axe) · new `test:activation-status` 11/11 PASS (wired into the CI scripted
+loop) · regressions 182/182 across registration, onboarding, verification,
+provider-application, provider-readiness, role-state, service-area,
+booking-page, availability, lifecycle, cancellation, authorization,
+pilot-metrics · live auth smoke 401/403/403-admin/200 · targeted hub mobile
+smoke 10/10 at 390×844 (real Chromium sign-in, zero horizontal overflow,
+keyboard focus) · repo mobile-emulation 9/9 · real-browser smoke 13/13 ·
+`git diff --check` + `scripts/secret-scan.sh` PASS · CI on PR #64 gates the
+squash-merge. Graphify: five discovery queries verified against source this
+session; artifact refresh deferred until after merge per the continuity
+workflow (baseline remains `96b7102`).
+
+```text
+Strategic role boundary (2026-08-28, activation hub — append-only):
+Platform-admin Pilot Operations Dashboard: IMPLEMENTED.
+Provider Approval Status & Activation Hub: DONE (this session).
+Provider Dashboard: FUTURE NEXT MAJOR PROVIDER PRODUCT SURFACE
+  (existing /provider/dashboard covers today/next/outcomes/share/activity;
+  remaining gap-closure: quick availability actions, reschedule/cancel/
+  no-show actions, support entry point).
+Organization-admin/workforce dashboard: FUTURE, NOT IMPLEMENTED.
+Retention intent stays platform-admin-only — never provider-visible.
+```

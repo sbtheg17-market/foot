@@ -390,3 +390,16 @@ PASS, re-apply fails loudly by policy, `db:push` ×2 and seed ×2 PASS).
 Admin-only via `/admin/pilot` routes; never exposed to providers, clients, or
 public endpoints. All other pilot metrics are derived live from existing
 tables — no additional persistence.
+
+## Provider Approval Status & Activation Hub (2026-08-28)
+
+**No new tables, columns, enums, or migrations.**
+`GET /providers/me/activation-status` is a read-only projection over existing
+rows: `provider_applications` (status view), `provider_profiles`
+(profile/verification/publish flags), `verification_docs` (status-level only
+— `doc_ref`/file references are never projected), `services`, `availability`,
+`provider_service_areas`/`provider_coverage_areas` (#12 active coverage), and
+a `LIMIT 1` existence probe on `bookings` (first-value signal, same
+definition as the pilot dashboard but scoped to the caller). Retention
+intent (`pilot_provider_retention`) is deliberately NOT read — it is a
+platform-admin judgment and never provider-visible.

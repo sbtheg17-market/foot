@@ -846,6 +846,69 @@ export const GetMyProviderReadinessResponse = zod.object({
 
 
 /**
+ * Read-only composition of existing owner-scoped truths for the provider
+ * Approval Status & Activation Hub. Readable by every provider member in
+ * every application state (unlike the approved-only `/me/*` operation
+ * routes) because the hub exists precisely for providers who are not yet
+ * approved. Returns only the caller's safe provider data: application
+ * status with the provider-visible `rejectionReason` and the same
+ * capability flags as `GET /providers/application/status`, status-level
+ * verification progress (raw document references and reviewer-private
+ * notes are never included), true business-rule activation milestones
+ * (a step is never marked complete unless the system can prove it),
+ * booking-page publish state (same view as `GET /providers/me/booking-page`),
+ * and a server-derived `nextAction` code. Platform pilot metrics,
+ * retention intent, risk flags, client data, and other providers' data
+ * are never included. Read-only — nothing is persisted.
+ * @summary Owner-scoped activation-hub summary (application, milestones, booking readiness)
+ */
+export const getMyProviderActivationStatusResponseActivationMilestonesCompletedMin = 0;
+
+
+
+
+export const GetMyProviderActivationStatusResponse = zod.object({
+  "activation": zod.object({
+  "applicationStatus": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "rejectionReason": zod.string().nullable(),
+  "submittedAt": zod.coerce.date().nullable(),
+  "reviewedAt": zod.coerce.date().nullable(),
+  "canEdit": zod.boolean(),
+  "canReset": zod.boolean(),
+  "canResubmit": zod.boolean(),
+  "verification": zod.object({
+  "status": zod.enum(['not_started', 'submitted', 'under_review', 'needs_update', 'approved']),
+  "submittedAt": zod.coerce.date().nullable().describe('Most recent credential submission time, if any.'),
+  "canResubmit": zod.boolean().describe('True when a rejected verification can be resubmitted.')
+}).describe('Status-level verification progress only. Raw document references,\nreviewer identity, and reviewer-private notes are never included.\n'),
+  "milestones": zod.object({
+  "accountCreated": zod.boolean(),
+  "profileCompleted": zod.boolean(),
+  "verificationSubmitted": zod.boolean(),
+  "approved": zod.boolean(),
+  "serviceAreaConfigured": zod.boolean(),
+  "activeServiceConfigured": zod.boolean(),
+  "availabilityConfigured": zod.boolean(),
+  "bookingPagePublished": zod.boolean(),
+  "firstBookingReceived": zod.boolean()
+}).describe('True business-rule milestones in provider-journey order. A milestone\nis never reported complete unless the system can prove it from raw\nsource data (same rules as readiness, roadmap #12 coverage, #11\nbooking-page publishing, and the first-value definition).\n'),
+  "milestonesCompleted": zod.int().min(getMyProviderActivationStatusResponseActivationMilestonesCompletedMin),
+  "milestonesTotal": zod.int().min(1),
+  "bookingPage": zod.object({
+  "slug": zod.string().nullable().describe('Canonical public slug; assigned at first publish, then immutable'),
+  "published": zod.boolean(),
+  "publishedAt": zod.coerce.date().nullable(),
+  "path": zod.string().nullable().describe('Canonical public path (\/book\/{slug}) once a slug exists'),
+  "eligible": zod.boolean().describe('True when the provider is approved AND has an active service-area configuration with at least one covered postal area'),
+  "verificationStatus": zod.enum(['pending', 'under_review', 'approved', 'rejected']),
+  "serviceAreaConfigured": zod.boolean().describe('True when an active service-area configuration with at least one covered postal area exists (publish prerequisite, roadmap #12)')
+}).describe('Owner-scoped publish state for the provider\'s public booking page'),
+  "nextAction": zod.enum(['continue_onboarding', 'wait_for_review', 'review_update_needed', 'contact_support', 'complete_profile', 'configure_service_area', 'add_service', 'set_availability', 'publish_booking_page', 'share_booking_page', 'all_set']).describe('Server-derived highest-value next step for the activation hub, in\nprovider-journey order. Derived from true business rules only.\n')
+}).describe('Owner-scoped activation-hub summary. Provider-visible fields only.')
+})
+
+
+/**
  * @summary Owner-scoped public booking-page state (slug + publish state)
  */
 export const GetMyBookingPageResponse = zod.object({

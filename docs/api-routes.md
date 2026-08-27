@@ -209,3 +209,37 @@ introduces **zero** new API endpoints: it consumes the Part 1 routes
 `PATCH /api/admin/pilot/providers/:providerId/retention` through the
 generated client hooks. CSV export is generated client-side from the
 authorized metrics payload — deliberately no server export endpoint.
+
+## Provider Approval Status & Activation Hub (2026-08-28)
+
+One new provider-owned, read-only endpoint:
+
+```text
+GET /api/providers/me/activation-status
+```
+
+- Gating: `requireAuth` + provider membership (same policy as
+  `GET /providers/application/status` and `GET /providers/me/booking-page`) —
+  readable in EVERY application state, because the activation hub exists for
+  providers who are not yet approved. Clients and platform admins get 403
+  (no admin provider-view bypass). Errors are generic and non-leaking.
+- Response: `ProviderActivationStatusResponse` — application status +
+  provider-visible `rejectionReason` + the same capability flags as the
+  status view; status-level verification progress (`not_started | submitted |
+  under_review | needs_update | approved`, latest submission time,
+  `canResubmit`); nine journey milestones (account, profile, verification,
+  approval, #12 coverage, active service, availability, #11 publish, first
+  booking) proven from raw source rules; `milestonesCompleted/Total`; the #11
+  `bookingPage` view; and a journey-ordered `nextAction` code.
+- Deliberately read-only and composition-only: reuses `buildStatusView`,
+  `computeReadiness`, `hasActiveServiceAreaCoverage`, `bookingPageView`, and
+  a `LIMIT 1` bookings probe. No schema change, no migration, no writes.
+- Never returns reviewer-private notes, reviewer identity, raw document
+  references/file names, internal scoring, platform pilot metrics, retention
+  intent, risk flags, client data, or audit metadata
+  (`test:activation-status` enforces the redaction contract).
+
+The hub web page (`/provider/application-status`) otherwise consumes only
+existing endpoints (`/providers/application/status` for submission history,
+`/providers/me/booking-page` via the existing BookingPageCard,
+`/support/contact`, and the existing reset/resubmit mutations).

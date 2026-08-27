@@ -127,6 +127,110 @@ export interface ProviderApplicationStatusResponse {
 }
 
 /**
+ * Server-derived highest-value next step for the activation hub, in
+ * provider-journey order. Derived from true business rules only.
+ */
+export type ProviderActivationNextAction = typeof ProviderActivationNextAction[keyof typeof ProviderActivationNextAction];
+
+
+export const ProviderActivationNextAction = {
+  continue_onboarding: 'continue_onboarding',
+  wait_for_review: 'wait_for_review',
+  review_update_needed: 'review_update_needed',
+  contact_support: 'contact_support',
+  complete_profile: 'complete_profile',
+  configure_service_area: 'configure_service_area',
+  add_service: 'add_service',
+  set_availability: 'set_availability',
+  publish_booking_page: 'publish_booking_page',
+  share_booking_page: 'share_booking_page',
+  all_set: 'all_set',
+} as const;
+
+export type ProviderActivationVerificationStatus = typeof ProviderActivationVerificationStatus[keyof typeof ProviderActivationVerificationStatus];
+
+
+export const ProviderActivationVerificationStatus = {
+  not_started: 'not_started',
+  submitted: 'submitted',
+  under_review: 'under_review',
+  needs_update: 'needs_update',
+  approved: 'approved',
+} as const;
+
+/**
+ * Status-level verification progress only. Raw document references,
+ * reviewer identity, and reviewer-private notes are never included.
+ */
+export interface ProviderActivationVerification {
+  status: ProviderActivationVerificationStatus;
+  /** Most recent credential submission time, if any. */
+  submittedAt: string | null;
+  /** True when a rejected verification can be resubmitted. */
+  canResubmit: boolean;
+}
+
+/**
+ * True business-rule milestones in provider-journey order. A milestone
+ * is never reported complete unless the system can prove it from raw
+ * source data (same rules as readiness, roadmap #12 coverage, #11
+ * booking-page publishing, and the first-value definition).
+ */
+export interface ProviderActivationMilestones {
+  accountCreated: boolean;
+  profileCompleted: boolean;
+  verificationSubmitted: boolean;
+  approved: boolean;
+  serviceAreaConfigured: boolean;
+  activeServiceConfigured: boolean;
+  availabilityConfigured: boolean;
+  bookingPagePublished: boolean;
+  firstBookingReceived: boolean;
+}
+
+/**
+ * Owner-scoped publish state for the provider's public booking page
+ */
+export interface BookingPageSettings {
+  /** Canonical public slug; assigned at first publish, then immutable */
+  slug: string | null;
+  published: boolean;
+  publishedAt: string | null;
+  /** Canonical public path (/book/{slug}) once a slug exists */
+  path: string | null;
+  /** True when the provider is approved AND has an active service-area configuration with at least one covered postal area */
+  eligible: boolean;
+  verificationStatus: VerificationStatus;
+  /** True when an active service-area configuration with at least one covered postal area exists (publish prerequisite, roadmap #12) */
+  serviceAreaConfigured: boolean;
+}
+
+/**
+ * Owner-scoped activation-hub summary. Provider-visible fields only.
+ */
+export interface ProviderActivationStatus {
+  applicationStatus: ProviderApplicationStatus;
+  rejectionReason: string | null;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  canEdit: boolean;
+  canReset: boolean;
+  canResubmit: boolean;
+  verification: ProviderActivationVerification;
+  milestones: ProviderActivationMilestones;
+  /** @minimum 0 */
+  milestonesCompleted: number;
+  /** @minimum 1 */
+  milestonesTotal: number;
+  bookingPage: BookingPageSettings;
+  nextAction: ProviderActivationNextAction;
+}
+
+export interface ProviderActivationStatusResponse {
+  activation: ProviderActivationStatus;
+}
+
+/**
  * Keyset pagination envelope for submission history.
  */
 export interface ProviderApplicationSubmissionsPagination {
@@ -814,23 +918,6 @@ export interface PublicAvailabilityResponse {
   /** Effective IANA marketplace timezone */
   timezone: string;
   windows: PublicAvailabilityWindow[];
-}
-
-/**
- * Owner-scoped publish state for the provider's public booking page
- */
-export interface BookingPageSettings {
-  /** Canonical public slug; assigned at first publish, then immutable */
-  slug: string | null;
-  published: boolean;
-  publishedAt: string | null;
-  /** Canonical public path (/book/{slug}) once a slug exists */
-  path: string | null;
-  /** True when the provider is approved AND has an active service-area configuration with at least one covered postal area */
-  eligible: boolean;
-  verificationStatus: VerificationStatus;
-  /** True when an active service-area configuration with at least one covered postal area exists (publish prerequisite, roadmap #12) */
-  serviceAreaConfigured: boolean;
 }
 
 export interface MyBookingPageResponse {

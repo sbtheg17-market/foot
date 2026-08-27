@@ -41,6 +41,13 @@ const Header = (
     <p className="text-muted-foreground mt-1">
       Complete these steps to start accepting clients.
     </p>
+    <Link
+      href={ROUTES.provider.applicationStatus}
+      data-testid="readiness-activation-hub-link"
+      className="mt-2 inline-flex text-sm font-medium text-primary hover:underline"
+    >
+      View your application status &amp; activation hub
+    </Link>
   </header>
 );
 

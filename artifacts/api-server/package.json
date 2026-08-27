@@ -39,6 +39,7 @@
     "test:provider-dashboard": "node --import tsx/esm --test src/__tests__/provider-dashboard.test.ts",
     "test:registration": "node --import tsx/esm --test src/__tests__/registration.test.ts",
     "test:verification": "node --import tsx/esm --test src/__tests__/provider-verification.integration.test.ts",
+    "test:activation-status": "node --import tsx/esm --test src/__tests__/provider-activation-status.integration.test.ts",
     "test:pilot-metrics": "node --import tsx/esm --test src/__tests__/pilot-window.test.ts src/__tests__/pilot-metrics.integration.test.ts"
   },
   "dependencies": {

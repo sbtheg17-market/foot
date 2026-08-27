@@ -328,3 +328,30 @@ customer-facing conversion priority (evidence-guided): Provider Approval
 Status Page, then Provider Dashboard, then Availability Exceptions.
 Authoritative records: `docs/pilot/pilot-metrics-dashboard.md` (Part 3
 closure block), `docs/pilot/weekly-pilot-review.md`, `docs/TODO-LEDGER.md`.
+
+## Status note — 2026-08-28 (Provider Approval Status & Activation Hub)
+
+The next customer-facing conversion priority is DONE on
+`feat/provider-approval-status-hub` (PR #64, baseline main `65f4eee`).
+`/provider/application-status` is now the guided Approval Status & Activation
+Hub: plain-language status hero + truthful progress + server-derived next
+best action, grouped 9-milestone activation checklist (locked steps
+pre-approval, deep links to existing routes), verification section with
+needs-update resubmission recovery and the privacy statement,
+booking-readiness cards, share-and-grow section embedding the existing
+BookingPageCard, honest value + help/trust sections, and the preserved
+rejected-state recovery (reason, reset/resubmit, timeline). One new
+owner-scoped read-only endpoint `GET /providers/me/activation-status`
+(readable in every application state; composition of existing rules; no
+schema change; redaction contract tested). The former draft/approved
+auto-redirects were replaced by the hub serving those states — the only
+intentional behavior change. Verified: typecheck/build/build:deploy PASS;
+root tests api 132/132 + web 195/195 (15 new); `test:activation-status`
+11/11; 13 regression suites 182/182; live auth smoke 401/403/403-admin/200;
+hub mobile smoke 10/10 @390×844; emulation 9/9; real-browser 13/13; diff
+check + secret scan PASS. Strategic boundary preserved: platform-admin pilot
+dashboard IMPLEMENTED; this hub DONE; **Provider Dashboard is the next major
+provider product surface (FUTURE)**; organization-admin/workforce dashboard
+FUTURE, NOT IMPLEMENTED. Graphify: discovery queries only this session;
+artifact refresh deferred until after merge per the continuity workflow.
+Authoritative doc: `docs/provider-approval-status-hub.md`.
