@@ -296,3 +296,12 @@ fix; both 201 after).
 | Web: provider post-signup next step | DONE 2026-08-28 | One-time "Your provider account is ready" notice on `/onboarding/provider` (honest: review required before the listing goes live). |
 | Tests | DONE 2026-08-28 | `test:registration` now 15 subtests: drift-simulation (Gate B pending columns) 201 + records verified; trigger-forced provisioning failure → safe 500, full rollback, retry 201; 4-way concurrent provider race → one 201/one profile+application. 2 new web tests. |
 | Gate B reminder | OPEN | Full provider features (#11 booking pages, rejection reasons) still require the frozen migrations to be applied to the managed DB under Gate B. Signup no longer blocks on them. |
+
+## Graphify continuity workflow (developer/agent tooling only)
+
+| Item | Status | Notes |
+|---|---|---|
+| Graphify knowledge graph | DONE | Local, code-only AST extraction (`graphify extract . --code-only` + `cluster-only --no-label`, no external APIs). Committed artifacts: `graphify-out/graph.json`, `GRAPH_REPORT.md`, `graph.html`, `manifest.json`. Not a runtime/CI/deploy dependency. `docs/graphify-continuity-workflow.md`. |
+| Docs/PDF/image semantic extraction | DEFERRED | Requires a configured LLM backend and explicit operator privacy approval. Code + SQL migration artifacts are covered by the deterministic build. |
+| LLM community naming | DEFERRED | `GRAPH_REPORT.md` shows `Community N` placeholders (`--no-label`). Optional later with an approved backend. |
+| Auto graph Git hooks / CI rebuild | NOT ENABLED | By policy; manual refresh after major merged work only. |

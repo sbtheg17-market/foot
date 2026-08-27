@@ -50,3 +50,12 @@ this sequence before inspecting or changing any branch:
 
 The full 30-step session flow every future agent must follow is in
 `docs/roadmap/NEO_EAGLE_VIEW.md` → “Future agent logic flow”.
+
+## Optional continuity aid (non-blocking)
+
+A local Graphify knowledge graph may exist at `graphify-out/graph.json`
+(`graphify query|path|explain`; skill: `.agents/skills/graphify/SKILL.md`).
+Use it to locate relevant code/docs/migrations faster, then verify against
+source — `EXTRACTED` edges are evidence, `INFERRED` edges are hypotheses.
+It is optional and never a substitute for the mandatory read order, Git
+verification, tests, or review. Policy: `docs/graphify-continuity-workflow.md`.
