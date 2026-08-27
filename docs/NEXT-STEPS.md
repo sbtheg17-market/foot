@@ -154,3 +154,17 @@ incident runbook, provider onboarding/checklist/FAQ). Authoritative:
 `docs/pilot/pilot-readiness-report.md`. Remaining operator actions before
 day 1 are listed there (set the real support email, hardware test run, uptime
 monitor account, managed-DB backup confirmation).
+
+## Status note — 2026-08-27 (provider dashboard)
+
+The conversion-first provider dashboard is implemented and merged: canonical
+`/provider/dashboard` route (old `/provider` redirects), one owner-scoped
+read-only aggregate (`GET /api/providers/me/dashboard`, plus
+`GET /api/providers/me/metrics`), greeting + today + next booking, quick
+actions, 7/30-day upcoming list, performance metrics with supportive
+color+text status, booking-link tools (existing publish/copy/share/QR card)
+with a dependency-free source-attribution bar chart, collapsible recent
+activity, and an honest "coming soon" earnings preview. No schema change, no
+new dependencies. Authoritative: `docs/provider-dashboard.md`. Natural next
+steps: availability exceptions (emergency slots / block-off dates), then the
+standing deferred items in `docs/TODO-LEDGER.md`.

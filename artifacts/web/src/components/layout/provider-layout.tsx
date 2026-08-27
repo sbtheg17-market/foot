@@ -93,7 +93,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
       <div className="fixed bottom-0 left-0 right-0 h-20 bg-card border-t border-border flex items-center justify-around px-2 z-50 md:hidden max-w-[500px] mx-auto shadow-[0_-4px_20px_rgba(0,0,0,0.05)] print:hidden">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const isActive = location === tab.path || (tab.path !== ROUTES.provider.root && location.startsWith(tab.path));
+          const isActive = location === tab.path || location.startsWith(`${tab.path}/`);
           return (
             <Link key={tab.path} href={tab.path} className={`flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
               <div className="relative">
@@ -118,7 +118,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
         <div className="flex flex-col gap-4 w-full px-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
-            const isActive = location === tab.path || (tab.path !== ROUTES.provider.root && location.startsWith(tab.path));
+            const isActive = location === tab.path || location.startsWith(`${tab.path}/`);
             return (
               <Link key={tab.path} href={tab.path} className={`relative flex flex-col items-center justify-center w-full aspect-square rounded-2xl gap-1 transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
                 <div className="relative">

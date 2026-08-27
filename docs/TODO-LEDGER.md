@@ -238,3 +238,21 @@ authoritative status table.
 | Provider onboarding package | DONE 2026-08-26 | `provider-onboarding.md`, `provider-setup-checklist.md`, `provider-faq.md`. |
 | Pilot operator actions before day 1 | OPEN | Set real SUPPORT_CONTACT_EMAIL; hardware test run; uptime monitor account (or manual daily check); managed-DB backup confirmation. |
 | Payments, reminders, production deployment | UNCHANGED | Deferred / NOT AUTHORIZED as recorded above. |
+
+## Provider dashboard — conversion-first provider experience — 2026-08-27
+
+Implemented in `feat/provider-dashboard`. See `docs/provider-dashboard.md`
+for metric definitions, thresholds, and honest-scope decisions.
+
+| Item | Status | Notes |
+|---|---|---|
+| `GET /providers/me/dashboard` + `GET /providers/me/metrics` | DONE 2026-08-27 | Approved-provider gate; read-only; audit-logged access; privacy-trimmed names (first + last initial) and FSA/city locations. |
+| `/provider/dashboard` web page | DONE 2026-08-27 | Canonical route (`/provider` redirects); greeting/today/next, quick actions, 7/30-day upcoming toggle, metrics, booking-link tools + source chart, collapsible activity, earnings preview. Loading/error/empty states; axe-tested. |
+| Source-attribution chart | DONE 2026-08-27 | Dependency-free CSS bars; label + count as text; no chart library added. |
+| Earnings preview | DONE 2026-08-27 | "Coming soon"; estimate = completed-this-month × service price; `available: false` until payments exist. |
+| Tests + CI | DONE 2026-08-27 | `test:provider-dashboard` (13 subtests) wired into the CI scripted loop; 15 web tests incl. two axe scans. |
+| Emergency availability / block-off dates quick actions | DEFERRED | Requires a date-specific availability-exceptions model (current schema is weekly windows only). No fake buttons shipped. |
+| Calendar view for upcoming bookings | DEFERRED | List + 7/30-day toggle shipped; calendar only if providers ask. |
+| On-time rate metric | DEFERRED | Appointment start times are not tracked anywhere in the schema. |
+| Average rating on dashboard | DEFERRED | Reviews exist; deferred until review volume is meaningful for 5 pilot providers. |
+| Dashboard response caching | DEFERRED | Single-query read is cheap at pilot scale. |

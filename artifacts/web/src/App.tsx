@@ -79,6 +79,10 @@ function Router() {
       </Route>
 
       {/* ── Provider portal (canonical /provider/*) ─────────────────────── */}
+      {/* Provider root resolves to the dashboard (canonical /provider/dashboard) */}
+      <Route path={ROUTES.provider.root}>
+        <Redirect to={ROUTES.provider.dashboard} />
+      </Route>
       <Route path={ROUTES.provider.dashboard}>{providerRoute(PortalDashboard)}</Route>
       <Route path={ROUTES.provider.bookings}>{providerRoute(PortalBookings)}</Route>
       <Route path={ROUTES.provider.services}>{providerRoute(PortalServices)}</Route>

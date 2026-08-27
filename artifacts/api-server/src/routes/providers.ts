@@ -24,6 +24,7 @@ import {
   requireAuth,
   requireRole,
 } from "../middlewares/auth.js";
+import { logger } from "../lib/logger.js";
 import { createApplicationNotification } from "../lib/application-notifications.js";
 import {
   computeReadiness,
@@ -2626,6 +2627,294 @@ router.get(
       items,
     });
   }
+);
+
+// ── Provider dashboard (owner-scoped, read-only) ─────────────────────────────
+
+/** Statuses that still occupy an upcoming slot. */
+const DASHBOARD_ACTIVE_STATUSES: ReadonlySet<string> = new Set([
+  "requested",
+  "confirmed",
+  "rescheduled",
+]);
+
+const DASHBOARD_UPCOMING_WINDOW_DAYS = 30;
+const DASHBOARD_UPCOMING_LIMIT = 50;
+const DASHBOARD_ACTIVITY_LIMIT = 10;
+
+type DashboardBookingRow = {
+  id: number;
+  clientId: number;
+  status:
+    | "requested"
+    | "confirmed"
+    | "completed"
+    | "cancelled"
+    | "rescheduled"
+    | "no_show";
+  scheduledAt: Date;
+  updatedAt: Date;
+  postalCode: string | null;
+  city: string;
+  source: string | null;
+  serviceTitle: string;
+  priceCents: number;
+  clientFirstName: string;
+  clientLastName: string;
+};
+
+/**
+ * One read of the provider's full booking history (joined to service +
+ * client). Appropriate at pilot scale; revisit with SQL aggregation if a
+ * provider ever exceeds thousands of bookings.
+ */
+async function loadDashboardBookingRows(
+  providerProfileId: number,
+): Promise<DashboardBookingRow[]> {
+  return db
+    .select({
+      id: bookingsTable.id,
+      clientId: bookingsTable.clientId,
+      status: bookingsTable.status,
+      scheduledAt: bookingsTable.scheduledAt,
+      updatedAt: bookingsTable.updatedAt,
+      postalCode: bookingsTable.postalCode,
+      city: bookingsTable.city,
+      source: bookingsTable.source,
+      serviceTitle: servicesTable.title,
+      priceCents: servicesTable.priceCents,
+      clientFirstName: usersTable.firstName,
+      clientLastName: usersTable.lastName,
+    })
+    .from(bookingsTable)
+    .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
+    .innerJoin(usersTable, eq(usersTable.id, bookingsTable.clientId))
+    .where(eq(bookingsTable.providerId, providerProfileId));
+}
+
+/** Privacy-trimmed cross-party label: first name + last initial. */
+function dashboardClientName(firstName: string, lastName: string): string {
+  const initial = lastName.trim().charAt(0);
+  return initial ? `${firstName} ${initial}.` : firstName;
+}
+
+/** FSA/postal prefix when present, otherwise city — never the full address. */
+function dashboardLocation(postalCode: string | null, city: string): string {
+  const prefix = postalCode?.trim().slice(0, 3).toUpperCase();
+  return prefix && prefix.length === 3 ? prefix : city;
+}
+
+/** Local YYYY-MM-DD in the marketplace timezone (en-CA is ISO-ordered). */
+function localDateKey(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function roundRate(value: number): number {
+  return Math.round(value * 10000) / 10000;
+}
+
+/**
+ * Personal performance metrics. Rates use RESOLVED bookings (completed +
+ * cancelled + no_show) as the denominator — active bookings have no outcome
+ * yet, so counting them would silently deflate every rate. All rates are 0
+ * when nothing is resolved (the UI shows an honest empty state instead).
+ */
+function computeDashboardMetrics(rows: DashboardBookingRow[]) {
+  const completed = rows.filter((r) => r.status === "completed");
+  const cancelled = rows.filter((r) => r.status === "cancelled").length;
+  const noShow = rows.filter((r) => r.status === "no_show").length;
+  const resolved = completed.length + cancelled + noShow;
+
+  const completedByClient = new Map<number, number>();
+  for (const row of completed) {
+    completedByClient.set(row.clientId, (completedByClient.get(row.clientId) ?? 0) + 1);
+  }
+  const clientsWithCompleted = completedByClient.size;
+  const repeatClients = [...completedByClient.values()].filter((c) => c >= 2).length;
+
+  return {
+    completionRate: resolved === 0 ? 0 : roundRate(completed.length / resolved),
+    cancellationRate: resolved === 0 ? 0 : roundRate(cancelled / resolved),
+    noShowRate: resolved === 0 ? 0 : roundRate(noShow / resolved),
+    repeatClientRate:
+      clientsWithCompleted === 0 ? 0 : roundRate(repeatClients / clientsWithCompleted),
+    totalBookings: rows.length,
+    completedBookings: completed.length,
+    cancelledBookings: cancelled,
+    noShowBookings: noShow,
+    resolvedBookings: resolved,
+  };
+}
+
+/**
+ * Acquisition-source grouping over the allowlist (`qr-card` → `qrCard`).
+ * `unknown` counts bookings without attribution; `other` only becomes
+ * non-zero if the stored allowlist ever grows beyond these keys.
+ */
+function computeSourceAttribution(rows: DashboardBookingRow[]) {
+  const attribution = {
+    instagram: 0,
+    qrCard: 0,
+    text: 0,
+    facebook: 0,
+    website: 0,
+    other: 0,
+    unknown: 0,
+  };
+  for (const row of rows) {
+    if (row.source === null) attribution.unknown += 1;
+    else if (row.source === "instagram") attribution.instagram += 1;
+    else if (row.source === "qr-card") attribution.qrCard += 1;
+    else if (row.source === "text") attribution.text += 1;
+    else if (row.source === "facebook") attribution.facebook += 1;
+    else if (row.source === "website") attribution.website += 1;
+    else attribution.other += 1;
+  }
+  return attribution;
+}
+
+function dashboardBookingView(row: DashboardBookingRow) {
+  return {
+    id: row.id,
+    date: row.scheduledAt.toISOString(),
+    clientName: dashboardClientName(row.clientFirstName, row.clientLastName),
+    serviceName: row.serviceTitle,
+    location: dashboardLocation(row.postalCode, row.city),
+    status: row.status,
+  };
+}
+
+const DASHBOARD_ACTIVITY_TYPES: Record<
+  string,
+  "booking" | "reschedule" | "cancellation" | "no_show"
+> = {
+  completed: "booking",
+  rescheduled: "reschedule",
+  cancelled: "cancellation",
+  no_show: "no_show",
+};
+
+/**
+ * GET /providers/me/dashboard — owner-scoped, read-only dashboard aggregate.
+ * Everything is derived live from existing tables on every request; nothing
+ * is persisted and no event is emitted (access is audit-logged only).
+ */
+router.get(
+  "/me/dashboard",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const [userRows, rows] = await Promise.all([
+      db
+        .select({ firstName: usersTable.firstName, lastName: usersTable.lastName })
+        .from(usersTable)
+        .where(eq(usersTable.id, profile.userId))
+        .limit(1),
+      loadDashboardBookingRows(profile.id),
+    ]);
+
+    // Read-only access audit trail (pilot support requirement).
+    logger.info(
+      {
+        userId: req.user!.sub,
+        providerProfileId: profile.id,
+        route: "/providers/me/dashboard",
+      },
+      "provider dashboard accessed",
+    );
+
+    const timezone = getMarketplaceTimezone();
+    const now = new Date();
+    const todayKey = localDateKey(now, timezone);
+    const monthKey = todayKey.slice(0, 7);
+    const windowEnd = new Date(
+      now.getTime() + DASHBOARD_UPCOMING_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    const active = rows.filter((r) => DASHBOARD_ACTIVE_STATUSES.has(r.status));
+    const todayBookingsCount = active.filter(
+      (r) => localDateKey(r.scheduledAt, timezone) === todayKey,
+    ).length;
+
+    const upcoming = active
+      .filter((r) => r.scheduledAt >= now && r.scheduledAt <= windowEnd)
+      .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime())
+      .slice(0, DASHBOARD_UPCOMING_LIMIT);
+
+    const recentActivity = rows
+      .filter((r) => r.status in DASHBOARD_ACTIVITY_TYPES)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+      .slice(0, DASHBOARD_ACTIVITY_LIMIT)
+      .map((r) => ({
+        type: DASHBOARD_ACTIVITY_TYPES[r.status]!,
+        date: r.updatedAt.toISOString(),
+        clientName: dashboardClientName(r.clientFirstName, r.clientLastName),
+        serviceName: r.serviceTitle,
+        status: r.status,
+      }));
+
+    // Honest estimate only: completed visits this month × service price.
+    // Payments are NOT enabled — null when nothing completed this month.
+    const completedThisMonth = rows.filter(
+      (r) =>
+        r.status === "completed" &&
+        localDateKey(r.scheduledAt, timezone).startsWith(monthKey),
+    );
+    const estimatedMonthlyCents =
+      completedThisMonth.length === 0
+        ? null
+        : completedThisMonth.reduce((sum, r) => sum + r.priceCents, 0);
+
+    const published = profile.bookingPagePublished && profile.publicSlug !== null;
+
+    res.json({
+      providerId: profile.id,
+      providerName:
+        `${userRows[0]?.firstName ?? ""} ${userRows[0]?.lastName ?? ""}`.trim(),
+      slug: profile.publicSlug,
+      bookingPagePublished: profile.bookingPagePublished,
+      bookingUrl: published ? `/book/${profile.publicSlug}` : null,
+      todayBookingsCount,
+      nextBooking: upcoming[0] ? dashboardBookingView(upcoming[0]) : null,
+      upcomingBookings: upcoming.map(dashboardBookingView),
+      metrics: computeDashboardMetrics(rows),
+      sourceAttribution: computeSourceAttribution(rows),
+      recentActivity,
+      earningsPreview: {
+        estimatedMonthlyCents,
+        available: false,
+      },
+      updatedAt: now.toISOString(),
+    });
+  },
+);
+
+/** GET /providers/me/metrics — metrics-only view of the same derivation. */
+router.get(
+  "/me/metrics",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+    const rows = await loadDashboardBookingRows(profile.id);
+    res.json({
+      metrics: computeDashboardMetrics(rows),
+      updatedAt: new Date().toISOString(),
+    });
+  },
 );
 
 // ── Public: Provider by ID ────────────────────────────────────────────────────

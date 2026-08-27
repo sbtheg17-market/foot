@@ -1752,3 +1752,21 @@ pilot operations pack under `docs/pilot/` (readiness report, support workflow
 with tested escalation, monitoring procedures — external alerting BLOCKED on
 accounts, backup/restore drill PASS with measured RTO/RPO, secret rotation
 drill PASS, incident runbook, provider onboarding/checklist/FAQ).
+
+## Continuation — 2026-08-27 (provider dashboard, Emergent session)
+
+The conversion-first provider dashboard was implemented on
+`feat/provider-dashboard` and squash-merged: canonical `/provider/dashboard`
+(old `/provider` redirects), owner-scoped read-only aggregates
+(`GET /api/providers/me/dashboard`, `GET /api/providers/me/metrics`; approved
+provider gate; access audit-logged), greeting/today/next-booking header,
+quick actions, 7/30-day upcoming list with color+text status, performance
+metrics (completion / cancellation / no-show / repeat-client over resolved
+bookings, supportive copy, explicit empty state), booking-link tools (existing
+publish/copy/share/QR) plus a dependency-free source-attribution bar chart,
+collapsible recent activity, and a "coming soon" earnings preview
+(completed-this-month × service price, `available: false`). No schema change,
+no new dependencies; privacy-trimmed client names and FSA/city locations.
+Deferred honestly: availability exceptions (emergency slots / block-off
+dates), calendar view, on-time rate, dashboard rating display — recorded in
+`docs/TODO-LEDGER.md`. Full record: `docs/provider-dashboard.md`.

@@ -342,3 +342,16 @@ booking status change.
 
 Frozen artifact: `docs/migrations/CANCELLATION_NO_SHOW_SUPPORT_V1.sql`
 (additive-only, no DOWN, disposable-PostgreSQL tested; managed DB not accessed).
+
+---
+
+## Provider dashboard (2026-08-27) — no schema change
+
+The provider dashboard (`GET /providers/me/dashboard`, `GET
+/providers/me/metrics`; `docs/provider-dashboard.md`) introduced **no new
+tables, columns, enums, or indexes**. All metrics (completion / cancellation /
+no-show / repeat-client rates), source attribution, upcoming bookings, recent
+activity, and the earnings estimate are derived live from existing tables
+(`bookings`, `services`, `users`, `provider_profiles`) on every request.
+Rates use resolved bookings (`completed + cancelled + no_show`) as the
+denominator. Nothing is persisted by these endpoints.

@@ -81,3 +81,16 @@ repeat bookings, eligibility pass/fail rate, travel-buffer impact.
 
 Production deployment remains **NOT AUTHORIZED** and is a separate gate
 (`docs/managed-db-release-gate.md`).
+
+---
+
+## Addendum — 2026-08-27: provider dashboard shipped
+
+The provider-facing dashboard (`/provider/dashboard`,
+`docs/provider-dashboard.md`) is now the daily home for pilot providers:
+upcoming bookings, personal performance metrics aligned with the pilot
+success metrics (completion / cancellation / no-show rates with the same
+target thresholds), booking-link share tools with source attribution, and an
+honest earnings preview. This strengthens the provider-activation and
+link-sharing goals of the pilot; the go/no-go status and operator actions
+above are unchanged.
