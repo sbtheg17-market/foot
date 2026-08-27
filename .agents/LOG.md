@@ -3244,3 +3244,49 @@ on green CI. Next: post-merge Graphify refresh, then Provider Dashboard
 gap-closure (quick availability actions, reschedule/cancel/no-show from
 dashboard, support entry), then Availability Exceptions — guided by weekly
 pilot review evidence.
+
+---
+### Session — Provider Dashboard read-only conversion overview (2026-08-28, Emergent session)
+**Agent:** Emergent (E1)
+**Scope:** `S` (documentation + one static labeled HTML concept; ZERO runtime change)
+
+**What was done:**
+- Verified baseline `origin/main` = `d273d5f96210a01dee150decce5a082c7e4cf700`
+  via anonymous `git ls-remote` after re-adding a credential-less origin
+  remote (pod restart had scrubbed the token-embedded remote from
+  `.git/config` and staged a `.env.example` deletion — restored from HEAD;
+  tree clean). Branched `docs/provider-dashboard-readonly-overview`.
+- Graphify discovery: five queries (portal routes/components; bookings/
+  availability/areas/services/pages/reschedule/cancel/no-show locations; hub
+  readiness/next-action; share/QR/native-share/availability patterns;
+  provider-owned data APIs) — graph baseline `96b7102` predates PR #64, so
+  every finding was verified directly against source
+  (`portal/dashboard.tsx`, `portal/bookings.tsx`, `routes/reschedule.ts`,
+  `share-listing-actions.tsx`, `provider-layout.tsx`, dashboard route
+  handler in `routes/providers.ts`, `docs/provider-dashboard.md`).
+- Wrote the four blueprint docs + static wireframe (see NEXT-STEPS note):
+  truth-first evolution blueprint (initial `/provider/dashboard` is already
+  IMPLEMENTED via PR #54 — no greenfield), source-verified capability
+  inventory with exact status classifications, truthful sales/social
+  conversion playbook, and future org/white-label/engagement boundaries.
+- Appended continuity records: NEXT-STEPS, TODO-LEDGER (Phase A completion
+  marked READY TO IMPLEMENT NEXT; Phases B–E rows), Neo handoff, this log.
+
+**Validation:** `git diff --check` PASS · `scripts/secret-scan.sh` PASS ·
+wireframe checks PASS (no scripts, no external assets, no production
+imports, no route registration, no personal data, labeled read-only,
+accessible landmarks/headings) · product behavior tests NOT RUN
+(NOT APPLICABLE — no product code changed) · CI on the docs PR gates merge.
+
+**Boundaries held:** no production routes/tables/migrations/APIs/clients/
+dependencies; no authorization or booking/availability/service-area changes;
+no dashboard UI added to the application; no payments/notifications/
+reminders/offers/carousels; no org/workspace models; no managed DB; no
+production deployment; implemented vs proposed never blurred.
+
+**Build state at end:** branch ready for PR
+(`docs: define provider dashboard conversion overview`); squash-merge gated
+on CI + push credentials. Recommended next actual build: **Phase A
+completion** — wire the Activation Hub `nextAction` card + pending-reschedule
+count into `/provider/dashboard` (no schema), then Availability Exceptions
+(Phase B) gated on weekly-review evidence.

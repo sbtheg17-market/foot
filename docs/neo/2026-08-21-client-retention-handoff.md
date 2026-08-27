@@ -2115,3 +2115,66 @@ Provider Dashboard: FUTURE NEXT MAJOR PROVIDER PRODUCT SURFACE
 Organization-admin/workforce dashboard: FUTURE, NOT IMPLEMENTED.
 Retention intent stays platform-admin-only — never provider-visible.
 ```
+
+## Session addendum — 2026-08-28 (Provider Dashboard read-only conversion overview, Emergent session)
+
+Docs-only session on `docs/provider-dashboard-readonly-overview` (baseline
+main `d273d5f96210a01dee150decce5a082c7e4cf700`). Zero runtime change: no
+routes, tables, migrations, APIs, generated clients, dependencies,
+authorization, or booking/availability/service-area behavior touched.
+
+Purpose: a read-only Provider Dashboard Overview usable for product
+approval, sales demos, social marketing, pilot onboarding, implementation
+planning, future white-label/org expansion, and duplicate-work prevention.
+
+Most important recorded truth: a conversion-first `/provider/dashboard`
+already exists (PR #54 — greeting/today/next, quick actions, readiness +
+first-booking cards, 7/30 upcoming, personal metrics with honest empty
+states, BookingPageCard + source-attribution chart, latest-state activity,
+honest earnings preview). The blueprint therefore documents EVOLUTION, with
+exact classifications (IMPLEMENTED / EXISTS BUT NEEDS WIRING / NEEDS NEW
+BUILD / FUTURE-DEFERRED / OUT OF SCOPE) for every concept.
+
+Created: `docs/provider-dashboard-readonly-overview.md` (9-section concept,
+value framework, UX/a11y, phased plan A–E with dependencies/risks/privacy/
+authorization/conversion/evidence per phase),
+`docs/provider-dashboard-capability-inventory.md` (source-verified truth
+tables incl. the required 8-column capability inventory),
+`docs/provider-dashboard-conversion-playbook.md` (60-second demo using only
+shipped features, vertical-neutral + foot-care pitches, truthful
+channel-by-channel social framing, claims discipline),
+`docs/provider-dashboard-future-boundaries.md` (role model, org/white-label
+future-compatibility table without tenancy work, offer/engagement
+constraints pre-recorded), and the static labeled concept wireframe
+`docs/provider-dashboard-wireframe.html` (banner: READ-ONLY CONCEPT — NOT
+CONNECTED TO PRODUCTION DATA OR ROUTES; no scripts, no external assets, not
+routed, not imported).
+
+Key blueprint conclusions:
+- Phase A (dashboard MVP) is SHIPPED except the next-best-action card —
+  the Activation Hub's server-derived `nextAction` exists and needs wiring
+  into the dashboard, plus a pending-reschedule count line. This is the
+  recommended next actual build (small, no schema).
+- Phase B = Availability Exceptions (block-off dates, emergency openings) —
+  the first genuinely new model; evidence-gated via weekly pilot reviews.
+- Phase C insights are largely shipped; trends/event history only on
+  provider demand. Phase D engagement/reminders remain demand-gated with
+  pre-recorded ethical constraints. Phase E org/workspace stays FUTURE,
+  NOT IMPLEMENTED.
+
+Session infrastructure note: the pod restart scrubbed the git `origin`
+remote (token-embedded URL) and staged a `.env.example` deletion;
+restored `.env.example` from HEAD and re-added a credential-less
+`https://github.com/sbtheg17-market/foot` remote (anonymous fetch verified
+baseline = origin/main). Pushing requires environment credentials to be
+re-provisioned if absent at push time.
+
+```text
+Strategic role boundary (2026-08-28, dashboard overview — append-only):
+Platform-admin Pilot Operations Dashboard: IMPLEMENTED.
+Provider Approval Status & Activation Hub: IMPLEMENTED (PR #64).
+Provider Dashboard: initial version IMPLEMENTED (PR #54); evolution
+  blueprint documented; next wiring = Phase A completion.
+Organization-admin/workforce dashboard: FUTURE, NOT IMPLEMENTED.
+Provider Offer & Engagement system: FUTURE, NOT IMPLEMENTED.
+```
