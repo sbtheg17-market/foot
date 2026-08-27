@@ -287,3 +287,101 @@ Uncommitted work: NONE after this commit
 Exact Part 3 next action: weekly review pack (operator guide, decision rules, closure docs) from current main
 Files Part 3 must not duplicate: listed above
 ```
+
+## Part 3 — Dashboard operator guide (2026-08-28)
+
+How to *use* the dashboard, week to week. The weekly workflow, decision
+rules, and closure criteria live in `docs/pilot/weekly-pilot-review.md`.
+
+### Who can access `/admin/pilot`
+
+Platform administrators only (the internal Foot operator role). The Part 1
+routes enforce `requireAuth + requireRole("admin")` server-side: signed-out
+visitors get a sign-in prompt (401), provider and client accounts get a
+platform-administrator restriction notice (403), and no metric data renders
+until the authorized fetch succeeds. There is no provider-facing,
+organization-facing, or client-facing view of this page.
+
+### What each metric means
+
+Exact definitions are in "Definitions (exact)" above; the operator reading:
+
+- **Providers approved** — all approved provider profiles (see the
+  denominator limitation above). The five-provider target is display context.
+- **Activated (+rate)** — providers who completed *every* onboarding
+  milestone including a published booking page. Account creation is never
+  activation.
+- **Published pages** — providers whose booking page is live and shareable.
+- **Providers with first booking** — reached first value at least once
+  (all-time, independent of the window).
+- **Bookings** — bookings created inside the pilot window.
+- **Completion / cancellation / no-show rates** — over *resolved* bookings
+  only. "No completed appointments yet" means the denominator is zero — it is
+  never shown as a misleading 0%.
+- **Support escalations** — booking-linked support tickets created in the
+  window.
+- **Retention intent** — your recorded judgment (Yes/No/Unknown) after direct
+  provider conversations; never inferred by the system.
+- **Source attribution** — window bookings grouped by allowlisted share
+  channel; "Direct / unknown" collects bookings with no recorded source.
+
+### What projected pilot dates mean
+
+If `PILOT_START_DATE` / `PILOT_END_DATE` are not configured (or invalid), the
+window is *projected*: start = earliest booking (or today), end = start +
+5 weeks, and the dashboard shows a `Projected window` badge plus guidance.
+Projected dates make the numbers reviewable, not official — configure the
+real dates once the pilot window is agreed.
+
+### How to update retention intent
+
+In the provider health table, use the "Retention intent for {name}" select
+(Yes / No / Unknown). The change saves via the Part 1 PATCH route, shows a
+"Saved" confirmation, and is audit-logged with your admin account. Update it
+only after a direct conversation with the provider; leave Unknown rather
+than guessing. On a save failure the previous value is preserved.
+
+### How to export CSV
+
+The "Export CSV" action builds the file in your browser from the already
+authorized metrics payload (no extra endpoint) and downloads
+`pilot-operations-metrics-YYYY-MM-DD.csv` with `summary`, `provider`, and
+`source_attribution` rows.
+
+### CSV privacy limitations
+
+The export is allowlisted by construction: it contains **no** client
+identities or PII, no addresses or postal codes, no care/reviewer/support
+notes, no document or verification references, no tokens, no audit
+identifiers, and no raw tracking data. It still contains provider names and
+operational performance figures — treat it as internal-confidential: do not
+mail it to providers, post it, or attach it to support threads. Undefined
+rates stay empty cells; do not backfill them with zeros in a spreadsheet.
+
+### How to use risk/follow-up labels responsibly
+
+Labels like "Setup incomplete", "Ready but not shared", "No booking yet",
+"Review cancellations", "Review no-shows", and "Check in with provider" are
+non-punitive operator aids that answer "who could use a hand this week".
+They are threshold-triggered from small numbers, so treat each one as a
+prompt to look and ask — never as a score, a warning to the provider, or a
+reason for action without a conversation. They are internal-only and must
+not be shared with providers as written.
+
+### Why the dashboard does not rank providers
+
+Five providers with a handful of bookings each cannot be meaningfully
+ranked: one cancellation can reorder any leaderboard, providers serve
+different areas/services/volumes, and a ranking would punish the providers
+who most need onboarding help. The table is deliberately unsorted and
+unranked; the pilot's goal is learning and provider success, not comparison.
+
+### Why data must be paired with direct provider conversations
+
+Every metric here records *what* happened; only providers can tell you
+*why*. A published page with zero bookings may mean the link was never
+shared, the audience is wrong, or the page confused clients — three
+different actions the dashboard cannot distinguish. Retention intent is
+explicitly a conversation outcome. Run the weekly review
+(`docs/pilot/weekly-pilot-review.md`), then talk to at least one provider
+before drawing conclusions.
