@@ -1955,3 +1955,101 @@ the future organization/workspace review — documented only, NOT refactored):
 pilot-cohort ledger item); retention intent is a platform-admin judgment
 with no organization scoping; support escalations aggregate platform-wide.
 All acceptable for the current provider-led mode.
+
+## Session addendum — 2026-08-28 (Pilot Operations Dashboard Part 3 — weekly review pack + closure, Emergent session)
+
+Part 3 is COMPLETE on `docs/pilot-operations-review-pack` (PR #63, baseline
+main `96b7102694d656112d9e486205d4850333040918`). This was a documentation,
+continuity, verification, and closure session — zero product-code change;
+Parts 1–2 (metrics API, retention storage, `/admin/pilot` UI, source chart,
+CSV export) were inspected from current main and NOT rebuilt or modified.
+
+Delivered:
+
+- `docs/pilot/weekly-pilot-review.md` — the repeatable operating workflow:
+  a 12-step, 15–30 minute weekly review; a reusable privacy-safe
+  review-record template (no client identities, verification references,
+  support notes, addresses, care notes, or private data); cautious decision
+  rules phrased as review/confirm/ask/investigate/validate prompts (never
+  causation claims); and the pilot closure framework (continue/expand vs.
+  iterate-before-expansion vs. pause/reassess) with the explicit caveat that
+  small pilot numbers are directional learning signals, not statistically
+  conclusive proof.
+- Part 3 dashboard operator guide appended to
+  `docs/pilot/pilot-metrics-dashboard.md`: who can access `/admin/pilot`,
+  what each metric means, projected pilot dates, retention-intent updates,
+  CSV export and its privacy limitations, responsible use of follow-up
+  labels, why the dashboard does not rank providers, and why data must be
+  paired with direct provider conversations. Closure status block appended.
+- Graphify continuity artifacts refreshed (code-only local extraction +
+  `cluster-only --no-label`) at `96b7102`: 4444 nodes, 7971 edges,
+  300 communities, zero LLM tokens. Keyword hits in graph output are code
+  symbol names only; the value-pattern scan (tokens, keys, private-key
+  blocks, connection strings) found nothing; `scripts/secret-scan.sh` PASS.
+  The three architecture queries (dashboard data flow; activation/retention/
+  outcomes/attribution connections; route authorization) were run and every
+  cited node verified against source (`routes/admin.ts` L19 gate + L22
+  `/pilot` mount; `pages/admin/pilot.tsx` generated hooks;
+  `lib/booking-page.ts` L50 source allowlist; `middlewares/auth.ts` L96).
+- Continuity records updated (append-only): `docs/NEXT-STEPS.md`,
+  `docs/TODO-LEDGER.md`, this handoff, `.agents/LOG.md`; Graphify baseline
+  bumped in the handoff-template blocks.
+
+Dashboard smoke verification from current main (built server + seeded
+disposable local PostgreSQL 15; managed DB NOT accessed): unauthenticated →
+401 on both pilot routes; client and provider accounts → 403 (no data);
+admin → 200 with an intelligible projected-window payload
+(`isProjected: true`, configure-dates guidance); retention PATCH upsert →
+200 and reflected in the summary rollup; invalid intent → 400; `/admin/pilot`
+SPA route served; metrics payload and provider rows allowlisted (no client
+PII, addresses/postal codes, care/support/reviewer notes, document
+references, tokens, audit identifiers, or raw tracking data). Zero-data and
+error/empty dashboard states remain covered by the Part 2 web suites rerun
+this session.
+
+Validation (this branch): `pnpm run typecheck` PASS · `pnpm run build` PASS ·
+`pnpm run build:deploy` PASS · root `pnpm test` PASS (api-server unit
+132/132, web 180/180 incl. pilot dashboard 24, pilot CSV 10, axe a11y) ·
+`test:pilot-metrics` 14/14 PASS (incl. privacy redaction) ·
+`test:authorization` 7/7 PASS · `git diff --check` PASS ·
+`scripts/secret-scan.sh` PASS · CI on PR #63 gates the merge.
+
+```text
+Pilot Operations Dashboard status:
+Part 1 metrics API + retention storage: MERGED (PRs #60/#61).
+Part 2 admin UI + source chart + CSV export: MERGED (PR #62).
+Part 3 weekly review pack + closure: COMPLETE (PR #63).
+Admin route: /admin/pilot (platform administrator only).
+API: GET /api/admin/pilot/metrics;
+  PATCH /api/admin/pilot/providers/:providerId/retention.
+Weekly operating workflow: docs/pilot/weekly-pilot-review.md.
+Exact next action: none for the pilot dashboard — operate it weekly. Next
+  customer-facing conversion priority (evidence-guided): Provider Approval
+  Status Page, then Provider Dashboard, then Availability Exceptions.
+```
+
+```text
+Strategic boundary record (2026-08-28, Part 3 closure — append-only):
+Current dashboard: platform-admin pilot dashboard only — IMPLEMENTED.
+Organization administrator/workspace/workforce management: documented-only,
+  NOT IMPLEMENTED.
+Provider-facing pilot dashboard: FUTURE, NOT IMPLEMENTED.
+Do not infer organization, tenant, provider affiliation, client-group, or
+  delegated-admin support from the current dashboard.
+Future conversion direction: Provider Approval Status Page, then Provider
+  Dashboard, then Availability Exceptions — guided by pilot evidence.
+```
+
+```text
+Graphify status:
+- Main graph artifact baseline: 96b7102694d656112d9e486205d4850333040918 (refreshed 2026-08-28; previous baseline c2c6c10cc93a7f1f3b025fcf9ff5320283255044)
+- Extraction mode: CODE-ONLY LOCAL
+- Graph files: graphify-out/graph.json, GRAPH_REPORT.md, graph.html, manifest.json
+- Refresh policy: manual after major merged roadmap work or significant refactor
+- Refresh command:
+  graphify extract . --code-only
+  graphify cluster-only . --no-label
+- Safety: no external APIs, no managed DB introspection, no public Graphify server, no hooks, no CI gate, query logging disabled
+- Before substantial work: query Graphify first, then verify output against source and Git history
+- If current HEAD differs materially from the graph baseline: graph is potentially stale; refresh is recommended but non-blocking
+```

@@ -385,3 +385,57 @@ different actions the dashboard cannot distinguish. Retention intent is
 explicitly a conversation outcome. Run the weekly review
 (`docs/pilot/weekly-pilot-review.md`), then talk to at least one provider
 before drawing conclusions.
+
+## Continuity closure — end of Part 3 (2026-08-28)
+
+```text
+Pilot Operations Dashboard status:
+Part 1 metrics API + retention storage: MERGED (PRs #60/#61).
+Part 2 admin UI + source chart + CSV export: MERGED (PR #62).
+Part 3 weekly review pack + closure: COMPLETE.
+
+Baseline main SHA: 96b7102694d656112d9e486205d4850333040918
+Current branch: docs/pilot-operations-review-pack
+PR: https://github.com/sbtheg17-market/foot/pull/63
+Deliverables: docs/pilot/weekly-pilot-review.md (weekly review workflow,
+  review-record template, decision rules, closure criteria); the Part 3
+  operator-guide sections above; Graphify artifact refresh at 96b7102;
+  continuity records in NEXT-STEPS.md, TODO-LEDGER.md, the Neo handoff,
+  and .agents/LOG.md
+Code changed: NONE (documentation + committed graph artifacts only; no API,
+  schema, UI, test, or CI change)
+Dashboard smoke verification (built server + seeded disposable local
+  PostgreSQL 15): unauthenticated 401 on both routes; client/provider 403;
+  admin 200 with intelligible projected-window payload; retention PATCH
+  upsert 200 (reflected in summary) and invalid intent 400; /admin/pilot SPA
+  route served; metrics payload and provider rows allowlisted — no client
+  PII, addresses/postal codes, care/support/reviewer notes, document
+  references, tokens, audit identifiers, or raw tracking data
+Tests this session: typecheck PASS; build PASS; build:deploy PASS; root
+  pnpm test PASS (api-server unit 132/132, web 180/180 incl. pilot dashboard
+  24, pilot CSV 10, axe a11y); test:pilot-metrics 14/14 PASS (incl. privacy
+  redaction suite); test:authorization 7/7 PASS; git diff --check PASS;
+  scripts/secret-scan.sh PASS
+Graphify refresh: PASS — code-only local extraction + cluster-only
+  --no-label at 96b7102 (4444 nodes, 7971 edges, 300 communities, zero LLM
+  tokens); keyword + value-pattern scans over graphify-out/ clean; queries
+  verified against source (routes/admin.ts L19/L22 gate + mount, pilot.tsx
+  hooks, booking-page.ts source allowlist, middlewares/auth.ts requireAuth)
+Managed database: NOT ACCESSED. Production deployment: NOT AUTHORIZED.
+Exact next action: none for the pilot dashboard — operate it weekly per
+  docs/pilot/weekly-pilot-review.md. Next customer-facing conversion
+  priority (evidence-guided): Provider Approval Status Page, then Provider
+  Dashboard, then Availability Exceptions.
+```
+
+```text
+Strategic boundary:
+Current dashboard: platform-admin pilot dashboard only — IMPLEMENTED.
+Organization administrator/workspace/workforce management: documented-only,
+  NOT IMPLEMENTED.
+Provider-facing pilot dashboard: FUTURE, NOT IMPLEMENTED.
+Do not infer organization, tenant, provider affiliation, client-group, or
+  delegated-admin support from the current dashboard.
+Future conversion direction: Provider Approval Status Page, then Provider
+  Dashboard, then Availability Exceptions — guided by pilot evidence.
+```

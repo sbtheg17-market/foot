@@ -330,7 +330,7 @@ record: `docs/provider-verification-onboarding-policy.md`.
 |---|---|---|
 | Part 1: metrics API + retention storage | DONE 2026-08-28 | `GET /admin/pilot/metrics` + `PATCH /admin/pilot/providers/:id/retention` under the admin gate; vertical-neutral activation/outcome/source/retention metrics; frozen artifact `PILOT_PROVIDER_RETENTION_V1.sql`; CI-gated `test:pilot-metrics` (14 tests). `docs/pilot/pilot-metrics-dashboard.md`. |
 | Part 2: `/admin/pilot` UI + CSV export | DONE 2026-08-28 | PR #62: platform-admin-only page over the Part 1 hooks (no duplication); summary cards, activation ladder, provider health table, retention control, dependency-free source chart, review prompts, privacy-safe client-side CSV; 34 new web tests + axe. `docs/pilot/pilot-metrics-dashboard.md` (Part 2 section). |
-| Part 3: weekly review pack | PLANNED | Operator guide, decision rules, closure docs. |
+| Part 3: weekly review pack + closure | DONE 2026-08-28 | PR #63: `docs/pilot/weekly-pilot-review.md` (weekly review workflow, review-record template, decision rules, closure criteria), Part 3 operator guide + closure block in `docs/pilot/pilot-metrics-dashboard.md`, Graphify refresh at `96b7102`, continuity records. Docs-only; smoke re-verified (401/403/200, retention upsert, privacy-safe payload). |
 | Pilot cohort/allowlist | DEFERRED | `approvedProviders` counts ALL approved profiles; introduce an explicit cohort before relying on rates once non-pilot providers exist. |
 | Metrics on pre-Gate-B DBs | DOCUMENTED | The metrics read reads `booking_page_published` (#11 Gate B-pending column); internal admin tool requires current schema. |
 
@@ -383,3 +383,38 @@ handoff (weekly review pack — NOT STARTED; files Part 3 must not duplicate):
 boundary unchanged: platform-admin tool; organization/workspace/workforce
 functionality remains FUTURE and NOT IMPLEMENTED (see
 `docs/neo/2026-08-21-client-retention-handoff.md`).
+
+### Pilot Operations Dashboard — Part 3 closure (2026-08-28)
+
+Part 3 (weekly review pack + closure) is COMPLETE on
+`docs/pilot-operations-review-pack` (PR #63, baseline main
+`96b7102694d656112d9e486205d4850333040918`) — documentation, continuity,
+verification, and closure only; Parts 1–2 were not rebuilt or modified.
+Deliverables: `docs/pilot/weekly-pilot-review.md` (12-step 15–30 minute
+weekly review, privacy-safe review-record template, cautious decision
+rules, continue/iterate/pause closure criteria with the small-numbers
+caveat), the Part 3 dashboard operator guide and closure status block in
+`docs/pilot/pilot-metrics-dashboard.md`, refreshed Graphify artifacts at
+`96b7102` (code-only local; keyword + value secret scans clean), and the
+continuity records in `docs/NEXT-STEPS.md`, the Neo handoff, and
+`.agents/LOG.md`. Verified from current main on a seeded disposable local
+PostgreSQL 15: typecheck/build/build:deploy PASS; root tests PASS
+(api unit 132/132, web 180/180); `test:pilot-metrics` 14/14 PASS;
+`test:authorization` 7/7 PASS; dashboard smoke 401/403/200 + retention
+upsert + privacy-safe payload PASS; diff check + secret scan PASS.
+Managed DB NOT accessed; production deployment NOT authorized. All three
+pilot-dashboard parts are CLOSED — the dashboard is now operated weekly per
+`docs/pilot/weekly-pilot-review.md`, and the pilot cohort/allowlist and
+pre-Gate-B rows above remain the only standing dashboard ledger items.
+
+```text
+Strategic boundary record (2026-08-28, Part 3 closure — append-only):
+Current dashboard: platform-admin pilot dashboard only — IMPLEMENTED.
+Organization administrator/workspace/workforce management: documented-only,
+  NOT IMPLEMENTED.
+Provider-facing pilot dashboard: FUTURE, NOT IMPLEMENTED.
+Do not infer organization, tenant, provider affiliation, client-group, or
+  delegated-admin support from the current dashboard.
+Future conversion direction: Provider Approval Status Page, then Provider
+  Dashboard, then Availability Exceptions — guided by pilot evidence.
+```
