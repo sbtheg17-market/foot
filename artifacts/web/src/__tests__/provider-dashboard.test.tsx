@@ -27,6 +27,12 @@ vi.mock('@/components/first-booking-card', () => ({
 vi.mock('@/components/booking-page-card', () => ({
   default: () => <div data-testid="mock-booking-page-card" />,
 }));
+vi.mock('@/components/dashboard/next-best-action', () => ({
+  default: () => <div data-testid="mock-next-action" />,
+}));
+vi.mock('@/components/dashboard/pending-reschedules', () => ({
+  default: () => <div data-testid="mock-pending-reschedules" />,
+}));
 vi.mock('wouter', () => ({
   Link: ({ href, children, ...rest }: React.PropsWithChildren<{ href: string }>) => (
     <a href={href} {...rest}>
@@ -115,6 +121,7 @@ const baseData: ProviderDashboardResponse = {
     },
   ],
   earningsPreview: { estimatedMonthlyCents: 27000, available: false },
+  pendingReschedules: { count: 0, nextRequest: null },
   updatedAt: new Date(now).toISOString(),
 };
 
@@ -296,6 +303,9 @@ describe('provider dashboard content', () => {
     expect(screen.getByTestId('mock-readiness-card')).toBeInTheDocument();
     expect(screen.getByTestId('mock-first-booking-card')).toBeInTheDocument();
     expect(screen.getByTestId('mock-booking-page-card')).toBeInTheDocument();
+    // Phase A cards (covered in provider-dashboard-actions.test.tsx):
+    expect(screen.getByTestId('mock-next-action')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-pending-reschedules')).toBeInTheDocument();
   });
 });
 
