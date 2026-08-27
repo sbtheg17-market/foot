@@ -443,3 +443,14 @@ Dependency: existing booking-page QR feature (#11); no backend work expected.
 Recommended priority: after Provider Dashboard gap-closure; only with pilot
   evidence.
 ```
+
+### Provider Dashboard read-only overview (2026-08-28 — docs only)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Dashboard conversion blueprint | DONE 2026-08-28 | `docs/provider-dashboard-readonly-overview.md` + capability inventory + conversion playbook + future boundaries + static labeled wireframe. Zero runtime change. Truth recorded: initial `/provider/dashboard` already IMPLEMENTED (PR #54); blueprint covers evolution only. |
+| Phase A completion — next-best-action card + pending-reschedule count on dashboard | READY TO IMPLEMENT NEXT | Wire existing `GET /providers/me/activation-status` `nextAction` + booking-row `rescheduled` count into `/provider/dashboard`. No new schema. Recommended next actual build. |
+| Availability Exceptions (block-off, emergency openings) | FUTURE / DEFERRED (Phase B) | First new model in the roadmap; extend the existing availability engine + buffers; gate on weekly-review evidence of real demand. |
+| Dashboard trends / true event-history timeline | FUTURE / DEFERRED (Phase C remainder) | Only if providers ask "am I improving?" in weekly reviews. No analytics pipeline authorized. |
+| Provider Offer & Engagement system | FUTURE / DEFERRED (Phase D) | Constraints pre-recorded in `provider-dashboard-future-boundaries.md` (consent, caps, no fake scarcity, moderation, audit). Reminders remain demand-gated per existing decision rule. |
+| Organization/workspace expansion | FUTURE / DEFERRED (Phase E) | NOT IMPLEMENTED; compatibility documented without tenancy work. |

@@ -355,3 +355,25 @@ provider product surface (FUTURE)**; organization-admin/workforce dashboard
 FUTURE, NOT IMPLEMENTED. Graphify: discovery queries only this session;
 artifact refresh deferred until after merge per the continuity workflow.
 Authoritative doc: `docs/provider-approval-status-hub.md`.
+
+## Status note — 2026-08-28 (Provider Dashboard read-only conversion overview)
+
+Docs-only blueprint on `docs/provider-dashboard-readonly-overview`: recorded
+the truth that a conversion-first `/provider/dashboard` already ships
+(PR #54) and blueprinted its evolution instead of a rebuild. Created
+`docs/provider-dashboard-readonly-overview.md` (section-by-section concept
+with exact IMPLEMENTED / EXISTS BUT NEEDS WIRING / NEEDS NEW BUILD /
+FUTURE-DEFERRED / OUT OF SCOPE classification + phased plan A–E),
+`docs/provider-dashboard-capability-inventory.md` (source-verified truth
+tables), `docs/provider-dashboard-conversion-playbook.md` (60-second demo,
+vertical-neutral + foot-care pitches, truthful social/local channel framing,
+claims discipline), `docs/provider-dashboard-future-boundaries.md`
+(org/white-label compatibility without tenancy; offer-system constraints),
+and the static labeled concept `docs/provider-dashboard-wireframe.html`
+(no scripts/external assets/routes). Zero runtime change. Key findings:
+Phase A is shipped except the next-best-action card (wire the hub's
+`nextAction` into the dashboard) and pending-reschedule surfacing; Phase B =
+Availability Exceptions (first schema work, evidence-gated). Recommended
+next build: Phase A completion wiring. Strategic boundary re-recorded:
+organization/workspace/workforce and offer/engagement systems FUTURE, NOT
+IMPLEMENTED.
