@@ -346,3 +346,27 @@ undefined rates ("No completed appointments yet") — never a mathematically
 misleading `0%` — and must present thresholds as nonjudgmental operating
 aids, never provider rankings or public scores. The `/admin/pilot` UI
 conventions land with Part 2.
+
+## Pilot operations dashboard (`/admin/pilot`, Part 2 — 2026-08-28)
+
+- **Name the role.** The page header says "Platform administrator · Internal
+  pilot dashboard — never shown to providers or clients". Never label an
+  internal surface just "admin": platform admin ≠ (future, unimplemented)
+  organization admin.
+- **Honest numbers.** Undefined rates render honest empty copy ("No
+  completed appointments yet", "No booking outcomes yet") — never `0%`.
+  Thresholds (80/85/20/10/3) appear as quiet text aids ("At target",
+  "Within guardrail"), never as rankings, and never as color alone.
+- **Non-punitive language.** Risk flags render as friendly follow-up labels
+  ("Setup incomplete", "Ready but not shared", "Check in with provider") —
+  prompts to help, not leaderboards or shame.
+- **Calm failure states.** 401 → sign-in prompt; 403 → "restricted to
+  platform administrators"; other errors → "Nothing is lost — please try
+  again" with a retry button. No metric data flashes before authorization
+  resolves.
+- **Mobile strategy.** Summary cards collapse 2 → 3 → 5 columns; the
+  provider table scrolls horizontally inside its rounded container
+  (min-width table, `overflow-x-auto`) so columns stay readable at 390px.
+- **Charts.** Dependency-free CSS bars only; values always as text; bars
+  `aria-hidden`. Review prompts use cautious "review / check / assess"
+  wording and state they are not automated diagnosis.

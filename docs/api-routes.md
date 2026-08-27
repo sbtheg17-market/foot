@@ -200,3 +200,12 @@ passed and records `noShowMarkedBy`/`noShowMarkedAt`. Every cancel/no-show
 appends a `booking_outcome_history` row in the same transaction.
 Public `GET /api/booking-pages/:slug` now includes
 `cancellationPolicy: { noticeHours, summary }` (safe fields only).
+
+## Pilot Operations Dashboard Part 2 (2026-08-28) — no new API routes
+
+Part 2 added the web route `/admin/pilot` (platform administrator only). It
+introduces **zero** new API endpoints: it consumes the Part 1 routes
+`GET /api/admin/pilot/metrics` and
+`PATCH /api/admin/pilot/providers/:providerId/retention` through the
+generated client hooks. CSV export is generated client-side from the
+authorized metrics payload — deliberately no server export endpoint.
