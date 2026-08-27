@@ -3049,3 +3049,45 @@ LLM community naming DEFERRED pending operator approval.
 **Build state at end:** graph committed and current at `daa097bb`; refresh
 manually after major merged work (`graphify extract . --code-only` +
 `cluster-only . --no-label`), then re-run both secret scans before committing.
+
+---
+### Session — Pilot Operations Dashboard Part 1 continuity handoff (2026-08-28, Emergent session)
+**Agent:** Emergent (E1)
+**Scope:** `S` (docs/continuity only; zero product-code change)
+
+**What was done:**
+- Verified baseline: `origin/main` = `d7dcf115f39e8e2eddc8362f1347da1a4992079c`
+  ("feat: add pilot operations metrics API (#60)", merged from
+  `feat/pilot-operations-metrics-api`, branch base
+  `6f5778198470c70e763e8d8ee54003c5662d17f8`). Working tree clean; no stash;
+  no uncommitted Part 1 work anywhere.
+- Confirmed Part 1 scope is fully present on `main` in source (not just docs):
+  `routes/admin-pilot.ts` (GET /admin/pilot/metrics, PATCH
+  /admin/pilot/providers/:providerId/retention), mounted in `routes/admin.ts`
+  under `requireAuth + requireRole("admin")`; `lib/pilot-metrics.ts`;
+  `lib/db/src/schema/pilot-retention.ts`; OpenAPI + regenerated clients;
+  integration + unit tests wired into CI (`test:pilot-metrics`).
+- Re-verified the frozen migration artifact: local
+  `sha256sum docs/migrations/PILOT_PROVIDER_RETENTION_V1.sql` matches the
+  managed-db gate record
+  (`ceaac6d50e6336fe4c13281ab7de5fc36eca7d96262a771c16a3f8647bf90cad`).
+- Confirmed CI via the GitHub Checks API on the merged SHA: 16/16 check runs
+  `completed/success` (API tests, authz/concurrency/idempotency, migration
+  checks, typecheck, secret scan, smoke, builds, a11y, tz/DST, web tests,
+  Expo exports, deploy build, diff check).
+- Appended the mandated "Pilot Operations Dashboard status" continuity block
+  + strategic boundary to `docs/neo/2026-08-21-client-retention-handoff.md`,
+  `docs/NEXT-STEPS.md`, `docs/TODO-LEDGER.md`,
+  `docs/pilot/pilot-metrics-dashboard.md`, and this log.
+
+**Validation:** no code changed this session; suites not rerun locally
+(environment lacks pnpm/Node 24/PostgreSQL). CI GREEN on the exact merged SHA
+is the deterministic validation record. Artifact sha256 re-verified locally.
+
+**Boundaries held:** no managed DB access; no production deployment; no
+Part 2 UI work started; no force-push; no `conflict_*` branch touched;
+no secrets or generated junk committed.
+
+**Build state at end:** Part 1 COMPLETE and merged on `main`. Next agent
+starts Part 2 (`/admin/pilot` UI + source chart + CSV) from current `main`
+over the generated hooks, without rebuilding Part 1.
