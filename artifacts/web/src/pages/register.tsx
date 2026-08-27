@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import { useRegister, RegisterRequestRoleIntent } from '@workspace/api-client-react';
+import SupportContactLink from '@/components/support-contact-link';
 import { ROUTES } from '@/lib/routes';
 
 function nextRoute(user: {
@@ -17,6 +18,25 @@ function nextRoute(user: {
   return ROUTES.onboarding.provider;
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  firstName: 'First name',
+  lastName: 'Last name',
+  email: 'Email',
+  password: 'Password',
+};
+
+/** Field-specific guidance from the server's 400 validation payload. */
+function serverFieldError(data: unknown): string | undefined {
+  const fieldErrors = (
+    data as { details?: { fieldErrors?: Record<string, string[]> } } | null
+  )?.details?.fieldErrors;
+  if (!fieldErrors) return undefined;
+  const parts = Object.entries(fieldErrors)
+    .filter(([, messages]) => messages && messages.length > 0)
+    .map(([field, messages]) => `${FIELD_LABELS[field] ?? field}: ${messages[0]}`);
+  return parts.length > 0 ? parts.join(' ') : undefined;
+}
+
 export default function Register() {
   const [location, setLocation] = useLocation();
   const register = useRegister();
@@ -31,6 +51,13 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<RegisterRequestRoleIntent>(initialRole);
   const [error, setError] = useState('');
+  const [showSupport, setShowSupport] = useState(false);
+  // Synchronous in-flight guard: react-query's isPending updates on the next
+  // render, so a fast double-tap (common on mobile) could fire two identical
+  // requests before the button disables. The losing request used to surface
+  // as "Internal server error".
+  const submittingRef = useRef(false);
+  const errorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (location === ROUTES.register) {
@@ -38,25 +65,50 @@ export default function Register() {
     }
   }, [location, setLocation]);
 
+  // Move focus to the error summary so keyboard/screen-reader users land on it.
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current || register.isPending) return;
     setError('');
+    setShowSupport(false);
     if (password.length < 8) {
       setError('Password must be at least 8 characters.');
       return;
     }
-    
+
+    submittingRef.current = true;
     register.mutate(
-       { data: { firstName, lastName, email: email.trim().toLowerCase(), password, roleIntent: role, role } },
+      { data: { firstName, lastName, email: email.trim().toLowerCase(), password, roleIntent: role, role } },
       {
         onSuccess: (res) => {
           localStorage.setItem('oncallfoot_token', res.token);
           setLocation(nextRoute(res.user));
         },
         onError: (err) => {
-          const response = err as { data?: { error?: string } };
-          setError(response.data?.error ?? 'Could not create account. Please check your details.');
-        }
+          const apiError = err as { status?: number; data?: { error?: string } | null };
+          if (apiError.status === 409) {
+            setError(
+              `${apiError.data?.error ?? 'An account with that email already exists.'} You can sign in below instead.`,
+            );
+          } else if (apiError.status === 400) {
+            setError(
+              serverFieldError(apiError.data) ??
+                apiError.data?.error ??
+                'Please check your details and try again.',
+            );
+          } else {
+            // 5xx / network: never surface "Internal server error" to users.
+            setError("We couldn't create your account right now. Please try again.");
+            setShowSupport(true);
+          }
+        },
+        onSettled: () => {
+          submittingRef.current = false;
+        },
       }
     );
   };
@@ -72,14 +124,30 @@ export default function Register() {
         
         <form onSubmit={handleSubmit} className="w-full space-y-4">
           {error && (
-            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              {error}
+            <div
+              ref={errorRef}
+              tabIndex={-1}
+              role="alert"
+              data-testid="register-error"
+              className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive focus:outline-none"
+            >
+              <p>{error}</p>
+              {showSupport && (
+                <SupportContactLink
+                  testId="register-support-link"
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-destructive underline underline-offset-4"
+                />
+              )}
             </div>
           )}
           <div className="flex gap-4">
             <div className="space-y-1.5 flex-1">
-              <label className="text-sm font-medium text-foreground">First Name</label>
+              <label htmlFor="register-first-name" className="text-sm font-medium text-foreground">First Name</label>
               <input
+                id="register-first-name"
+                name="firstName"
+                autoComplete="given-name"
+                data-testid="register-first-name-input"
                 required
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
@@ -88,8 +156,12 @@ export default function Register() {
               />
             </div>
             <div className="space-y-1.5 flex-1">
-              <label className="text-sm font-medium text-foreground">Last Name</label>
+              <label htmlFor="register-last-name" className="text-sm font-medium text-foreground">Last Name</label>
               <input
+                id="register-last-name"
+                name="lastName"
+                autoComplete="family-name"
+                data-testid="register-last-name-input"
                 required
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
@@ -100,9 +172,14 @@ export default function Register() {
           </div>
           
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Email</label>
+            <label htmlFor="register-email" className="text-sm font-medium text-foreground">Email</label>
             <input
+              id="register-email"
+              name="email"
               type="email"
+              inputMode="email"
+              autoComplete="email"
+              data-testid="register-email-input"
               required
               value={email}
               onChange={e => setEmail(e.target.value)}
@@ -112,9 +189,13 @@ export default function Register() {
           </div>
           
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Password</label>
+            <label htmlFor="register-password" className="text-sm font-medium text-foreground">Password</label>
             <input
+              id="register-password"
+              name="password"
               type="password"
+              autoComplete="new-password"
+              data-testid="register-password-input"
               required
               minLength={8}
               value={password}
@@ -132,6 +213,7 @@ export default function Register() {
                 type="button"
                 onClick={() => setRole('client')}
                 aria-pressed={role === 'client'}
+                data-testid="register-role-client"
                 className={`p-4 rounded-xl border-2 text-left transition-all ${
                   role === 'client' 
                     ? 'border-primary bg-primary/5 text-primary' 
@@ -145,6 +227,7 @@ export default function Register() {
                 type="button"
                 onClick={() => setRole('provider')}
                 aria-pressed={role === 'provider'}
+                data-testid="register-role-provider"
                 className={`p-4 rounded-xl border-2 text-left transition-all ${
                   role === 'provider' 
                     ? 'border-primary bg-primary/5 text-primary' 
@@ -161,10 +244,15 @@ export default function Register() {
           <button
             type="submit"
             disabled={register.isPending}
+            data-testid="register-submit-button"
             className="w-full py-3.5 mt-6 rounded-xl bg-primary text-primary-foreground font-semibold text-lg hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-70 flex justify-center"
           >
             {register.isPending ? (
-              <div className="w-6 h-6 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+              <div
+                aria-label="Creating your account"
+                role="status"
+                className="w-6 h-6 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"
+              />
             ) : 'Create Account'}
           </button>
         </form>

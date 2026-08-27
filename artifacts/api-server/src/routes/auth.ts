@@ -16,6 +16,16 @@ import { requireAuth } from "../middlewares/auth.js";
 
 const router: IRouter = Router();
 
+/** True when the error chain contains a PostgreSQL unique violation (23505). */
+function isUniqueViolation(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; current && depth < 5; depth++) {
+    if ((current as { code?: string }).code === "23505") return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
 async function withRoleState<T extends { id: number; role: "client" | "provider" | "admin" }>(
   user: T,
 ) {
@@ -37,6 +47,8 @@ router.post("/register", async (req, res) => {
   const { email, password, firstName, lastName, phone } = parsed.data;
   const role = parsed.data.roleIntent ?? parsed.data.role;
 
+  // Fast-path duplicate check (saves a bcrypt round). Correctness under
+  // concurrency is guaranteed by the unique-violation handling below, not here.
   const existing = await db
     .select({ id: usersTable.id })
     .from(usersTable)
@@ -50,52 +62,66 @@ router.post("/register", async (req, res) => {
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const user = await db.transaction(async (tx) => {
-    const [created] = await tx
-      .insert(usersTable)
-      .values({
-        email: email.toLowerCase(),
-        passwordHash,
-        firstName,
-        lastName,
-        role,
-        phone: phone ?? null,
-      })
-      .returning({
-        id: usersTable.id,
-        email: usersTable.email,
-        role: usersTable.role,
-        firstName: usersTable.firstName,
-        lastName: usersTable.lastName,
-      });
+  let user;
+  try {
+    user = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(usersTable)
+        .values({
+          email: email.toLowerCase(),
+          passwordHash,
+          firstName,
+          lastName,
+          role,
+          phone: phone ?? null,
+        })
+        .returning({
+          id: usersTable.id,
+          email: usersTable.email,
+          role: usersTable.role,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+        });
 
-    if (!created) {
-      throw new Error("User insert did not return a row.");
-    }
-
-    await tx.insert(accountRolesTable).values({
-      userId: created.id,
-      role: created.role,
-    });
-
-    if (created.role === "provider") {
-      const [profile] = await tx
-        .insert(providerProfilesTable)
-        .values({ userId: created.id })
-        .returning({ id: providerProfilesTable.id });
-
-      if (!profile) {
-        throw new Error("Provider profile insert did not return a row.");
+      if (!created) {
+        throw new Error("User insert did not return a row.");
       }
 
-      await tx.insert(providerApplicationsTable).values({
+      await tx.insert(accountRolesTable).values({
         userId: created.id,
-        providerProfileId: profile.id,
+        role: created.role,
       });
-    }
 
-    return created;
-  });
+      if (created.role === "provider") {
+        const [profile] = await tx
+          .insert(providerProfilesTable)
+          .values({ userId: created.id })
+          .returning({ id: providerProfilesTable.id });
+
+        if (!profile) {
+          throw new Error("Provider profile insert did not return a row.");
+        }
+
+        await tx.insert(providerApplicationsTable).values({
+          userId: created.id,
+          providerProfileId: profile.id,
+        });
+      }
+
+      return created;
+    });
+  } catch (error) {
+    // TOCTOU race: two concurrent submissions (e.g. a mobile double-tap) can
+    // both pass the SELECT pre-check above; the losing INSERT then violates
+    // the users.email unique constraint and previously surfaced as a generic
+    // 500 "Internal server error". Return the same safe conflict response as
+    // the pre-check instead. Any other failure still propagates as 500.
+    if (isUniqueViolation(error)) {
+      res.status(409).json({ error: "An account with that email already exists." });
+      return;
+    }
+    throw error;
+  }
 
   const token = signToken({ sub: user.id, email: user.email, role: user.role });
 

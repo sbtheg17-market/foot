@@ -36,7 +36,8 @@
     "test:booking-page": "node --import tsx/esm --test src/__tests__/public-booking-page.integration.test.ts",
     "test:service-area": "node --import tsx/esm --test src/__tests__/service-area-enforcement.integration.test.ts",
     "test:cancellation": "node --import tsx/esm --test src/__tests__/cancellation-no-show.integration.test.ts",
-    "test:provider-dashboard": "node --import tsx/esm --test src/__tests__/provider-dashboard.test.ts"
+    "test:provider-dashboard": "node --import tsx/esm --test src/__tests__/provider-dashboard.test.ts",
+    "test:registration": "node --import tsx/esm --test src/__tests__/registration.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",

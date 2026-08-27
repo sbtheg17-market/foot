@@ -168,3 +168,13 @@ activity, and an honest "coming soon" earnings preview. No schema change, no
 new dependencies. Authoritative: `docs/provider-dashboard.md`. Natural next
 steps: availability exceptions (emergency slots / block-off dates), then the
 standing deferred items in `docs/TODO-LEDGER.md`.
+
+## Status note — 2026-08-27 (registration blocker fixed)
+
+The mobile registration "Internal server error" is fixed: root cause was a
+duplicate-submission TOCTOU race on `POST /auth/register` (unique-constraint
+violation surfaced as 500). The API now returns a safe 409 for any
+unique-violation, and the signup page prevents duplicate submissions, shows
+client-safe errors (never "Internal server error"), and moves focus to the
+error summary. Regression suite: `test:registration` (CI-gated). See the
+TODO-LEDGER 2026-08-27 registration section.
