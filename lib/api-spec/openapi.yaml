@@ -732,6 +732,42 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /providers/me/activation-status:
+    get:
+      operationId: getMyProviderActivationStatus
+      tags: [providers]
+      summary: Owner-scoped activation-hub summary (application, milestones, booking readiness)
+      description: |
+        Read-only composition of existing owner-scoped truths for the provider
+        Approval Status & Activation Hub. Readable by every provider member in
+        every application state (unlike the approved-only `/me/*` operation
+        routes) because the hub exists precisely for providers who are not yet
+        approved. Returns only the caller's safe provider data: application
+        status with the provider-visible `rejectionReason` and the same
+        capability flags as `GET /providers/application/status`, status-level
+        verification progress (raw document references and reviewer-private
+        notes are never included), true business-rule activation milestones
+        (a step is never marked complete unless the system can prove it),
+        booking-page publish state (same view as `GET /providers/me/booking-page`),
+        and a server-derived `nextAction` code. Platform pilot metrics,
+        retention intent, risk flags, client data, and other providers' data
+        are never included. Read-only — nothing is persisted.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Activation summary for the authenticated provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderActivationStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /providers/me/booking-page:
     get:
       operationId: getMyBookingPage
@@ -2626,6 +2662,146 @@ components:
           $ref: "#/components/schemas/ProviderApplicationStatusView"
       required:
         - status
+
+    ProviderActivationNextAction:
+      type: string
+      description: |
+        Server-derived highest-value next step for the activation hub, in
+        provider-journey order. Derived from true business rules only.
+      enum:
+        - continue_onboarding
+        - wait_for_review
+        - review_update_needed
+        - contact_support
+        - complete_profile
+        - configure_service_area
+        - add_service
+        - set_availability
+        - publish_booking_page
+        - share_booking_page
+        - all_set
+
+    ProviderActivationVerificationStatus:
+      type: string
+      enum: [not_started, submitted, under_review, needs_update, approved]
+
+    ProviderActivationVerification:
+      type: object
+      description: |
+        Status-level verification progress only. Raw document references,
+        reviewer identity, and reviewer-private notes are never included.
+      properties:
+        status:
+          $ref: "#/components/schemas/ProviderActivationVerificationStatus"
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Most recent credential submission time, if any.
+        canResubmit:
+          type: boolean
+          description: True when a rejected verification can be resubmitted.
+      required:
+        - status
+        - submittedAt
+        - canResubmit
+
+    ProviderActivationMilestones:
+      type: object
+      description: |
+        True business-rule milestones in provider-journey order. A milestone
+        is never reported complete unless the system can prove it from raw
+        source data (same rules as readiness, roadmap #12 coverage, #11
+        booking-page publishing, and the first-value definition).
+      properties:
+        accountCreated:
+          type: boolean
+        profileCompleted:
+          type: boolean
+        verificationSubmitted:
+          type: boolean
+        approved:
+          type: boolean
+        serviceAreaConfigured:
+          type: boolean
+        activeServiceConfigured:
+          type: boolean
+        availabilityConfigured:
+          type: boolean
+        bookingPagePublished:
+          type: boolean
+        firstBookingReceived:
+          type: boolean
+      required:
+        - accountCreated
+        - profileCompleted
+        - verificationSubmitted
+        - approved
+        - serviceAreaConfigured
+        - activeServiceConfigured
+        - availabilityConfigured
+        - bookingPagePublished
+        - firstBookingReceived
+
+    ProviderActivationStatus:
+      type: object
+      description: Owner-scoped activation-hub summary. Provider-visible fields only.
+      properties:
+        applicationStatus:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+        rejectionReason:
+          type: string
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        canEdit:
+          type: boolean
+        canReset:
+          type: boolean
+        canResubmit:
+          type: boolean
+        verification:
+          $ref: "#/components/schemas/ProviderActivationVerification"
+        milestones:
+          $ref: "#/components/schemas/ProviderActivationMilestones"
+        milestonesCompleted:
+          type: integer
+          minimum: 0
+        milestonesTotal:
+          type: integer
+          minimum: 1
+        bookingPage:
+          $ref: "#/components/schemas/BookingPageSettings"
+        nextAction:
+          $ref: "#/components/schemas/ProviderActivationNextAction"
+      required:
+        - applicationStatus
+        - rejectionReason
+        - submittedAt
+        - reviewedAt
+        - canEdit
+        - canReset
+        - canResubmit
+        - verification
+        - milestones
+        - milestonesCompleted
+        - milestonesTotal
+        - bookingPage
+        - nextAction
+
+    ProviderActivationStatusResponse:
+      type: object
+      properties:
+        activation:
+          $ref: "#/components/schemas/ProviderActivationStatus"
+      required:
+        - activation
 
     ProviderApplicationSubmissionsPagination:
       type: object

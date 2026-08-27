@@ -1872,6 +1872,146 @@ router.get(
   },
 );
 
+// ── Activation hub summary (owner-scoped, read-only) ─────────────────────────
+//
+// GET /providers/me/activation-status — single safe summary for the provider
+// Approval Status & Activation Hub. Unlike the approved-only /me/* operation
+// routes this is readable by every provider member in every application state
+// (mirrors the /application/status and /me/booking-page gating), because the
+// hub exists precisely for providers who are not yet approved. It composes
+// EXISTING business rules only: the buildStatusView capability flags, the
+// computeReadiness criteria, roadmap #12 active coverage (the same rule that
+// gates booking-page publishing), the #11 bookingPageView, status-level
+// verification progress (raw document references, reviewer identity, and
+// reviewer-private notes are NEVER included), and the first-value definition
+// (first booking ever) scoped to the caller. Read-only; nothing is persisted.
+
+type ProviderActivationMilestones = {
+  accountCreated: boolean;
+  profileCompleted: boolean;
+  verificationSubmitted: boolean;
+  approved: boolean;
+  serviceAreaConfigured: boolean;
+  activeServiceConfigured: boolean;
+  availabilityConfigured: boolean;
+  bookingPagePublished: boolean;
+  firstBookingReceived: boolean;
+};
+
+type ProviderActivationNextAction =
+  | "continue_onboarding"
+  | "wait_for_review"
+  | "review_update_needed"
+  | "contact_support"
+  | "complete_profile"
+  | "configure_service_area"
+  | "add_service"
+  | "set_availability"
+  | "publish_booking_page"
+  | "share_booking_page"
+  | "all_set";
+
+/** Journey-ordered next action from true state only — never promises outcomes. */
+function deriveActivationNextAction(
+  applicationStatus: ApplicationRow["status"],
+  m: ProviderActivationMilestones,
+): ProviderActivationNextAction {
+  if (applicationStatus === "draft") return "continue_onboarding";
+  if (applicationStatus === "rejected") return "review_update_needed";
+  if (applicationStatus === "suspended") return "contact_support";
+  if (applicationStatus === "under_review") return "wait_for_review";
+  // approved — booking-readiness journey order
+  if (!m.profileCompleted) return "complete_profile";
+  if (!m.serviceAreaConfigured) return "configure_service_area";
+  if (!m.activeServiceConfigured) return "add_service";
+  if (!m.availabilityConfigured) return "set_availability";
+  if (!m.bookingPagePublished) return "publish_booking_page";
+  if (!m.firstBookingReceived) return "share_booking_page";
+  return "all_set";
+}
+
+router.get(
+  "/me/activation-status",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    if (!assertProviderMember(req, res)) return;
+
+    const application = await getOwnApplication(req.user!.sub);
+    const profile = await getOwnProfile(req.user!.sub);
+    const source = await loadReadinessSourceByUserId(db, req.user!.sub);
+    if (!application || !profile || !source) {
+      res.status(404).json({ error: "Provider application not found." });
+      return;
+    }
+
+    // Sequential LIMIT-1/status-only probes reusing existing rule helpers.
+    const readiness = await computeReadiness(db, source);
+    const serviceAreaConfigured = await hasActiveServiceAreaCoverage(profile.id);
+    const docs = await db
+      .select({
+        status: verificationDocsTable.status,
+        submittedAt: verificationDocsTable.submittedAt,
+      })
+      .from(verificationDocsTable)
+      .where(eq(verificationDocsTable.providerId, profile.id))
+      .orderBy(desc(verificationDocsTable.submittedAt));
+    const firstBookingRows = await db
+      .select({ id: bookingsTable.id })
+      .from(bookingsTable)
+      .where(eq(bookingsTable.providerId, profile.id))
+      .limit(1);
+
+    const verificationSubmitted = docs.length > 0;
+    const verificationStatus = !verificationSubmitted
+      ? "not_started"
+      : profile.verificationStatus === "approved"
+        ? "approved"
+        : profile.verificationStatus === "rejected"
+          ? "needs_update"
+          : profile.verificationStatus === "under_review"
+            ? "under_review"
+            : "submitted";
+
+    const milestones: ProviderActivationMilestones = {
+      accountCreated: true,
+      profileCompleted: readiness.criteria.profileComplete,
+      verificationSubmitted,
+      approved: readiness.criteria.approved,
+      serviceAreaConfigured,
+      activeServiceConfigured: readiness.criteria.activeService,
+      availabilityConfigured: readiness.criteria.availability,
+      bookingPagePublished: profile.bookingPagePublished,
+      firstBookingReceived: firstBookingRows.length > 0,
+    };
+    const milestoneValues = Object.values(milestones);
+
+    // Same provider-visible projection rules as GET /application/status.
+    const statusView = buildStatusView(application);
+
+    res.json({
+      activation: {
+        applicationStatus: statusView.status,
+        rejectionReason: statusView.rejectionReason,
+        submittedAt: statusView.submittedAt,
+        reviewedAt: statusView.reviewedAt,
+        canEdit: statusView.canEdit,
+        canReset: statusView.canReset,
+        canResubmit: statusView.canResubmit,
+        verification: {
+          status: verificationStatus,
+          submittedAt: docs[0]?.submittedAt ?? null,
+          canResubmit: profile.verificationStatus === "rejected",
+        },
+        milestones,
+        milestonesCompleted: milestoneValues.filter(Boolean).length,
+        milestonesTotal: milestoneValues.length,
+        bookingPage: bookingPageView(profile, serviceAreaConfigured),
+        nextAction: deriveActivationNextAction(statusView.status, milestones),
+      },
+    });
+  },
+);
+
 /** PUT /providers/me — Update own profile */
 router.put(
   "/me",

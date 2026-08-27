@@ -71,6 +71,7 @@ import type {
   OutcomeHistoryResponse,
   PilotMetricsResponse,
   PilotRetentionResponse,
+  ProviderActivationStatusResponse,
   ProviderApplicationDetailResponse,
   ProviderApplicationStatusResponse,
   ProviderApplicationSubmissionHistoryResponse,
@@ -2122,6 +2123,97 @@ export function useGetMyProviderReadiness<TData = Awaited<ReturnType<typeof getM
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMyProviderReadinessQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyProviderActivationStatusUrl = () => {
+
+
+
+
+  return `/api/providers/me/activation-status`
+}
+
+/**
+ * Read-only composition of existing owner-scoped truths for the provider
+ * Approval Status & Activation Hub. Readable by every provider member in
+ * every application state (unlike the approved-only `/me/*` operation
+ * routes) because the hub exists precisely for providers who are not yet
+ * approved. Returns only the caller's safe provider data: application
+ * status with the provider-visible `rejectionReason` and the same
+ * capability flags as `GET /providers/application/status`, status-level
+ * verification progress (raw document references and reviewer-private
+ * notes are never included), true business-rule activation milestones
+ * (a step is never marked complete unless the system can prove it),
+ * booking-page publish state (same view as `GET /providers/me/booking-page`),
+ * and a server-derived `nextAction` code. Platform pilot metrics,
+ * retention intent, risk flags, client data, and other providers' data
+ * are never included. Read-only — nothing is persisted.
+ * @summary Owner-scoped activation-hub summary (application, milestones, booking readiness)
+ */
+export const getMyProviderActivationStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderActivationStatusResponse> => {
+
+  return customFetch<ProviderActivationStatusResponse>(getGetMyProviderActivationStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyProviderActivationStatusQueryKey = () => {
+    return [
+    `/api/providers/me/activation-status`
+    ] as const;
+    }
+
+
+export const getGetMyProviderActivationStatusQueryOptions = <TData = Awaited<ReturnType<typeof getMyProviderActivationStatus>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderActivationStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyProviderActivationStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyProviderActivationStatus>>> = ({ signal }) => getMyProviderActivationStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyProviderActivationStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyProviderActivationStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getMyProviderActivationStatus>>>
+export type GetMyProviderActivationStatusQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Owner-scoped activation-hub summary (application, milestones, booking readiness)
+ */
+
+export function useGetMyProviderActivationStatus<TData = Awaited<ReturnType<typeof getMyProviderActivationStatus>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderActivationStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyProviderActivationStatusQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
