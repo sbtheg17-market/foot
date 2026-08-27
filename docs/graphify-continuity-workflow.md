@@ -52,7 +52,7 @@ graph refresh:
 
 ```text
 Graphify status:
-- Main graph artifact baseline: c2c6c10cc93a7f1f3b025fcf9ff5320283255044
+- Main graph artifact baseline: 96b7102694d656112d9e486205d4850333040918 (refreshed 2026-08-28; previous baseline c2c6c10cc93a7f1f3b025fcf9ff5320283255044)
 - Extraction mode: CODE-ONLY LOCAL
 - Graph files: graphify-out/graph.json, GRAPH_REPORT.md, graph.html, manifest.json
 - Refresh policy: manual after major merged roadmap work or significant refactor

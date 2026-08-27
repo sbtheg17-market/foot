@@ -3131,3 +3131,62 @@ production deployment; no force-push; no `conflict_*` branch touched.
 (https://github.com/sbtheg17-market/foot/pull/62), squash-merge gated on
 green CI. Part 3 (weekly review pack) NOT STARTED — next agent starts it
 from current `main` without rebuilding Parts 1 or 2.
+
+---
+### Session — Pilot Operations Dashboard Part 3: weekly review pack + closure (2026-08-28, Emergent session)
+**Agent:** Emergent (E1)
+**Scope:** `S` (docs + committed Graphify artifacts only; zero product-code change)
+
+**What was done:**
+- Verified baseline `origin/main` = `96b7102694d656112d9e486205d4850333040918`
+  ("feat: add pilot operations dashboard UI (#62)"), clean tree; branched
+  `docs/pilot-operations-review-pack`. Parts 1–2 inspected on main and NOT
+  rebuilt or modified.
+- Added `docs/pilot/weekly-pilot-review.md`: 12-step 15–30 minute weekly
+  operator review, reusable privacy-safe review-record template, cautious
+  decision rules (review/confirm/ask/investigate/validate — no causation
+  claims), and the continue/iterate/pause pilot closure framework with the
+  small-numbers caveat.
+- Appended the Part 3 dashboard operator guide + closure status block to
+  `docs/pilot/pilot-metrics-dashboard.md` (access, metric meanings,
+  projected dates, retention updates, CSV export + privacy limits,
+  responsible label use, no-ranking rationale, data + conversations).
+- Refreshed Graphify artifacts at `96b7102` (`graphify extract . --code-only`
+  + `cluster-only . --no-label`, graphifyy 0.9.50, code-only local, zero LLM
+  tokens): 4444 nodes / 7971 edges / 300 communities. Ran the three Part 3
+  architecture queries and verified every cited node against source
+  (`routes/admin.ts` L19/L22, `pages/admin/pilot.tsx` hooks,
+  `lib/booking-page.ts` L50, `middlewares/auth.ts` L96). Keyword + value
+  secret scans over `graphify-out/` clean.
+- Smoke-verified the existing dashboard from current main on a seeded
+  disposable local PostgreSQL 15 (built server): unauth 401 on both pilot
+  routes; client/provider 403; admin 200 with intelligible projected-window
+  payload; retention PATCH upsert 200 + invalid intent 400; `/admin/pilot`
+  SPA route served; payload allowlisted (no client PII/addresses/notes/
+  document refs/tokens/audit identifiers/tracking data).
+- Updated continuity records (append-only): `docs/NEXT-STEPS.md`,
+  `docs/TODO-LEDGER.md` (Part 3 row DONE + strategic boundary record),
+  `docs/neo/2026-08-21-client-retention-handoff.md`, this log; Graphify
+  baseline bumped in the handoff-template blocks.
+
+**Validation:** `pnpm run typecheck` PASS · `pnpm run build` PASS ·
+`pnpm run build:deploy` PASS · root `pnpm test` PASS (api-server unit
+132/132, web 180/180 incl. pilot dashboard 24 + pilot CSV 10 + axe) ·
+`test:pilot-metrics` 14/14 PASS · `test:authorization` 7/7 PASS ·
+`git diff --check` PASS · `scripts/secret-scan.sh` PASS · CI on PR #63
+gates the squash-merge.
+
+**Boundaries held:** no Part 1/2 duplication or modification; no new API
+routes/migrations/UI/features; no organization/workspace/tenant concepts
+(strategic boundary re-recorded: platform-admin dashboard IMPLEMENTED;
+organization-admin/workforce dashboard FUTURE NOT IMPLEMENTED;
+provider-facing pilot dashboard FUTURE NOT IMPLEMENTED); no managed DB
+access; no production deployment; no force-push; no `conflict_*` branch
+touched; no secrets/.env/cache/runtime artifacts committed.
+
+**Build state at end:** PR #63
+(https://github.com/sbtheg17-market/foot/pull/63) open, squash-merge gated
+on green CI. Pilot Operations Dashboard Parts 1–3 CLOSED — the dashboard is
+operated weekly per `docs/pilot/weekly-pilot-review.md`. Next best action:
+Provider Approval Status Page (evidence-guided conversion priority), then
+Provider Dashboard, then Availability Exceptions.

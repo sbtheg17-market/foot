@@ -198,7 +198,7 @@ baseline SHA whenever the graph is refreshed):
 
 ```text
 Graphify status:
-- Main graph artifact baseline: c2c6c10cc93a7f1f3b025fcf9ff5320283255044
+- Main graph artifact baseline: 96b7102694d656112d9e486205d4850333040918 (refreshed 2026-08-28; previous baseline c2c6c10cc93a7f1f3b025fcf9ff5320283255044)
 - Extraction mode: CODE-ONLY LOCAL
 - Graph files: graphify-out/graph.json, GRAPH_REPORT.md, graph.html, manifest.json
 - Refresh policy: manual after major merged roadmap work or significant refactor
@@ -305,3 +305,26 @@ CSV export (allowlisted columns, RFC 4180 + formula-injection safe).
 Web tests 180/180 (34 new), typecheck/build/build:deploy/secret-scan clean.
 Authoritative doc: `docs/pilot/pilot-metrics-dashboard.md` (Part 2 section).
 Part 3 next: weekly review pack — do NOT rebuild Parts 1 or 2.
+
+## Status note — 2026-08-28 (Pilot Operations Dashboard Part 3 — weekly review pack + closure)
+
+Part 3 is COMPLETE (branch `docs/pilot-operations-review-pack`, PR #63) —
+documentation, continuity, verification, and closure only; zero product-code
+change. Added `docs/pilot/weekly-pilot-review.md` (15–30 minute weekly
+operator review, privacy-safe review-record template, cautious decision
+rules, pilot closure criteria with the small-numbers caveat) and the Part 3
+dashboard operator guide in `docs/pilot/pilot-metrics-dashboard.md` (access,
+metric meanings, projected dates, retention updates, CSV export + privacy
+limits, responsible label use, no-ranking rationale, data + conversations).
+Graphify artifacts refreshed at `96b7102` (code-only local, scanned clean).
+Dashboard smoke re-verified from current main on a seeded disposable local
+PostgreSQL: 401/403/200 authorization, projected-window payload, retention
+upsert + 400 on invalid intent, allowlisted privacy-safe payload. All three
+pilot-dashboard parts are now CLOSED; the Pilot Operations Dashboard is an
+operating workflow, not an open build item. Strategic boundary unchanged:
+platform-admin dashboard only; organization-admin/workspace/workforce and
+provider-facing pilot dashboards remain FUTURE and NOT IMPLEMENTED. Next
+customer-facing conversion priority (evidence-guided): Provider Approval
+Status Page, then Provider Dashboard, then Availability Exceptions.
+Authoritative records: `docs/pilot/pilot-metrics-dashboard.md` (Part 3
+closure block), `docs/pilot/weekly-pilot-review.md`, `docs/TODO-LEDGER.md`.
