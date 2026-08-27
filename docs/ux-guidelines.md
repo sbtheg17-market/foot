@@ -295,3 +295,25 @@ time."* Principles:
 - **Accessibility:** the policy notice is a labelled `role="note"`; dialogs
   reuse the existing AlertDialog semantics; all new states are text-based
   (never color-only) and axe-tested at the jsdom level.
+
+## Provider dashboard tone (2026-08-27)
+
+- **Conversion-first, never corporate:** the dashboard greets by first name,
+  celebrates wins ("clients can count on you!") and nudges gently on amber/red
+  metrics ("a reminder text 24 hours before cuts no-shows"). No shame, no
+  judgment, no admin jargon (providers never see pilot activation language).
+- **Honest numbers only:** metrics show an explicit empty state until a
+  booking is resolved — never a fake 0%/100%. The earnings card is labelled
+  "Coming soon"; the estimate is explained ("completed visits × your service
+  prices") and states that the pilot keeps 100% with direct collection.
+- **Status = color + text everywhere:** metric chips ("On track" / "Worth a
+  look" / "Needs attention" / "Growing"), booking status chips ("Confirmed" /
+  "Awaiting your reply" / "Rescheduled"), and the source chart's plain-text
+  labels/counts (bars are decorative, `aria-hidden`).
+- **Privacy by default:** client names are trimmed to first name + last
+  initial and locations to FSA/city on the dashboard — full addresses live
+  only on the booking detail surfaces where they are needed.
+- **No fake controls:** date-specific "emergency slots"/"block off dates"
+  need an availability-exceptions model that does not exist yet, so the quick
+  actions link to real, working surfaces instead (availability, share link,
+  bookings).

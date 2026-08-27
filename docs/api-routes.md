@@ -88,6 +88,8 @@ through the existing slots + bookings endpoints.
 | POST | /providers/me/verification | provider | Submit verification doc metadata |
 | GET | /providers/me/verification | provider | Own verification status |
 | GET | /providers/me/earnings | provider | Earnings placeholder summary |
+| GET | /providers/me/dashboard | provider (approved) | Owner-scoped read-only dashboard aggregate: today's count, next/upcoming bookings (30-day window), performance metrics, source attribution, recent activity, earnings preview. Privacy-trimmed client names (first name + last initial) and FSA/city locations — never full addresses. Access is audit-logged. See `docs/provider-dashboard.md` |
+| GET | /providers/me/metrics | provider (approved) | The same performance-metrics object served independently (completion/cancellation/no-show/repeat-client rates over resolved bookings) |
 | GET | /providers/me/service-area | provider (owner) | Own service-area configuration: country/province/city, public description, active coverage prefixes, and the active travel/setup buffer with its source (`default` \| `environment`) (roadmap #12) |
 | PUT | /providers/me/service-area | provider (owner) | Create/update the single owner-scoped service-area configuration; Canada (`CA`) only in this release; province validated against the canonical list |
 | POST | /providers/me/service-area/prefixes | provider (owner) | Add a covered Canadian postal prefix (FSA, e.g. `M5V`); normalized server-side; duplicate ACTIVE entries return 409; requires the configuration to exist |
