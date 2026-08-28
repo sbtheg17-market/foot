@@ -67,14 +67,34 @@ async function login(email: string): Promise<string> {
   return res.body["token"] as string;
 }
 
-/** A calendar Monday, well in the future, at the given local hour (UTC label). */
-function futureMondayISO(hourUtc: number): { date: string; iso: string } {
+/** A calendar Monday, well in the future. */
+function futureMonday(): string {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + 60);
   while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1);
-  const date = d.toISOString().slice(0, 10);
-  const iso = `${date}T${String(hourUtc).padStart(2, "0")}:00:00.000Z`;
-  return { date, iso };
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * UTC ISO instant whose wall-clock time in America/Toronto is `hhmm` on
+ * `date`. DST-proof (the +60d Monday can be EDT or EST). Only safe for
+ * daytime hours where the local calendar date matches at the UTC guess.
+ */
+function utcISOForLocal(date: string, hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const guess = Date.parse(`${date}T${hhmm}:00.000Z`);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Toronto",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .format(new Date(guess))
+    .split(":")
+    .map(Number);
+  const intended = h! * 60 + m!;
+  const localAtGuess = (parts[0]! % 24) * 60 + parts[1]!;
+  return new Date(guess + (intended - localAtGuess) * 60000).toISOString();
 }
 
 describe("availability-enforced booking", () => {
@@ -86,7 +106,7 @@ describe("availability-enforced booking", () => {
     jane = await login("jane@oncallfoot.com");
     tom = await login("tom@oncallfoot.com");
     // Use a far-future Monday to avoid colliding with other suites' data.
-    date = futureMondayISO(13).date;
+    date = futureMonday();
   });
 
   it("public availability exposes timezone + windows and no private data", async () => {
@@ -130,7 +150,7 @@ describe("availability-enforced booking", () => {
       body: JSON.stringify({
         providerId: PROVIDER_ID,
         serviceId: SERVICE_ID,
-        scheduledAt: `${date}T03:00:00.000Z`, // 23:00 previous local day
+        scheduledAt: `${date}T03:00:00.000Z`, // late evening on the previous local day
         address: "2 Main St",
         city: "Toronto",
       }),
@@ -156,7 +176,7 @@ describe("availability-enforced booking", () => {
   });
 
   it("enforces real slots, no double-booking end to end", async () => {
-    const start = `${date}T13:00:00.000Z`; // 09:00 local — window start, valid
+    const start = utcISOForLocal(date, "09:00"); // window start, valid
 
     // 1) First client books the slot.
     const first = await api("/bookings", {
@@ -215,7 +235,7 @@ describe("availability-enforced booking", () => {
       body: JSON.stringify({
         providerId: PROVIDER_ID,
         serviceId: SERVICE_ID,
-        scheduledAt: `${date}T14:00:00.000Z`,
+        scheduledAt: utcISOForLocal(date, "10:00"),
         address: "2 Main St",
         city: "Toronto",
       }),
@@ -223,15 +243,16 @@ describe("availability-enforced booking", () => {
     assert.equal(adjacent.status, 409);
     assert.equal(adjacent.body["reason"], "travel_buffer_conflict");
 
-    // 5) A booking separated by exactly the buffer (ends 14:00Z + 30m gap →
-    //    starts 14:30Z) is allowed — the buffer boundary is inclusive.
+    // 5) A booking separated by exactly the buffer (first ends 10:00 local +
+    //    30m gap → starts 10:30 local) is allowed — the buffer boundary is
+    //    inclusive.
     const buffered = await api("/bookings", {
       method: "POST",
       token: tom,
       body: JSON.stringify({
         providerId: PROVIDER_ID,
         serviceId: SERVICE_ID,
-        scheduledAt: `${date}T14:30:00.000Z`,
+        scheduledAt: utcISOForLocal(date, "10:30"),
         address: "2 Main St",
         city: "Toronto",
       }),
@@ -240,14 +261,14 @@ describe("availability-enforced booking", () => {
   });
 
   it("allows a booking that ends exactly at the window end", async () => {
-    // 16:00 local (20:00Z) + 60m = 17:00 local == window end.
+    // 16:00 local + 60m = 17:00 local == window end.
     const res = await api("/bookings", {
       method: "POST",
       token: jane,
       body: JSON.stringify({
         providerId: PROVIDER_ID,
         serviceId: SERVICE_ID,
-        scheduledAt: `${date}T20:00:00.000Z`,
+        scheduledAt: utcISOForLocal(date, "16:00"),
         address: "1 Main St",
         city: "Toronto",
       }),

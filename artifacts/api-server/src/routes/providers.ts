@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { eq, ilike, and, or, lt, gte, desc, sql, isNull, inArray } from "drizzle-orm";
+import { eq, ilike, and, or, lt, lte, gte, desc, sql, isNull, inArray } from "drizzle-orm";
 import {
   db,
   providerProfilesTable,
@@ -13,6 +13,7 @@ import {
   providerCoverageAreasTable,
   availabilityTable,
   providerEmergencyOpeningsTable,
+  providerBlockedRangesTable,
   servicesTable,
   reviewsTable,
   usersTable,
@@ -40,7 +41,10 @@ import {
   localTimeLabel,
   type AvailabilityWindow,
 } from "../lib/availability.js";
-import { loadEmergencyOpenings } from "../lib/availability-exceptions.js";
+import {
+  loadBlockedRanges,
+  loadEmergencyOpenings,
+} from "../lib/availability-exceptions.js";
 import { slugifyDisplayName, slugCandidate } from "../lib/booking-page.js";
 import {
   SERVICE_AREA_MESSAGES,
@@ -2472,6 +2476,17 @@ router.post(
       }
     }
 
+    // Mutual exclusion with blocked time off (vacation ranges): an opening
+    // cannot be created on a blocked date (docs/availability-exceptions-policy.md).
+    const [blockingRange] = await loadBlockedRanges(db, profile.id, { date });
+    if (blockingRange) {
+      res.status(409).json({
+        error: `${date} falls inside your blocked time off (${blockingRange.startDate} – ${blockingRange.endDate}). Remove that time off first — emergency openings and time off cannot overlap.`,
+        reason: "blocked_range_conflict",
+      });
+      return;
+    }
+
     // Overlap prevention among openings: same provider + date, intersecting
     // wall-clock windows ("HH:MM" strings compare correctly).
     const sameDay = await db
@@ -2593,6 +2608,249 @@ router.delete(
       .where(eq(providerEmergencyOpeningsTable.id, openingId));
 
     res.json({ message: "Emergency opening deleted." });
+  }
+);
+
+// ── Blocked ranges (vacation / time off) ──────────────────────────────────────
+//
+// Owner-scoped date-range blocks (docs/availability-exceptions-policy.md):
+// every day in [startDate, endDate] (inclusive, marketplace timezone) offers
+// NO bookable time regardless of weekly windows — a subtractive source for
+// the same engine. Mutually exclusive with emergency openings at write time.
+// Blocking time off never cancels appointments: a range overlapping ACTIVE
+// bookings is rejected with an honest 409. `reason` is a private
+// provider-only note, never shown on client-facing surfaces.
+
+const MAX_BLOCKED_RANGE_REASON_LENGTH = 200;
+
+/** GET /providers/me/availability/blocked-ranges — upcoming, owner-scoped */
+router.get(
+  "/me/availability/blocked-ranges",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const today = localDateOfInstant(Date.now(), getMarketplaceTimezone());
+    const ranges = await db
+      .select()
+      .from(providerBlockedRangesTable)
+      .where(
+        and(
+          eq(providerBlockedRangesTable.providerId, profile.id),
+          gte(providerBlockedRangesTable.endDate, today),
+        ),
+      )
+      .orderBy(
+        providerBlockedRangesTable.startDate,
+        providerBlockedRangesTable.id,
+      );
+
+    res.json({ ranges });
+  }
+);
+
+/** POST /providers/me/availability/blocked-ranges — create with validation */
+router.post(
+  "/me/availability/blocked-ranges",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const { startDate, endDate, reason } = (req.body ?? {}) as {
+      startDate?: unknown;
+      endDate?: unknown;
+      reason?: unknown;
+    };
+
+    if (
+      typeof startDate !== "string" ||
+      !OPENING_DATE_RE.test(startDate) ||
+      !isRealCalendarDate(startDate)
+    ) {
+      res.status(400).json({ error: "startDate must be a real calendar date (YYYY-MM-DD)." });
+      return;
+    }
+    if (
+      typeof endDate !== "string" ||
+      !OPENING_DATE_RE.test(endDate) ||
+      !isRealCalendarDate(endDate)
+    ) {
+      res.status(400).json({ error: "endDate must be a real calendar date (YYYY-MM-DD)." });
+      return;
+    }
+    if (startDate > endDate) {
+      res.status(400).json({ error: "startDate must be on or before endDate." });
+      return;
+    }
+    if (reason !== undefined && reason !== null && typeof reason !== "string") {
+      res.status(400).json({ error: "reason must be a string." });
+      return;
+    }
+    const normalizedReason = typeof reason === "string" ? reason.trim() : "";
+    if (normalizedReason.length > MAX_BLOCKED_RANGE_REASON_LENGTH) {
+      res.status(400).json({
+        error: `reason must be at most ${MAX_BLOCKED_RANGE_REASON_LENGTH} characters.`,
+      });
+      return;
+    }
+
+    const tz = getMarketplaceTimezone();
+    const today = localDateOfInstant(Date.now(), tz);
+    if (startDate < today) {
+      res.status(400).json({ error: "startDate cannot be in the past." });
+      return;
+    }
+    const horizon = localDateOfInstant(
+      Date.now() + MAX_OPENING_HORIZON_DAYS * 24 * 60 * 60 * 1000,
+      tz,
+    );
+    if (endDate > horizon) {
+      res.status(400).json({
+        error: `endDate must be within the next ${MAX_OPENING_HORIZON_DAYS} days.`,
+      });
+      return;
+    }
+
+    // Overlap prevention among ranges: inclusive date-range intersection
+    // ("YYYY-MM-DD" strings compare correctly).
+    const existingRanges = await db
+      .select({
+        id: providerBlockedRangesTable.id,
+        startDate: providerBlockedRangesTable.startDate,
+        endDate: providerBlockedRangesTable.endDate,
+      })
+      .from(providerBlockedRangesTable)
+      .where(eq(providerBlockedRangesTable.providerId, profile.id));
+    const rangeOverlap = existingRanges.find(
+      (r) => startDate <= r.endDate && r.startDate <= endDate,
+    );
+    if (rangeOverlap) {
+      res.status(409).json({
+        error: `This overlaps your existing time off ${rangeOverlap.startDate} – ${rangeOverlap.endDate}. Delete or adjust that block first.`,
+        reason: "range_overlap",
+      });
+      return;
+    }
+
+    // Mutual exclusion with emergency openings: an opening dated inside the
+    // range contradicts "no bookable time" — the provider must delete it
+    // first (docs/availability-exceptions-policy.md).
+    const conflictingOpenings = await db
+      .select({
+        date: providerEmergencyOpeningsTable.date,
+        startTime: providerEmergencyOpeningsTable.startTime,
+        endTime: providerEmergencyOpeningsTable.endTime,
+      })
+      .from(providerEmergencyOpeningsTable)
+      .where(
+        and(
+          eq(providerEmergencyOpeningsTable.providerId, profile.id),
+          gte(providerEmergencyOpeningsTable.date, startDate),
+          lte(providerEmergencyOpeningsTable.date, endDate),
+        ),
+      )
+      .orderBy(
+        providerEmergencyOpeningsTable.date,
+        providerEmergencyOpeningsTable.startTime,
+      );
+    if (conflictingOpenings.length > 0) {
+      const first = conflictingOpenings[0]!;
+      const n = conflictingOpenings.length;
+      res.status(409).json({
+        error: `${n} emergency opening${n === 1 ? " falls" : "s fall"} inside this time off (first: ${first.date} ${first.startTime}–${first.endTime}). Delete ${n === 1 ? "it" : "them"} first — emergency openings and time off cannot overlap.`,
+        reason: "emergency_opening_conflict",
+        openingCount: n,
+      });
+      return;
+    }
+
+    // Honest guard (chosen policy): any ACTIVE booking on a blocked day
+    // rejects the range — the provider must cancel/reschedule first.
+    // Blocking time off never cancels or moves appointments.
+    const activeBookings = await db
+      .select({ scheduledAt: bookingsTable.scheduledAt })
+      .from(bookingsTable)
+      .where(
+        and(
+          eq(bookingsTable.providerId, profile.id),
+          inArray(bookingsTable.status, ["requested", "confirmed", "rescheduled"]),
+        ),
+      );
+    const conflictCount = activeBookings.filter((b) => {
+      const d = localDateOfInstant(new Date(b.scheduledAt).getTime(), tz);
+      return d >= startDate && d <= endDate;
+    }).length;
+    if (conflictCount > 0) {
+      res.status(409).json({
+        error: `${conflictCount} active booking${conflictCount === 1 ? " is" : "s are"} scheduled during this time off. Cancel or reschedule ${conflictCount === 1 ? "it" : "them"} first — blocking time off will not cancel appointments.`,
+        reason: "bookings_exist",
+        bookingCount: conflictCount,
+      });
+      return;
+    }
+
+    const [range] = await db
+      .insert(providerBlockedRangesTable)
+      .values({
+        providerId: profile.id,
+        startDate,
+        endDate,
+        reason: normalizedReason.length > 0 ? normalizedReason : null,
+      })
+      .returning();
+
+    res.status(201).json({ range });
+  }
+);
+
+/** DELETE /providers/me/availability/blocked-ranges/:rangeId */
+router.delete(
+  "/me/availability/blocked-ranges/:rangeId",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const rangeId = Number(req.params["rangeId"]);
+    if (!Number.isInteger(rangeId) || rangeId <= 0) {
+      res.status(400).json({ error: "rangeId must be a positive integer." });
+      return;
+    }
+
+    // Ownership is part of the WHERE — a foreign id is a non-leaking 404.
+    // No delete guard needed: removing time off only RE-OPENS bookable time
+    // and can never invalidate an existing appointment.
+    const [range] = await db
+      .select({ id: providerBlockedRangesTable.id })
+      .from(providerBlockedRangesTable)
+      .where(
+        and(
+          eq(providerBlockedRangesTable.id, rangeId),
+          eq(providerBlockedRangesTable.providerId, profile.id),
+        ),
+      )
+      .limit(1);
+    if (!range) {
+      res.status(404).json({ error: "Time off not found." });
+      return;
+    }
+
+    await db
+      .delete(providerBlockedRangesTable)
+      .where(eq(providerBlockedRangesTable.id, rangeId));
+
+    res.json({ message: "Time off deleted." });
   }
 );
 
@@ -3581,6 +3839,10 @@ router.get(
       date,
     });
 
+    // Blocked time off (vacation ranges) removes the whole day from BOTH
+    // sources (docs/availability-exceptions-policy.md).
+    const blockedRanges = await loadBlockedRanges(db, providerId, { date });
+
     const candidates = generateEffectiveSlotsForDate({
       date,
       durationMinutes: service[0].durationMinutes,
@@ -3588,6 +3850,7 @@ router.get(
       tz: timezone,
       serviceId,
       emergencyOpenings,
+      blockedRanges,
     });
 
     // Advisory `available` flag: mark a slot taken when it overlaps an active

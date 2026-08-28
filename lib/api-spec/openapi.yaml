@@ -1196,6 +1196,93 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
 
+  /providers/me/availability/blocked-ranges:
+    get:
+      operationId: listMyBlockedRanges
+      tags: [providers]
+      summary: List own upcoming blocked ranges (vacation / time off)
+      description: >-
+        Upcoming date-range blocks during which no time is bookable,
+        owner-scoped (endDate ≥ today in the marketplace timezone). The
+        private reason note is returned to the owner only.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Upcoming blocked ranges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockedRangeListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createBlockedRange
+      tags: [providers]
+      summary: Block a date range (vacation / time off)
+      description: >-
+        Blocks every day in [startDate, endDate] (inclusive, marketplace
+        timezone) — no slots are offered and no booking or reschedule can
+        land on those days. Rejected with an honest 409 when the range
+        overlaps an existing blocked range, an emergency opening (mutually
+        exclusive), or active bookings (blocking time off never cancels
+        appointments). The optional reason is a private provider-only note.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBlockedRangeRequest"
+      responses:
+        "201":
+          description: Blocked range created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockedRangeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/me/availability/blocked-ranges/{rangeId}:
+    delete:
+      operationId: deleteBlockedRange
+      tags: [providers]
+      summary: Delete a blocked range (re-opens the days)
+      description: >-
+        Deletes an owned blocked range. No guard is needed — removing time
+        off only re-opens bookable time and never affects appointments.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: rangeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Blocked range deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /providers/me/travel-zones:
     get:
       operationId: listMyTravelZones
@@ -3795,6 +3882,75 @@ components:
         - date
         - startTime
         - endTime
+
+    # ── Blocked Range Schemas (vacation / time off) ───────────────────────────
+
+    BlockedRange:
+      type: object
+      description: >-
+        Date-range block during which no time is bookable
+        (docs/availability-exceptions-policy.md). Dates are inclusive
+        calendar dates in the effective marketplace timezone. The reason is
+        a private provider-only note, never shown to clients.
+      properties:
+        id:
+          type: integer
+        startDate:
+          type: string
+          description: "YYYY-MM-DD inclusive (marketplace timezone)"
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        endDate:
+          type: string
+          description: "YYYY-MM-DD inclusive (marketplace timezone)"
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        reason:
+          type: string
+          nullable: true
+          description: Private provider-only note; never client-facing
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - startDate
+        - endDate
+
+    BlockedRangeListResponse:
+      type: object
+      properties:
+        ranges:
+          type: array
+          items:
+            $ref: "#/components/schemas/BlockedRange"
+      required:
+        - ranges
+
+    BlockedRangeResponse:
+      type: object
+      properties:
+        range:
+          $ref: "#/components/schemas/BlockedRange"
+      required:
+        - range
+
+    CreateBlockedRangeRequest:
+      type: object
+      properties:
+        startDate:
+          type: string
+          description: "YYYY-MM-DD; today or later (marketplace timezone)"
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        endDate:
+          type: string
+          description: "YYYY-MM-DD; on/after startDate, within 365 days"
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        reason:
+          type: string
+          maxLength: 200
+          description: Optional private note (provider-only, never client-facing)
+      required:
+        - startDate
+        - endDate
 
     # ── Travel Zone Schemas ────────────────────────────────────────────────────
 

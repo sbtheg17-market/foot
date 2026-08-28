@@ -18,7 +18,10 @@ import {
   localDateOfInstant,
   type AvailabilityWindow,
 } from "../lib/availability.js";
-import { loadEmergencyOpenings } from "../lib/availability-exceptions.js";
+import {
+  loadBlockedRanges,
+  loadEmergencyOpenings,
+} from "../lib/availability-exceptions.js";
 import {
   requireAuth,
   requireApprovedProviderIfProvider,
@@ -418,6 +421,14 @@ router.post(
       { date: localDateOfInstant(scheduledAtDate.getTime(), marketplaceTimezone) },
     );
 
+    // Blocked time off (vacation ranges) removes the whole day from BOTH
+    // sources (docs/availability-exceptions-policy.md).
+    const blockedRanges = await loadBlockedRanges(
+      db,
+      Number(providerId),
+      { date: localDateOfInstant(scheduledAtDate.getTime(), marketplaceTimezone) },
+    );
+
     if (
       !isWithinEffectiveAvailability({
         scheduledAt: scheduledAtDate,
@@ -426,6 +437,7 @@ router.post(
         tz: marketplaceTimezone,
         serviceId: Number(serviceId),
         emergencyOpenings,
+        blockedRanges,
       })
     ) {
       res.status(400).json({
@@ -933,6 +945,11 @@ router.patch(
             booking.providerId,
             { date: localDateOfInstant(rescheduleDate.getTime(), rescheduleTz) },
           );
+          const rescheduleBlockedRanges = await loadBlockedRanges(
+            tx,
+            booking.providerId,
+            { date: localDateOfInstant(rescheduleDate.getTime(), rescheduleTz) },
+          );
           if (
             !isWithinEffectiveAvailability({
               scheduledAt: rescheduleDate,
@@ -941,6 +958,7 @@ router.patch(
               tz: rescheduleTz,
               serviceId: booking.serviceId,
               emergencyOpenings: rescheduleOpenings,
+              blockedRanges: rescheduleBlockedRanges,
             })
           ) {
             throw Object.assign(new Error("VALIDATION"), {

@@ -250,6 +250,29 @@ Index: `(provider_id, date)`.
 
 ---
 
+## provider_blocked_ranges
+
+Blocked ranges (vacation / time off) — inclusive date ranges during which a
+provider offers NO bookable time
+(`docs/availability-exceptions-policy.md`; migration
+`docs/migrations/PROVIDER_BLOCKED_RANGES_V1.sql`). A subtractive source for
+the same slot/enforcement engine as `availability` — never a second engine.
+Mutually exclusive with `provider_emergency_openings` at write time.
+Additive only; providers have no rows by default.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | serial PK | |
+| provider_id | FK → provider_profiles | ON DELETE CASCADE |
+| start_date | text | "YYYY-MM-DD" inclusive, marketplace timezone, ≤ end_date |
+| end_date | text | "YYYY-MM-DD" inclusive, marketplace timezone |
+| reason | text NULL | private provider-only note (≤ 200 chars) — never client-facing |
+| created_at | timestamp | |
+
+Index: `(provider_id, end_date)`.
+
+---
+
 ## travel_zones
 
 Areas a provider is willing to travel to. (Descriptive/legacy — the

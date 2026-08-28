@@ -1363,6 +1363,69 @@ export const DeleteEmergencyOpeningResponse = zod.object({
 
 
 /**
+ * Upcoming date-range blocks during which no time is bookable, owner-scoped (endDate ≥ today in the marketplace timezone). The private reason note is returned to the owner only.
+ * @summary List own upcoming blocked ranges (vacation / time off)
+ */
+export const listMyBlockedRangesResponseRangesItemStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const listMyBlockedRangesResponseRangesItemEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ListMyBlockedRangesResponse = zod.object({
+  "ranges": zod.array(zod.object({
+  "id": zod.int(),
+  "startDate": zod.string().regex(listMyBlockedRangesResponseRangesItemStartDateRegExp).describe('YYYY-MM-DD inclusive (marketplace timezone)'),
+  "endDate": zod.string().regex(listMyBlockedRangesResponseRangesItemEndDateRegExp).describe('YYYY-MM-DD inclusive (marketplace timezone)'),
+  "reason": zod.string().nullish().describe('Private provider-only note; never client-facing'),
+  "createdAt": zod.coerce.date().optional()
+}).describe('Date-range block during which no time is bookable (docs\/availability-exceptions-policy.md). Dates are inclusive calendar dates in the effective marketplace timezone. The reason is a private provider-only note, never shown to clients.'))
+})
+
+
+/**
+ * Blocks every day in [startDate, endDate] (inclusive, marketplace timezone) — no slots are offered and no booking or reschedule can land on those days. Rejected with an honest 409 when the range overlaps an existing blocked range, an emergency opening (mutually exclusive), or active bookings (blocking time off never cancels appointments). The optional reason is a private provider-only note.
+ * @summary Block a date range (vacation / time off)
+ */
+export const createBlockedRangeBodyStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createBlockedRangeBodyEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createBlockedRangeBodyReasonMax = 200;
+
+
+
+export const CreateBlockedRangeBody = zod.object({
+  "startDate": zod.string().regex(createBlockedRangeBodyStartDateRegExp).describe('YYYY-MM-DD; today or later (marketplace timezone)'),
+  "endDate": zod.string().regex(createBlockedRangeBodyEndDateRegExp).describe('YYYY-MM-DD; on\/after startDate, within 365 days'),
+  "reason": zod.string().max(createBlockedRangeBodyReasonMax).optional().describe('Optional private note (provider-only, never client-facing)')
+})
+
+export const createBlockedRangeResponseRangeStartDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createBlockedRangeResponseRangeEndDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const CreateBlockedRangeResponse = zod.object({
+  "range": zod.object({
+  "id": zod.int(),
+  "startDate": zod.string().regex(createBlockedRangeResponseRangeStartDateRegExp).describe('YYYY-MM-DD inclusive (marketplace timezone)'),
+  "endDate": zod.string().regex(createBlockedRangeResponseRangeEndDateRegExp).describe('YYYY-MM-DD inclusive (marketplace timezone)'),
+  "reason": zod.string().nullish().describe('Private provider-only note; never client-facing'),
+  "createdAt": zod.coerce.date().optional()
+}).describe('Date-range block during which no time is bookable (docs\/availability-exceptions-policy.md). Dates are inclusive calendar dates in the effective marketplace timezone. The reason is a private provider-only note, never shown to clients.')
+})
+
+
+/**
+ * Deletes an owned blocked range. No guard is needed — removing time off only re-opens bookable time and never affects appointments.
+ * @summary Delete a blocked range (re-opens the days)
+ */
+export const DeleteBlockedRangeParams = zod.object({
+  "rangeId": zod.coerce.number().int()
+})
+
+export const DeleteBlockedRangeResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
  * @summary List own travel zones
  */
 export const ListMyTravelZonesResponse = zod.object({

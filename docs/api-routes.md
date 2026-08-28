@@ -85,6 +85,9 @@ through the existing slots + bookings endpoints.
 | GET | /providers/me/availability/emergency-openings | provider (approved) | List own upcoming emergency openings (one-off extra slots outside the weekly schedule; date ≥ today in marketplace tz). See `docs/emergency-openings-policy.md` |
 | POST | /providers/me/availability/emergency-openings | provider (approved) | Create an emergency opening (`date` YYYY-MM-DD today→+365d, `startTime` < `endTime` HH:MM, optional `serviceIds` ⊆ own active services, optional `urgentOnly` label). Overlap with an existing opening on the same date → 409 `opening_overlap` |
 | DELETE | /providers/me/availability/emergency-openings/:id | provider (approved, owner) | Delete an opening; non-leaking 404 for foreign ids; 409 `bookings_exist` with honest guidance when active bookings overlap the window (never cancels appointments) |
+| GET | /providers/me/availability/blocked-ranges | provider (approved) | List own upcoming blocked ranges (vacation/time off; `endDate` ≥ today in marketplace tz). Private `reason` note is owner-only. See `docs/availability-exceptions-policy.md` |
+| POST | /providers/me/availability/blocked-ranges | provider (approved) | Block a date range (`startDate` ≤ `endDate`, today→+365d, optional private `reason` ≤ 200 chars). 409 `range_overlap` / `emergency_opening_conflict` (mutual exclusion) / `bookings_exist` + count (never cancels appointments) |
+| DELETE | /providers/me/availability/blocked-ranges/:id | provider (approved, owner) | Delete a blocked range; non-leaking 404 for foreign ids; no guard — deletion only re-opens bookable time |
 | GET | /providers/me/travel-zones | provider | Get travel zones |
 | POST | /providers/me/travel-zones | provider | Add a travel zone |
 | DELETE | /providers/me/travel-zones/:id | provider | Remove a travel zone |

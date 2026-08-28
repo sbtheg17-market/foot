@@ -3358,3 +3358,26 @@ remains a post-merge TODO.
 **Build state at end:** typecheck PASS; `build:deploy` PASS; fresh disposable PG 15 + seed; API suites green (unit 132, availability 3, rescheduling 12, proposals 17, concurrency 16, pressure 13, booking-page 17, service-area 30, lifecycle 14, cancellation 22, emergency-openings 10 NEW); web 227/227 (10 new). Note: `test:lifecycle`'s row-count invariant assumes a DB without resolved-booking residue at pooled slots — run suites on a fresh DB (CI behavior), residue false-positive documented here.
 
 **Next best action:** Vacation Ranges (`feat/vacation-ranges`): range-based `provider_blocked_ranges` per the handoff — policy section in `docs/availability-exceptions-policy.md`, additive migration, GET/POST/DELETE `/providers/me/availability/blocked-ranges`, blocked-day enforcement in the same engine, honest 409 on active-booking overlap, mutual exclusion with emergency openings, UI under `/provider/availability`.
+
+---
+
+### Session — Vacation Ranges (2026-08-28, Emergent session)
+**Agent:** Emergent E1 Main Agent
+**Scope:** `M`
+**Triggered by:** Handoff "Emergency Openings → Vacation Ranges" Part 2: block a continuous date range (vacation/time off) in one action, evolving the same availability engine.
+
+**What was done:**
+- Policy: `docs/availability-exceptions-policy.md` (goals, decided interaction rules — honest 409 on active-booking overlap, private provider-only reason note, mutual exclusion with emergency openings both directions, guard-free deletion — data model, API, UI, tests, deferred items).
+- Schema/migration (additive only): `provider_blocked_ranges` in `lib/db/src/schema/providers.ts` + `docs/migrations/PROVIDER_BLOCKED_RANGES_V1.sql` (FK → provider_profiles CASCADE, inclusive `start_date`/`end_date` text YYYY-MM-DD, nullable private `reason`, `(provider_id, end_date)` index).
+- Engine (one engine, subtractive source): `lib/availability.ts` adds `BlockedRangeWindow` + `isDateBlocked`; `generateEffectiveSlotsForDate` and `isWithinEffectiveAvailability` take optional `blockedRanges` — a blocked day yields zero slots and rejects every interval regardless of weekly windows/openings. `lib/availability-exceptions.ts` adds the shared `loadBlockedRanges` reader.
+- API: owner-scoped GET/POST/DELETE `/providers/me/availability/blocked-ranges` (approved provider; real-date validation, start ≤ end, start ≥ today, end ≤ +365d, reason ≤ 200 chars trimmed; 409 `range_overlap` / `emergency_opening_conflict` + openingCount / `bookings_exist` + bookingCount; DELETE = non-leaking 404, guard-free — deletion only re-opens time). Emergency-opening POST now rejects blocked dates with 409 `blocked_range_conflict` (mutual exclusion both ways). Blocked ranges wired into public `GET /providers/:id/slots`, booking creation, provider reschedule action, reschedule proposal validation + feasibility.
+- OpenAPI + orval codegen regenerated (`BlockedRange*` schemas, `listMyBlockedRanges`/`createBlockedRange`/`deleteBlockedRange`).
+- Web: `components/blocked-ranges-section.tsx` "Time off" section on `/provider/availability` (mobile-first create form with first/last day + private note, upcoming list with delete, honest server-message errors, truthful copy). Verified live in browser (login → availability → section + form render).
+- Tests: `test:vacation-ranges` scripted suite (11) — authn/authz, validation table, trimmed note round-trip, range overlap 409, blocked-day slot suppression + restoration, booking on blocked day → 400 `outside_availability`, both mutual-exclusion 409s, active-booking 409 → cancel → succeed, non-leaking foreign 404, guard-free delete. Added to the CI scripted loop. Web `vacation-ranges.test.tsx` (10) incl. axe scan.
+- Drive-by CI fix: `availability-enforced-booking.test.ts` hard-coded UTC hours assuming EDT; its +60d Monday now lands after the 2026-11-01 DST fall-back (13:00Z = 08:00 EST) so the suite failed on main too. Replaced with DST-proof `utcISOForLocal` local-wall-clock instants (6/6 green).
+
+**Files changed:** see PR `feat: add vacation ranges (blocked time off) for providers`; docs appended: `api-routes.md`, `data-models.md`, `NEXT-STEPS.md`, `TODO-LEDGER.md`.
+
+**Build state at end:** typecheck PASS (workspace); fresh disposable PG 15 + idempotent seed; full scripted API loop green incl. vacation-ranges 11/11 and emergency-openings 10/10; unscripted suites green (availability-enforced-booking 6/6 after DST fix, payments-foundation 6/6, listing-preview 9/9, prevented-booking-events 9/9, replay-safety 27/27); web 237/237 (10 new) + a11y 33/33 + tz 10/10; web production build PASS; live browser verification of the Time off UI.
+
+**Next best action:** Availability exceptions polish on evidence: listing-preview inclusion of exceptions (deferred), recurring time off / partial-day blocks (deferred until pilot evidence), or resume the pre-exception roadmap (payments/Stripe per NEXT-STEPS).

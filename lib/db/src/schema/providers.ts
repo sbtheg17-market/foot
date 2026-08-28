@@ -172,3 +172,39 @@ export const insertEmergencyOpeningSchema = createInsertSchema(
 export type InsertEmergencyOpening =
   typeof providerEmergencyOpeningsTable.$inferInsert;
 export type EmergencyOpening = typeof providerEmergencyOpeningsTable.$inferSelect;
+
+// ── Blocked Ranges (vacation / time off) ──────────────────────────────────────
+//
+// Date-range blocks (docs/availability-exceptions-policy.md): every calendar
+// day in [start_date, end_date] (inclusive, marketplace timezone) offers NO
+// bookable time, regardless of weekly windows — a subtractive source for the
+// SAME slot/enforcement engine. Mutually exclusive with emergency openings
+// at write time. `reason` is a private provider-only note, never rendered on
+// client-facing surfaces.
+
+export const providerBlockedRangesTable = pgTable(
+  "provider_blocked_ranges",
+  {
+    id: serial("id").primaryKey(),
+    providerId: integer("provider_id")
+      .notNull()
+      .references(() => providerProfilesTable.id, { onDelete: "cascade" }),
+    startDate: text("start_date").notNull(), // "YYYY-MM-DD" inclusive (marketplace timezone)
+    endDate: text("end_date").notNull(), // "YYYY-MM-DD" inclusive (marketplace timezone)
+    reason: text("reason"), // private provider-only note
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("provider_blocked_ranges_provider_end_idx").on(
+      table.providerId,
+      table.endDate,
+    ),
+  ],
+);
+
+export const insertBlockedRangeSchema = createInsertSchema(
+  providerBlockedRangesTable
+).omit({ id: true, createdAt: true });
+
+export type InsertBlockedRange = typeof providerBlockedRangesTable.$inferInsert;
+export type BlockedRange = typeof providerBlockedRangesTable.$inferSelect;

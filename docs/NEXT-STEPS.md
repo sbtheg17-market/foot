@@ -431,3 +431,29 @@ organization/workspace remain FUTURE, NOT IMPLEMENTED. Authoritative doc:
   (range-based `provider_blocked_ranges`), same continuity rules: evolve the
   availability engine, additive schema only, honest conflict errors when a
   range overlaps existing bookings, mutual exclusion with emergency openings.
+
+---
+
+## 2026-06 — Vacation Ranges shipped (`feat/vacation-ranges`)
+
+- Providers can now block a continuous date range (vacation / time off) in
+  one step under `/provider/availability` → "Time off": every day in the
+  inclusive range offers NO bookable time; deleting the range re-opens the
+  days (no guard needed — deletion never harms appointments).
+- One engine preserved: blocked ranges are a SUBTRACTIVE source consumed by
+  the existing generator/enforcement (`generateEffectiveSlotsForDate`,
+  `isWithinEffectiveAvailability` gain an optional `blockedRanges` input);
+  wired into public slots, booking creation, provider reschedule action, and
+  proposal validation/feasibility.
+- Honest conflicts at write time (all 409): `range_overlap`,
+  `emergency_opening_conflict` (mutual exclusion, both directions — openings
+  also reject blocked dates with `blocked_range_conflict`), and
+  `bookings_exist` with the exact count (chosen policy: reject, provider must
+  cancel/reschedule first — nothing is ever cancelled automatically).
+- Optional `reason` is a private provider-only note (≤ 200 chars, trimmed),
+  returned only on owner endpoints, never client-facing.
+- Additive schema: `provider_blocked_ranges`
+  (`docs/migrations/PROVIDER_BLOCKED_RANGES_V1.sql`). Policy:
+  `docs/availability-exceptions-policy.md`. Tests: `test:vacation-ranges`
+  (10 scripted API tests, added to the CI scripted loop) +
+  `vacation-ranges.test.tsx` (10 web tests).

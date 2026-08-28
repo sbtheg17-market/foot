@@ -4,6 +4,7 @@ import { Plus, Trash2, Save, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import EmergencyOpeningsSection from '@/components/emergency-openings-section';
+import BlockedRangesSection from '@/components/blocked-ranges-section';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const WEEKDAYS = [1, 2, 3, 4, 5]; // Monday–Friday
@@ -170,6 +171,8 @@ export default function PortalAvailability() {
       </div>
 
       <EmergencyOpeningsSection />
+
+      <BlockedRangesSection />
     </div>
   );
 }
