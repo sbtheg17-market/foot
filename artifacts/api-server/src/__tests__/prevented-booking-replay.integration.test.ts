@@ -264,6 +264,20 @@ async function loadSlotPool(want: number): Promise<void> {
   const svc = await pool.query("SELECT duration_minutes FROM services WHERE id = $1", [serviceId]);
   const durationMinutes = (svc.rows[0] as { duration_minutes: number }).duration_minutes;
 
+  // Seeded demo bookings are created at "now + N days" at the seed's
+  // wall-clock time; when that lands inside a window, pool slots near it
+  // would 409 with travel_buffer_conflict depending on the time of day the
+  // suite runs. Keep the pool clear of every existing ACTIVE booking.
+  const existing = await pool.query(
+    "SELECT scheduled_at FROM bookings WHERE provider_id = $1 AND status IN ('requested','confirmed','rescheduled')",
+    [providerId],
+  );
+  const busyMs = (existing.rows as Array<{ scheduled_at: Date }>).map((r) =>
+    new Date(r.scheduled_at).getTime(),
+  );
+  const minGapMs =
+    (durationMinutes + DEFAULT_TRAVEL_SETUP_BUFFER_MINUTES) * 60000;
+
   const base = Date.now();
   let lastMs = 0;
   for (let d = 1; d <= 21 && slotPool.length < want; d++) {
@@ -274,7 +288,10 @@ async function loadSlotPool(want: number): Promise<void> {
       // Pool slots must be bookable back-to-back across subtests: keep the
       // centrally managed travel/setup buffer (roadmap #12) between the end
       // of one slot and the start of the next, not just the duration.
-      if (ms - lastMs >= (durationMinutes + DEFAULT_TRAVEL_SETUP_BUFFER_MINUTES) * 60000) {
+      if (
+        ms - lastMs >= minGapMs &&
+        busyMs.every((b) => Math.abs(ms - b) >= minGapMs)
+      ) {
         slotPool.push(s.start);
         lastMs = ms;
       }
