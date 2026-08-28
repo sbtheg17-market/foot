@@ -277,3 +277,23 @@ Response shapes, status codes, 401/403 semantics, and the migrated-schema
 behavior are unchanged (eager select first; fallback only on `42703`/`42P01`
 in the error `cause` chain). No OpenAPI change. Regression:
 `test:return-path-drift` (CI scripted loop).
+
+## Provider-owned read paths — schema-drift resilience extended (2026-08-28, provider route read audit)
+
+The drift-resilience contract above now covers every provider-owned read
+(`docs/provider-route-read-audit.md`): the shared `getOwnProfile` helper
+(~30 owner routes under `/providers/me/*` and `/providers/application/*`),
+`GET /providers/me/service-area`, the emergency-openings and blocked-ranges
+owner lists, `GET /providers/me/dashboard` + `/me/metrics`
+(`bookings.source` → `null`), `GET /bookings` + `GET /bookings/:id` +
+cancellation-preview + outcome-history (additive booking columns → `null`,
+absent history relation → `[]`), and
+`GET /bookings/:id/reschedule-requests` +
+`GET /bookings/:id/rescheduling-history` (absent
+`RESCHEDULE_PROPOSALS_HISTORY_V1` relations → `[]`; ownership resolution
+drift-safe). Degraded reads return only truthful backfill-free defaults;
+writes that require absent Gate B objects keep failing loudly. Response
+shapes, status codes, 401/403/404, and migrated-schema behavior are
+unchanged (eager select first; stable-projection fallback only on
+`42703`/`42P01`). No OpenAPI change. Regression: `test:route-read-drift`
+(19 tests, CI scripted loop).

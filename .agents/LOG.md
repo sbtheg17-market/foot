@@ -3407,3 +3407,19 @@ remains a post-merge TODO.
 **Docs appended:** `managed-db-release-gate.md` (preflight verification record: hash addendum for booking-pages/service-areas, full ten-artifact inventory at `98a1811`, fresh repository fingerprint, recorded blockers). No application code, migrations, OpenAPI, generated clients, tests, or deployment configuration changed. Managed database NOT ACCESSED; no SQL applied outside disposable local PostgreSQL; production deployment NOT PERFORMED.
 
 **Next best action:** product owner confirms backup owner/process, RPO/RTO expectations, and a fresh Railway recovery point; then a guided, explicitly authorized Gate-B application of the three verified artifacts per the gate procedure; then authorized deploy of ≥ `98a1811` and the new-provider signup → logout → re-login → status-hub verification (desktop + 390×844). Until then, the default outcome stands: `No migration applied.`
+
+## 2026-08-28 — Provider route read audit & drift-safety hardening (continuation session)
+
+**Branch/PR:** `fix/provider-route-read-drift-audit` — `fix: harden provider route reads against schema drift`.
+
+**Continuity:** This session resumed an interrupted task (prior agent ran out of credits mid-implementation, nothing committed or pushed). The interrupted workspace was recovered read-only and its completed work preserved byte-identical: hardened `routes/providers.ts` + `routes/bookings.ts`, new shared `lib/schema-drift.ts`, the `provider-route-read-drift.integration.test.ts` suite, the `test:route-read-drift` package script, and its CI scripted-loop entry. Verified against baseline `8aeb19c`: no other file differed. Nothing was restarted or rewritten.
+
+**What this session added (the genuinely missing remainder):** the audit artifact `docs/provider-route-read-audit.md` (38 routes/helpers, evidence table, risk classifications, stable read-selection rule, intentionally-unchanged list); hardening of the last proven-vulnerable provider-owned reads in `routes/reschedule.ts` — `loadOwnedBooking` (savepoint eager-first + stable bookings projection; non-leaking 404 unchanged), `GET /bookings/:id/reschedule-requests` and `GET /bookings/:id/rescheduling-history` (absent `RESCHEDULE_PROPOSALS_HISTORY_V1` relations degrade to empty lists); `bookingStableColumns`/`BOOKING_DRIFT_DEFAULTS` centralized in `lib/schema-drift.ts`; drift suite extended to 19 tests (reschedule reads + reschedule relations in the drop/restore simulation + foreign-provider non-leak check).
+
+**Boundaries held:** reads degrade to truthful backfill-free defaults only; writes requiring absent Gate B objects keep failing loudly; 401/403/404, approval, and ownership semantics unchanged; no OpenAPI/schema/migration change; client/public booking reads reviewed and intentionally unchanged (out of scope, recorded in the audit doc); managed database NOT ACCESSED; production deployment NOT AUTHORIZED; Gate B remains separately gated.
+
+**Docs appended:** `provider-route-read-audit.md` (new), `provider-approval-status-hub.md`, `provider-verification-onboarding-policy.md`, `api-routes.md`, `NEXT-STEPS.md`, `TODO-LEDGER.md`.
+
+**Validation:** recorded in the PR after the full run (typecheck, build, build:deploy, root tests, scripted drift suites on fresh disposable PostgreSQL 15, `git diff --check`, secret scan, CI).
+
+**Next best action:** unchanged — Gate-B application + deploy + new-provider verification per `docs/managed-db-release-gate.md`; then Status Hub Progress using server-derived readiness criteria.

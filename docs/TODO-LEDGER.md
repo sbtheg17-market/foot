@@ -483,3 +483,13 @@ Recommended priority: after Provider Dashboard gap-closure; only with pilot
 | Apply frozen Gate B artifacts to managed Railway database | TODO (separate release gate) | Per `docs/managed-db-release-gate.md`. The code fix makes drift survivable for the status hub, but booking pages, service areas, and rejected-resubmission flows still require the artifacts. Production metadata verification was BLOCKED here (no Railway access). |
 | Production deploy + new-provider re-login verification | TODO (separate release gate, NOT AUTHORIZED) | After Gate B: deploy merged main, then verify signup → logout → re-login → status hub with a brand-new provider. |
 | Bare-select `getOwnProfile` in ~24 other provider routes | OPEN (unchanged) | Deliberately not broadened — those routes are post-approval surfaces that legitimately need their artifacts; revisit per the standing audit follow-up. |
+
+### Provider route read audit — drift-safety hardening (2026-08-28)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Provider route read audit (adjacent to PR #69) | DONE 2026-08-28 | `fix/provider-route-read-drift-audit`: audited 38 provider-owned routes/helpers against the pre-Gate-B drift class; evidence table + stable read-selection rule in `docs/provider-route-read-audit.md`. |
+| Bare-select `getOwnProfile` in ~24 other provider routes (standing follow-up above) | DONE 2026-08-28 | `getOwnProfile` itself is now drift-safe (eager-first + stable projection + truthful unpublished defaults), closing the whole route class at the helper. |
+| Booking/reschedule owner reads on pending additive columns/relations | DONE 2026-08-28 | Bookings list/detail/outcome-history (recovered work) + reschedule-requests/rescheduling-history and `loadOwnedBooking` (completed this session) degrade truthfully; shared `lib/schema-drift.ts`. Regression: `test:route-read-drift` 19 tests in the CI scripted loop. |
+| Client/public booking reads needing pending relations (`/providers/:id/slots`, booking-create availability checks, public booking page) | OPEN (out of scope) | Reviewed, intentionally unchanged — client/public surface, not provider-owned reads. Becomes moot once Gate B is applied; recorded in the audit doc. |
+| Apply frozen Gate B artifacts + deploy + new-provider verification | TODO (separate release gates, NOT AUTHORIZED) | Unchanged from the first-login session; per `docs/managed-db-release-gate.md`. |

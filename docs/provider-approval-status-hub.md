@@ -213,3 +213,17 @@ a missing application/profile row still 404s. Migrated databases take the
 eager path unchanged. Guarded by `test:return-path-drift` (11 tests, CI
 scripted loop). Full rationale and evidence:
 `docs/provider-onboarding-return-path-reliability-plan.md`.
+
+## Drift-resilience extended to all provider-owned reads (2026-08-28)
+
+The provider route read audit (`docs/provider-route-read-audit.md`) extended
+the same contract beyond the hub: the shared `getOwnProfile` helper and every
+adjacent provider-owned read (services/availability gates, service area,
+emergency openings, vacation ranges, listing preview, booking page,
+dashboard/metrics, bookings list/detail, outcome history,
+reschedule-requests, rescheduling-history) now degrade to truthful
+pre-artifact states instead of 500 on a pre-Gate-B database.
+`isSchemaDriftError` moved to the shared
+`artifacts/api-server/src/lib/schema-drift.ts`. The hub's own reads and
+semantics are unchanged. Additional regression guard:
+`test:route-read-drift` (19 tests, CI scripted loop).
