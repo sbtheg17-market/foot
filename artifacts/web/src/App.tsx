@@ -23,6 +23,7 @@ import PortalCredentials from '@/pages/portal/credentials';
 import PortalNotifications from '@/pages/portal/notifications';
 import PortalReadiness from '@/pages/portal/readiness';
 import PortalListingPreview from '@/pages/portal/listing-preview';
+import BookingPagePrint from '@/pages/portal/booking-page-print';
 import PortalTravelZones from '@/pages/portal/travel-zones';
 import PortalServiceArea from '@/pages/portal/service-area';
 import AdminVerification from '@/pages/admin/verification';
@@ -95,6 +96,7 @@ function Router() {
       <Route path={ROUTES.provider.notifications}>{providerRoute(PortalNotifications)}</Route>
       <Route path={ROUTES.provider.readiness}>{providerRoute(PortalReadiness)}</Route>
       <Route path={ROUTES.provider.listingPreview}>{providerRoute(PortalListingPreview)}</Route>
+      <Route path={ROUTES.provider.bookingPagePrint}>{providerRoute(BookingPagePrint)}</Route>
       <Route path={ROUTES.provider.travelZones}>{providerRoute(PortalTravelZones)}</Route>
       <Route path={ROUTES.provider.serviceArea}>{providerRoute(PortalServiceArea)}</Route>
 

@@ -471,3 +471,21 @@ desktop + 390×844 verification incl. badge appear/disappear with real data
 and deep-link landing. Details: `docs/provider-dashboard.md`
 ("Reschedule alerts" section). Next candidates: Printable QR Card,
 Emergency Openings, Vacation Ranges.
+
+## Status note — 2026-08-29 (Printable QR card — booking page handout)
+
+DONE on `feat/printable-qr-card` (relay §3.3). New presentation-only route
+`/provider/booking-page/print` (provider-authenticated, rendered inside the
+existing provider layout whose chrome is already `print:hidden`): OnCall
+Foot mark, provider name + title, up to six active services with duration
+and price, QR (canonical URL + existing `source=qr-card` attribution),
+human-readable URL, truthful scan-to-book line. "Print handout" link added
+to the published BookingPageCard. Data: owner booking-page read + the SAME
+public `GET /booking-pages/:slug` clients see — public data only; no new
+endpoint, no schema change, no booking/availability logic touched.
+Unpublished → truthful "publish first" zero state. Validation:
+typecheck/build/build:deploy PASS · web 240/240 (6 new) · zero backend
+changes · live desktop + print-media emulation (single ink-friendly page,
+no chrome) + 390×844 (0px overflow). Details:
+`docs/provider-dashboard.md` § Printable QR card. Next candidates:
+Emergency Openings, Vacation Ranges, Graphify Refresh.

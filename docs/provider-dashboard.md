@@ -215,3 +215,29 @@ plain link, count on mobile & desktop + deep link, aria text, 99+ cap,
 independence from the requested badge, axe). Verified live desktop + 390×844
 (badge appears/disappears with real data; deep link lands on the
 Reschedules tab; zero horizontal overflow).
+
+## Printable QR card — booking page handout (2026-08-29)
+
+A "Print handout" action on the BookingPageCard (published state only) opens
+`/provider/booking-page/print` — a presentation-only, print-ready card for
+clinics/pharmacies: OnCall Foot mark, provider name + title, up to six
+active services (name · duration · price), a QR code encoding the canonical
+booking URL with the EXISTING allowlisted `source=qr-card` attribution, the
+human-readable URL, and a truthful "Scan the code or visit the link to book"
+line. Data sources: the owner booking-page read (slug/publish state) plus
+the SAME public `GET /booking-pages/:slug` response clients see — so only
+already-public information can appear (no client data, notes, or internal
+fields). No new endpoint, no schema change, no business-logic change.
+
+Print behavior: Tailwind `print:` variants render a single high-contrast,
+ink-friendly page; the provider layout's existing `print:hidden` chrome
+removes all navigation/footers. On screen the view stays readable on mobile
+with screen-only Print / Back controls. Unpublished pages get a truthful
+zero state ("publish first") instead of a dead QR.
+
+Tests: `pages/portal/booking-page-print.test.tsx` (6 — full render incl.
+prices/durations, QR alt text, screen controls + window.print, unpublished
+zero state with the public query disabled, six-service cap, axe) plus the
+existing booking-page-card suite still green with the new link. Verified
+live: desktop screen, `emulate_media(print)` (all chrome hidden,
+black-on-white), and 390×844 (0px horizontal overflow).

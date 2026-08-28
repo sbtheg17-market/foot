@@ -3431,3 +3431,43 @@ current).
 only, truthful count (no urgency copy), no platform metrics or private
 reviewer data. Docs appended: `docs/provider-dashboard.md` (Reschedule
 alerts section), `docs/NEXT-STEPS.md`, `docs/TODO-LEDGER.md`.
+
+## 2026-08-29 — Printable QR card: booking-page handout
+
+**Branch `feat/printable-qr-card` (relay §3.3). Web-only, presentation-only —
+zero backend edits, zero schema/API changes, no booking/availability logic
+touched.**
+
+**What shipped:**
+- `pages/portal/booking-page-print.tsx` at `/provider/booking-page/print`
+  (providerRoute; the provider layout's chrome is already `print:hidden`, so
+  printing yields ONLY the handout): OnCall Foot mark, provider name +
+  title, up to six active services (name · duration · price), QR encoding
+  the canonical URL with the EXISTING allowlisted `source=qr-card`
+  attribution (same dynamic `qrcode` import as the dashboard card),
+  human-readable URL, truthful "Scan the code or visit the link to book an
+  in-home foot care visit directly." Screen-only Print (window.print) and
+  Back controls. Unpublished page → truthful "publish first" zero state
+  (public query disabled — no dead QR).
+- Data sources: `useGetMyBookingPage` (slug/publish state) + the SAME public
+  `useGetPublicBookingPage(slug)` clients consume → only already-public data
+  can render. Privacy note shown on screen ("shows only what's already
+  public"), never printed.
+- Ink-friendly print styling via Tailwind `print:` variants (white bg, black
+  text, no borders/shadows/rounded chrome).
+- `components/booking-page-card.tsx`: "Print handout" link (published state
+  only) → the new route. `routes.ts` + `App.tsx` route registration.
+
+**Validation:** typecheck PASS · build PASS · build:deploy PASS · web
+240/240 (6 new in `booking-page-print.test.tsx`: full render incl. prices,
+QR alt, screen controls, unpublished zero state, six-service cap, axe;
+booking-page-card suite still green) · live: dashboard link → handout on
+desktop, Playwright `emulate_media(print)` (nav/buttons hidden, single
+black-on-white page), 390×844 (0px horizontal overflow). Live check
+required publishing seeded Sarah's page on the scratch DB (service area
+M5V + publish via existing APIs) — scratch-DB-only state, recreated on the
+next loop reseed.
+
+**Boundaries held:** public booking-page data only; no client data or
+internal fields; no new endpoint; no marketing fluff (single truthful
+tagline); no changes to booking/availability/rescheduling logic.

@@ -11,7 +11,7 @@
 import React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Link2, Share2, Copy, Check, ExternalLink, QrCode, Globe2, EyeOff, Loader2,
+  Link2, Share2, Copy, Check, ExternalLink, QrCode, Globe2, EyeOff, Loader2, Printer,
 } from 'lucide-react';
 import {
   useGetMyBookingPage,
@@ -214,6 +214,14 @@ export default function BookingPageCard() {
               {qrBusy ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <QrCode className="w-4 h-4" aria-hidden="true" />}
               QR code
             </button>
+            <a
+              href={ROUTES.provider.bookingPagePrint}
+              aria-label="Open the printable handout for your booking page"
+              data-testid="booking-page-print-link"
+              className={outlineBtn}
+            >
+              <Printer className="w-4 h-4" aria-hidden="true" /> Print handout
+            </a>
             <button type="button" onClick={handleUnpublish} disabled={unpublish.isPending} aria-label="Unpublish your booking page" data-testid="booking-page-unpublish-button" className={outlineBtn}>
               <EyeOff className="w-4 h-4" aria-hidden="true" />
               {unpublish.isPending ? 'Unpublishing…' : 'Unpublish'}

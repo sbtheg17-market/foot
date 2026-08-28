@@ -486,3 +486,12 @@ Recommended priority: after Provider Dashboard gap-closure; only with pilot
 | Printable QR Card (relay §3.3) | TODO (next candidate) | Print-ready booking-page handout; presentation-only. |
 | Emergency Openings | TODO / DEFERRED | One-off extra slots outside weekly hours (`availability_exception_type` leaves room). |
 | Vacation Ranges | TODO / DEFERRED | Block a whole date range in one step (extends blocked dates). |
+
+### Printable QR card — booking page handout (2026-08-29)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Printable QR card (relay §3.3) | DONE 2026-08-29 | `/provider/booking-page/print` presentation-only view over existing owner + public booking-page reads; QR reuses `source=qr-card`; print CSS via Tailwind `print:` variants + existing layout `print:hidden` chrome; BookingPageCard "Print handout" link. No new endpoint/schema/logic. 6 web tests incl. axe; live print-media + mobile verification. See `docs/provider-dashboard.md` § Printable QR card. |
+| Emergency Openings | TODO (next candidate) | One-off extra slots outside weekly hours (`availability_exception_type` leaves room). |
+| Vacation Ranges | TODO (next candidate) | Block a whole date range in one step (extends blocked dates). |
+| Graphify artifact refresh | TODO | Still pending; CLI unavailable in this environment. |

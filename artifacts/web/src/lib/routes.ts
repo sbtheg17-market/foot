@@ -32,6 +32,7 @@ export const ROUTES = {
     notifications: '/provider/notifications',
     readiness: '/provider/readiness',
     listingPreview: '/provider/listing-preview',
+    bookingPagePrint: '/provider/booking-page/print',
     travelZones: '/provider/travel-zones',
     serviceArea: '/provider/service-area',
     applicationStatus: '/provider/application-status',
