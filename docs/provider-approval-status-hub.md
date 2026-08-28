@@ -227,3 +227,22 @@ pre-artifact states instead of 500 on a pre-Gate-B database.
 `artifacts/api-server/src/lib/schema-drift.ts`. The hub's own reads and
 semantics are unchanged. Additional regression guard:
 `test:route-read-drift` (19 tests, CI scripted loop).
+
+## Progress & next-step clarity (2026-08-28) — mobile CTA priority + "what follows"
+
+The hub hero now renders in strict mobile-first priority order: status +
+reassurance → ONE primary server-derived next action → compact progress
+summary → checklist below. The next-action card gained a factual "what
+follows" line (`NEXT_ACTION_COPY[action].after`,
+`data-testid="activation-next-after"`) describing what the completed step
+enables — never promising approval, bookings, or demand. The progress
+summary stays text-first ("N of M steps complete" from the server's
+`milestonesCompleted`/`milestonesTotal`) with a semantic
+`role="progressbar"` meter. No API, schema, or readiness-rule change:
+`deriveActivationNextAction`, `computeReadiness`, and the milestones model
+are reused untouched; clients still never recompute readiness. No
+provider-facing schema/drift banner exists or should be added — schema
+compatibility is an internal operational concern (see the route read audit);
+only feature-specific truthful states are shown. Verified live at 390×844
+(CTA above the fold, zero horizontal overflow) and desktop; web suite 240
+tests incl. 3 new progress/next-step tests and axe scans.
