@@ -476,3 +476,29 @@ organization/workspace remain FUTURE, NOT IMPLEMENTED. Authoritative doc:
   rejected-resubmission flows still need the artifacts), then deploy and
   verify with a brand-new provider (signup → logout → re-login → status
   hub). Neither was authorized/possible from this environment.
+
+## Provider route read audit — drift-safety hardening (2026-08-28)
+
+- Audited every provider-owned read path against the pre-Gate-B drift class
+  PR #69 fixed for the status hub; findings, evidence table, and the
+  repository-wide stable read-selection rule live in
+  `docs/provider-route-read-audit.md`.
+- Hardened the proven-vulnerable reads: shared `getOwnProfile` (~30 owner
+  routes), owner service-area read + coverage probe, emergency-openings and
+  blocked-ranges owner lists, dashboard/metrics booking rows
+  (`bookings.source`), bookings list/detail/outcome-history, and the
+  reschedule-requests / rescheduling-history owner reads
+  (`loadOwnedBooking` ownership resolution included). Shared helper:
+  `artifacts/api-server/src/lib/schema-drift.ts`. Truthful degraded states
+  only; writes still fail loudly; no OpenAPI/schema change.
+- Regression guard: `test:route-read-drift` (19 tests, added to the CI
+  scripted loop) using the same disposable-PostgreSQL drift simulation as
+  PR #69.
+- **Still open (unchanged, separate release gates):** Gate B application to
+  the managed database and the production deploy + new-provider
+  verification, per `docs/managed-db-release-gate.md`. Client/public booking
+  reads that require pending relations (`GET /providers/:id/slots`,
+  `POST /bookings` availability checks, public `GET /booking-pages/:slug`)
+  were reviewed and intentionally left unchanged (out of the provider-owned
+  read scope; recorded in the audit doc as follow-up if Gate B stays
+  unapplied).

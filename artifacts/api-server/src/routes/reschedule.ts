@@ -36,6 +36,12 @@ import {
   getTravelSetupBufferMinutes,
   loadProviderCoverage,
 } from "../lib/service-area.js";
+import { logger } from "../lib/logger.js";
+import {
+  BOOKING_DRIFT_DEFAULTS,
+  bookingStableColumns,
+  isSchemaDriftError,
+} from "../lib/schema-drift.js";
 
 /**
  * Consent-first provider rescheduling (docs/rescheduling-policy.md).
@@ -90,9 +96,34 @@ async function loadOwnedBooking(
   role: string,
   opts: { lock?: boolean } = {},
 ): Promise<{ booking: BookingRow; callerProviderProfileId: number | null }> {
-  let query = tx.select().from(bookingsTable).where(eq(bookingsTable.id, bookingId)).limit(1);
-  const rows = opts.lock ? await query.for("update") : await query;
-  const booking = rows[0];
+  // Eager full select first (migrated databases unchanged), inside a
+  // savepoint so a 42703 on a pre-Gate-B database (bookings.source /
+  // roadmap-#13 cancellation columns absent) does not abort the caller's
+  // transaction. The fallback re-reads the stable columns and degrades the
+  // additive fields to their backfill-free null defaults
+  // (docs/provider-route-read-audit.md). Ownership checks below use only
+  // signup-era columns, so non-leaking 404 semantics are unchanged.
+  let booking: BookingRow | undefined;
+  try {
+    booking = await tx.transaction(async (sp) => {
+      const query = sp.select().from(bookingsTable).where(eq(bookingsTable.id, bookingId)).limit(1);
+      const rows = opts.lock ? await query.for("update") : await query;
+      return rows[0];
+    });
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    logger.warn(
+      { bookingId },
+      "reschedule booking read degraded: Gate B-pending bookings columns missing; additive fields reported as null",
+    );
+    const query = tx
+      .select(bookingStableColumns)
+      .from(bookingsTable)
+      .where(eq(bookingsTable.id, bookingId))
+      .limit(1);
+    const rows = opts.lock ? await query.for("update") : await query;
+    booking = rows[0] ? { ...rows[0], ...BOOKING_DRIFT_DEFAULTS } : undefined;
+  }
   if (!booking) throw httpError(404, "Booking not found.");
 
   let callerProviderProfileId: number | null = null;
@@ -532,12 +563,27 @@ router.get(
     try {
       const proposals = await db.transaction(async (tx) => {
         const { booking } = await loadOwnedBooking(tx, bookingId, user.sub, role, { lock: true });
-        const rows = await tx
-          .select()
-          .from(rescheduleProposalsTable)
-          .where(eq(rescheduleProposalsTable.bookingId, bookingId))
-          .orderBy(desc(rescheduleProposalsTable.createdAt), desc(rescheduleProposalsTable.id))
-          .limit(20);
+        let rows: RescheduleProposal[];
+        try {
+          // Savepoint: a missing booking_reschedule_proposals relation
+          // (RESCHEDULE_PROPOSALS_HISTORY_V1.sql not applied yet) must not
+          // abort the transaction — an absent relation can hold no rows.
+          rows = await tx.transaction(async (sp) =>
+            sp
+              .select()
+              .from(rescheduleProposalsTable)
+              .where(eq(rescheduleProposalsTable.bookingId, bookingId))
+              .orderBy(desc(rescheduleProposalsTable.createdAt), desc(rescheduleProposalsTable.id))
+              .limit(20),
+          );
+        } catch (error) {
+          if (!isSchemaDriftError(error)) throw error;
+          logger.warn(
+            { bookingId },
+            "reschedule-requests read degraded: Gate B-pending relation missing; reporting none",
+          );
+          rows = [];
+        }
         const out: RescheduleProposal[] = [];
         for (const row of rows) out.push(await expireIfPastDeadline(tx, row, booking));
         return out;
@@ -796,12 +842,23 @@ router.get(
         ? and(eq(rescheduleHistoryTable.bookingId, bookingId), lt(rescheduleHistoryTable.id, cursor))
         : eq(rescheduleHistoryTable.bookingId, bookingId);
 
-      const rows = await db
-        .select()
-        .from(rescheduleHistoryTable)
-        .where(where)
-        .orderBy(desc(rescheduleHistoryTable.id))
-        .limit(limit);
+      let rows: (typeof rescheduleHistoryTable.$inferSelect)[];
+      try {
+        rows = await db
+          .select()
+          .from(rescheduleHistoryTable)
+          .where(where)
+          .orderBy(desc(rescheduleHistoryTable.id))
+          .limit(limit);
+      } catch (error) {
+        if (!isSchemaDriftError(error)) throw error;
+        // An absent Gate B reschedule-history relation can hold no rows.
+        logger.warn(
+          { bookingId },
+          "rescheduling-history read degraded: Gate B-pending relation missing; reporting empty history",
+        );
+        rows = [];
+      }
 
       res.json({
         history: rows.map((h) => ({

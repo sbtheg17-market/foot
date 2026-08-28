@@ -52,10 +52,43 @@ import {
   NO_SHOW_TOO_EARLY_MESSAGE,
   PROVIDER_CANCELLATION_REASON_CATEGORIES,
 } from "../lib/cancellation-policy.js";
+import { logger } from "../lib/logger.js";
+import {
+  BOOKING_DRIFT_DEFAULTS,
+  bookingStableColumns,
+  isSchemaDriftError,
+} from "../lib/schema-drift.js";
 
 const router = Router();
 
 type BookingRow = typeof bookingsTable.$inferSelect;
+
+/** Booking-by-id lookup (read paths) that survives Gate-B schema drift. */
+async function selectBookingByIdDriftSafe(
+  bookingId: number,
+): Promise<BookingRow | undefined> {
+  try {
+    const rows = await db
+      .select()
+      .from(bookingsTable)
+      .where(eq(bookingsTable.id, bookingId))
+      .limit(1);
+    return rows[0];
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    logger.warn(
+      { bookingId },
+      "booking read degraded: Gate B-pending bookings columns missing; additive fields reported as null",
+    );
+    const rows = await db
+      .select(bookingStableColumns)
+      .from(bookingsTable)
+      .where(eq(bookingsTable.id, bookingId))
+      .limit(1);
+    const row = rows[0];
+    return row ? { ...row, ...BOOKING_DRIFT_DEFAULTS } : undefined;
+  }
+}
 
 /**
  * Client booking responses must never expose provider-private clinical notes
@@ -110,20 +143,40 @@ router.get(
         ? eq(bookingsTable.status, statusFilter)
         : undefined;
 
+    const listContactColumns = {
+      clientFirstName: usersTable.firstName,
+      clientLastName: usersTable.lastName,
+      clientPhone: usersTable.phone,
+    };
+    const loadListRows = async () => {
+      try {
+        return await db
+          .select({ ...getTableColumns(bookingsTable), ...listContactColumns })
+          .from(bookingsTable)
+          .leftJoin(usersTable, eq(usersTable.id, bookingsTable.clientId))
+          .where(whereClause)
+          .orderBy(sql`${bookingsTable.scheduledAt} desc`)
+          .limit(limit)
+          .offset(offset);
+      } catch (error) {
+        if (!isSchemaDriftError(error)) throw error;
+        logger.warn(
+          { userId: user.sub, role },
+          "booking list degraded: Gate B-pending bookings columns missing; additive fields reported as null",
+        );
+        const rows = await db
+          .select({ ...bookingStableColumns, ...listContactColumns })
+          .from(bookingsTable)
+          .leftJoin(usersTable, eq(usersTable.id, bookingsTable.clientId))
+          .where(whereClause)
+          .orderBy(sql`${bookingsTable.scheduledAt} desc`)
+          .limit(limit)
+          .offset(offset);
+        return rows.map((row) => ({ ...row, ...BOOKING_DRIFT_DEFAULTS }));
+      }
+    };
     const [bookings, countRows] = await Promise.all([
-      db
-        .select({
-          ...getTableColumns(bookingsTable),
-          clientFirstName: usersTable.firstName,
-          clientLastName: usersTable.lastName,
-          clientPhone: usersTable.phone,
-        })
-        .from(bookingsTable)
-        .leftJoin(usersTable, eq(usersTable.id, bookingsTable.clientId))
-        .where(whereClause)
-        .orderBy(sql`${bookingsTable.scheduledAt} desc`)
-        .limit(limit)
-        .offset(offset),
+      loadListRows(),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(bookingsTable)
@@ -670,13 +723,7 @@ router.get(
     const user = req.user!;
     const bookingId = Number(req.params["bookingId"]);
 
-    const rows = await db
-      .select()
-      .from(bookingsTable)
-      .where(eq(bookingsTable.id, bookingId))
-      .limit(1);
-
-    const booking = rows[0];
+    const booking = await selectBookingByIdDriftSafe(bookingId);
     if (!booking) {
       res.status(404).json({ error: "Booking not found." });
       return;
@@ -1339,11 +1386,7 @@ async function loadOwnedBookingForRead(
   userId: number,
   role: "client" | "provider" | "admin",
 ): Promise<BookingRow> {
-  const [booking] = await db
-    .select()
-    .from(bookingsTable)
-    .where(eq(bookingsTable.id, bookingId))
-    .limit(1);
+  const booking = await selectBookingByIdDriftSafe(bookingId);
   // Non-leaking: missing and unowned bookings are indistinguishable.
   if (!booking) {
     throw Object.assign(new Error("NOT_FOUND"), {
@@ -1471,12 +1514,23 @@ router.get(
     try {
       await loadOwnedBookingForRead(bookingId, req.user!.sub, role);
 
-      const rows = await db
-        .select()
-        .from(bookingOutcomeHistoryTable)
-        .where(eq(bookingOutcomeHistoryTable.bookingId, bookingId))
-        .orderBy(sql`${bookingOutcomeHistoryTable.id} desc`)
-        .limit(limit);
+      let rows: (typeof bookingOutcomeHistoryTable.$inferSelect)[];
+      try {
+        rows = await db
+          .select()
+          .from(bookingOutcomeHistoryTable)
+          .where(eq(bookingOutcomeHistoryTable.bookingId, bookingId))
+          .orderBy(sql`${bookingOutcomeHistoryTable.id} desc`)
+          .limit(limit);
+      } catch (error) {
+        if (!isSchemaDriftError(error)) throw error;
+        // An absent Gate B outcome-history relation can hold no rows.
+        logger.warn(
+          { bookingId },
+          "outcome-history read degraded: Gate B-pending relation missing; reporting empty history",
+        );
+        rows = [];
+      }
 
       res.json({
         history: rows.map((h) => ({

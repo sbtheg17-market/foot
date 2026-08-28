@@ -132,3 +132,18 @@ readiness. This keeps a provider's first return truthful on a database whose
 frozen additive artifacts have not been applied yet. Regression guard:
 `test:return-path-drift`. See
 `docs/provider-onboarding-return-path-reliability-plan.md`.
+
+## Selection rule promoted to a repository-wide contract (2026-08-28)
+
+The provider route read audit (`docs/provider-route-read-audit.md`) made the
+stable-vs-optional selection rule the contract for **every provider-owned
+read**, not just the status/verification reads: stable signup-era columns are
+the required read set; Gate B-pending additive columns/relations are
+attempted eagerly and degraded to their backfill-free defaults on
+`42703`/`42P01` only, never fabricating approval, readiness, publication, or
+ownership; writes that require absent objects keep failing loudly.
+`isSchemaDriftError` now lives in the shared
+`artifacts/api-server/src/lib/schema-drift.ts` (with the stable bookings
+projection used by booking/reschedule reads). Regression guards:
+`test:return-path-drift` (11) + `test:route-read-drift` (19), both in the CI
+scripted loop.

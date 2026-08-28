@@ -27,6 +27,7 @@ import {
   requireRole,
 } from "../middlewares/auth.js";
 import { logger } from "../lib/logger.js";
+import { isSchemaDriftError } from "../lib/schema-drift.js";
 import { createApplicationNotification } from "../lib/application-notifications.js";
 import {
   computeReadiness,
@@ -69,14 +70,64 @@ const requireProviderOperation = [
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Signup-era provider_profiles columns — the stable set every owner-scoped
+ * provider route depends on. The Gate B-pending booking-page columns
+ * (public_slug, booking_page_published, booking_page_published_at —
+ * docs/migrations/PROVIDER_PUBLIC_BOOKING_PAGES_V1.sql) are attempted
+ * eagerly below and degrade to the truthful pre-#11 state (no slug,
+ * unpublished) only on a drifted database, so no owner route 500s on drift.
+ */
+const ownProfileStableSelection = {
+  id: providerProfilesTable.id,
+  userId: providerProfilesTable.userId,
+  title: providerProfilesTable.title,
+  bio: providerProfilesTable.bio,
+  city: providerProfilesTable.city,
+  serviceAreaNotes: providerProfilesTable.serviceAreaNotes,
+  verificationStatus: providerProfilesTable.verificationStatus,
+  rating: providerProfilesTable.rating,
+  reviewCount: providerProfilesTable.reviewCount,
+  profileComplete: providerProfilesTable.profileComplete,
+  yearsExperience: providerProfilesTable.yearsExperience,
+  acceptsNewClients: providerProfilesTable.acceptsNewClients,
+  createdAt: providerProfilesTable.createdAt,
+  updatedAt: providerProfilesTable.updatedAt,
+};
+
 /** Fetch the provider profile row for the currently authenticated provider. */
-async function getOwnProfile(userId: number) {
-  const rows = await db
-    .select()
-    .from(providerProfilesTable)
-    .where(eq(providerProfilesTable.userId, userId))
-    .limit(1);
-  return rows[0] ?? null;
+async function getOwnProfile(
+  userId: number,
+): Promise<typeof providerProfilesTable.$inferSelect | null> {
+  try {
+    const rows = await db
+      .select()
+      .from(providerProfilesTable)
+      .where(eq(providerProfilesTable.userId, userId))
+      .limit(1);
+    return rows[0] ?? null;
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    // Truthful degraded read: on a database without the booking-page columns
+    // nothing can be published — the migrated columns' backfill-free default.
+    logger.warn(
+      { userId },
+      "getOwnProfile degraded: Gate B-pending booking-page columns missing; reporting unpublished",
+    );
+    const rows = await db
+      .select(ownProfileStableSelection)
+      .from(providerProfilesTable)
+      .where(eq(providerProfilesTable.userId, userId))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      ...row,
+      publicSlug: null,
+      bookingPagePublished: false,
+      bookingPagePublishedAt: null,
+    };
+  }
 }
 
 type PreviousSubmissionRow = {
@@ -109,26 +160,6 @@ type ApplicationRow = {
   };
   previousSubmissions: PreviousSubmissionRow[];
 };
-
-/**
- * True when the error chain contains a PostgreSQL missing-relation error:
- * 42703 (undefined_column) or 42P01 (undefined_table). Both occur on a
- * deployed database whose Gate B-pending additive migration artifacts
- * (docs/migrations/*.sql) have not been applied yet — startup never pushes
- * schema (docs/deployment-notes.md), so schema drift is an expected,
- * recoverable deployment state, not a programming error. Drizzle wraps the
- * pg error, so the chain is walked via `cause` (same convention as
- * isUniqueViolation in routes/auth.ts).
- */
-function isSchemaDriftError(error: unknown): boolean {
-  let current: unknown = error;
-  for (let depth = 0; current && depth < 5; depth++) {
-    const code = (current as { code?: string }).code;
-    if (code === "42703" || code === "42P01") return true;
-    current = (current as { cause?: unknown }).cause;
-  }
-  return false;
-}
 
 /**
  * Signup-era columns only — the stable set every owner status read depends
@@ -1386,7 +1417,17 @@ function bookingPageView(
 
 /** True when the provider has an active coverage config with ≥1 active prefix. */
 async function hasActiveServiceAreaCoverage(profileId: number): Promise<boolean> {
-  return isCoverageConfigured(await loadProviderCoverage(db, profileId));
+  try {
+    return isCoverageConfigured(await loadProviderCoverage(db, profileId));
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    // Absent Gate B service-area relations can hold no configuration.
+    logger.warn(
+      { profileId },
+      "hasActiveServiceAreaCoverage degraded: Gate B-pending service-area tables missing; reporting unconfigured",
+    );
+    return false;
+  }
 }
 
 /** GET /providers/me/booking-page — owner-scoped publish state. */
@@ -2004,13 +2045,12 @@ function deriveActivationNextAction(
 }
 
 /**
- * Drift-safe owner profile read for the activation hub. getOwnProfile()
- * selects every schema column, so on a database where the Gate B-pending
- * booking-page columns (docs/migrations/PROVIDER_PUBLIC_BOOKING_PAGES_V1.sql)
- * are not applied yet it fails 42703 → 500 — the provider first-return
- * failure. Booking-page columns are attempted first; on drift the read
- * degrades to the truthful pre-#11 state: no slug, unpublished. (Same
- * convention as getOwnVerificationProfile below.)
+ * Drift-safe owner profile read for the activation hub — a narrow
+ * booking-page projection kept for the hub's compact payload. Booking-page
+ * columns are attempted first; on drift the read degrades to the truthful
+ * pre-#11 state: no slug, unpublished. (Same convention as getOwnProfile
+ * above — drift-safe since the provider route read audit — and
+ * getOwnVerificationProfile below.)
  */
 async function getOwnActivationProfile(
   userId: number,
@@ -2491,19 +2531,30 @@ router.get(
     }
 
     const today = localDateOfInstant(Date.now(), getMarketplaceTimezone());
-    const openings = await db
-      .select()
-      .from(providerEmergencyOpeningsTable)
-      .where(
-        and(
-          eq(providerEmergencyOpeningsTable.providerId, profile.id),
-          gte(providerEmergencyOpeningsTable.date, today),
-        ),
-      )
-      .orderBy(
-        providerEmergencyOpeningsTable.date,
-        providerEmergencyOpeningsTable.startTime,
+    let openings: (typeof providerEmergencyOpeningsTable.$inferSelect)[];
+    try {
+      openings = await db
+        .select()
+        .from(providerEmergencyOpeningsTable)
+        .where(
+          and(
+            eq(providerEmergencyOpeningsTable.providerId, profile.id),
+            gte(providerEmergencyOpeningsTable.date, today),
+          ),
+        )
+        .orderBy(
+          providerEmergencyOpeningsTable.date,
+          providerEmergencyOpeningsTable.startTime,
+        );
+    } catch (error) {
+      if (!isSchemaDriftError(error)) throw error;
+      // An absent Gate B openings relation can hold no rows — empty is the truth.
+      logger.warn(
+        { profileId: profile.id },
+        "emergency-openings read degraded: Gate B-pending relation missing; reporting none",
       );
+      openings = [];
+    }
 
     res.json({ openings });
   }
@@ -2762,19 +2813,30 @@ router.get(
     }
 
     const today = localDateOfInstant(Date.now(), getMarketplaceTimezone());
-    const ranges = await db
-      .select()
-      .from(providerBlockedRangesTable)
-      .where(
-        and(
-          eq(providerBlockedRangesTable.providerId, profile.id),
-          gte(providerBlockedRangesTable.endDate, today),
-        ),
-      )
-      .orderBy(
-        providerBlockedRangesTable.startDate,
-        providerBlockedRangesTable.id,
+    let ranges: (typeof providerBlockedRangesTable.$inferSelect)[];
+    try {
+      ranges = await db
+        .select()
+        .from(providerBlockedRangesTable)
+        .where(
+          and(
+            eq(providerBlockedRangesTable.providerId, profile.id),
+            gte(providerBlockedRangesTable.endDate, today),
+          ),
+        )
+        .orderBy(
+          providerBlockedRangesTable.startDate,
+          providerBlockedRangesTable.id,
+        );
+    } catch (error) {
+      if (!isSchemaDriftError(error)) throw error;
+      // An absent Gate B blocked-ranges relation can hold no rows.
+      logger.warn(
+        { profileId: profile.id },
+        "blocked-ranges read degraded: Gate B-pending relation missing; reporting none",
       );
+      ranges = [];
+    }
 
     res.json({ ranges });
   }
@@ -3093,27 +3155,45 @@ router.delete(
 
 /** Owner-facing service-area projection (safe: owner-scoped endpoints only). */
 async function buildOwnServiceArea(profileId: number) {
-  const [config] = await db
-    .select()
-    .from(providerServiceAreasTable)
-    .where(eq(providerServiceAreasTable.providerId, profileId))
-    .limit(1);
+  let config: typeof providerServiceAreasTable.$inferSelect | undefined;
+  let prefixes: Array<{
+    id: number;
+    countryCode: string;
+    prefix: string;
+    createdAt: Date;
+  }>;
+  try {
+    [config] = await db
+      .select()
+      .from(providerServiceAreasTable)
+      .where(eq(providerServiceAreasTable.providerId, profileId))
+      .limit(1);
 
-  const prefixes = await db
-    .select({
-      id: providerCoverageAreasTable.id,
-      countryCode: providerCoverageAreasTable.countryCode,
-      prefix: providerCoverageAreasTable.prefix,
-      createdAt: providerCoverageAreasTable.createdAt,
-    })
-    .from(providerCoverageAreasTable)
-    .where(
-      and(
-        eq(providerCoverageAreasTable.providerId, profileId),
-        eq(providerCoverageAreasTable.isActive, true),
-      ),
-    )
-    .orderBy(providerCoverageAreasTable.prefix);
+    prefixes = await db
+      .select({
+        id: providerCoverageAreasTable.id,
+        countryCode: providerCoverageAreasTable.countryCode,
+        prefix: providerCoverageAreasTable.prefix,
+        createdAt: providerCoverageAreasTable.createdAt,
+      })
+      .from(providerCoverageAreasTable)
+      .where(
+        and(
+          eq(providerCoverageAreasTable.providerId, profileId),
+          eq(providerCoverageAreasTable.isActive, true),
+        ),
+      )
+      .orderBy(providerCoverageAreasTable.prefix);
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    // Absent Gate B service-area relations can hold no configuration.
+    logger.warn(
+      { profileId },
+      "buildOwnServiceArea degraded: Gate B-pending service-area tables missing; reporting unconfigured",
+    );
+    config = undefined;
+    prefixes = [];
+  }
 
   const configured = Boolean(config?.isActive) && prefixes.length > 0;
 
@@ -3468,28 +3548,46 @@ type DashboardBookingRow = {
  * client). Appropriate at pilot scale; revisit with SQL aggregation if a
  * provider ever exceeds thousands of bookings.
  */
+const dashboardStableSelection = {
+  id: bookingsTable.id,
+  clientId: bookingsTable.clientId,
+  status: bookingsTable.status,
+  scheduledAt: bookingsTable.scheduledAt,
+  updatedAt: bookingsTable.updatedAt,
+  postalCode: bookingsTable.postalCode,
+  city: bookingsTable.city,
+  serviceTitle: servicesTable.title,
+  priceCents: servicesTable.priceCents,
+  clientFirstName: usersTable.firstName,
+  clientLastName: usersTable.lastName,
+};
+
 async function loadDashboardBookingRows(
   providerProfileId: number,
 ): Promise<DashboardBookingRow[]> {
-  return db
-    .select({
-      id: bookingsTable.id,
-      clientId: bookingsTable.clientId,
-      status: bookingsTable.status,
-      scheduledAt: bookingsTable.scheduledAt,
-      updatedAt: bookingsTable.updatedAt,
-      postalCode: bookingsTable.postalCode,
-      city: bookingsTable.city,
-      source: bookingsTable.source,
-      serviceTitle: servicesTable.title,
-      priceCents: servicesTable.priceCents,
-      clientFirstName: usersTable.firstName,
-      clientLastName: usersTable.lastName,
-    })
-    .from(bookingsTable)
-    .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
-    .innerJoin(usersTable, eq(usersTable.id, bookingsTable.clientId))
-    .where(eq(bookingsTable.providerId, providerProfileId));
+  try {
+    return await db
+      .select({ ...dashboardStableSelection, source: bookingsTable.source })
+      .from(bookingsTable)
+      .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
+      .innerJoin(usersTable, eq(usersTable.id, bookingsTable.clientId))
+      .where(eq(bookingsTable.providerId, providerProfileId));
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    // Truthful degraded read: the Gate B-pending bookings.source column can
+    // hold no attribution — null is the migrated column's backfill-free default.
+    logger.warn(
+      { providerProfileId },
+      "loadDashboardBookingRows degraded: Gate B-pending bookings.source column missing; source reported as null",
+    );
+    const rows = await db
+      .select(dashboardStableSelection)
+      .from(bookingsTable)
+      .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
+      .innerJoin(usersTable, eq(usersTable.id, bookingsTable.clientId))
+      .where(eq(bookingsTable.providerId, providerProfileId));
+    return rows.map((row) => ({ ...row, source: null }));
+  }
 }
 
 /** Privacy-trimmed cross-party label: first name + last initial. */
