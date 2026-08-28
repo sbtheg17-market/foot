@@ -1108,7 +1108,8 @@ export const GetMyListingPreviewResponse = zod.object({
   "slots": zod.array(zod.object({
   "start": zod.coerce.date(),
   "end": zod.coerce.date(),
-  "available": zod.boolean()
+  "available": zod.boolean(),
+  "urgentOnly": zod.boolean().optional().describe('True when this time exists only because of an urgent-only emergency opening. Label only — booking works the same.')
 }))
 })),
   "readiness": zod.object({
@@ -1288,6 +1289,76 @@ export const SetMyAvailabilityResponse = zod.object({
   "startTime": zod.string().regex(setMyAvailabilityResponseSlotsItemStartTimeRegExp).describe('HH:MM 24-hour'),
   "endTime": zod.string().regex(setMyAvailabilityResponseSlotsItemEndTimeRegExp).describe('HH:MM 24-hour')
 }))
+})
+
+
+/**
+ * Upcoming date-specific extra availability windows outside the weekly schedule, owner-scoped. Past-dated openings are omitted.
+ * @summary List own upcoming emergency openings (one-off extra slots)
+ */
+export const listMyEmergencyOpeningsResponseOpeningsItemDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const listMyEmergencyOpeningsResponseOpeningsItemStartTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+export const listMyEmergencyOpeningsResponseOpeningsItemEndTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+
+
+export const ListMyEmergencyOpeningsResponse = zod.object({
+  "openings": zod.array(zod.object({
+  "id": zod.int(),
+  "date": zod.string().regex(listMyEmergencyOpeningsResponseOpeningsItemDateRegExp).describe('YYYY-MM-DD (marketplace timezone)'),
+  "startTime": zod.string().regex(listMyEmergencyOpeningsResponseOpeningsItemStartTimeRegExp).describe('HH:MM 24-hour'),
+  "endTime": zod.string().regex(listMyEmergencyOpeningsResponseOpeningsItemEndTimeRegExp).describe('HH:MM 24-hour'),
+  "serviceIds": zod.array(zod.int()).nullish().describe('Restricted service ids; null = every active service'),
+  "urgentOnly": zod.boolean().describe('Client-facing label only — the booking flow is unchanged'),
+  "createdAt": zod.coerce.date().optional()
+}).describe('One-off extra availability window outside the weekly schedule (docs\/emergency-openings-policy.md). Date is a calendar date in the effective marketplace timezone.'))
+})
+
+
+/**
+ * Adds a date-specific extra availability window without changing the weekly schedule. Optionally restricted to specific active services and optionally labeled urgent-only (label only — the booking flow is unchanged). Overlapping an existing opening on the same date is rejected.
+ * @summary Create an emergency opening (one-off extra slot window)
+ */
+export const createEmergencyOpeningBodyDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createEmergencyOpeningBodyStartTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+export const createEmergencyOpeningBodyEndTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+export const createEmergencyOpeningBodyUrgentOnlyDefault = false;
+
+export const CreateEmergencyOpeningBody = zod.object({
+  "date": zod.string().regex(createEmergencyOpeningBodyDateRegExp).describe('YYYY-MM-DD; today or later (marketplace timezone)'),
+  "startTime": zod.string().regex(createEmergencyOpeningBodyStartTimeRegExp),
+  "endTime": zod.string().regex(createEmergencyOpeningBodyEndTimeRegExp),
+  "serviceIds": zod.array(zod.int()).optional().describe('Optional restriction to own active services; omit\/empty = all'),
+  "urgentOnly": zod.boolean().default(createEmergencyOpeningBodyUrgentOnlyDefault)
+})
+
+export const createEmergencyOpeningResponseOpeningDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createEmergencyOpeningResponseOpeningStartTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+export const createEmergencyOpeningResponseOpeningEndTimeRegExp = new RegExp('^([01]\\d|2[0-3]):[0-5]\\d$');
+
+
+export const CreateEmergencyOpeningResponse = zod.object({
+  "opening": zod.object({
+  "id": zod.int(),
+  "date": zod.string().regex(createEmergencyOpeningResponseOpeningDateRegExp).describe('YYYY-MM-DD (marketplace timezone)'),
+  "startTime": zod.string().regex(createEmergencyOpeningResponseOpeningStartTimeRegExp).describe('HH:MM 24-hour'),
+  "endTime": zod.string().regex(createEmergencyOpeningResponseOpeningEndTimeRegExp).describe('HH:MM 24-hour'),
+  "serviceIds": zod.array(zod.int()).nullish().describe('Restricted service ids; null = every active service'),
+  "urgentOnly": zod.boolean().describe('Client-facing label only — the booking flow is unchanged'),
+  "createdAt": zod.coerce.date().optional()
+}).describe('One-off extra availability window outside the weekly schedule (docs\/emergency-openings-policy.md). Date is a calendar date in the effective marketplace timezone.')
+})
+
+
+/**
+ * Deletes an owned emergency opening. Rejected with 409 when active bookings are scheduled during the opening — deleting an opening never cancels or breaks appointments.
+ * @summary Delete an emergency opening
+ */
+export const DeleteEmergencyOpeningParams = zod.object({
+  "openingId": zod.coerce.number().int()
+})
+
+export const DeleteEmergencyOpeningResponse = zod.object({
+  "message": zod.string()
 })
 
 
@@ -1938,7 +2009,8 @@ export const GetProviderSlotsResponse = zod.object({
   "slots": zod.array(zod.object({
   "start": zod.coerce.date(),
   "end": zod.coerce.date(),
-  "available": zod.boolean()
+  "available": zod.boolean(),
+  "urgentOnly": zod.boolean().optional().describe('True when this time exists only because of an urgent-only emergency opening. Label only — booking works the same.')
 }))
 })
 

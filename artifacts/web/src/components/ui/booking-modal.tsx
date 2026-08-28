@@ -232,10 +232,25 @@ export default function BookingModal({ providerId, providerName, service, source
                       }`}
                     >
                       {slotLabel(slot.start)}
+                      {slot.urgentOnly && (
+                        <span
+                          data-testid={`booking-slot-urgent-${slot.start}`}
+                          className={`block text-[10px] font-semibold uppercase tracking-wide mt-0.5 ${
+                            selected ? 'text-primary-foreground/80' : 'text-amber-600'
+                          }`}
+                        >
+                          Urgent
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
+            )}
+            {slots.some((s) => s.urgentOnly) && (
+              <p className="text-xs text-muted-foreground mt-2" data-testid="booking-urgent-caption">
+                Times marked "urgent" are extra openings this provider added for urgent visits — booking works the same.
+              </p>
             )}
           </div>
 

@@ -14,9 +14,11 @@ import {
 } from "@workspace/db";
 import {
   getMarketplaceTimezone,
-  isWithinAvailability,
+  isWithinEffectiveAvailability,
+  localDateOfInstant,
   type AvailabilityWindow,
 } from "../lib/availability.js";
+import { loadEmergencyOpenings } from "../lib/availability-exceptions.js";
 import {
   requireAuth,
   requireApprovedProviderIfProvider,
@@ -407,12 +409,23 @@ router.post(
       .from(availabilityTable)
       .where(eq(availabilityTable.providerId, Number(providerId)))) as AvailabilityWindow[];
 
+    // Emergency openings (one-off extra slots) are a second SOURCE of
+    // availability for the same rule — never a rule bypass: every guard
+    // below (overlap, travel buffer, duplicates) still applies.
+    const emergencyOpenings = await loadEmergencyOpenings(
+      db,
+      Number(providerId),
+      { date: localDateOfInstant(scheduledAtDate.getTime(), marketplaceTimezone) },
+    );
+
     if (
-      !isWithinAvailability({
+      !isWithinEffectiveAvailability({
         scheduledAt: scheduledAtDate,
         durationMinutes,
         windows,
         tz: marketplaceTimezone,
+        serviceId: Number(serviceId),
+        emergencyOpenings,
       })
     ) {
       res.status(400).json({
@@ -914,12 +927,20 @@ router.patch(
             .where(
               eq(availabilityTable.providerId, booking.providerId),
             )) as AvailabilityWindow[];
+          const rescheduleTz = getMarketplaceTimezone();
+          const rescheduleOpenings = await loadEmergencyOpenings(
+            tx,
+            booking.providerId,
+            { date: localDateOfInstant(rescheduleDate.getTime(), rescheduleTz) },
+          );
           if (
-            !isWithinAvailability({
+            !isWithinEffectiveAvailability({
               scheduledAt: rescheduleDate,
               durationMinutes: service.durationMinutes,
               windows,
-              tz: getMarketplaceTimezone(),
+              tz: rescheduleTz,
+              serviceId: booking.serviceId,
+              emergencyOpenings: rescheduleOpenings,
             })
           ) {
             throw Object.assign(new Error("VALIDATION"), {

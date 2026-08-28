@@ -7,6 +7,7 @@ import {
   integer,
   numeric,
   pgEnum,
+  index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -130,3 +131,44 @@ export const insertVerificationDocSchema = createInsertSchema(
 
 export type InsertVerificationDoc = typeof verificationDocsTable.$inferInsert;
 export type VerificationDoc = typeof verificationDocsTable.$inferSelect;
+
+// ── Emergency Openings (one-off extra slots) ──────────────────────────────────
+//
+// Date-specific EXTRA availability outside the weekly windows
+// (docs/emergency-openings-policy.md). Additive to the existing availability
+// model: openings never modify the recurring schedule and are consumed by the
+// SAME slot/enforcement engine. `date` is a calendar date (YYYY-MM-DD) in the
+// effective marketplace timezone; times are wall-clock "HH:MM" like the
+// weekly `availability` table. `service_ids` NULL/empty = all active
+// services. `urgent_only` is a client-facing label only — the booking flow is
+// unchanged.
+
+export const providerEmergencyOpeningsTable = pgTable(
+  "provider_emergency_openings",
+  {
+    id: serial("id").primaryKey(),
+    providerId: integer("provider_id")
+      .notNull()
+      .references(() => providerProfilesTable.id, { onDelete: "cascade" }),
+    date: text("date").notNull(), // "YYYY-MM-DD" (marketplace timezone)
+    startTime: text("start_time").notNull(), // "HH:MM" 24h
+    endTime: text("end_time").notNull(), // "HH:MM" 24h
+    serviceIds: integer("service_ids").array(),
+    urgentOnly: boolean("urgent_only").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("provider_emergency_openings_provider_date_idx").on(
+      table.providerId,
+      table.date,
+    ),
+  ],
+);
+
+export const insertEmergencyOpeningSchema = createInsertSchema(
+  providerEmergencyOpeningsTable
+).omit({ id: true, createdAt: true });
+
+export type InsertEmergencyOpening =
+  typeof providerEmergencyOpeningsTable.$inferInsert;
+export type EmergencyOpening = typeof providerEmergencyOpeningsTable.$inferSelect;

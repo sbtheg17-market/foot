@@ -12,9 +12,11 @@ import {
 } from "@workspace/db";
 import {
   getMarketplaceTimezone,
-  isWithinAvailability,
+  isWithinEffectiveAvailability,
+  localDateOfInstant,
   type AvailabilityWindow,
 } from "../lib/availability.js";
+import { loadEmergencyOpenings } from "../lib/availability-exceptions.js";
 import {
   requireAuth,
   requireApprovedProviderIfProvider,
@@ -163,12 +165,18 @@ async function validateProposedTime(
     })
     .from(availabilityTable)
     .where(eq(availabilityTable.providerId, booking.providerId))) as AvailabilityWindow[];
+  const proposedTz = getMarketplaceTimezone();
+  const proposedOpenings = await loadEmergencyOpenings(tx, booking.providerId, {
+    date: localDateOfInstant(proposedDate.getTime(), proposedTz),
+  });
   if (
-    !isWithinAvailability({
+    !isWithinEffectiveAvailability({
       scheduledAt: proposedDate,
       durationMinutes: service.durationMinutes,
       windows,
-      tz: getMarketplaceTimezone(),
+      tz: proposedTz,
+      serviceId: booking.serviceId,
+      emergencyOpenings: proposedOpenings,
     })
   ) {
     throw httpError(400, "The selected time is outside this provider's availability.");
@@ -259,11 +267,21 @@ async function isOriginalTimeFeasible(tx: Tx, booking: BookingRow): Promise<bool
     })
     .from(availabilityTable)
     .where(eq(availabilityTable.providerId, booking.providerId))) as AvailabilityWindow[];
-  return isWithinAvailability({
+  // Openings count as availability here too: an appointment booked inside an
+  // emergency opening must not be misclassified as infeasible on expiry.
+  const feasibilityTz = getMarketplaceTimezone();
+  const feasibilityOpenings = await loadEmergencyOpenings(
+    tx,
+    booking.providerId,
+    { date: localDateOfInstant(booking.scheduledAt.getTime(), feasibilityTz) },
+  );
+  return isWithinEffectiveAvailability({
     scheduledAt: booking.scheduledAt,
     durationMinutes: service.durationMinutes,
     windows,
-    tz: getMarketplaceTimezone(),
+    tz: feasibilityTz,
+    serviceId: booking.serviceId,
+    emergencyOpenings: feasibilityOpenings,
   });
 }
 

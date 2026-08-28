@@ -431,6 +431,8 @@ export interface ProviderSlot {
   start: string;
   end: string;
   available: boolean;
+  /** True when this time exists only because of an urgent-only emergency opening. Label only — booking works the same. */
+  urgentOnly?: boolean;
 }
 
 export interface ListingPreviewSlotDay {
@@ -721,6 +723,56 @@ export type SetAvailabilityRequestSlotsItem = {
  */
 export interface SetAvailabilityRequest {
   slots: SetAvailabilityRequestSlotsItem[];
+}
+
+/**
+ * One-off extra availability window outside the weekly schedule (docs/emergency-openings-policy.md). Date is a calendar date in the effective marketplace timezone.
+ */
+export interface EmergencyOpening {
+  id: number;
+  /**
+     * YYYY-MM-DD (marketplace timezone)
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  date: string;
+  /**
+     * HH:MM 24-hour
+     * @pattern ^([01]\d|2[0-3]):[0-5]\d$
+     */
+  startTime: string;
+  /**
+     * HH:MM 24-hour
+     * @pattern ^([01]\d|2[0-3]):[0-5]\d$
+     */
+  endTime: string;
+  /** Restricted service ids; null = every active service */
+  serviceIds?: number[] | null;
+  /** Client-facing label only — the booking flow is unchanged */
+  urgentOnly: boolean;
+  createdAt?: string;
+}
+
+export interface EmergencyOpeningListResponse {
+  openings: EmergencyOpening[];
+}
+
+export interface EmergencyOpeningResponse {
+  opening: EmergencyOpening;
+}
+
+export interface CreateEmergencyOpeningRequest {
+  /**
+     * YYYY-MM-DD; today or later (marketplace timezone)
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  date: string;
+  /** @pattern ^([01]\d|2[0-3]):[0-5]\d$ */
+  startTime: string;
+  /** @pattern ^([01]\d|2[0-3]):[0-5]\d$ */
+  endTime: string;
+  /** Optional restriction to own active services; omit/empty = all */
+  serviceIds?: number[];
+  urgentOnly?: boolean;
 }
 
 export interface TravelZone {

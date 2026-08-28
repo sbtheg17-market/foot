@@ -410,3 +410,24 @@ Strategic boundary unchanged: Availability Exceptions remains Phase B
 (DEFERRED, evidence-gated); Provider Offer & Engagement and
 organization/workspace remain FUTURE, NOT IMPLEMENTED. Authoritative doc:
 `docs/provider-dashboard.md` (Phase A section).
+
+---
+
+## 2026-08-28 — Emergency Openings shipped (`feat/emergency-openings`)
+
+- Providers can now create/list/delete one-off EXTRA availability windows
+  (optional service restriction, optional truthful "urgent only" label) under
+  `/provider/availability`; clients see them as additional bookable slots
+  (public slots endpoint adds an additive per-slot `urgentOnly` flag).
+- One engine preserved: openings are a second slot SOURCE consumed by the
+  existing generator/enforcement (`generateEffectiveSlotsForDate`,
+  `isWithinEffectiveAvailability`); every existing rule (overlap, travel
+  buffer, service area, duplicates, reschedule consent) applies unchanged.
+- Additive schema: `provider_emergency_openings`
+  (`docs/migrations/PROVIDER_EMERGENCY_OPENINGS_V1.sql`). Policy:
+  `docs/emergency-openings-policy.md`. Tests: `test:emergency-openings`
+  (10 scripted API tests) + `emergency-openings.test.tsx` (10 web tests).
+- **Next task: Vacation Ranges** — block a continuous date range in one step
+  (range-based `provider_blocked_ranges`), same continuity rules: evolve the
+  availability engine, additive schema only, honest conflict errors when a
+  range overlaps existing bookings, mutual exclusion with emergency openings.

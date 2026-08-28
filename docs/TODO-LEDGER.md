@@ -465,3 +465,12 @@ Recommended priority: after Provider Dashboard gap-closure; only with pilot
 | Provider Offer & Engagement system | FUTURE / DEFERRED (Phase D) | Unchanged; constraints pre-recorded. |
 | Organization/workspace expansion | FUTURE / DEFERRED (Phase E) | Unchanged; NOT IMPLEMENTED. |
 | Graphify artifact refresh post-merge | TODO | Still pending from PR #64/#65; refresh after major merged roadmap work per continuity workflow (deferred this session — feature delivery had priority). |
+
+### Availability Exceptions Phase B — Emergency Openings (2026-08-28)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Emergency openings (one-off extra slots) | DONE 2026-08-28 | `feat/emergency-openings`: policy doc, additive `provider_emergency_openings` table + `PROVIDER_EMERGENCY_OPENINGS_V1.sql`, owner-scoped GET/POST/DELETE under `/providers/me/availability/emergency-openings`, engine extension (`generateEffectiveSlotsForDate` / `isWithinEffectiveAvailability` — one engine, second source), enforcement wired into booking creation, provider reschedule action, and proposal validation/feasibility, `/provider/availability` UI section, truthful urgent-only slot label in the client booking modal. API `test:emergency-openings` 10/10; web 227/227 (10 new); regression loops green on fresh disposable PG 15. |
+| Delete guard conservatism | KNOWN LIMITATION | Deleting an opening is blocked by ANY overlapping active booking — even one that would still fit a weekly window. Honest, safe, acceptable at pilot scale (documented in the policy doc). |
+| Listing-preview slot preview includes openings | DEFERRED | `GET /providers/me/listing-preview` remains weekly-windows-only (documented candidate preview); the real public slots endpoint includes openings. Revisit on provider feedback. |
+| Vacation ranges (block a date range in one step) | NEXT | Range-based `provider_blocked_ranges` extending the same engine; honest 409 when a range overlaps active bookings; mutual exclusion with emergency openings. |

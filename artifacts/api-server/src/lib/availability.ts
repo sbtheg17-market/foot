@@ -262,3 +262,142 @@ export function isWithinAvailability(params: {
       endMin <= parseHHMM(w.endTime),
   );
 }
+
+// ── Emergency openings (one-off extra slots) ──────────────────────────────────
+//
+// A provider can open EXTRA date-specific windows outside the weekly schedule
+// (docs/emergency-openings-policy.md). Openings are a second SOURCE of
+// bookable time for the SAME engine — never a second engine: slot stepping,
+// DST handling, and duration-fit rules are identical to weekly windows, and
+// the transactional overlap + travel-buffer guards apply unchanged.
+
+export interface EmergencyOpeningWindow {
+  /** Calendar date (YYYY-MM-DD) in the effective marketplace timezone. */
+  date: string;
+  startTime: string; // "HH:MM"
+  endTime: string; // "HH:MM"
+  /** Restrict to these service ids; null/empty = every active service. */
+  serviceIds?: number[] | null;
+  /** Client-facing label only — the booking flow is unchanged. */
+  urgentOnly?: boolean;
+}
+
+/** Calendar date (YYYY-MM-DD) of a UTC instant as seen in `tz`. */
+export function localDateOfInstant(utcMs: number, tz: string): string {
+  const f = getLocalFields(utcMs, tz);
+  return `${f.year}-${String(f.month).padStart(2, "0")}-${String(f.day).padStart(2, "0")}`;
+}
+
+function openingAppliesToService(
+  opening: EmergencyOpeningWindow,
+  serviceId?: number,
+): boolean {
+  if (!opening.serviceIds || opening.serviceIds.length === 0) return true;
+  return serviceId !== undefined && opening.serviceIds.includes(serviceId);
+}
+
+export interface EffectiveSlot extends GeneratedSlot {
+  /** True only when EVERY source offering this start is urgent-only. */
+  urgentOnly: boolean;
+}
+
+/**
+ * Candidate slots for one calendar date from BOTH sources: the weekly
+ * windows (via generateSlotsForDate — behavior unchanged) plus any emergency
+ * openings on that date that apply to the requested service. Duplicate
+ * starts are offered once; a slot is labeled urgent-only ONLY when no
+ * weekly window or non-urgent opening also offers it.
+ */
+export function generateEffectiveSlotsForDate(params: {
+  date: string; // YYYY-MM-DD
+  durationMinutes: number;
+  windows: AvailabilityWindow[];
+  tz: string;
+  serviceId?: number;
+  emergencyOpenings?: EmergencyOpeningWindow[];
+}): EffectiveSlot[] {
+  const { date, durationMinutes, windows, tz, serviceId, emergencyOpenings } =
+    params;
+
+  const byStart = new Map<string, EffectiveSlot>();
+  for (const s of generateSlotsForDate({ date, durationMinutes, windows, tz })) {
+    byStart.set(s.start, { ...s, urgentOnly: false });
+  }
+
+  const [y, m, d] = date.split("-").map(Number);
+  for (const opening of emergencyOpenings ?? []) {
+    if (opening.date !== date) continue;
+    if (!openingAppliesToService(opening, serviceId)) continue;
+    const winStart = parseHHMM(opening.startTime);
+    const winEnd = parseHHMM(opening.endTime);
+    if (winStart >= winEnd) continue; // degenerate windows unsupported
+
+    for (
+      let startMin = winStart;
+      startMin + durationMinutes <= winEnd;
+      startMin += SLOT_INCREMENT_MINUTES
+    ) {
+      const startUtc = wallTimeToUtc(
+        {
+          year: y!,
+          month: m!,
+          day: d!,
+          hour: Math.floor(startMin / 60),
+          minute: startMin % 60,
+        },
+        tz,
+      );
+      if (!startUtc) continue; // DST nonexistent/ambiguous → omit
+
+      const startIso = startUtc.toISOString();
+      const existing = byStart.get(startIso);
+      if (existing) {
+        // A non-urgent source clears the urgent-only label.
+        if (opening.urgentOnly !== true) existing.urgentOnly = false;
+        continue;
+      }
+      byStart.set(startIso, {
+        start: startIso,
+        end: new Date(startUtc.getTime() + durationMinutes * 60000).toISOString(),
+        urgentOnly: opening.urgentOnly === true,
+      });
+    }
+  }
+
+  return [...byStart.values()].sort((a, b) => a.start.localeCompare(b.start));
+}
+
+/**
+ * Enforcement for a concrete requested instant across BOTH sources: valid
+ * when the interval fits a weekly window (isWithinAvailability — rule
+ * unchanged) OR fits inside one emergency opening on that local calendar
+ * date that applies to the requested service. Intervals crossing an opening
+ * boundary are rejected exactly like window boundaries.
+ */
+export function isWithinEffectiveAvailability(params: {
+  scheduledAt: Date;
+  durationMinutes: number;
+  windows: AvailabilityWindow[];
+  tz: string;
+  serviceId?: number;
+  emergencyOpenings?: EmergencyOpeningWindow[];
+}): boolean {
+  const { scheduledAt, durationMinutes, windows, tz, serviceId } = params;
+
+  if (isWithinAvailability({ scheduledAt, durationMinutes, windows, tz })) {
+    return true;
+  }
+
+  const f = getLocalFields(scheduledAt.getTime(), tz);
+  const dateStr = localDateOfInstant(scheduledAt.getTime(), tz);
+  const startMin = f.hour * 60 + f.minute;
+  const endMin = startMin + durationMinutes;
+
+  return (params.emergencyOpenings ?? []).some(
+    (o) =>
+      o.date === dateStr &&
+      openingAppliesToService(o, serviceId) &&
+      startMin >= parseHHMM(o.startTime) &&
+      endMin <= parseHHMM(o.endTime),
+  );
+}
