@@ -110,54 +110,118 @@ type ApplicationRow = {
   previousSubmissions: PreviousSubmissionRow[];
 };
 
-async function getOwnApplication(userId: number): Promise<ApplicationRow | null> {
-  const rows = await db
-    .select({
-      id: providerApplicationsTable.id,
-      userId: providerApplicationsTable.userId,
-      providerProfileId: providerApplicationsTable.providerProfileId,
-      status: providerApplicationsTable.status,
-      currentStep: providerApplicationsTable.currentStep,
-      submittedAt: providerApplicationsTable.submittedAt,
-      reviewedAt: providerApplicationsTable.reviewedAt,
-      rejectionReason: providerApplicationsTable.rejectionReason,
-      profile: {
-        id: providerProfilesTable.id,
-        title: providerProfilesTable.title,
-        bio: providerProfilesTable.bio,
-        city: providerProfilesTable.city,
-        serviceAreaNotes: providerProfilesTable.serviceAreaNotes,
-        yearsExperience: providerProfilesTable.yearsExperience,
-        profileComplete: providerProfilesTable.profileComplete,
-        verificationStatus: providerProfilesTable.verificationStatus,
-      },
-    })
-    .from(providerApplicationsTable)
-    .innerJoin(
-      providerProfilesTable,
-      eq(providerProfilesTable.id, providerApplicationsTable.providerProfileId),
-    )
-    .where(eq(providerApplicationsTable.userId, userId))
-    .limit(1);
+/**
+ * True when the error chain contains a PostgreSQL missing-relation error:
+ * 42703 (undefined_column) or 42P01 (undefined_table). Both occur on a
+ * deployed database whose Gate B-pending additive migration artifacts
+ * (docs/migrations/*.sql) have not been applied yet — startup never pushes
+ * schema (docs/deployment-notes.md), so schema drift is an expected,
+ * recoverable deployment state, not a programming error. Drizzle wraps the
+ * pg error, so the chain is walked via `cause` (same convention as
+ * isUniqueViolation in routes/auth.ts).
+ */
+function isSchemaDriftError(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; current && depth < 5; depth++) {
+    const code = (current as { code?: string }).code;
+    if (code === "42703" || code === "42P01") return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
 
-  const application = rows[0];
+/**
+ * Signup-era columns only — the stable set every owner status read depends
+ * on. The Gate B-pending additive column provider_applications.rejection_reason
+ * (docs/migrations/PROVIDER_APPLICATION_REJECTION_REASON_V1.sql) is selected
+ * eagerly in getOwnApplication but degrades to null on a database without it,
+ * mirroring the raw-SQL column discipline of the signup write path
+ * (routes/auth.ts) so a provider's first return can never 500 on drift.
+ */
+const applicationStableSelection = {
+  id: providerApplicationsTable.id,
+  userId: providerApplicationsTable.userId,
+  providerProfileId: providerApplicationsTable.providerProfileId,
+  status: providerApplicationsTable.status,
+  currentStep: providerApplicationsTable.currentStep,
+  submittedAt: providerApplicationsTable.submittedAt,
+  reviewedAt: providerApplicationsTable.reviewedAt,
+  profile: {
+    id: providerProfilesTable.id,
+    title: providerProfilesTable.title,
+    bio: providerProfilesTable.bio,
+    city: providerProfilesTable.city,
+    serviceAreaNotes: providerProfilesTable.serviceAreaNotes,
+    yearsExperience: providerProfilesTable.yearsExperience,
+    profileComplete: providerProfilesTable.profileComplete,
+    verificationStatus: providerProfilesTable.verificationStatus,
+  },
+};
+
+async function getOwnApplication(userId: number): Promise<ApplicationRow | null> {
+  let application: Omit<ApplicationRow, "previousSubmissions"> | null;
+  try {
+    const rows = await db
+      .select({
+        ...applicationStableSelection,
+        rejectionReason: providerApplicationsTable.rejectionReason,
+      })
+      .from(providerApplicationsTable)
+      .innerJoin(
+        providerProfilesTable,
+        eq(providerProfilesTable.id, providerApplicationsTable.providerProfileId),
+      )
+      .where(eq(providerApplicationsTable.userId, userId))
+      .limit(1);
+    application = rows[0] ?? null;
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    // Truthful degraded read: NULL means "no rejection recorded" — identical
+    // to the migrated column's backfill-free default. Never fabricates state.
+    logger.warn(
+      { userId },
+      "getOwnApplication degraded: Gate B-pending rejection_reason column missing; rejectionReason defaulted to null",
+    );
+    const rows = await db
+      .select(applicationStableSelection)
+      .from(providerApplicationsTable)
+      .innerJoin(
+        providerProfilesTable,
+        eq(providerProfilesTable.id, providerApplicationsTable.providerProfileId),
+      )
+      .where(eq(providerApplicationsTable.userId, userId))
+      .limit(1);
+    application = rows[0] ? { ...rows[0], rejectionReason: null } : null;
+  }
+
   if (!application) return null;
 
   // Owner-visible submission history: only public fields, never reviewerNotes.
-  const previousSubmissions = await db
-    .select({
-      id: providerApplicationSubmissionsTable.id,
-      outcome: providerApplicationSubmissionsTable.outcome,
-      submittedAt: providerApplicationSubmissionsTable.submittedAt,
-      reviewedAt: providerApplicationSubmissionsTable.reviewedAt,
-      rejectionReason: providerApplicationSubmissionsTable.rejectionReason,
-      createdAt: providerApplicationSubmissionsTable.createdAt,
-    })
-    .from(providerApplicationSubmissionsTable)
-    .where(
-      eq(providerApplicationSubmissionsTable.providerApplicationId, application.id),
-    )
-    .orderBy(providerApplicationSubmissionsTable.createdAt);
+  let previousSubmissions: PreviousSubmissionRow[];
+  try {
+    previousSubmissions = await db
+      .select({
+        id: providerApplicationSubmissionsTable.id,
+        outcome: providerApplicationSubmissionsTable.outcome,
+        submittedAt: providerApplicationSubmissionsTable.submittedAt,
+        reviewedAt: providerApplicationSubmissionsTable.reviewedAt,
+        rejectionReason: providerApplicationSubmissionsTable.rejectionReason,
+        createdAt: providerApplicationSubmissionsTable.createdAt,
+      })
+      .from(providerApplicationSubmissionsTable)
+      .where(
+        eq(providerApplicationSubmissionsTable.providerApplicationId, application.id),
+      )
+      .orderBy(providerApplicationSubmissionsTable.createdAt);
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    // An absent relation can hold no rows — empty history is the truth.
+    logger.warn(
+      { userId },
+      "getOwnApplication degraded: submission-history relation missing; history defaulted to empty",
+    );
+    previousSubmissions = [];
+  }
 
   return { ...application, previousSubmissions };
 }
@@ -1939,6 +2003,57 @@ function deriveActivationNextAction(
   return "all_set";
 }
 
+/**
+ * Drift-safe owner profile read for the activation hub. getOwnProfile()
+ * selects every schema column, so on a database where the Gate B-pending
+ * booking-page columns (docs/migrations/PROVIDER_PUBLIC_BOOKING_PAGES_V1.sql)
+ * are not applied yet it fails 42703 → 500 — the provider first-return
+ * failure. Booking-page columns are attempted first; on drift the read
+ * degrades to the truthful pre-#11 state: no slug, unpublished. (Same
+ * convention as getOwnVerificationProfile below.)
+ */
+async function getOwnActivationProfile(
+  userId: number,
+): Promise<BookingPageProfileRow | null> {
+  try {
+    const rows = await db
+      .select({
+        id: providerProfilesTable.id,
+        verificationStatus: providerProfilesTable.verificationStatus,
+        publicSlug: providerProfilesTable.publicSlug,
+        bookingPagePublished: providerProfilesTable.bookingPagePublished,
+        bookingPagePublishedAt: providerProfilesTable.bookingPagePublishedAt,
+      })
+      .from(providerProfilesTable)
+      .where(eq(providerProfilesTable.userId, userId))
+      .limit(1);
+    return rows[0] ?? null;
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    logger.warn(
+      { userId },
+      "getOwnActivationProfile degraded: Gate B-pending booking-page columns missing; reporting unpublished",
+    );
+    const rows = await db
+      .select({
+        id: providerProfilesTable.id,
+        verificationStatus: providerProfilesTable.verificationStatus,
+      })
+      .from(providerProfilesTable)
+      .where(eq(providerProfilesTable.userId, userId))
+      .limit(1);
+    const row = rows[0];
+    return row
+      ? {
+          ...row,
+          publicSlug: null,
+          bookingPagePublished: false,
+          bookingPagePublishedAt: null,
+        }
+      : null;
+  }
+}
+
 router.get(
   "/me/activation-status",
   requireAuth,
@@ -1946,7 +2061,7 @@ router.get(
     if (!assertProviderMember(req, res)) return;
 
     const application = await getOwnApplication(req.user!.sub);
-    const profile = await getOwnProfile(req.user!.sub);
+    const profile = await getOwnActivationProfile(req.user!.sub);
     const source = await loadReadinessSourceByUserId(db, req.user!.sub);
     if (!application || !profile || !source) {
       res.status(404).json({ error: "Provider application not found." });
@@ -1955,7 +2070,19 @@ router.get(
 
     // Sequential LIMIT-1/status-only probes reusing existing rule helpers.
     const readiness = await computeReadiness(db, source);
-    const serviceAreaConfigured = await hasActiveServiceAreaCoverage(profile.id);
+    let serviceAreaConfigured = false;
+    try {
+      serviceAreaConfigured = await hasActiveServiceAreaCoverage(profile.id);
+    } catch (error) {
+      // provider_service_areas / provider_coverage_areas are Gate B-pending
+      // tables (PROVIDER_SERVICE_AREAS_V1.sql); an absent table can hold no
+      // coverage, so "not configured" is the truthful degraded state.
+      if (!isSchemaDriftError(error)) throw error;
+      logger.warn(
+        { userId: req.user!.sub },
+        "activation service-area probe degraded: Gate B-pending tables missing; reporting not configured",
+      );
+    }
     const docs = await db
       .select({
         status: verificationDocsTable.status,
