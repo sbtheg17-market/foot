@@ -10,4 +10,6 @@ export interface ProviderSlot {
   start: Date;
   end: Date;
   available: boolean;
+  /** True when this time exists only because of an urgent-only emergency opening. Label only — booking works the same. */
+  urgentOnly?: boolean;
 }

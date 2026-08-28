@@ -227,6 +227,29 @@ Weekly recurring availability for a provider.
 
 ---
 
+## provider_emergency_openings
+
+One-off EXTRA availability windows outside the weekly schedule
+(`docs/emergency-openings-policy.md`; migration
+`docs/migrations/PROVIDER_EMERGENCY_OPENINGS_V1.sql`). Consumed by the same
+slot/enforcement engine as `availability` — never a second engine. Additive
+only; providers have no rows by default.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | serial PK | |
+| provider_id | FK → provider_profiles | ON DELETE CASCADE |
+| date | text | "YYYY-MM-DD" calendar date in the marketplace timezone |
+| start_time | text | "HH:MM" (24h), < end_time |
+| end_time | text | "HH:MM" (24h) |
+| service_ids | integer[] NULL | NULL/empty = all active services |
+| urgent_only | boolean | client-facing label only — booking flow unchanged |
+| created_at | timestamp | |
+
+Index: `(provider_id, date)`.
+
+---
+
 ## travel_zones
 
 Areas a provider is willing to travel to. (Descriptive/legacy — the

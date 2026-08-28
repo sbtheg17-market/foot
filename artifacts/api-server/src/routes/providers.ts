@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { eq, ilike, and, or, lt, desc, sql, isNull } from "drizzle-orm";
+import { eq, ilike, and, or, lt, gte, desc, sql, isNull, inArray } from "drizzle-orm";
 import {
   db,
   providerProfilesTable,
@@ -12,6 +12,7 @@ import {
   providerServiceAreasTable,
   providerCoverageAreasTable,
   availabilityTable,
+  providerEmergencyOpeningsTable,
   servicesTable,
   reviewsTable,
   usersTable,
@@ -34,8 +35,12 @@ import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
 import {
   getMarketplaceTimezone,
   generateSlotsForDate,
+  generateEffectiveSlotsForDate,
+  localDateOfInstant,
+  localTimeLabel,
   type AvailabilityWindow,
 } from "../lib/availability.js";
+import { loadEmergencyOpenings } from "../lib/availability-exceptions.js";
 import { slugifyDisplayName, slugCandidate } from "../lib/booking-page.js";
 import {
   SERVICE_AREA_MESSAGES,
@@ -2321,6 +2326,276 @@ router.put(
   }
 );
 
+// ── Emergency openings (one-off extra slots) ──────────────────────────────────
+//
+// Owner-scoped, date-specific EXTRA availability outside the weekly windows
+// (docs/emergency-openings-policy.md). Additive only: openings never modify
+// the recurring schedule and never bypass overlap, travel-buffer, or
+// service-area rules — they are consumed by the same engine as weekly
+// windows. Deleting an opening never cancels or breaks appointments.
+
+const OPENING_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_OPENING_HORIZON_DAYS = 365;
+
+/** True when `value` (YYYY-MM-DD) is a real calendar date. */
+function isRealCalendarDate(value: string): boolean {
+  const [y, m, d] = value.split("-").map(Number);
+  const dt = new Date(Date.UTC(y!, m! - 1, d!));
+  return (
+    dt.getUTCFullYear() === y &&
+    dt.getUTCMonth() === m! - 1 &&
+    dt.getUTCDate() === d
+  );
+}
+
+/** GET /providers/me/availability/emergency-openings — upcoming, owner-scoped */
+router.get(
+  "/me/availability/emergency-openings",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const today = localDateOfInstant(Date.now(), getMarketplaceTimezone());
+    const openings = await db
+      .select()
+      .from(providerEmergencyOpeningsTable)
+      .where(
+        and(
+          eq(providerEmergencyOpeningsTable.providerId, profile.id),
+          gte(providerEmergencyOpeningsTable.date, today),
+        ),
+      )
+      .orderBy(
+        providerEmergencyOpeningsTable.date,
+        providerEmergencyOpeningsTable.startTime,
+      );
+
+    res.json({ openings });
+  }
+);
+
+/** POST /providers/me/availability/emergency-openings — create with validation */
+router.post(
+  "/me/availability/emergency-openings",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const { date, startTime, endTime, serviceIds, urgentOnly } = (req.body ??
+      {}) as {
+      date?: unknown;
+      startTime?: unknown;
+      endTime?: unknown;
+      serviceIds?: unknown;
+      urgentOnly?: unknown;
+    };
+
+    if (
+      typeof date !== "string" ||
+      !OPENING_DATE_RE.test(date) ||
+      !isRealCalendarDate(date)
+    ) {
+      res.status(400).json({ error: "date must be a real calendar date (YYYY-MM-DD)." });
+      return;
+    }
+    if (typeof startTime !== "string" || !TIME_RE.test(startTime)) {
+      res.status(400).json({ error: "startTime must be HH:MM (24h)." });
+      return;
+    }
+    if (typeof endTime !== "string" || !TIME_RE.test(endTime)) {
+      res.status(400).json({ error: "endTime must be HH:MM (24h)." });
+      return;
+    }
+    if (startTime >= endTime) {
+      res.status(400).json({ error: "startTime must be before endTime." });
+      return;
+    }
+    if (urgentOnly !== undefined && typeof urgentOnly !== "boolean") {
+      res.status(400).json({ error: "urgentOnly must be a boolean." });
+      return;
+    }
+
+    const tz = getMarketplaceTimezone();
+    const today = localDateOfInstant(Date.now(), tz);
+    if (date < today) {
+      res.status(400).json({ error: "date cannot be in the past." });
+      return;
+    }
+    const horizon = localDateOfInstant(
+      Date.now() + MAX_OPENING_HORIZON_DAYS * 24 * 60 * 60 * 1000,
+      tz,
+    );
+    if (date > horizon) {
+      res.status(400).json({
+        error: `date must be within the next ${MAX_OPENING_HORIZON_DAYS} days.`,
+      });
+      return;
+    }
+
+    // Optional service restriction: every id must be an own ACTIVE service.
+    let normalizedServiceIds: number[] | null = null;
+    if (serviceIds !== undefined && serviceIds !== null) {
+      if (
+        !Array.isArray(serviceIds) ||
+        serviceIds.some((id) => !Number.isInteger(id) || Number(id) <= 0)
+      ) {
+        res.status(400).json({ error: "serviceIds must be an array of service ids." });
+        return;
+      }
+      const unique = [...new Set(serviceIds.map(Number))].sort((a, b) => a - b);
+      if (unique.length > 0) {
+        const owned = await db
+          .select({ id: servicesTable.id })
+          .from(servicesTable)
+          .where(
+            and(
+              eq(servicesTable.providerId, profile.id),
+              eq(servicesTable.isActive, true),
+              inArray(servicesTable.id, unique),
+            ),
+          );
+        if (owned.length !== unique.length) {
+          res.status(400).json({
+            error: "serviceIds must reference your own active services.",
+          });
+          return;
+        }
+        normalizedServiceIds = unique;
+      }
+    }
+
+    // Overlap prevention among openings: same provider + date, intersecting
+    // wall-clock windows ("HH:MM" strings compare correctly).
+    const sameDay = await db
+      .select({
+        id: providerEmergencyOpeningsTable.id,
+        startTime: providerEmergencyOpeningsTable.startTime,
+        endTime: providerEmergencyOpeningsTable.endTime,
+      })
+      .from(providerEmergencyOpeningsTable)
+      .where(
+        and(
+          eq(providerEmergencyOpeningsTable.providerId, profile.id),
+          eq(providerEmergencyOpeningsTable.date, date),
+        ),
+      );
+    const overlap = sameDay.find(
+      (o) => startTime < o.endTime && o.startTime < endTime,
+    );
+    if (overlap) {
+      res.status(409).json({
+        error: `This overlaps your existing emergency opening on ${date} (${overlap.startTime}–${overlap.endTime}). Delete or adjust that opening first.`,
+        reason: "opening_overlap",
+      });
+      return;
+    }
+
+    const [opening] = await db
+      .insert(providerEmergencyOpeningsTable)
+      .values({
+        providerId: profile.id,
+        date,
+        startTime,
+        endTime,
+        serviceIds: normalizedServiceIds,
+        urgentOnly: urgentOnly === true,
+      })
+      .returning();
+
+    res.status(201).json({ opening });
+  }
+);
+
+/** DELETE /providers/me/availability/emergency-openings/:openingId */
+router.delete(
+  "/me/availability/emergency-openings/:openingId",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const openingId = Number(req.params["openingId"]);
+    if (!Number.isInteger(openingId) || openingId <= 0) {
+      res.status(400).json({ error: "openingId must be a positive integer." });
+      return;
+    }
+
+    // Ownership is part of the WHERE — a foreign id is a non-leaking 404.
+    const [opening] = await db
+      .select()
+      .from(providerEmergencyOpeningsTable)
+      .where(
+        and(
+          eq(providerEmergencyOpeningsTable.id, openingId),
+          eq(providerEmergencyOpeningsTable.providerId, profile.id),
+        ),
+      )
+      .limit(1);
+    if (!opening) {
+      res.status(404).json({ error: "Emergency opening not found." });
+      return;
+    }
+
+    // Honest delete guard (conservative by design, see policy doc): any
+    // ACTIVE booking overlapping the opening's wall-clock window on that
+    // date blocks deletion. Deleting an opening never cancels appointments.
+    const tz = getMarketplaceTimezone();
+    const parseMin = (v: string) => {
+      const [h, m] = v.split(":").map(Number);
+      return h! * 60 + m!;
+    };
+    const openStart = parseMin(opening.startTime);
+    const openEnd = parseMin(opening.endTime);
+
+    const activeBookings = await db
+      .select({
+        scheduledAt: bookingsTable.scheduledAt,
+        durationMinutes: servicesTable.durationMinutes,
+      })
+      .from(bookingsTable)
+      .innerJoin(servicesTable, eq(servicesTable.id, bookingsTable.serviceId))
+      .where(
+        and(
+          eq(bookingsTable.providerId, profile.id),
+          inArray(bookingsTable.status, ["requested", "confirmed", "rescheduled"]),
+        ),
+      );
+
+    const conflictCount = activeBookings.filter((b) => {
+      const ms = new Date(b.scheduledAt).getTime();
+      if (localDateOfInstant(ms, tz) !== opening.date) return false;
+      const startMin = parseMin(localTimeLabel(ms, tz));
+      return startMin < openEnd && startMin + b.durationMinutes > openStart;
+    }).length;
+
+    if (conflictCount > 0) {
+      res.status(409).json({
+        error: `${conflictCount} active booking${conflictCount === 1 ? " is" : "s are"} scheduled during this opening. Cancel or reschedule ${conflictCount === 1 ? "it" : "them"} first — deleting the opening will not cancel appointments.`,
+        reason: "bookings_exist",
+        bookingCount: conflictCount,
+      });
+      return;
+    }
+
+    await db
+      .delete(providerEmergencyOpeningsTable)
+      .where(eq(providerEmergencyOpeningsTable.id, openingId));
+
+    res.json({ message: "Emergency opening deleted." });
+  }
+);
+
 /** GET /providers/me/travel-zones — List own travel zones */
 router.get(
   "/me/travel-zones",
@@ -3300,11 +3575,19 @@ router.get(
       .from(availabilityTable)
       .where(eq(availabilityTable.providerId, providerId))) as AvailabilityWindow[];
 
-    const candidates = generateSlotsForDate({
+    // Emergency openings on this date add candidate slots for the requested
+    // service through the same engine (docs/emergency-openings-policy.md).
+    const emergencyOpenings = await loadEmergencyOpenings(db, providerId, {
+      date,
+    });
+
+    const candidates = generateEffectiveSlotsForDate({
       date,
       durationMinutes: service[0].durationMinutes,
       windows,
       tz: timezone,
+      serviceId,
+      emergencyOpenings,
     });
 
     // Advisory `available` flag: mark a slot taken when it overlaps an active
@@ -3345,7 +3628,7 @@ router.get(
       const available = !activeIntervals.some(
         (iv) => iv.start < end + bufferMs && start < iv.end + bufferMs
       );
-      return { start: s.start, end: s.end, available };
+      return { start: s.start, end: s.end, available, urgentOnly: s.urgentOnly };
     });
 
     res.json({ timezone, date, slots });

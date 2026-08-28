@@ -187,3 +187,19 @@ under-review copy guard, pending zero/one/many, review deep link, priority
 ordering both ways, privacy-trimmed rendering, `?tab=` allowlist, axe on
 both action states). Verified live at 390×844 (no horizontal overflow;
 review link lands on the existing Reschedules tab).
+
+## Availability — Emergency Openings (2026-08-28)
+
+Phase B (availability exceptions) started with **emergency openings**
+(`feat/emergency-openings`, `docs/emergency-openings-policy.md`): providers
+add one-off EXTRA windows on `/provider/availability` (date, time window,
+optional service restriction, optional truthful "urgent only" label). The
+existing engine consumes them as a second slot source
+(`generateEffectiveSlotsForDate`, `isWithinEffectiveAvailability`); overlap,
+travel-buffer, service-area, duplicate, and state-machine rules apply
+unchanged. Deleting an opening is guarded by an honest 409 when active
+bookings overlap it. New table `provider_emergency_openings` (additive,
+`docs/migrations/PROVIDER_EMERGENCY_OPENINGS_V1.sql`). The dashboard itself
+is unchanged; the earlier "no fake quick-action buttons" deferral is now
+partially resolved — block-off dates remain the next exceptions step
+(vacation ranges).

@@ -36,6 +36,7 @@ import type {
   ClientCareHistoryResponse,
   ConflictResponse,
   CreateBookingRequest,
+  CreateEmergencyOpeningRequest,
   CreateEscalationRequest,
   CreateRescheduleRequest,
   CreateReviewRequest,
@@ -45,6 +46,8 @@ import type {
   DuplicateBookingConflictResponse,
   EarningsExportResponse,
   EarningsSummaryResponse,
+  EmergencyOpeningListResponse,
+  EmergencyOpeningResponse,
   EscalationResponse,
   ForbiddenResponse,
   GetAdminVerificationQueueParams,
@@ -3185,6 +3188,228 @@ export const useSetMyAvailability = <TError = ErrorType<BadRequestResponse | Una
         TContext
       > => {
       return useMutation(getSetMyAvailabilityMutationOptions(options));
+    }
+
+export const getListMyEmergencyOpeningsUrl = () => {
+
+
+
+
+  return `/api/providers/me/availability/emergency-openings`
+}
+
+/**
+ * Upcoming date-specific extra availability windows outside the weekly schedule, owner-scoped. Past-dated openings are omitted.
+ * @summary List own upcoming emergency openings (one-off extra slots)
+ */
+export const listMyEmergencyOpenings = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmergencyOpeningListResponse> => {
+
+  return customFetch<EmergencyOpeningListResponse>(getListMyEmergencyOpeningsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyEmergencyOpeningsQueryKey = () => {
+    return [
+    `/api/providers/me/availability/emergency-openings`
+    ] as const;
+    }
+
+
+export const getListMyEmergencyOpeningsQueryOptions = <TData = Awaited<ReturnType<typeof listMyEmergencyOpenings>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyEmergencyOpenings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyEmergencyOpeningsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyEmergencyOpenings>>> = ({ signal }) => listMyEmergencyOpenings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyEmergencyOpenings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyEmergencyOpeningsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyEmergencyOpenings>>>
+export type ListMyEmergencyOpeningsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List own upcoming emergency openings (one-off extra slots)
+ */
+
+export function useListMyEmergencyOpenings<TData = Awaited<ReturnType<typeof listMyEmergencyOpenings>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyEmergencyOpenings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyEmergencyOpeningsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateEmergencyOpeningUrl = () => {
+
+
+
+
+  return `/api/providers/me/availability/emergency-openings`
+}
+
+/**
+ * Adds a date-specific extra availability window without changing the weekly schedule. Optionally restricted to specific active services and optionally labeled urgent-only (label only — the booking flow is unchanged). Overlapping an existing opening on the same date is rejected.
+ * @summary Create an emergency opening (one-off extra slot window)
+ */
+export const createEmergencyOpening = async (createEmergencyOpeningRequest: CreateEmergencyOpeningRequest, options?: Parameters<typeof customFetch>[1]): Promise<EmergencyOpeningResponse> => {
+
+  return customFetch<EmergencyOpeningResponse>(getCreateEmergencyOpeningUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createEmergencyOpeningRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateEmergencyOpeningMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEmergencyOpening>>, TError,{data: BodyType<CreateEmergencyOpeningRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEmergencyOpening>>, TError,{data: BodyType<CreateEmergencyOpeningRequest>}, TContext> => {
+
+const mutationKey = ['createEmergencyOpening'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEmergencyOpening>>, {data: BodyType<CreateEmergencyOpeningRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createEmergencyOpening(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEmergencyOpeningMutationResult = NonNullable<Awaited<ReturnType<typeof createEmergencyOpening>>>
+    export type CreateEmergencyOpeningMutationBody = BodyType<CreateEmergencyOpeningRequest>
+    export type CreateEmergencyOpeningMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
+
+    /**
+ * @summary Create an emergency opening (one-off extra slot window)
+ */
+export const useCreateEmergencyOpening = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEmergencyOpening>>, TError,{data: BodyType<CreateEmergencyOpeningRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createEmergencyOpening>>,
+        TError,
+        {data: BodyType<CreateEmergencyOpeningRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateEmergencyOpeningMutationOptions(options));
+    }
+
+export const getDeleteEmergencyOpeningUrl = (openingId: number,) => {
+
+
+
+
+  return `/api/providers/me/availability/emergency-openings/${openingId}`
+}
+
+/**
+ * Deletes an owned emergency opening. Rejected with 409 when active bookings are scheduled during the opening — deleting an opening never cancels or breaks appointments.
+ * @summary Delete an emergency opening
+ */
+export const deleteEmergencyOpening = async (openingId: number, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeleteEmergencyOpeningUrl(openingId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteEmergencyOpeningMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEmergencyOpening>>, TError,{openingId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteEmergencyOpening>>, TError,{openingId: number}, TContext> => {
+
+const mutationKey = ['deleteEmergencyOpening'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteEmergencyOpening>>, {openingId: number}> = (props) => {
+          const {openingId} = props ?? {};
+
+          return  deleteEmergencyOpening(openingId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteEmergencyOpeningMutationResult = NonNullable<Awaited<ReturnType<typeof deleteEmergencyOpening>>>
+
+    export type DeleteEmergencyOpeningMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+
+    /**
+ * @summary Delete an emergency opening
+ */
+export const useDeleteEmergencyOpening = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEmergencyOpening>>, TError,{openingId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteEmergencyOpening>>,
+        TError,
+        {openingId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteEmergencyOpeningMutationOptions(options));
     }
 
 export const getListMyTravelZonesUrl = () => {

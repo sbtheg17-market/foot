@@ -3336,3 +3336,25 @@ reviewer-private data, or client PII beyond existing authorized display; no
 managed DB; no production deployment. Graphify CLI unavailable in this
 environment — inventory done by direct source inspection; artifact refresh
 remains a post-merge TODO.
+
+---
+
+### Session — Emergency Openings (2026-08-28, Emergent session)
+**Agent:** Emergent E1 Main Agent
+**Scope:** `M`
+**Triggered by:** Handoff "Emergency Openings → Vacation Ranges" Part 1: one-off extra slots for providers, evolving the existing availability model.
+
+**What was done:**
+- Policy: `docs/emergency-openings-policy.md` (goals, interaction rules, data model, API, UI, tests, deferred items).
+- Schema/migration (additive only): `provider_emergency_openings` in `lib/db/src/schema/providers.ts` + `docs/migrations/PROVIDER_EMERGENCY_OPENINGS_V1.sql` (FK → provider_profiles CASCADE, `(provider_id, date)` index, `service_ids integer[]` NULL = all, `urgent_only` label flag).
+- Engine (one engine, second source): `lib/availability.ts` adds `EmergencyOpeningWindow`, `localDateOfInstant`, `generateEffectiveSlotsForDate` (weekly + opening slots, dedup, urgent-only labeling only when NO non-urgent source offers the start), `isWithinEffectiveAvailability` (weekly OR opening fit, service-aware). `lib/availability-exceptions.ts` adds the shared `loadEmergencyOpenings` reader.
+- API: owner-scoped GET/POST/DELETE `/providers/me/availability/emergency-openings` (approved provider; validation incl. real-date, today→+365d, HH:MM, start<end, `serviceIds` ⊆ own ACTIVE services, same-date overlap 409 `opening_overlap`; DELETE = non-leaking 404 + honest 409 `bookings_exist` guard). Public `GET /providers/:id/slots` now includes opening slots + additive `urgentOnly` flag. Enforcement swapped to the effective check in booking creation, provider reschedule action (`PATCH /bookings/:id/status`), and reschedule proposal validation + original-time feasibility.
+- OpenAPI + orval codegen regenerated (`EmergencyOpening*` schemas; `ProviderSlot.urgentOnly` optional/additive).
+- Web: `components/emergency-openings-section.tsx` on `/provider/availability` (mobile-first list + create form + delete with server-message errors, truthful copy); booking modal renders an "Urgent" tag + one caption line, flow unchanged.
+- Tests: `test:emergency-openings` scripted suite (10) — authz, validation table, overlap 409, upcoming list, public slots incl. urgent labels + service restriction, booking inside opening, outside-both-sources 400, delete guard → cancel → delete, non-leaking foreign 404. Web `emergency-openings.test.tsx` (10) incl. axe scan.
+
+**Files changed:** see PR `feat: add emergency openings for providers (one-off extra slots)`; docs appended: `api-routes.md`, `data-models.md`, `provider-dashboard.md`, `NEXT-STEPS.md`, `TODO-LEDGER.md`.
+
+**Build state at end:** typecheck PASS; `build:deploy` PASS; fresh disposable PG 15 + seed; API suites green (unit 132, availability 3, rescheduling 12, proposals 17, concurrency 16, pressure 13, booking-page 17, service-area 30, lifecycle 14, cancellation 22, emergency-openings 10 NEW); web 227/227 (10 new). Note: `test:lifecycle`'s row-count invariant assumes a DB without resolved-booking residue at pooled slots — run suites on a fresh DB (CI behavior), residue false-positive documented here.
+
+**Next best action:** Vacation Ranges (`feat/vacation-ranges`): range-based `provider_blocked_ranges` per the handoff — policy section in `docs/availability-exceptions-policy.md`, additive migration, GET/POST/DELETE `/providers/me/availability/blocked-ranges`, blocked-day enforcement in the same engine, honest 409 on active-booking overlap, mutual exclusion with emergency openings, UI under `/provider/availability`.
