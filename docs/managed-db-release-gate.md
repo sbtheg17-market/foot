@@ -272,3 +272,86 @@ the reviewed checkout:
 `ceaac6d50e6336fe4c13281ab7de5fc36eca7d96262a771c16a3f8647bf90cad`.
 All gate requirements and blockers above remain unchanged; the managed
 database was not accessed.
+
+## Preflight verification record — 2026-08-28 (provider return-path Gate-B artifacts)
+
+A repository-side preflight for the provider return-path Gate-B release was
+completed at the verified `origin/main` commit
+`98a1811c3d379d8d11c575218843ce65cda06ba4` (clean tree; CI 16/16 green on
+that SHA; PR #69 merged — the owner status reads are now drift-safe, so
+applying these artifacts completes booking-page/service-area/rejected-
+resubmission functionality rather than recovering from a crash).
+
+### Artifact hash addendum — booking pages and service areas
+
+`PROVIDER_PUBLIC_BOOKING_PAGES_V1.sql` and `PROVIDER_SERVICE_AREAS_V1.sql`
+were frozen (roadmap items #11/#12) without a recorded reference hash — a
+gap found by this preflight: hash verification against this document was
+impossible for them. Recorded now, recomputed at the reviewed checkout:
+
+```text
+PROVIDER_PUBLIC_BOOKING_PAGES_V1.sql  139d6b41430d7110d481e3ec3257d9544cdcbfb5f2474f51ea16e411a0ac34dc
+PROVIDER_SERVICE_AREAS_V1.sql         07031aa88d454c7e1f0a5502433ac25e1f5680977984bdd3d66733957396b633
+```
+
+SQL review of the exact bytes: both remain additive-only (three nullable/
+defaulted `provider_profiles` columns + one unique index + one nullable
+`bookings.source` column; two new tables with their indexes). No destructive
+operations, no `IF NOT EXISTS` (drift fails loudly per policy), no DOWN
+(rollback is restore-based per policy). The three provider return-path
+artifacts (`PROVIDER_APPLICATION_REJECTION_REASON_V1.sql`,
+`PROVIDER_PUBLIC_BOOKING_PAGES_V1.sql`, `PROVIDER_SERVICE_AREAS_V1.sql`) are
+mutually independent; the documented application order is
+rejection-reason → booking-pages → service-areas.
+
+### Full frozen-artifact inventory recomputed at `98a1811`
+
+Every value previously documented in this file matches its recomputation;
+the remaining artifacts are recorded here so future preflights can verify
+all ten against documentation:
+
+```text
+CANCELLATION_NO_SHOW_SUPPORT_V1.sql           b6f253c1e5917ffa0e7cdc038486c5d16fb6cdc04d1f8b6772cb003ea11c8a2b
+PILOT_PROVIDER_RETENTION_V1.sql               ceaac6d50e6336fe4c13281ab7de5fc36eca7d96262a771c16a3f8647bf90cad
+PREVENTED_BOOKINGS_DAILY_V1.sql               c4b1896e1e3342cdedd1868a4884719a65e17bf0dfa59a4a238af34f5854a876
+PREVENTED_BOOKING_RECORDS_V1.sql              138982a19c7427044dfea167ffdbbcc72e6647130cc565f1d23621aef70e29ce
+PROVIDER_APPLICATION_REJECTION_REASON_V1.sql  dc978ccac702affed54c95449a06ed43b30e913a8583208d263d359a9c36f06b
+PROVIDER_BLOCKED_RANGES_V1.sql                820c079ebc7ed6bb979b0b5b0ff5b853164be16d24e7d68b70ba564dbe79469f
+PROVIDER_EMERGENCY_OPENINGS_V1.sql            9c903becb3ac436687b2de347fb48216c2ba611b82cfa7c8ac6c9928e7280622
+PROVIDER_PUBLIC_BOOKING_PAGES_V1.sql          139d6b41430d7110d481e3ec3257d9544cdcbfb5f2474f51ea16e411a0ac34dc
+PROVIDER_SERVICE_AREAS_V1.sql                 07031aa88d454c7e1f0a5502433ac25e1f5680977984bdd3d66733957396b633
+RESCHEDULE_PROPOSALS_HISTORY_V1.sql           b8a8c5c7facf6dc01ce893360efe28b8fd6a7036847433f3abece308a6bc1ba5
+```
+
+### Repository fingerprint at `98a1811`
+
+The documented fingerprint procedure at this checkout produced:
+
+```text
+lib/db/src/schema/*.ts aggregate SHA-256
+b2c79051522f5182791efbfdd5ba16995a1138117f0cae35a1c2d0ea1a0a3731
+```
+
+The `d3a6d7d` baseline above remains the historical audit record; the
+difference is the legitimately merged schema growth since 2026-08-22
+(cancellation/no-show, emergency openings, blocked ranges, pilot retention).
+As before, this is repository evidence only, not proof of production parity.
+
+### Release blockers recorded — production remains BLOCKED
+
+- Managed target: **NOT IDENTIFIED.** The preflight environment has no
+  operator access; credentials were not requested, accepted, stored, or
+  committed, per policy.
+- Backup/recovery evidence: **NOT CONFIRMED.** Every control in
+  `docs/backup-restore-runbook.md` remains `TBD` and no fresh recovery point
+  is confirmed; per that runbook, no managed schema release is ready.
+- Approval record: the product owner is the named release approver and the
+  future production operator (working in Railway directly). **No migration
+  authorization and no deployment authorization has been granted.**
+- Dry-run/staging target: none identified.
+- Managed catalog state: **UNKNOWN** — no authorized read-only catalog check
+  has occurred; which artifacts are already applied cannot be known.
+
+No managed database was accessed, no SQL was applied to any non-disposable
+target, and no production deployment occurred during this preflight. The
+default outcome remains `No migration applied.`
