@@ -410,3 +410,44 @@ Strategic boundary unchanged: Availability Exceptions remains Phase B
 (DEFERRED, evidence-gated); Provider Offer & Engagement and
 organization/workspace remain FUTURE, NOT IMPLEMENTED. Authoritative doc:
 `docs/provider-dashboard.md` (Phase A section).
+
+## Status note — 2026-08-29 (Availability Exceptions Phase B — blocked dates slice)
+
+Phase B first slice is DONE on the working branch (baseline main `9398bf4`,
+post PR #66): providers can now block specific marketplace-local calendar
+dates (vacation, courses, personal days) from a new **Blocked dates**
+section on the EXISTING `/provider/availability` Schedule page (evolved, not
+rebuilt). Authoritative product rules: `docs/availability-exceptions-policy.md`.
+
+What shipped: one additive table `provider_availability_exceptions`
+(+ enum, migration `PROVIDER_AVAILABILITY_EXCEPTIONS_V1.sql`); three
+owner-scoped endpoints extending the existing availability group
+(GET/POST/DELETE `/providers/me/availability/exceptions[...]`); enforcement
+at every write path (public slots suppression, booking creation, legacy
+direct reschedule, consent-first proposal target validation at creation AND
+consent — original-time feasibility intentionally untouched so a block
+never invalidates an existing appointment); owner listing-preview skips
+blocked dates. Public behavior is non-leaking (empty-slots shape identical
+to a no-window day; reasons stay private). Reused reason code
+`outside_availability` — no new public API surface for clients.
+
+Validation (seeded disposable local PostgreSQL 15): typecheck PASS ·
+build PASS · build:deploy PASS · API unit 132/132 · CI-equivalent scripted
+loop 24 suites (incl. new `test:availability-exceptions` 9/9, wired into
+`ci.yml`) + unscripted suites + authz/concurrency suites = 35/35 suites
+green · web 228/228 (11 new in `blocked-dates.test.tsx`, incl. axe) · live
+browser verification desktop + 390×844 (add/delete flow, truthful empty
+state, no NEW horizontal overflow — a pre-existing 1px overflow from the
+weekly-slot delete buttons was observed and left untouched).
+
+Drive-by fix recorded: `availability-enforced-booking.test.ts` had a
+pre-existing DST calendar flake (hardcoded EDT offsets; fails on main
+whenever today+60d lands in EST, e.g. Nov 2026) — made DST-aware with an
+Intl-based Toronto offset helper. No runtime code affected.
+
+Explicitly deferred (see policy doc §8): emergency one-off openings, date
+ranges, partial-day blocks, blocked-date warnings listing existing
+bookings, pruning past rows, admin visibility. Next candidates per the
+relay: Reschedule nav badge (3.2), printable QR card (3.3), Graphify
+artifact refresh (3.4 — still TODO; Graphify CLI unavailable again this
+session).

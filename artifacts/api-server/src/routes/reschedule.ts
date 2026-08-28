@@ -13,8 +13,13 @@ import {
 import {
   getMarketplaceTimezone,
   isWithinAvailability,
+  localDateString,
   type AvailabilityWindow,
 } from "../lib/availability.js";
+import {
+  BLOCKED_DATE_MESSAGE,
+  isDateBlocked,
+} from "../lib/availability-exceptions.js";
 import {
   requireAuth,
   requireApprovedProviderIfProvider,
@@ -172,6 +177,20 @@ async function validateProposedTime(
     })
   ) {
     throw httpError(400, "The selected time is outside this provider's availability.");
+  }
+
+  // Phase B (availability exceptions): a blocked calendar date is an invalid
+  // proposal target — checked at proposal creation AND at client consent
+  // (both paths run this helper). Original-time feasibility is intentionally
+  // unaffected: a block never invalidates an existing appointment.
+  if (
+    await isDateBlocked(
+      tx,
+      booking.providerId,
+      localDateString(proposedDate.getTime(), getMarketplaceTimezone()),
+    )
+  ) {
+    throw httpError(400, BLOCKED_DATE_MESSAGE);
   }
 
   // Serialize with POST /bookings and reschedule writes for this provider.

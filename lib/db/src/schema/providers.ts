@@ -103,6 +103,45 @@ export const insertAvailabilitySchema = createInsertSchema(
 export type InsertAvailability = typeof availabilityTable.$inferInsert;
 export type Availability = typeof availabilityTable.$inferSelect;
 
+// ── Availability Exceptions (Phase B — blocked dates) ────────────────────────
+// Date-scoped overrides of the weekly schedule. `date` is a "YYYY-MM-DD"
+// marketplace-local calendar date (same wall-clock semantics as the weekly
+// windows). The enum leaves room for a future 'emergency_open' value.
+// Policy: docs/availability-exceptions-policy.md.
+
+export const availabilityExceptionTypeEnum = pgEnum(
+  "availability_exception_type",
+  ["blocked"],
+);
+
+export const availabilityExceptionsTable = pgTable(
+  "provider_availability_exceptions",
+  {
+    id: serial("id").primaryKey(),
+    providerId: integer("provider_id")
+      .notNull()
+      .references(() => providerProfilesTable.id, { onDelete: "cascade" }),
+    date: text("date").notNull(), // "YYYY-MM-DD" marketplace-local
+    type: availabilityExceptionTypeEnum("type").notNull().default("blocked"),
+    reason: text("reason"), // provider-private, never exposed publicly
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex(
+      "provider_availability_exceptions_provider_date_unique_idx",
+    ).on(table.providerId, table.date),
+  ],
+);
+
+export const insertAvailabilityExceptionSchema = createInsertSchema(
+  availabilityExceptionsTable
+).omit({ id: true, createdAt: true });
+
+export type InsertAvailabilityException =
+  typeof availabilityExceptionsTable.$inferInsert;
+export type AvailabilityException =
+  typeof availabilityExceptionsTable.$inferSelect;
+
 // ── Verification Documents ────────────────────────────────────────────────────
 
 export const verificationDocStatusEnum = pgEnum("verification_doc_status", [

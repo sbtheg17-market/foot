@@ -82,6 +82,9 @@ through the existing slots + bookings endpoints.
 | DELETE | /providers/me/services/:id | provider | Deactivate a service |
 | GET | /providers/me/availability | provider | Get availability schedule |
 | PUT | /providers/me/availability | provider | Set availability |
+| GET | /providers/me/availability/exceptions | provider (approved) | Upcoming blocked dates (availability exceptions, Phase B) — today or later, ascending. See `docs/availability-exceptions-policy.md` |
+| POST | /providers/me/availability/exceptions | provider (approved) | Block a marketplace-local `YYYY-MM-DD` date (`{ date, reason? }`, reason ≤ 200 chars, private). 400 invalid/past date; 409 duplicate (unique per provider+date). Never modifies existing bookings |
+| DELETE | /providers/me/availability/exceptions/:id | provider (approved) | Remove a blocked date (owner-scoped; 404 when not found/not owned) |
 | GET | /providers/me/travel-zones | provider | Get travel zones |
 | POST | /providers/me/travel-zones | provider | Add a travel zone |
 | DELETE | /providers/me/travel-zones/:id | provider | Remove a travel zone |

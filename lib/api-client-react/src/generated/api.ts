@@ -27,6 +27,8 @@ import type {
   ApplicationCompletionResponse,
   ApproveProviderApplicationRequest,
   AuthResponse,
+  AvailabilityExceptionListResponse,
+  AvailabilityExceptionResponse,
   AvailabilityListResponse,
   BadRequestResponse,
   BookingListResponse,
@@ -35,6 +37,7 @@ import type {
   CancellationPreviewResponse,
   ClientCareHistoryResponse,
   ConflictResponse,
+  CreateAvailabilityExceptionRequest,
   CreateBookingRequest,
   CreateEscalationRequest,
   CreateRescheduleRequest,
@@ -3185,6 +3188,226 @@ export const useSetMyAvailability = <TError = ErrorType<BadRequestResponse | Una
         TContext
       > => {
       return useMutation(getSetMyAvailabilityMutationOptions(options));
+    }
+
+export const getListMyAvailabilityExceptionsUrl = () => {
+
+
+
+
+  return `/api/providers/me/availability/exceptions`
+}
+
+/**
+ * @summary List own upcoming availability exceptions (blocked dates)
+ */
+export const listMyAvailabilityExceptions = async ( options?: Parameters<typeof customFetch>[1]): Promise<AvailabilityExceptionListResponse> => {
+
+  return customFetch<AvailabilityExceptionListResponse>(getListMyAvailabilityExceptionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyAvailabilityExceptionsQueryKey = () => {
+    return [
+    `/api/providers/me/availability/exceptions`
+    ] as const;
+    }
+
+
+export const getListMyAvailabilityExceptionsQueryOptions = <TData = Awaited<ReturnType<typeof listMyAvailabilityExceptions>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyAvailabilityExceptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyAvailabilityExceptionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyAvailabilityExceptions>>> = ({ signal }) => listMyAvailabilityExceptions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyAvailabilityExceptions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyAvailabilityExceptionsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyAvailabilityExceptions>>>
+export type ListMyAvailabilityExceptionsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List own upcoming availability exceptions (blocked dates)
+ */
+
+export function useListMyAvailabilityExceptions<TData = Awaited<ReturnType<typeof listMyAvailabilityExceptions>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyAvailabilityExceptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyAvailabilityExceptionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMyAvailabilityExceptionUrl = () => {
+
+
+
+
+  return `/api/providers/me/availability/exceptions`
+}
+
+/**
+ * Adds a blocked date (availability exception). Blocked dates hide public booking slots and reject new bookings/reschedule targets on that date. Existing bookings are never modified.
+ * @summary Block a marketplace-local calendar date
+ */
+export const createMyAvailabilityException = async (createAvailabilityExceptionRequest: CreateAvailabilityExceptionRequest, options?: Parameters<typeof customFetch>[1]): Promise<AvailabilityExceptionResponse> => {
+
+  return customFetch<AvailabilityExceptionResponse>(getCreateMyAvailabilityExceptionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createAvailabilityExceptionRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateMyAvailabilityExceptionMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMyAvailabilityException>>, TError,{data: BodyType<CreateAvailabilityExceptionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMyAvailabilityException>>, TError,{data: BodyType<CreateAvailabilityExceptionRequest>}, TContext> => {
+
+const mutationKey = ['createMyAvailabilityException'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMyAvailabilityException>>, {data: BodyType<CreateAvailabilityExceptionRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMyAvailabilityException(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMyAvailabilityExceptionMutationResult = NonNullable<Awaited<ReturnType<typeof createMyAvailabilityException>>>
+    export type CreateMyAvailabilityExceptionMutationBody = BodyType<CreateAvailabilityExceptionRequest>
+    export type CreateMyAvailabilityExceptionMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
+
+    /**
+ * @summary Block a marketplace-local calendar date
+ */
+export const useCreateMyAvailabilityException = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMyAvailabilityException>>, TError,{data: BodyType<CreateAvailabilityExceptionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMyAvailabilityException>>,
+        TError,
+        {data: BodyType<CreateAvailabilityExceptionRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateMyAvailabilityExceptionMutationOptions(options));
+    }
+
+export const getDeleteMyAvailabilityExceptionUrl = (exceptionId: number,) => {
+
+
+
+
+  return `/api/providers/me/availability/exceptions/${exceptionId}`
+}
+
+/**
+ * @summary Remove a blocked date (availability exception)
+ */
+export const deleteMyAvailabilityException = async (exceptionId: number, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeleteMyAvailabilityExceptionUrl(exceptionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteMyAvailabilityExceptionMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMyAvailabilityException>>, TError,{exceptionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMyAvailabilityException>>, TError,{exceptionId: number}, TContext> => {
+
+const mutationKey = ['deleteMyAvailabilityException'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMyAvailabilityException>>, {exceptionId: number}> = (props) => {
+          const {exceptionId} = props ?? {};
+
+          return  deleteMyAvailabilityException(exceptionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMyAvailabilityExceptionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMyAvailabilityException>>>
+
+    export type DeleteMyAvailabilityExceptionMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Remove a blocked date (availability exception)
+ */
+export const useDeleteMyAvailabilityException = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMyAvailabilityException>>, TError,{exceptionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMyAvailabilityException>>,
+        TError,
+        {exceptionId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteMyAvailabilityExceptionMutationOptions(options));
     }
 
 export const getListMyTravelZonesUrl = () => {

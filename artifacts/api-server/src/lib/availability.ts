@@ -159,6 +159,12 @@ export function localTimeLabel(utcMs: number, tz: string): string {
   return `${String(f.hour).padStart(2, "0")}:${String(f.minute).padStart(2, "0")}`;
 }
 
+/** Format a UTC instant as a "YYYY-MM-DD" calendar date in `tz`. */
+export function localDateString(utcMs: number, tz: string): string {
+  const f = getLocalFields(utcMs, tz);
+  return `${f.year}-${String(f.month).padStart(2, "0")}-${String(f.day).padStart(2, "0")}`;
+}
+
 function parseHHMM(value: string): number {
   const [h, m] = value.split(":").map(Number);
   return h! * 60 + m!;

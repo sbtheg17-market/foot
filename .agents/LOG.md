@@ -3336,3 +3336,60 @@ reviewer-private data, or client PII beyond existing authorized display; no
 managed DB; no production deployment. Graphify CLI unavailable in this
 environment — inventory done by direct source inspection; artifact refresh
 remains a post-merge TODO.
+
+## 2026-08-29 — Availability Exceptions Phase B: blocked dates slice
+
+**Branch work on top of main `9398bf4` (post PR #66). Scope per relay §3.1/§6:
+policy doc + minimal vertical slice (blocked dates only — NO emergency slots).**
+
+**What shipped (evolution — nothing rebuilt):**
+- `docs/availability-exceptions-policy.md`: product rules, interaction rules
+  (weekly availability, travel buffers, existing bookings, consent-first
+  rescheduling), minimal data model, deferred list.
+- Schema (additive): `provider_availability_exceptions` in
+  `lib/db/src/schema/providers.ts` + enum `availability_exception_type`
+  ('blocked' only; room for future values). Unique (provider_id, date).
+  Migration `docs/migrations/PROVIDER_AVAILABILITY_EXCEPTIONS_V1.sql`.
+- API (extends the existing availability group; owner-scoped, approved
+  provider): GET/POST `/providers/me/availability/exceptions`,
+  DELETE `/providers/me/availability/exceptions/:exceptionId`. Validation:
+  real calendar date, today-or-future in marketplace TZ, reason ≤ 200 chars
+  (private), 409 duplicate (preflight + 23505 mapping).
+- Enforcement (`lib/availability-exceptions.ts` helper + `localDateString`
+  added to `lib/availability.ts`): public slots endpoint returns the same
+  empty-slots shape as a no-window day (non-leaking); `POST /bookings`
+  rejects with EXISTING reason code `outside_availability`; legacy direct
+  reschedule (PATCH status) and `validateRescheduleTarget` (proposal
+  creation AND consent) reject blocked targets;
+  `isOriginalTimeFeasible` intentionally untouched — a block never
+  invalidates an existing appointment. Owner listing-preview skips blocked
+  dates.
+- Web: `components/availability/blocked-dates.tsx` section on the existing
+  `/provider/availability` page — date+reason inputs, upcoming list, delete,
+  truthful copy ("Existing bookings are not cancelled — reschedule or cancel
+  them separately"), full data-testids, keyboard/touch friendly.
+- OpenAPI + orval clients regenerated; new suite `test:availability-exceptions`
+  (9 tests, rerun-safe) wired into `.github/workflows/ci.yml` scripted loop.
+
+**Validation (seeded disposable local PostgreSQL 15):** typecheck PASS ·
+build PASS · build:deploy PASS · API unit 132/132 · CI-equivalent loop on a
+fresh DB: 24 scripted + 5 unscripted + 5 authz/concurrency suites = 35/35
+PASS (incl. rescheduling 12/12, proposals 17/17, enforced-booking 6/6) ·
+web 228/228 (11 new incl. axe) · live browser add/delete verification at
+desktop and 390×844 (no NEW horizontal overflow; a pre-existing 1px
+overflow from the weekly-slot delete buttons was observed and left as-is).
+
+**Drive-by fix (test-only):** `availability-enforced-booking.test.ts` had a
+pre-existing DST calendar flake — hardcoded EDT (UTC-4) instants fail
+whenever today+60d lands in EST (reproduced: 2026-11-02 → 13:00Z = 08:00
+local, outside the 09:00–17:00 window; fails on main too). Replaced with an
+Intl-based DST-aware Toronto offset helper. No runtime code touched.
+
+**Boundaries held:** no new booking/scheduling engine; no schema change
+beyond the one additive table; no org/workspace, payments, reminders,
+ranking, or fake urgency; no platform metrics/retention intent/reviewer
+data in provider UI; blocked-date reasons never leave the owner surface;
+no managed DB touched; no production deployment. No feature-flag mechanism
+exists in the codebase — shipped enabled in-branch, marked Phase B beta.
+Graphify CLI unavailable again — inventory via direct source inspection;
+artifact refresh remains a post-merge TODO.

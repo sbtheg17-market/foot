@@ -15,8 +15,13 @@ import {
 import {
   getMarketplaceTimezone,
   isWithinAvailability,
+  localDateString,
   type AvailabilityWindow,
 } from "../lib/availability.js";
+import {
+  BLOCKED_DATE_MESSAGE,
+  isDateBlocked,
+} from "../lib/availability-exceptions.js";
 import {
   requireAuth,
   requireApprovedProviderIfProvider,
@@ -417,6 +422,23 @@ router.post(
     ) {
       res.status(400).json({
         error: "The selected time is outside this provider's availability.",
+        reason: "outside_availability",
+      });
+      return;
+    }
+
+    // Phase B (availability exceptions): a provider-blocked marketplace-local
+    // calendar date rejects NEW bookings with the existing allowlisted reason
+    // code. Existing bookings are never affected by a block.
+    if (
+      await isDateBlocked(
+        db,
+        Number(providerId),
+        localDateString(scheduledAtDate.getTime(), marketplaceTimezone),
+      )
+    ) {
+      res.status(400).json({
+        error: BLOCKED_DATE_MESSAGE,
         reason: "outside_availability",
       });
       return;
@@ -926,6 +948,24 @@ router.patch(
               statusCode: 400,
               userMessage:
                 "The selected time is outside this provider's availability.",
+            });
+          }
+
+          // Phase B (availability exceptions): a blocked calendar date is an
+          // invalid reschedule target — same rule as booking creation.
+          if (
+            await isDateBlocked(
+              tx,
+              booking.providerId,
+              localDateString(
+                rescheduleDate.getTime(),
+                getMarketplaceTimezone(),
+              ),
+            )
+          ) {
+            throw Object.assign(new Error("VALIDATION"), {
+              statusCode: 400,
+              userMessage: BLOCKED_DATE_MESSAGE,
             });
           }
 

@@ -465,3 +465,15 @@ Recommended priority: after Provider Dashboard gap-closure; only with pilot
 | Provider Offer & Engagement system | FUTURE / DEFERRED (Phase D) | Unchanged; constraints pre-recorded. |
 | Organization/workspace expansion | FUTURE / DEFERRED (Phase E) | Unchanged; NOT IMPLEMENTED. |
 | Graphify artifact refresh post-merge | TODO | Still pending from PR #64/#65; refresh after major merged roadmap work per continuity workflow (deferred this session — feature delivery had priority). |
+
+### Availability Exceptions Phase B — blocked dates slice (2026-08-29)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Availability Exceptions — blocked dates (list/add/delete + full enforcement) | DONE 2026-08-29 (Phase B beta) | New `provider_availability_exceptions` table (additive, `PROVIDER_AVAILABILITY_EXCEPTIONS_V1.sql`); GET/POST/DELETE under `/providers/me/availability/exceptions`; enforcement in public slots, booking creation, direct reschedule, and proposal target validation; Blocked dates section on `/provider/availability`. Policy: `docs/availability-exceptions-policy.md`. API suite `test:availability-exceptions` (9) wired into CI; web 11 new tests. No feature-flag mechanism exists in the codebase — shipped enabled, marked beta. |
+| Availability Exceptions — emergency one-off openings | FUTURE / DEFERRED | Enum leaves room (`availability_exception_type`); no implementation. Gate on provider demand. |
+| Availability Exceptions — date ranges / partial-day blocks / block-time booking warnings / past-row pruning / admin visibility | FUTURE / DEFERRED | Policy doc §8. |
+| DST calendar flake in `availability-enforced-booking.test.ts` | FIXED 2026-08-29 | Pre-existing: hardcoded EDT offsets broke whenever today+60d fell in EST. Now Intl-based, DST-aware. Test-only change. |
+| Reschedule nav badge (relay §3.2) | TODO (next candidate) | Reuse Phase A `pendingReschedules.count`; badge + deep link `/provider/bookings?tab=rescheduled`. |
+| Printable QR card (relay §3.3) | TODO | Presentation-only on existing booking-page data. |
+| Graphify artifact refresh post-merge | TODO | Still pending (PR #64–#66 + this work); CLI unavailable in this environment again. |

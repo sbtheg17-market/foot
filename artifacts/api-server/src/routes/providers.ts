@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { eq, ilike, and, or, lt, desc, sql, isNull } from "drizzle-orm";
+import { eq, ilike, and, or, lt, gte, desc, sql, isNull } from "drizzle-orm";
 import {
   db,
   providerProfilesTable,
@@ -12,6 +12,7 @@ import {
   providerServiceAreasTable,
   providerCoverageAreasTable,
   availabilityTable,
+  availabilityExceptionsTable,
   servicesTable,
   reviewsTable,
   usersTable,
@@ -34,8 +35,15 @@ import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
 import {
   getMarketplaceTimezone,
   generateSlotsForDate,
+  localDateString,
   type AvailabilityWindow,
 } from "../lib/availability.js";
+import {
+  MAX_EXCEPTION_REASON_LENGTH,
+  isDateBlocked,
+  isValidCalendarDate,
+  loadBlockedDates,
+} from "../lib/availability-exceptions.js";
 import { slugifyDisplayName, slugCandidate } from "../lib/booking-page.js";
 import {
   SERVICE_AREA_MESSAGES,
@@ -1228,9 +1236,13 @@ router.get(
     const previewService = services[0];
     const slotPreview: Array<{ date: string; slots: Array<{ start: string; end: string; available: boolean }> }> = [];
     if (previewService) {
+      // Phase B: skip provider-blocked dates so the owner preview matches
+      // what clients can actually book.
+      const blockedDates = await loadBlockedDates(db, profileId);
       const base = Date.now();
       for (let d = 1; d <= 7; d++) {
         const date = new Date(base + d * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        if (blockedDates.has(date)) continue;
         const slots = generateSlotsForDate({
           date,
           durationMinutes: previewService.durationMinutes,
@@ -2321,6 +2333,156 @@ router.put(
   }
 );
 
+// ── Availability Exceptions (Phase B — blocked dates) ────────────────────────
+// Provider-owned, date-scoped schedule overrides. Same auth chain as the
+// weekly availability endpoints. Policy: docs/availability-exceptions-policy.md.
+// Blocked dates never modify existing bookings.
+
+/** GET /providers/me/availability/exceptions — Upcoming blocked dates */
+router.get(
+  "/me/availability/exceptions",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    // Past rows are retained but not listed (forward-looking surface).
+    const today = localDateString(Date.now(), getMarketplaceTimezone());
+    const exceptions = await db
+      .select()
+      .from(availabilityExceptionsTable)
+      .where(
+        and(
+          eq(availabilityExceptionsTable.providerId, profile.id),
+          gte(availabilityExceptionsTable.date, today)
+        )
+      )
+      .orderBy(availabilityExceptionsTable.date);
+
+    res.json({ exceptions });
+  }
+);
+
+/** POST /providers/me/availability/exceptions — Block a calendar date */
+router.post(
+  "/me/availability/exceptions",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const { date, reason } = (req.body ?? {}) as {
+      date?: unknown;
+      reason?: unknown;
+    };
+
+    if (typeof date !== "string" || !isValidCalendarDate(date)) {
+      res.status(400).json({ error: "date must be a valid YYYY-MM-DD calendar date." });
+      return;
+    }
+
+    const today = localDateString(Date.now(), getMarketplaceTimezone());
+    if (date < today) {
+      res.status(400).json({ error: "date cannot be in the past." });
+      return;
+    }
+
+    let trimmedReason: string | null = null;
+    if (reason !== undefined && reason !== null) {
+      if (typeof reason !== "string") {
+        res.status(400).json({ error: "reason must be a string." });
+        return;
+      }
+      trimmedReason = reason.trim();
+      if (trimmedReason.length > MAX_EXCEPTION_REASON_LENGTH) {
+        res.status(400).json({
+          error: `reason must be ${MAX_EXCEPTION_REASON_LENGTH} characters or fewer.`,
+        });
+        return;
+      }
+      if (trimmedReason === "") trimmedReason = null;
+    }
+
+    // Friendly preflight; the unique index remains the concurrent-race guard.
+    const [existing] = await db
+      .select({ id: availabilityExceptionsTable.id })
+      .from(availabilityExceptionsTable)
+      .where(
+        and(
+          eq(availabilityExceptionsTable.providerId, profile.id),
+          eq(availabilityExceptionsTable.date, date)
+        )
+      )
+      .limit(1);
+    if (existing) {
+      res.status(409).json({ error: "This date is already blocked." });
+      return;
+    }
+
+    try {
+      const [created] = await db
+        .insert(availabilityExceptionsTable)
+        .values({
+          providerId: profile.id,
+          date,
+          type: "blocked",
+          reason: trimmedReason,
+        })
+        .returning();
+      res.status(201).json({ exception: created });
+    } catch (err) {
+      // 23505: unique_violation — concurrent duplicate mapped to the same 409.
+      if ((err as { code?: string })?.code === "23505") {
+        res.status(409).json({ error: "This date is already blocked." });
+        return;
+      }
+      throw err;
+    }
+  }
+);
+
+/** DELETE /providers/me/availability/exceptions/:exceptionId — Unblock a date */
+router.delete(
+  "/me/availability/exceptions/:exceptionId",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+
+    const exceptionId = Number(req.params["exceptionId"]);
+    if (!Number.isInteger(exceptionId) || exceptionId <= 0) {
+      res.status(400).json({ error: "exceptionId must be a positive integer." });
+      return;
+    }
+
+    const deleted = await db
+      .delete(availabilityExceptionsTable)
+      .where(
+        and(
+          eq(availabilityExceptionsTable.id, exceptionId),
+          eq(availabilityExceptionsTable.providerId, profile.id)
+        )
+      )
+      .returning({ id: availabilityExceptionsTable.id });
+
+    if (!deleted[0]) {
+      res.status(404).json({ error: "Blocked date not found." });
+      return;
+    }
+
+    res.json({ message: "Blocked date removed." });
+  }
+);
+
 /** GET /providers/me/travel-zones — List own travel zones */
 router.get(
   "/me/travel-zones",
@@ -3288,6 +3450,14 @@ router.get(
 
     if (!service[0]) {
       res.status(404).json({ error: "Service not found or inactive." });
+      return;
+    }
+
+    // Phase B (availability exceptions): a provider-blocked calendar date
+    // publishes the same stable empty-slots shape as a day with no weekly
+    // windows — non-leaking (no reason, no block signal).
+    if (await isDateBlocked(db, providerId, date)) {
+      res.json({ timezone, date, slots: [] });
       return;
     }
 

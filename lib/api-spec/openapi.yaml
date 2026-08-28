@@ -1108,6 +1108,83 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /providers/me/availability/exceptions:
+    get:
+      operationId: listMyAvailabilityExceptions
+      tags: [providers]
+      summary: List own upcoming availability exceptions (blocked dates)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Upcoming availability exceptions (today or later, ascending)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityExceptionListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createMyAvailabilityException
+      tags: [providers]
+      summary: Block a marketplace-local calendar date
+      description: >-
+        Adds a blocked date (availability exception). Blocked dates hide public
+        booking slots and reject new bookings/reschedule targets on that date.
+        Existing bookings are never modified.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAvailabilityExceptionRequest"
+      responses:
+        "201":
+          description: Blocked date created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityExceptionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/me/availability/exceptions/{exceptionId}:
+    delete:
+      operationId: deleteMyAvailabilityException
+      tags: [providers]
+      summary: Remove a blocked date (availability exception)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: exceptionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Blocked date removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /providers/me/travel-zones:
     get:
       operationId: listMyTravelZones
@@ -3621,6 +3698,66 @@ components:
               - endTime
       required:
         - slots
+
+    # ── Availability Exception Schemas (Phase B — blocked dates) ──────────────
+
+    AvailabilityException:
+      type: object
+      properties:
+        id:
+          type: integer
+        providerId:
+          type: integer
+        date:
+          type: string
+          description: '"YYYY-MM-DD" calendar date in the effective marketplace timezone'
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        type:
+          type: string
+          enum: [blocked]
+        reason:
+          type: string
+          nullable: true
+          description: Provider-private note; never exposed publicly
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - providerId
+        - date
+        - type
+
+    AvailabilityExceptionListResponse:
+      type: object
+      properties:
+        exceptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AvailabilityException"
+      required:
+        - exceptions
+
+    CreateAvailabilityExceptionRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          description: '"YYYY-MM-DD" marketplace-local calendar date (today or later)'
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        reason:
+          type: string
+          maxLength: 200
+      required:
+        - date
+
+    AvailabilityExceptionResponse:
+      type: object
+      properties:
+        exception:
+          $ref: "#/components/schemas/AvailabilityException"
+      required:
+        - exception
 
     # ── Travel Zone Schemas ────────────────────────────────────────────────────
 

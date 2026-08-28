@@ -77,6 +77,30 @@ function futureMondayISO(hourUtc: number): { date: string; iso: string } {
   return { date, iso };
 }
 
+/**
+ * UTC offset (hours) applied in the marketplace timezone (America/Toronto)
+ * on `date` — 4 during EDT, 5 during EST. Keeps the wall-clock assertions
+ * below valid on either side of a DST transition.
+ */
+function torontoOffsetHours(date: string): number {
+  const localHour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Toronto",
+      hourCycle: "h23",
+      hour: "2-digit",
+    }).format(new Date(`${date}T12:00:00.000Z`)),
+  );
+  return 12 - localHour;
+}
+
+/** UTC ISO instant for a Toronto wall-clock time on `date` (DST-aware). */
+function localIso(date: string, hour: number, minute = 0): string {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(
+    Date.UTC(y!, m! - 1, d!, hour + torontoOffsetHours(date), minute),
+  ).toISOString();
+}
+
 describe("availability-enforced booking", () => {
   let jane = "";
   let tom = "";
@@ -156,7 +180,7 @@ describe("availability-enforced booking", () => {
   });
 
   it("enforces real slots, no double-booking end to end", async () => {
-    const start = `${date}T13:00:00.000Z`; // 09:00 local — window start, valid
+    const start = localIso(date, 9); // 09:00 local — window start, valid
 
     // 1) First client books the slot.
     const first = await api("/bookings", {
@@ -215,7 +239,7 @@ describe("availability-enforced booking", () => {
       body: JSON.stringify({
         providerId: PROVIDER_ID,
         serviceId: SERVICE_ID,
-        scheduledAt: `${date}T14:00:00.000Z`,
+        scheduledAt: localIso(date, 10), // starts exactly when the first ends
         address: "2 Main St",
         city: "Toronto",
       }),
@@ -223,15 +247,15 @@ describe("availability-enforced booking", () => {
     assert.equal(adjacent.status, 409);
     assert.equal(adjacent.body["reason"], "travel_buffer_conflict");
 
-    // 5) A booking separated by exactly the buffer (ends 14:00Z + 30m gap →
-    //    starts 14:30Z) is allowed — the buffer boundary is inclusive.
+    // 5) A booking separated by exactly the buffer (ends 10:00 local + 30m
+    //    gap → starts 10:30 local) is allowed — the buffer boundary is inclusive.
     const buffered = await api("/bookings", {
       method: "POST",
       token: tom,
       body: JSON.stringify({
         providerId: PROVIDER_ID,
         serviceId: SERVICE_ID,
-        scheduledAt: `${date}T14:30:00.000Z`,
+        scheduledAt: localIso(date, 10, 30),
         address: "2 Main St",
         city: "Toronto",
       }),
@@ -240,14 +264,14 @@ describe("availability-enforced booking", () => {
   });
 
   it("allows a booking that ends exactly at the window end", async () => {
-    // 16:00 local (20:00Z) + 60m = 17:00 local == window end.
+    // 16:00 local + 60m = 17:00 local == window end.
     const res = await api("/bookings", {
       method: "POST",
       token: jane,
       body: JSON.stringify({
         providerId: PROVIDER_ID,
         serviceId: SERVICE_ID,
-        scheduledAt: `${date}T20:00:00.000Z`,
+        scheduledAt: localIso(date, 16),
         address: "1 Main St",
         city: "Toronto",
       }),

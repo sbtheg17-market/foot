@@ -227,6 +227,25 @@ Weekly recurring availability for a provider.
 
 ---
 
+## provider_availability_exceptions
+
+Phase B (blocked dates): provider-owned, date-scoped overrides of the weekly
+schedule. A blocked date hides public slots and rejects new bookings and
+reschedule targets on that marketplace-local calendar date; existing
+bookings are never modified. Policy: `docs/availability-exceptions-policy.md`.
+Migration: `docs/migrations/PROVIDER_AVAILABILITY_EXCEPTIONS_V1.sql`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | serial PK | |
+| provider_id | FK → provider_profiles | ON DELETE CASCADE |
+| date | text | "YYYY-MM-DD" in the effective marketplace timezone; UNIQUE with provider_id |
+| type | enum availability_exception_type | 'blocked' (room for a future 'emergency_open') |
+| reason | text NULL | Provider-private (≤ 200 chars); never exposed publicly |
+| created_at | timestamp | |
+
+---
+
 ## travel_zones
 
 Areas a provider is willing to travel to. (Descriptive/legacy — the

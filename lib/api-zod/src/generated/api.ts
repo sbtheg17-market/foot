@@ -1292,6 +1292,65 @@ export const SetMyAvailabilityResponse = zod.object({
 
 
 /**
+ * @summary List own upcoming availability exceptions (blocked dates)
+ */
+export const listMyAvailabilityExceptionsResponseExceptionsItemDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const ListMyAvailabilityExceptionsResponse = zod.object({
+  "exceptions": zod.array(zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "date": zod.string().regex(listMyAvailabilityExceptionsResponseExceptionsItemDateRegExp).describe('\"YYYY-MM-DD\" calendar date in the effective marketplace timezone'),
+  "type": zod.enum(['blocked']),
+  "reason": zod.string().nullish().describe('Provider-private note; never exposed publicly'),
+  "createdAt": zod.coerce.date().optional()
+}))
+})
+
+
+/**
+ * Adds a blocked date (availability exception). Blocked dates hide public booking slots and reject new bookings/reschedule targets on that date. Existing bookings are never modified.
+ * @summary Block a marketplace-local calendar date
+ */
+export const createMyAvailabilityExceptionBodyDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const createMyAvailabilityExceptionBodyReasonMax = 200;
+
+
+
+export const CreateMyAvailabilityExceptionBody = zod.object({
+  "date": zod.string().regex(createMyAvailabilityExceptionBodyDateRegExp).describe('\"YYYY-MM-DD\" marketplace-local calendar date (today or later)'),
+  "reason": zod.string().max(createMyAvailabilityExceptionBodyReasonMax).optional()
+})
+
+export const createMyAvailabilityExceptionResponseExceptionDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const CreateMyAvailabilityExceptionResponse = zod.object({
+  "exception": zod.object({
+  "id": zod.int(),
+  "providerId": zod.int(),
+  "date": zod.string().regex(createMyAvailabilityExceptionResponseExceptionDateRegExp).describe('\"YYYY-MM-DD\" calendar date in the effective marketplace timezone'),
+  "type": zod.enum(['blocked']),
+  "reason": zod.string().nullish().describe('Provider-private note; never exposed publicly'),
+  "createdAt": zod.coerce.date().optional()
+})
+})
+
+
+/**
+ * @summary Remove a blocked date (availability exception)
+ */
+export const DeleteMyAvailabilityExceptionParams = zod.object({
+  "exceptionId": zod.coerce.number().int()
+})
+
+export const DeleteMyAvailabilityExceptionResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
  * @summary List own travel zones
  */
 export const ListMyTravelZonesResponse = zod.object({

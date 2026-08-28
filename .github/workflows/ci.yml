@@ -115,7 +115,7 @@ jobs:
           cd artifacts/api-server
           for s in test:lifecycle test:reviews test:care-history test:role-state \
                    test:provider-application test:provider-resubmission test:provider-status \
-                   test:availability test:onboarding test:provider-history \
+                   test:availability test:availability-exceptions test:onboarding test:provider-history \
                    test:provider-notifications test:reviewer-decisions test:provider-readiness \
                    test:first-booking test:client-retention test:marketplace-events \
                    test:booking-page test:service-area test:cancellation \

@@ -723,6 +723,45 @@ export interface SetAvailabilityRequest {
   slots: SetAvailabilityRequestSlotsItem[];
 }
 
+export type AvailabilityExceptionType = typeof AvailabilityExceptionType[keyof typeof AvailabilityExceptionType];
+
+
+export const AvailabilityExceptionType = {
+  blocked: 'blocked',
+} as const;
+
+export interface AvailabilityException {
+  id: number;
+  providerId: number;
+  /**
+     * "YYYY-MM-DD" calendar date in the effective marketplace timezone
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  date: string;
+  type: AvailabilityExceptionType;
+  /** Provider-private note; never exposed publicly */
+  reason?: string | null;
+  createdAt?: string;
+}
+
+export interface AvailabilityExceptionListResponse {
+  exceptions: AvailabilityException[];
+}
+
+export interface CreateAvailabilityExceptionRequest {
+  /**
+     * "YYYY-MM-DD" marketplace-local calendar date (today or later)
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  date: string;
+  /** @maxLength 200 */
+  reason?: string;
+}
+
+export interface AvailabilityExceptionResponse {
+  exception: AvailabilityException;
+}
+
 export interface TravelZone {
   id: number;
   providerId: number;
