@@ -437,3 +437,22 @@ answers. The generic error fallback (with Retry) is reserved for genuine
 network/server failures. Incomplete onboarding is a normal state with one
 clear next action — not an error. Server-side rule and evidence:
 `docs/provider-onboarding-return-path-reliability-plan.md`.
+
+## Status hub progress & next-step clarity (2026-08-28)
+
+The provider Application Status Hub answers, in order, on one mobile-first
+screen: where am I → what is the one next action → how far along am I → the
+full checklist. Content priority on small screens is fixed: (1) current
+status and one-sentence reassurance, (2) ONE primary server-derived next
+action with a factual "why it matters" line and a factual "what follows"
+line (`data-testid="activation-next-after"`), (3) a compact text-first
+progress summary ("N of M steps complete" + a semantic
+`role="progressbar"` meter — color is never the only signal), (4) the full
+checklist and supporting sections below. The primary CTA must stay visible
+near the top of a 390×844 viewport. Progress counts, ordering, and the next
+action come exclusively from `GET /providers/me/activation-status`
+(milestones/nextAction) — clients never recompute readiness. Copy never
+promises approval, bookings, demand, or deadlines, and never surfaces
+internal reviewer/schema/operational conditions; feature-specific truthful
+states only. Verified live at 390×844 and desktop: CTA above the fold, next
+action above the progress summary, zero horizontal overflow, axe-clean.

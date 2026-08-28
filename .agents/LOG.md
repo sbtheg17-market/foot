@@ -3423,3 +3423,15 @@ remains a post-merge TODO.
 **Validation:** recorded in the PR after the full run (typecheck, build, build:deploy, root tests, scripted drift suites on fresh disposable PostgreSQL 15, `git diff --check`, secret scan, CI).
 
 **Next best action:** unchanged — Gate-B application + deploy + new-provider verification per `docs/managed-db-release-gate.md`; then Status Hub Progress using server-derived readiness criteria.
+
+## 2026-08-28 — Status Hub Progress & next-step clarity
+
+**Branch/PR:** `feat/provider-status-hub-progress` — `feat: clarify provider setup progress and next action`.
+
+**What was done:** Evolved (not rebuilt) the existing Application Status Hub hero so a provider knows within seconds: where am I, what one thing do I do next, why it matters, and what follows. Changes: (1) mobile-first priority order — status + reassurance, then the ONE primary server-derived next action, then the compact text-first progress summary (`data-testid="activation-progress"`), with the full checklist below; (2) a factual "what follows" line per next action (`NEXT_ACTION_COPY[action].after`, `data-testid="activation-next-after"`) — no approval/booking/demand promises, no urgency; (3) semantic progress kept (`role="progressbar"` + "N of M steps complete" text). Server authority untouched: `GET /providers/me/activation-status` milestones/`nextAction` (`deriveActivationNextAction`, `computeReadiness`, `loadReadinessSourceByUserId` all reused; zero client-side readiness computation). Files: `artifacts/web/src/lib/activation-hub.ts`, `components/activation-hub/activation-hero.tsx`, `__tests__/provider-activation-hub.test.tsx`. **API/schema: NONE.** Mobile app: NOT APPLICABLE (no status hub surface). Deliberate non-feature: NO provider-facing schema/drift health banner — internal operational concern; safe degradation + feature-specific truthful states only.
+
+**Validation:** workspace typecheck PASS; web 240/240 (3 new progress/next-step tests: CTA-above-progress DOM order, single primary CTA, why/what-follows copy without demand claims, semantic progressbar from server counts) incl. axe scans on approved + rejected states; live Chromium verification on the production build (approved-incomplete provider, 2/9): 390×844 CTA bottom at y=485 (fold 844), next action above progress, 0px horizontal overflow, progressbar label "Setup progress: 2 of 9 steps complete"; desktop 1280×800 same result. Lifecycle states re-verified by the existing suite (draft, under review, rejected + recovery, suspended → support, approved journey, published/share, all-set, loading/404/403/error + retry).
+
+**Docs appended:** `provider-approval-status-hub.md`, `ux-guidelines.md`, `NEXT-STEPS.md`, `TODO-LEDGER.md`. `api-routes.md` untouched (no API change).
+
+**Next best action:** clean-device pilot usability / release-readiness loop (fresh provider, clean profile, phone viewport, full journey through booking + reschedule), fixing only repeated or high-severity friction; then the owner-ready Gate-B Railway checklist and the separately authorized Gate-B migration + deploy + live provider journey verification.

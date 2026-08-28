@@ -502,3 +502,20 @@ organization/workspace remain FUTURE, NOT IMPLEMENTED. Authoritative doc:
   were reviewed and intentionally left unchanged (out of the provider-owned
   read scope; recorded in the audit doc as follow-up if Gate B stays
   unapplied).
+
+## Status Hub Progress & next-step clarity (2026-08-28)
+
+- Evolved the existing Application Status Hub hero (`feat/provider-status-hub-progress`):
+  primary server-derived next action now renders above the compact progress
+  summary (mobile CTA priority, verified above the fold at 390×844), and the
+  next-action card gained a factual "what follows" line per action
+  (`NEXT_ACTION_COPY.after`). No API/schema change; readiness and
+  `nextAction` remain 100% server-derived from
+  `GET /providers/me/activation-status`. Mobile app has no status hub —
+  NOT APPLICABLE. No provider-facing drift/schema banner (deliberate;
+  internal operational concern).
+- Next: pause feature work and run the clean-device pilot usability /
+  release-readiness loop (fresh provider account, clean browser profile,
+  phone-sized viewport, full journey signup → publish → book → reschedule),
+  fixing only repeated or high-severity friction before SEO/marketing/
+  payments expansion.
