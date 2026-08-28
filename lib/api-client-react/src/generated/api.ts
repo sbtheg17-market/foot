@@ -29,12 +29,15 @@ import type {
   AuthResponse,
   AvailabilityListResponse,
   BadRequestResponse,
+  BlockedRangeListResponse,
+  BlockedRangeResponse,
   BookingListResponse,
   BookingRequestRejectedResponse,
   BookingResponse,
   CancellationPreviewResponse,
   ClientCareHistoryResponse,
   ConflictResponse,
+  CreateBlockedRangeRequest,
   CreateBookingRequest,
   CreateEmergencyOpeningRequest,
   CreateEscalationRequest,
@@ -3410,6 +3413,228 @@ export const useDeleteEmergencyOpening = <TError = ErrorType<UnauthorizedRespons
         TContext
       > => {
       return useMutation(getDeleteEmergencyOpeningMutationOptions(options));
+    }
+
+export const getListMyBlockedRangesUrl = () => {
+
+
+
+
+  return `/api/providers/me/availability/blocked-ranges`
+}
+
+/**
+ * Upcoming date-range blocks during which no time is bookable, owner-scoped (endDate ≥ today in the marketplace timezone). The private reason note is returned to the owner only.
+ * @summary List own upcoming blocked ranges (vacation / time off)
+ */
+export const listMyBlockedRanges = async ( options?: Parameters<typeof customFetch>[1]): Promise<BlockedRangeListResponse> => {
+
+  return customFetch<BlockedRangeListResponse>(getListMyBlockedRangesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyBlockedRangesQueryKey = () => {
+    return [
+    `/api/providers/me/availability/blocked-ranges`
+    ] as const;
+    }
+
+
+export const getListMyBlockedRangesQueryOptions = <TData = Awaited<ReturnType<typeof listMyBlockedRanges>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyBlockedRanges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyBlockedRangesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyBlockedRanges>>> = ({ signal }) => listMyBlockedRanges({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyBlockedRanges>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyBlockedRangesQueryResult = NonNullable<Awaited<ReturnType<typeof listMyBlockedRanges>>>
+export type ListMyBlockedRangesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List own upcoming blocked ranges (vacation / time off)
+ */
+
+export function useListMyBlockedRanges<TData = Awaited<ReturnType<typeof listMyBlockedRanges>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyBlockedRanges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyBlockedRangesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateBlockedRangeUrl = () => {
+
+
+
+
+  return `/api/providers/me/availability/blocked-ranges`
+}
+
+/**
+ * Blocks every day in [startDate, endDate] (inclusive, marketplace timezone) — no slots are offered and no booking or reschedule can land on those days. Rejected with an honest 409 when the range overlaps an existing blocked range, an emergency opening (mutually exclusive), or active bookings (blocking time off never cancels appointments). The optional reason is a private provider-only note.
+ * @summary Block a date range (vacation / time off)
+ */
+export const createBlockedRange = async (createBlockedRangeRequest: CreateBlockedRangeRequest, options?: Parameters<typeof customFetch>[1]): Promise<BlockedRangeResponse> => {
+
+  return customFetch<BlockedRangeResponse>(getCreateBlockedRangeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createBlockedRangeRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateBlockedRangeMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBlockedRange>>, TError,{data: BodyType<CreateBlockedRangeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBlockedRange>>, TError,{data: BodyType<CreateBlockedRangeRequest>}, TContext> => {
+
+const mutationKey = ['createBlockedRange'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBlockedRange>>, {data: BodyType<CreateBlockedRangeRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBlockedRange(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBlockedRangeMutationResult = NonNullable<Awaited<ReturnType<typeof createBlockedRange>>>
+    export type CreateBlockedRangeMutationBody = BodyType<CreateBlockedRangeRequest>
+    export type CreateBlockedRangeMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
+
+    /**
+ * @summary Block a date range (vacation / time off)
+ */
+export const useCreateBlockedRange = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBlockedRange>>, TError,{data: BodyType<CreateBlockedRangeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBlockedRange>>,
+        TError,
+        {data: BodyType<CreateBlockedRangeRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateBlockedRangeMutationOptions(options));
+    }
+
+export const getDeleteBlockedRangeUrl = (rangeId: number,) => {
+
+
+
+
+  return `/api/providers/me/availability/blocked-ranges/${rangeId}`
+}
+
+/**
+ * Deletes an owned blocked range. No guard is needed — removing time off only re-opens bookable time and never affects appointments.
+ * @summary Delete a blocked range (re-opens the days)
+ */
+export const deleteBlockedRange = async (rangeId: number, options?: Parameters<typeof customFetch>[1]): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeleteBlockedRangeUrl(rangeId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteBlockedRangeMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBlockedRange>>, TError,{rangeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteBlockedRange>>, TError,{rangeId: number}, TContext> => {
+
+const mutationKey = ['deleteBlockedRange'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBlockedRange>>, {rangeId: number}> = (props) => {
+          const {rangeId} = props ?? {};
+
+          return  deleteBlockedRange(rangeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteBlockedRangeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBlockedRange>>>
+
+    export type DeleteBlockedRangeMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+    /**
+ * @summary Delete a blocked range (re-opens the days)
+ */
+export const useDeleteBlockedRange = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBlockedRange>>, TError,{rangeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteBlockedRange>>,
+        TError,
+        {rangeId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteBlockedRangeMutationOptions(options));
     }
 
 export const getListMyTravelZonesUrl = () => {

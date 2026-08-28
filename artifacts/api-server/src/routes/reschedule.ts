@@ -16,7 +16,10 @@ import {
   localDateOfInstant,
   type AvailabilityWindow,
 } from "../lib/availability.js";
-import { loadEmergencyOpenings } from "../lib/availability-exceptions.js";
+import {
+  loadBlockedRanges,
+  loadEmergencyOpenings,
+} from "../lib/availability-exceptions.js";
 import {
   requireAuth,
   requireApprovedProviderIfProvider,
@@ -169,6 +172,9 @@ async function validateProposedTime(
   const proposedOpenings = await loadEmergencyOpenings(tx, booking.providerId, {
     date: localDateOfInstant(proposedDate.getTime(), proposedTz),
   });
+  const proposedBlockedRanges = await loadBlockedRanges(tx, booking.providerId, {
+    date: localDateOfInstant(proposedDate.getTime(), proposedTz),
+  });
   if (
     !isWithinEffectiveAvailability({
       scheduledAt: proposedDate,
@@ -177,6 +183,7 @@ async function validateProposedTime(
       tz: proposedTz,
       serviceId: booking.serviceId,
       emergencyOpenings: proposedOpenings,
+      blockedRanges: proposedBlockedRanges,
     })
   ) {
     throw httpError(400, "The selected time is outside this provider's availability.");
@@ -275,6 +282,13 @@ async function isOriginalTimeFeasible(tx: Tx, booking: BookingRow): Promise<bool
     booking.providerId,
     { date: localDateOfInstant(booking.scheduledAt.getTime(), feasibilityTz) },
   );
+  // Blocked ranges cannot cover an active booking (write-time guard), but the
+  // one-engine rule applies here too for consistency.
+  const feasibilityBlockedRanges = await loadBlockedRanges(
+    tx,
+    booking.providerId,
+    { date: localDateOfInstant(booking.scheduledAt.getTime(), feasibilityTz) },
+  );
   return isWithinEffectiveAvailability({
     scheduledAt: booking.scheduledAt,
     durationMinutes: service.durationMinutes,
@@ -282,6 +296,7 @@ async function isOriginalTimeFeasible(tx: Tx, booking: BookingRow): Promise<bool
     tz: feasibilityTz,
     serviceId: booking.serviceId,
     emergencyOpenings: feasibilityOpenings,
+    blockedRanges: feasibilityBlockedRanges,
   });
 }
 

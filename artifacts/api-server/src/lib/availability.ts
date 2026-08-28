@@ -301,6 +301,30 @@ export interface EffectiveSlot extends GeneratedSlot {
   urgentOnly: boolean;
 }
 
+// ── Blocked ranges (vacation / time off) ──────────────────────────────────────
+//
+// A provider can block a continuous date range during which NO time is
+// bookable (docs/availability-exceptions-policy.md). Ranges are a
+// SUBTRACTIVE source for the SAME engine: a blocked day yields zero slots
+// and fails enforcement regardless of weekly windows or emergency openings
+// (ranges and openings are mutually exclusive at write time anyway).
+
+export interface BlockedRangeWindow {
+  /** Inclusive calendar dates (YYYY-MM-DD) in the marketplace timezone. */
+  startDate: string;
+  endDate: string;
+}
+
+/** True when `date` (YYYY-MM-DD) falls inside any blocked range (inclusive). */
+export function isDateBlocked(
+  date: string,
+  blockedRanges?: BlockedRangeWindow[],
+): boolean {
+  return (blockedRanges ?? []).some(
+    (r) => r.startDate <= date && date <= r.endDate,
+  );
+}
+
 /**
  * Candidate slots for one calendar date from BOTH sources: the weekly
  * windows (via generateSlotsForDate — behavior unchanged) plus any emergency
@@ -315,9 +339,13 @@ export function generateEffectiveSlotsForDate(params: {
   tz: string;
   serviceId?: number;
   emergencyOpenings?: EmergencyOpeningWindow[];
+  blockedRanges?: BlockedRangeWindow[];
 }): EffectiveSlot[] {
   const { date, durationMinutes, windows, tz, serviceId, emergencyOpenings } =
     params;
+
+  // A blocked day (vacation / time off) offers NO slots from ANY source.
+  if (isDateBlocked(date, params.blockedRanges)) return [];
 
   const byStart = new Map<string, EffectiveSlot>();
   for (const s of generateSlotsForDate({ date, durationMinutes, windows, tz })) {
@@ -381,8 +409,19 @@ export function isWithinEffectiveAvailability(params: {
   tz: string;
   serviceId?: number;
   emergencyOpenings?: EmergencyOpeningWindow[];
+  blockedRanges?: BlockedRangeWindow[];
 }): boolean {
   const { scheduledAt, durationMinutes, windows, tz, serviceId } = params;
+
+  // A blocked day (vacation / time off) rejects every interval, from ANY source.
+  if (
+    isDateBlocked(
+      localDateOfInstant(scheduledAt.getTime(), tz),
+      params.blockedRanges,
+    )
+  ) {
+    return false;
+  }
 
   if (isWithinAvailability({ scheduledAt, durationMinutes, windows, tz })) {
     return true;

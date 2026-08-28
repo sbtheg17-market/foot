@@ -775,6 +775,52 @@ export interface CreateEmergencyOpeningRequest {
   urgentOnly?: boolean;
 }
 
+/**
+ * Date-range block during which no time is bookable (docs/availability-exceptions-policy.md). Dates are inclusive calendar dates in the effective marketplace timezone. The reason is a private provider-only note, never shown to clients.
+ */
+export interface BlockedRange {
+  id: number;
+  /**
+     * YYYY-MM-DD inclusive (marketplace timezone)
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  startDate: string;
+  /**
+     * YYYY-MM-DD inclusive (marketplace timezone)
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  endDate: string;
+  /** Private provider-only note; never client-facing */
+  reason?: string | null;
+  createdAt?: string;
+}
+
+export interface BlockedRangeListResponse {
+  ranges: BlockedRange[];
+}
+
+export interface BlockedRangeResponse {
+  range: BlockedRange;
+}
+
+export interface CreateBlockedRangeRequest {
+  /**
+     * YYYY-MM-DD; today or later (marketplace timezone)
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  startDate: string;
+  /**
+     * YYYY-MM-DD; on/after startDate, within 365 days
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  endDate: string;
+  /**
+     * Optional private note (provider-only, never client-facing)
+     * @maxLength 200
+     */
+  reason?: string;
+}
+
 export interface TravelZone {
   id: number;
   providerId: number;
