@@ -218,8 +218,63 @@ describe('under review state', () => {
     render(<ProviderApplicationStatus />);
     expect(screen.getByTestId('activation-status-pill')).toHaveTextContent('Under review');
     expect(screen.getByTestId('activation-next-action')).toHaveTextContent('No action needed right now');
+    expect(screen.getByTestId('activation-next-after')).toHaveTextContent(
+      "When there's a decision, this page will show your next step.",
+    );
     expect(screen.queryByText(/you're approved/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/your booking page is live/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('progress and next-step clarity', () => {
+  it('keeps the one primary next action above the progress summary (mobile CTA priority)', () => {
+    arrange(
+      activationFixture(
+        { applicationStatus: 'approved', canEdit: false, nextAction: 'add_service' },
+        { profileCompleted: true, verificationSubmitted: true, approved: true, serviceAreaConfigured: true },
+      ),
+    );
+    render(<ProviderApplicationStatus />);
+    const nextAction = screen.getByTestId('activation-next-action');
+    const progress = screen.getByTestId('activation-progress');
+    // Next action must precede the progress summary in DOM order.
+    expect(
+      nextAction.compareDocumentPosition(progress) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Exactly one primary next-action CTA.
+    expect(screen.getAllByTestId('activation-next-action-link')).toHaveLength(1);
+  });
+
+  it('explains why the next step matters and what follows it, without demand promises', () => {
+    arrange(
+      activationFixture(
+        { applicationStatus: 'approved', canEdit: false, nextAction: 'add_service' },
+        { profileCompleted: true, verificationSubmitted: true, approved: true, serviceAreaConfigured: true },
+      ),
+    );
+    render(<ProviderApplicationStatus />);
+    expect(screen.getByTestId('activation-next-action')).toHaveTextContent(
+      'Clients book a specific service',
+    );
+    expect(screen.getByTestId('activation-next-after')).toHaveTextContent(
+      'Your services become what clients choose from when your page is live.',
+    );
+    expect(screen.queryByText(/guarantee/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/clients are waiting/i)).not.toBeInTheDocument();
+  });
+
+  it('renders semantic, text-based progress from server counts only', () => {
+    arrange(
+      activationFixture(
+        { applicationStatus: 'approved', canEdit: false, nextAction: 'add_service' },
+        { profileCompleted: true, verificationSubmitted: true, approved: true, serviceAreaConfigured: true },
+      ),
+    );
+    render(<ProviderApplicationStatus />);
+    expect(screen.getByTestId('activation-progress-count')).toHaveTextContent('5 of 9 steps complete');
+    expect(
+      screen.getByRole('progressbar', { name: 'Setup progress: 5 of 9 steps complete' }),
+    ).toBeInTheDocument();
   });
 });
 
