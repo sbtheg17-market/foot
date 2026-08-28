@@ -262,3 +262,18 @@ trims as the rest of the payload (first name + last initial, FSA/city —
 never full addresses; no client PII beyond existing authorized provider
 booking display). No new endpoint, no schema change, no migration. OpenAPI
 (`lib/api-spec/openapi.yaml`) updated and clients regenerated.
+
+## Provider owner status reads — schema-drift resilience (2026-08-28)
+
+`GET /providers/me/activation-status`, `GET /providers/application/status`,
+and `GET /providers/application` no longer 500 on a deployed database that is
+missing Gate B-pending additive relations
+(`provider_applications.rejection_reason`, the `provider_profiles`
+booking-page columns, `provider_service_areas`/`provider_coverage_areas`).
+They degrade to the truthful pre-artifact state — `rejectionReason: null`,
+empty `previousSubmissions`, unpublished `bookingPage` with `slug: null`,
+`serviceAreaConfigured: false` — with a structured server-side `logger.warn`.
+Response shapes, status codes, 401/403 semantics, and the migrated-schema
+behavior are unchanged (eager select first; fallback only on `42703`/`42P01`
+in the error `cause` chain). No OpenAPI change. Regression:
+`test:return-path-drift` (CI scripted loop).

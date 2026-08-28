@@ -3381,3 +3381,17 @@ remains a post-merge TODO.
 **Build state at end:** typecheck PASS (workspace); fresh disposable PG 15 + idempotent seed; full scripted API loop green incl. vacation-ranges 11/11 and emergency-openings 10/10; unscripted suites green (availability-enforced-booking 6/6 after DST fix, payments-foundation 6/6, listing-preview 9/9, prevented-booking-events 9/9, replay-safety 27/27); web 237/237 (10 new) + a11y 33/33 + tz 10/10; web production build PASS; live browser verification of the Time off UI.
 
 **Next best action:** Availability exceptions polish on evidence: listing-preview inclusion of exceptions (deferred), recurring time off / partial-day blocks (deferred until pilot evidence), or resume the pre-exception roadmap (payments/Stripe per NEXT-STEPS).
+
+## 2026-08-28 — Provider first-login status reliability (schema-drift guard)
+
+**Branch/PR:** `fix/provider-first-login-status` — `fix: restore provider application status after re-login`.
+
+**What happened:** Executed the approved remedy from `docs/provider-onboarding-return-path-reliability-plan.md`. Reproduced the blocker on a disposable PG 15 with the Gate B artifacts dropped: signup 201 → re-login 200 → `GET /providers/me/activation-status` and `GET /providers/application/status` both 500 (`42703 column provider_applications.rejection_reason does not exist`) → the generic hub error. Root cause CONFIRMED locally; production metadata check BLOCKED (no Railway access from this environment; managed DB never touched).
+
+**Fix (routes/providers.ts only):** `isSchemaDriftError` (42703/42P01 via the Drizzle `cause` chain, same convention as `isUniqueViolation`); `getOwnApplication` selects the signup-era stable set, degrades `rejectionReason` to null and submission history to empty only on drift; new `getOwnActivationProfile` (narrow booking-page select, signup-era fallback = truthful pre-#11 unpublished state) replaces the bare-select `getOwnProfile` in the activation hub; service-area probe degrades to `false` (truthful pre-#12 state). Eager select first → migrated databases byte-identical. No fabricated approval/readiness; 401/403/404/ownership unchanged; no OpenAPI/schema change.
+
+**Tests:** new `test:return-path-drift` (11/11, added to the CI scripted loop) — full pre-Gate-B journey (signup, re-login, both status reads, refresh, owner isolation, client 403, unauth 401, no-internals-leak) + migrated-path parity (rejectionReason passthrough). Regression: scripted loop 27 suites green on fresh disposable PG 15, authz/concurrency 5 suites green, unscripted 5 suites green, web 237/237 + a11y 33/33 + tz 10/10, workspace typecheck, `build`, `build:deploy`, `git diff --check`, secret scan — all PASS. Live browser proof on the drifted DB: login → truthful draft hub, desktop + 390×844.
+
+**Docs appended:** reliability plan (implementation outcome), `provider-approval-status-hub.md` (drift-resilience contract), `provider-verification-onboarding-policy.md` (stable-vs-optional selection rule), `api-routes.md`, `ux-guidelines.md` (truthful degraded states), `NEXT-STEPS.md`, `TODO-LEDGER.md`.
+
+**Next best action:** separate release gates — apply the frozen Gate B artifacts to the managed Railway database per `docs/managed-db-release-gate.md`, then deploy and verify with a brand-new provider (signup → logout → re-login → status hub). Production deployment NOT AUTHORIZED this session.

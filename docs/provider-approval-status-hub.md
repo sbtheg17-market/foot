@@ -194,3 +194,22 @@ dashboard). The hub remains the authoritative activation surface: the
 dashboard card deep-links back here for `wait_for_review`,
 `review_update_needed`, and `contact_support` states and never recomputes
 or contradicts hub truth. No endpoint or schema change was needed.
+
+## Drift-resilience contract (2026-08-28) — first-return reads never 500 on a pre-Gate-B database
+
+The hub's owner reads (`GET /providers/me/activation-status`,
+`GET /providers/application/status`, `GET /providers/application`) are now
+schema-drift-safe: on a deployed database where the frozen Gate B additive
+artifacts have not been applied yet, they degrade to the truthful pre-artifact
+state instead of 500 (`rejectionReason: null`, empty submission history,
+`bookingPage` unpublished with no slug, `serviceAreaConfigured: false`).
+Selection rule: **stable signup-era columns are the required read set; Gate
+B-pending additive columns are attempted eagerly and degraded on
+`42703`/`42P01` only** (walked through the Drizzle `cause` chain via
+`isSchemaDriftError` in `routes/providers.ts`). Degraded reads log a
+structured `logger.warn` naming the missing relation. Nothing is fabricated:
+approval, verification, 401/403, and ownership boundaries are untouched, and
+a missing application/profile row still 404s. Migrated databases take the
+eager path unchanged. Guarded by `test:return-path-drift` (11 tests, CI
+scripted loop). Full rationale and evidence:
+`docs/provider-onboarding-return-path-reliability-plan.md`.

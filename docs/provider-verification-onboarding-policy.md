@@ -118,3 +118,17 @@ persisted on 400), authz denials + cross-provider isolation, duplicate +
 4-way concurrent idempotency, forced-failure rollback (+ safe 500 contract) +
 retry, drift simulation, onboarding progression. Web: 11 new
 `provider-verification-step` tests incl. axe scans (147 web tests total).
+
+## Stable-vs-optional column selection rule (2026-08-28)
+
+The drift-safe convention introduced for the verification flow
+(`getOwnVerificationProfile`: select exactly the signup-era columns a read
+needs) is now also the contract for the owner status/activation reads
+(`getOwnApplication`, `getOwnActivationProfile` in `routes/providers.ts`):
+signup-era columns are the required set; Gate B-pending additive columns are
+attempted eagerly and degraded to their backfill-free defaults on
+`42703`/`42P01` (via `isSchemaDriftError`), never fabricating approval or
+readiness. This keeps a provider's first return truthful on a database whose
+frozen additive artifacts have not been applied yet. Regression guard:
+`test:return-path-drift`. See
+`docs/provider-onboarding-return-path-reliability-plan.md`.

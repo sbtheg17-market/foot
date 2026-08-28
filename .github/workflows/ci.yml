@@ -120,7 +120,7 @@ jobs:
                    test:first-booking test:client-retention test:marketplace-events \
                    test:booking-page test:service-area test:cancellation \
                    test:provider-dashboard test:registration test:verification \
-                   test:activation-status test:pilot-metrics test:vacation-ranges; do
+                   test:activation-status test:return-path-drift test:pilot-metrics test:vacation-ranges; do
             echo "::group::$s"
             pnpm run "$s"
             echo "::endgroup::"
