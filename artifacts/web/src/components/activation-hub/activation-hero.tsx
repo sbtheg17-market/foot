@@ -47,23 +47,12 @@ export default function ActivationHero({
         {copy.explanation}
       </p>
 
-      <div className="mt-5 rounded-2xl border border-border bg-card p-4">
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-sm font-semibold text-foreground">Setup progress</span>
-          <span className="text-sm font-bold text-foreground" data-testid="activation-progress-count">
-            {activation.milestonesCompleted} of {activation.milestonesTotal} steps complete
-          </span>
-        </div>
-        <Progress
-          value={percent}
-          aria-label={`Setup progress: ${activation.milestonesCompleted} of ${activation.milestonesTotal} steps complete`}
-        />
-      </div>
-
+      {/* Primary next action first — must stay visible near the top on a
+          390×844 viewport (the compact progress summary follows it). */}
       <section
         aria-label="Next step"
         data-testid="activation-next-action"
-        className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-4"
+        className="mt-5 rounded-2xl border border-primary/30 bg-primary/5 p-4"
       >
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Next step</p>
         <p className="mt-1 text-sm leading-6 text-foreground">{next.reason}</p>
@@ -91,7 +80,25 @@ export default function ActivationHero({
             </Link>
           )
         ) : null}
+        <p className="mt-3 text-xs leading-5 text-muted-foreground" data-testid="activation-next-after">
+          {next.after}
+        </p>
       </section>
+
+      {/* Compact, text-first progress summary (server counts; color is never
+          the only signal). */}
+      <div className="mt-4 rounded-2xl border border-border bg-card p-4" data-testid="activation-progress">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <span className="text-sm font-semibold text-foreground">Setup progress</span>
+          <span className="text-sm font-bold text-foreground" data-testid="activation-progress-count">
+            {activation.milestonesCompleted} of {activation.milestonesTotal} steps complete
+          </span>
+        </div>
+        <Progress
+          value={percent}
+          aria-label={`Setup progress: ${activation.milestonesCompleted} of ${activation.milestonesTotal} steps complete`}
+        />
+      </div>
     </header>
   );
 }

@@ -61,6 +61,8 @@ export type NextActionCopy = {
   label: string | null;
   href: string | null;
   reason: string;
+  /** What follows once this step is done — factual, no demand/approval promises. */
+  after: string;
   support?: boolean;
 };
 
@@ -69,57 +71,68 @@ export const NEXT_ACTION_COPY: Record<ProviderActivationNextAction, NextActionCo
     label: 'Continue setup',
     href: ROUTES.onboarding.provider,
     reason: 'Pick up where you left off — your progress is saved.',
+    after: "Once you submit, your application goes into review and this page will show the decision.",
   },
   wait_for_review: {
     label: null,
     href: null,
     reason: "No action needed right now. We'll update this page when there's a decision.",
+    after: "When there's a decision, this page will show your next step.",
   },
   review_update_needed: {
     label: 'Review the feedback',
     href: '#activation-feedback',
     reason: 'Review the feedback, update your details, and resubmit.',
+    after: 'After you resubmit, your application goes back into review.',
   },
   contact_support: {
     label: 'Contact support',
     href: null,
     support: true,
     reason: "We'll help you understand the next step.",
+    after: 'Support can explain what happened and what is needed to continue.',
   },
   complete_profile: {
     label: 'Complete your profile',
     href: ROUTES.provider.profile,
     reason: "A complete profile helps clients trust who they're booking.",
+    after: 'Your title, city, and bio appear on your booking page once it goes live.',
   },
   configure_service_area: {
     label: 'Add the areas you serve',
     href: ROUTES.provider.serviceArea,
     reason: 'Service areas help clients know you can serve them before they book.',
+    after: 'Clients will see whether you serve their area before requesting a time.',
   },
   add_service: {
     label: 'Add your first service',
     href: ROUTES.provider.services,
     reason: 'Clients book a specific service — add at least one to make your page bookable.',
+    after: 'Your services become what clients choose from when your page is live.',
   },
   set_availability: {
     label: 'Set your availability',
     href: ROUTES.provider.availability,
     reason: 'Availability keeps your booking link accurate and protects your schedule.',
+    after: 'Your published page only offers times inside the availability you set.',
   },
   publish_booking_page: {
     label: 'Publish your booking page',
     href: '#activation-booking-page',
     reason: 'Publishing gives you one professional link to share anywhere.',
+    after: 'After publishing, you can share your link and review booking requests as they come in.',
   },
   share_booking_page: {
     label: 'Share your booking link',
     href: '#activation-booking-page',
     reason: 'Your first booking is the moment Foot starts saving you coordination time.',
+    after: 'Requests from your link arrive in your bookings inbox for you to confirm.',
   },
   all_set: {
     label: 'Go to your dashboard',
     href: ROUTES.provider.dashboard,
     reason: "You're fully set up — manage your day from the dashboard.",
+    after: "Your dashboard keeps today's bookings and requests in one place.",
   },
 };
 
