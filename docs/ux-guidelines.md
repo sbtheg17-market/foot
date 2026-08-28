@@ -425,3 +425,15 @@ conventions land with Part 2.
   beside icons (never color alone), visible focus rings, native
   links/buttons for keyboard use; axe-clean in both action states; verified
   live at 390×844 with zero horizontal overflow.
+
+## Truthful degraded states (2026-08-28)
+
+When the server can only partially read persisted provider state (e.g. a
+deployed database missing Gate B-pending additive relations), surfaces must
+receive a **truthful degraded state**, never a generic technical error and
+never fabricated progress: "no rejection recorded", "booking page not
+published", "service area not configured" are the honest pre-artifact
+answers. The generic error fallback (with Retry) is reserved for genuine
+network/server failures. Incomplete onboarding is a normal state with one
+clear next action — not an error. Server-side rule and evidence:
+`docs/provider-onboarding-return-path-reliability-plan.md`.

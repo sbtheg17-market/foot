@@ -457,3 +457,22 @@ organization/workspace remain FUTURE, NOT IMPLEMENTED. Authoritative doc:
   `docs/availability-exceptions-policy.md`. Tests: `test:vacation-ranges`
   (10 scripted API tests, added to the CI scripted loop) +
   `vacation-ranges.test.tsx` (10 web tests).
+
+## Provider first-login status reliability (2026-08-28)
+
+- Fixed the provider return-path release blocker: a newly signed-up provider
+  who logged out and back in (or refreshed) could hit the generic "We
+  couldn't load your application status." error because the owner status
+  reads selected Gate B-pending additive columns that a drifted deployed
+  database does not have (`42703` → 500). Root cause CONFIRMED by local
+  drift simulation; the owner status/activation reads now degrade to the
+  truthful pre-artifact state (see
+  `docs/provider-onboarding-return-path-reliability-plan.md`).
+- Regression guard: `test:return-path-drift` (11 tests, CI scripted loop)
+  simulates the pre-Gate-B database end to end.
+- **Still open (separate release gates):** apply the frozen Gate B artifacts
+  to the managed Railway database per `docs/managed-db-release-gate.md`
+  (drift is now survivable, not desirable — booking-page/service-area/
+  rejected-resubmission flows still need the artifacts), then deploy and
+  verify with a brand-new provider (signup → logout → re-login → status
+  hub). Neither was authorized/possible from this environment.

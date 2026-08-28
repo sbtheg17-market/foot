@@ -484,3 +484,57 @@ read path (`getOwnApplication` / `getOwnProfile`) so an un-migrated optional
 additive column can never 500 a status read — mirroring the raw-SQL column
 discipline already used on the signup write path. Ship with the Phase-4
 drift-guard test as the centerpiece so this class of failure cannot regress.
+
+---
+
+## Implementation outcome (2026-08-28, `fix/provider-first-login-status`)
+
+**Root cause: CONFIRMED by local drift simulation** (production metadata
+verification remains BLOCKED — this environment has no Railway access, so
+the deployed database was never touched). On a disposable PostgreSQL 15
+database with the frozen Gate B artifacts *not* applied
+(`rejection_reason`, `public_slug`, `booking_page_published`,
+`booking_page_published_at` dropped; `provider_service_areas` /
+`provider_coverage_areas` absent), the pre-fix build reproduced the exact
+reported journey: signup 201 → re-login 200 →
+`GET /providers/me/activation-status` and
+`GET /providers/application/status` both **500** with
+`42703 column provider_applications.rejection_reason does not exist`
+(swallowed by the generic error handler), i.e. the "We couldn't load your
+application status." screen.
+
+**Remedy shipped (Phase 2 of this plan; Phase 1 evidence gathered locally):**
+
+- `isSchemaDriftError` walks the Drizzle `cause` chain for `42703`
+  (undefined_column) / `42P01` (undefined_table) — same convention as
+  `isUniqueViolation` in `routes/auth.ts`.
+- `getOwnApplication` now selects the signup-era stable column set eagerly
+  and retries without `rejection_reason` on drift (degrades to `null` — the
+  migrated column's backfill-free default, never fabricated state). The
+  submission-history read degrades to an empty list only when its relation
+  is absent (an absent relation can hold no rows).
+- The activation hub uses a new `getOwnActivationProfile` (narrow
+  booking-page select with a signup-era fallback: `publicSlug: null`,
+  `bookingPagePublished: false` — the truthful pre-#11 state) instead of the
+  bare-select `getOwnProfile`, and the service-area probe degrades to
+  `serviceAreaConfigured: false` (truthful pre-#12 state) when the Gate B
+  tables are absent.
+- Healthy-schema behavior is byte-identical: the eager select is attempted
+  first, so migrated databases never pay the fallback and `rejectionReason`
+  passes through unchanged (regression-tested).
+
+**Proof:** `test:return-path-drift` (11 tests, CI scripted loop) simulates
+the pre-Gate-B database and proves signup → re-login → both status reads →
+refresh stay truthful 200s, 401/403/ownership boundaries hold, and no SQL /
+pg error internals leak; a second describe proves the migrated path still
+surfaces `rejectionReason`. Full regression: scripted loop 27 suites green,
+authz/concurrency suites green, unscripted suites green, web 237/237 +
+a11y 33/33 + tz 10/10, workspace typecheck, `build`, `build:deploy`,
+secret scan — all PASS. Live browser check on the drifted database: login →
+`/provider/application-status` renders the truthful draft hub on desktop and
+390×844.
+
+**Unchanged, still required (separate release gates):** applying the frozen
+Gate B artifacts to the managed database (Phase 1 remedy — this fix makes
+drift survivable, not desirable) and production deployment/verification.
+Neither was performed here (NOT AUTHORIZED / no access).
