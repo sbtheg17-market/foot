@@ -23,6 +23,17 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   );
   const pendingCount = pendingData?.total ?? 0;
 
+  // Badge: client-initiated reschedules awaiting the provider's confirm/decline
+  // (state machine: rescheduled → confirmed | cancelled). Same owner-scoped
+  // count the dashboard's Phase A `pendingReschedules.count` reports — read via
+  // the existing bookings list hook (no new endpoint) so the badge is visible
+  // from any portal page.
+  const { data: rescheduleData } = useListBookings(
+    { status: ListBookingsStatus.rescheduled },
+    { query: { queryKey: ['bookings', 'rescheduled', 'badge'], refetchInterval: 30_000 } }
+  );
+  const rescheduleCount = rescheduleData?.total ?? 0;
+
   // In-app notification unread count (existing owner-scoped API)
   const { data: unreadData } = useUnreadCount();
   const unreadCount = unreadData?.unreadCount ?? 0;
@@ -62,7 +73,16 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
 
   const tabs = [
     { name: 'Dashboard', path: ROUTES.provider.dashboard, icon: LayoutDashboard, badge: readinessGaps, badgeVariant: 'progress' as const, badgeTestId: 'readiness-nav-badge' },
-    { name: 'Bookings', path: ROUTES.provider.bookings, icon: CalendarDays, badge: pendingCount },
+    // Pending reschedule work deep-links straight to the Reschedules tab
+    // (allowlisted ?tab= param from Phase A) so it gets noticed from any page.
+    {
+      name: 'Bookings',
+      path: ROUTES.provider.bookings,
+      href: rescheduleCount > 0 ? `${ROUTES.provider.bookings}?tab=rescheduled` : ROUTES.provider.bookings,
+      icon: CalendarDays,
+      badge: pendingCount,
+      rescheduleBadge: rescheduleCount,
+    },
     { name: 'Alerts', path: ROUTES.provider.notifications, icon: Bell, badge: unreadCount },
     { name: 'Services', path: ROUTES.provider.services, icon: ClipboardList, badge: 0 },
     { name: 'Credentials', path: ROUTES.provider.credentials, icon: ShieldCheck, badge: 0 },
@@ -94,13 +114,19 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = location === tab.path || location.startsWith(`${tab.path}/`);
+          const rescheduleBadge = tab.rescheduleBadge ?? 0;
           return (
-            <Link key={tab.path} href={tab.path} className={`flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+            <Link key={tab.path} href={tab.href ?? tab.path} className={`flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
               <div className="relative">
                 <Icon className={`w-6 h-6 ${isActive ? 'fill-primary/20 stroke-primary' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
                 {tab.badge > 0 && (
                   <span role="status" aria-label={`${tab.name}: ${tab.badge > 99 ? '99+' : tab.badge}${'badgeVariant' in tab && tab.badgeVariant === 'progress' ? ' setup steps remaining' : ''}`} data-testid={'badgeTestId' in tab ? tab.badgeTestId : undefined} className={`absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full ${badgeClass('badgeVariant' in tab ? tab.badgeVariant : undefined)} text-[10px] font-bold flex items-center justify-center leading-none`}>
                     {tab.badge > 99 ? '99+' : tab.badge}
+                  </span>
+                )}
+                {rescheduleBadge > 0 && (
+                  <span role="status" aria-label={`${rescheduleBadge > 99 ? '99+' : rescheduleBadge} pending reschedule request${rescheduleBadge === 1 ? '' : 's'} awaiting your response`} data-testid="reschedule-nav-badge" className="absolute -bottom-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center leading-none">
+                    {rescheduleBadge > 99 ? '99+' : rescheduleBadge}
                   </span>
                 )}
               </div>
@@ -119,13 +145,19 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = location === tab.path || location.startsWith(`${tab.path}/`);
+            const rescheduleBadge = tab.rescheduleBadge ?? 0;
             return (
-              <Link key={tab.path} href={tab.path} className={`relative flex flex-col items-center justify-center w-full aspect-square rounded-2xl gap-1 transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
+              <Link key={tab.path} href={tab.href ?? tab.path} className={`relative flex flex-col items-center justify-center w-full aspect-square rounded-2xl gap-1 transition-all ${isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
                 <div className="relative">
                   <Icon className={`w-6 h-6 ${isActive ? 'fill-primary/20 stroke-primary' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
                   {tab.badge > 0 && (
                     <span data-testid={'badgeTestId' in tab ? `${tab.badgeTestId}-desktop` : undefined} className={`absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full ${badgeClass('badgeVariant' in tab ? tab.badgeVariant : undefined)} text-[10px] font-bold flex items-center justify-center leading-none`}>
                       {tab.badge > 99 ? '99+' : tab.badge}
+                    </span>
+                  )}
+                  {rescheduleBadge > 0 && (
+                    <span role="status" aria-label={`${rescheduleBadge > 99 ? '99+' : rescheduleBadge} pending reschedule request${rescheduleBadge === 1 ? '' : 's'} awaiting your response`} data-testid="reschedule-nav-badge-desktop" className="absolute -bottom-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center leading-none">
+                      {rescheduleBadge > 99 ? '99+' : rescheduleBadge}
                     </span>
                   )}
                 </div>

@@ -451,3 +451,23 @@ bookings, pruning past rows, admin visibility. Next candidates per the
 relay: Reschedule nav badge (3.2), printable QR card (3.3), Graphify
 artifact refresh (3.4 — still TODO; Graphify CLI unavailable again this
 session).
+
+## Status note — 2026-08-29 (Reschedule alerts — portal nav badge)
+
+DONE on `feat/reschedule-nav-badge` (relay §3.2). The existing provider
+portal nav now shows a pending-reschedule count badge on the Bookings tab
+(mobile bottom nav + desktop sidebar) whenever `rescheduled` bookings await
+the provider's confirm/decline, deep-linking to
+`/provider/bookings?tab=rescheduled` (Phase A allowlisted param). Absent at
+zero. Data source: existing `useListBookings({ status: rescheduled })`
+total — same owner-scoped count as Phase A `pendingReschedules.count`,
+mirroring the adjacent requested-count badge (no new endpoint, no schema
+change; avoids polling the heavier audit-logged dashboard read model from
+every page). Accessible (aria-label text, not color-only), truthful count,
+99+ cap, touch-safe. Validation: typecheck/build/build:deploy PASS · web
+234/234 (6 new in `provider-layout.test.tsx`) · zero backend changes (API
+suites unaffected; 35/35 from the Phase B session still current) · live
+desktop + 390×844 verification incl. badge appear/disappear with real data
+and deep-link landing. Details: `docs/provider-dashboard.md`
+("Reschedule alerts" section). Next candidates: Printable QR Card,
+Emergency Openings, Vacation Ranges.

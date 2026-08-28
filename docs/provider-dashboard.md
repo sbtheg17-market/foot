@@ -187,3 +187,31 @@ under-review copy guard, pending zero/one/many, review deep link, priority
 ordering both ways, privacy-trimmed rendering, `?tab=` allowlist, axe on
 both action states). Verified live at 390×844 (no horizontal overflow;
 review link lands on the existing Reschedules tab).
+
+## Reschedule alerts — portal nav badge (2026-08-29)
+
+The pending-reschedule signal introduced in Phase A is now visible from any
+portal page: the existing provider nav (`components/layout/provider-layout.tsx`)
+shows a small count badge on the **Bookings** tab whenever client-initiated
+`rescheduled` bookings await the provider's confirm/decline, and the Bookings
+nav item deep-links to `/provider/bookings?tab=rescheduled` (the allowlisted
+`?tab=` param from Phase A) while work is pending. With zero pending
+reschedules the badge is absent and the nav item links to plain
+`/provider/bookings`.
+
+Data source: the EXISTING owner-scoped bookings list hook
+(`useListBookings({ status: rescheduled })` → `total`), mirroring the
+adjacent requested-count badge line — the same count the dashboard's
+`pendingReschedules.count` reports (all `rescheduled` bookings, no window
+cap). Chosen over polling `GET /providers/me/dashboard` from the layout
+because that read model is heavier and access-audited; no new endpoint, no
+schema change. Truthful count only — no urgency copy. Status is conveyed by
+a numeric label + aria-label ("N pending reschedule request(s) awaiting your
+response"), not color alone; distinct tone (primary) and position
+(bottom-right) keep it separate from the destructive requested-count badge.
+
+Tests: `components/layout/provider-layout.test.tsx` (6 — absent at zero +
+plain link, count on mobile & desktop + deep link, aria text, 99+ cap,
+independence from the requested badge, axe). Verified live desktop + 390×844
+(badge appears/disappears with real data; deep link lands on the
+Reschedules tab; zero horizontal overflow).

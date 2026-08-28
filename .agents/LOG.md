@@ -3393,3 +3393,41 @@ no managed DB touched; no production deployment. No feature-flag mechanism
 exists in the codebase — shipped enabled in-branch, marked Phase B beta.
 Graphify CLI unavailable again — inventory via direct source inspection;
 artifact refresh remains a post-merge TODO.
+
+## 2026-08-29 — Reschedule alerts: pending-reschedule badge on the portal nav
+
+**Branch `feat/reschedule-nav-badge` (relay §3.2). Web-only change — zero
+backend edits, zero schema/API changes.**
+
+**What shipped:** `components/layout/provider-layout.tsx` (the existing
+provider nav — evolved, not rebuilt) adds a second, visually distinct badge
+to the Bookings tab on BOTH the mobile bottom nav and the desktop sidebar:
+count of client-initiated `rescheduled` bookings awaiting the provider's
+confirm/decline. While count > 0 the Bookings nav item deep-links to
+`/provider/bookings?tab=rescheduled` (Phase A allowlisted `?tab=` param);
+at zero the badge is absent and the link stays `/provider/bookings`.
+Data source decision: the existing owner-scoped
+`useListBookings({ status: rescheduled })` → `total`, exactly mirroring the
+adjacent requested-count badge — semantically identical to Phase A
+`pendingReschedules.count` (all `rescheduled` rows, no window cap; verified
+against `GET /providers/me/dashboard` derivation) — chosen over polling the
+dashboard read model from every page because that endpoint is heavier and
+access-audited. A11y: role="status" + aria-label ("N pending reschedule
+request(s) awaiting your response"), numeric text (not color-only), 99+
+cap, primary tone + bottom-right position to stay distinct from the
+destructive requested badge, touch-safe within the existing nav targets.
+
+**Validation:** typecheck PASS · build PASS · build:deploy PASS · web
+234/234 (6 new in `components/layout/provider-layout.test.tsx`: absent at
+zero + plain link, true count mobile & desktop + deep link, aria text,
+99+ cap, requested-badge independence, axe) · live browser with real data
+(booking → confirm → client reschedule): badge visible from
+/provider/services on desktop + 390×844, deep link lands on the Reschedules
+tab, badge disappears after the request resolves; 0px horizontal overflow ·
+API suites untouched (no backend diff; Phase B session's 35/35 loop remains
+current).
+
+**Boundaries held:** no new endpoint, no schema change, provider-owned data
+only, truthful count (no urgency copy), no platform metrics or private
+reviewer data. Docs appended: `docs/provider-dashboard.md` (Reschedule
+alerts section), `docs/NEXT-STEPS.md`, `docs/TODO-LEDGER.md`.

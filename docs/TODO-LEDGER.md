@@ -477,3 +477,12 @@ Recommended priority: after Provider Dashboard gap-closure; only with pilot
 | Reschedule nav badge (relay §3.2) | TODO (next candidate) | Reuse Phase A `pendingReschedules.count`; badge + deep link `/provider/bookings?tab=rescheduled`. |
 | Printable QR card (relay §3.3) | TODO | Presentation-only on existing booking-page data. |
 | Graphify artifact refresh post-merge | TODO | Still pending (PR #64–#66 + this work); CLI unavailable in this environment again. |
+
+### Reschedule alerts — portal nav badge (2026-08-29)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Pending-reschedule badge on portal nav (relay §3.2) | DONE 2026-08-29 | Bookings tab badge (mobile + desktop) fed by existing `useListBookings({status: rescheduled})` total (= Phase A `pendingReschedules.count`); deep link `/provider/bookings?tab=rescheduled` only when count > 0; absent at zero. No new endpoint, no schema change. 6 web tests incl. axe. See `docs/provider-dashboard.md` § Reschedule alerts. |
+| Printable QR Card (relay §3.3) | TODO (next candidate) | Print-ready booking-page handout; presentation-only. |
+| Emergency Openings | TODO / DEFERRED | One-off extra slots outside weekly hours (`availability_exception_type` leaves room). |
+| Vacation Ranges | TODO / DEFERRED | Block a whole date range in one step (extends blocked dates). |
