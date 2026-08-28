@@ -1,0 +1,5961 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.3.0
+  description: OnCall Foot API — foot rejuvenation marketplace
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication and current user
+  - name: providers
+    description: Provider discovery and provider portal
+  - name: bookings
+    description: Booking lifecycle
+  - name: reviews
+    description: Client reviews
+  - name: invoices
+    description: Payment invoices
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login and receive a JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout (client drops the token)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── Provider Discovery (public) ──────────────────────────────────────────────
+
+  /providers:
+    get:
+      operationId: listProviders
+      tags: [providers]
+      summary: Browse providers
+      description: Public provider discovery with optional filters
+      parameters:
+        - name: city
+          in: query
+          schema:
+            type: string
+          description: Filter by city (case-insensitive partial match)
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by service category
+        - name: verified
+          in: query
+          schema:
+            type: boolean
+          description: Only return verified providers
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderListResponse"
+
+  /providers/application:
+    get:
+      operationId: getProviderApplication
+      tags: [providers]
+      summary: Get the authenticated user's provider application
+      description: Returns the owner's provider application and onboarding profile data. This does not grant provider operations.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider application
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createProviderApplication
+      tags: [providers]
+      summary: Start or resume provider onboarding
+      description: Idempotently creates provider membership, a provider profile, and a draft application for the authenticated client. It never changes the active role or grants provider operations.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Existing provider application resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "201":
+          description: Provider application created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    patch:
+      operationId: updateProviderApplication
+      tags: [providers]
+      summary: Save provider onboarding progress
+      description: Updates the authenticated owner's draft provider application and profile data. Submitted applications cannot be edited through this endpoint.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProviderApplicationRequest"
+      responses:
+        "200":
+          description: Provider application updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/application/reset:
+    post:
+      operationId: resetProviderApplication
+      tags: [providers]
+      summary: Reset a rejected provider application back to draft
+      description: |
+        Transitions the authenticated owner's application from `rejected` back to `draft`
+        so it can be edited and resubmitted. Snapshots the closed submission cycle
+        (submittedAt, reviewedAt, reviewer identity, private reviewer notes, and the
+        provider-visible rejection reason) into an immutable history record before
+        clearing those fields on the main row. Idempotent: calling reset on an
+        application that is already `draft` returns the current state without change.
+        Applications in `under_review`, `approved`, or `suspended` cannot be reset.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider application draft state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/application/submit:
+    post:
+      operationId: submitProviderApplication
+      tags: [providers]
+      summary: Submit a provider application for review
+      description: |
+        Moves the authenticated owner's draft application to `under_review` after
+        required profile fields are present. Applications in `rejected` state must
+        first be reset via `/providers/application/reset`.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider application submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationDetailResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/application/status:
+    get:
+      operationId: getProviderApplicationStatus
+      tags: [providers]
+      summary: Server-authoritative status view for the owner's application
+      description: |
+        Compact, owner-scoped status view. Includes the current `status`,
+        current-cycle `submittedAt`/`reviewedAt`, the provider-visible
+        `rejectionReason` (nullable), a `submissionCount` derived from the
+        immutable history, the most-recent closed submission summary
+        (`latestSubmission`), a server-derived `nextAction` guidance value,
+        and server-derived `canEdit`/`canReset`/`canResubmit` capability
+        flags. Reviewer-private `reviewerNotes` is never included.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider application status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/application/submissions:
+    get:
+      operationId: getProviderApplicationSubmissions
+      tags: [providers]
+      summary: Paginated history of the owner's closed submission cycles
+      description: |
+        Owner-scoped, keyset-paginated history of the authenticated provider's
+        closed application submission cycles, newest first. Each item exposes
+        only provider-visible fields; reviewer-private material is never
+        returned.
+
+        Honesty note: `submissions` contains closed **rejected** cycles only,
+        snapshotted at the moment the owner resets a rejected application back
+        to draft. The current open cycle is not a history row — it is reflected
+        in `summary`. This endpoint is therefore not a complete persisted
+        lifecycle event log (submitted/under_review/approved transitions are
+        not recorded here).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque pagination cursor returned as `nextCursor` by a prior page.
+      responses:
+        "200":
+          description: Submission history page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderApplicationSubmissionHistoryResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/notifications:
+    get:
+      operationId: getProviderNotifications
+      tags: [providers]
+      summary: Owner-scoped, newest-first in-app notifications (paginated)
+      description: |
+        In-app provider notifications generated from application lifecycle
+        events, newest first, keyset-paginated. Owner-scoped to the
+        authenticated provider; reviewer-private material is never returned.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque pagination cursor returned as `nextCursor` by a prior page.
+      responses:
+        "200":
+          description: Notification page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderNotificationListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /providers/notifications/unread-count:
+    get:
+      operationId: getProviderNotificationUnreadCount
+      tags: [providers]
+      summary: Count of the owner's unread notifications
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderNotificationUnreadCountResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /providers/notifications/{id}/read:
+    post:
+      operationId: markProviderNotificationRead
+      tags: [providers]
+      summary: Mark one owned notification as read (idempotent)
+      description: |
+        Owner-only and non-enumerating: a notification that does not exist or
+        is owned by another user returns 404 without disclosing which.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The notification after marking it read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderNotificationReadResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/application/completion:
+    get:
+      operationId: getProviderApplicationCompletion
+      tags: [providers]
+      summary: Get server-derived completion summary for the provider application
+      description: Returns a completion status for each required onboarding section. The server calculates all flags — do not trust client-side values for authorization.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Application completion summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationCompletionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/application/services:
+    get:
+      operationId: listApplicationServices
+      tags: [providers]
+      summary: List draft services for the provider application
+      description: Returns services associated with the provider's profile during onboarding. Does not require an approved application.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Draft services
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createApplicationService
+      tags: [providers]
+      summary: Add a service to the provider application
+      description: Adds a service during onboarding. Does not require an approved application; application must be in draft or rejected status.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateServiceRequest"
+      responses:
+        "201":
+          description: Service created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/application/services/{serviceId}:
+    patch:
+      operationId: updateApplicationService
+      tags: [providers]
+      summary: Update a draft service in the provider application
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateServiceRequest"
+      responses:
+        "200":
+          description: Updated draft service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      operationId: deleteApplicationService
+      tags: [providers]
+      summary: Remove a draft service from the provider application
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Service removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/application/availability:
+    get:
+      operationId: getApplicationAvailability
+      tags: [providers]
+      summary: Get availability schedule for the provider application
+      description: Returns the provider's availability slots during onboarding. Does not require an approved application.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Availability slots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: setApplicationAvailability
+      tags: [providers]
+      summary: Set availability schedule for the provider application
+      description: Replaces all availability slots during onboarding. Does not require an approved application; application must be in draft or rejected status.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAvailabilityRequest"
+      responses:
+        "200":
+          description: Updated availability slots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/me:
+    get:
+      operationId: getMyProviderProfile
+      tags: [providers]
+      summary: Get own provider profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Own provider profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderProfileResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateMyProviderProfile
+      tags: [providers]
+      summary: Update own provider profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProviderProfileRequest"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderProfileResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /providers/me/readiness:
+    get:
+      operationId: getMyProviderReadiness
+      tags: [providers]
+      summary: Get own provider activation readiness
+      description: >-
+        Owner-scoped activation readiness for the authenticated provider
+        member. The server computes the C1–C7 activation criteria live from
+        raw source fields on every request — stored roll-up flags such as
+        profileComplete are never trusted. Unapproved providers can read
+        their own readiness. `missing` lists stable reason codes for unmet
+        criteria in deterministic C1→C7 order; `activated` is the logical
+        AND of all seven criteria. Read-only — nothing is persisted and no
+        event is emitted.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Activation readiness for the authenticated provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderReadinessResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/activation-status:
+    get:
+      operationId: getMyProviderActivationStatus
+      tags: [providers]
+      summary: Owner-scoped activation-hub summary (application, milestones, booking readiness)
+      description: |
+        Read-only composition of existing owner-scoped truths for the provider
+        Approval Status & Activation Hub. Readable by every provider member in
+        every application state (unlike the approved-only `/me/*` operation
+        routes) because the hub exists precisely for providers who are not yet
+        approved. Returns only the caller's safe provider data: application
+        status with the provider-visible `rejectionReason` and the same
+        capability flags as `GET /providers/application/status`, status-level
+        verification progress (raw document references and reviewer-private
+        notes are never included), true business-rule activation milestones
+        (a step is never marked complete unless the system can prove it),
+        booking-page publish state (same view as `GET /providers/me/booking-page`),
+        and a server-derived `nextAction` code. Platform pilot metrics,
+        retention intent, risk flags, client data, and other providers' data
+        are never included. Read-only — nothing is persisted.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Activation summary for the authenticated provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderActivationStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/booking-page:
+    get:
+      operationId: getMyBookingPage
+      tags: [providers]
+      summary: Owner-scoped public booking-page state (slug + publish state)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Booking-page state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyBookingPageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/booking-page/publish:
+    post:
+      operationId: publishMyBookingPage
+      tags: [providers]
+      summary: Publish the provider's canonical public booking page (approved providers only)
+      description: >-
+        Assigns a globally unique lowercase kebab-case slug from the provider
+        display name on first publish (deterministic safe suffix on collision;
+        not provider-editable afterwards) and makes /book/{slug} publicly
+        reachable. Idempotent when already published.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Booking-page state after publish
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyBookingPageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/booking-page/unpublish:
+    post:
+      operationId: unpublishMyBookingPage
+      tags: [providers]
+      summary: Unpublish the provider's public booking page (removes public access; data retained)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Booking-page state after unpublish
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyBookingPageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /booking-pages/{slug}:
+    get:
+      operationId: getPublicBookingPage
+      tags: [booking-pages]
+      summary: Public provider booking page by slug (published, approved providers only)
+      description: >-
+        Canonical provider-owned public booking surface. Missing, unpublished,
+        inactive, and format-invalid slugs all return the same generic
+        non-leaking 404. Derives profile, services, and availability from the
+        same source of truth as marketplace discovery; booking uses the
+        existing slots and bookings endpoints via the returned provider id.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public booking page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicBookingPageResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /booking-pages/{slug}/service-area-check:
+    post:
+      operationId: checkBookingPageServiceArea
+      tags: [booking-pages]
+      summary: Public service-area eligibility check for a booking page (roadmap #12)
+      description: >-
+        Server-authoritative eligibility for the provider-owned public booking
+        page. Returns ONLY a safe eligibility state, the approved public
+        message, and an allowlisted reason code — never raw coverage entries
+        or provider-private data. Client location input is validated minimally
+        and NOT retained. Missing, unpublished, unapproved, and format-invalid
+        slugs return the same generic non-leaking 404 as the page itself.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceAreaCheckRequest"
+      responses:
+        "200":
+          description: Eligibility result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceAreaCheckResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/{providerId}/service-area-check:
+    post:
+      operationId: checkProviderServiceArea
+      tags: [providers]
+      summary: Public service-area eligibility check for the marketplace flow (roadmap #12)
+      description: >-
+        Same server-authoritative evaluation as the booking-page check, keyed
+        by public provider id for the existing marketplace booking flow.
+        Providers without active coverage report `unavailable` with reason
+        `not_configured` (marketplace booking then proceeds under legacy
+        behavior — enforcement starts once the provider configures coverage).
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceAreaCheckRequest"
+      responses:
+        "200":
+          description: Eligibility result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceAreaCheckResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/listing-preview:
+    get:
+      operationId: getMyListingPreview
+      tags: [providers]
+      summary: Owner-scoped preview of the provider's public marketplace listing
+      description: >-
+        Owner-scoped preview of how the authenticated provider's marketplace
+        listing renders — profile, active services, weekly availability,
+        effective timezone, and real generated 30-minute slots (same engine as
+        public booking). Draft and under-review providers may preview their own
+        listing; this never weakens the anonymous public approval gate. Returns
+        only public-preview-safe fields — no client ids, booking ids,
+        reviewer-private notes, verification documents, or private care notes.
+        Read-only.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Owner listing preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingPreviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/services:
+    get:
+      operationId: listMyServices
+      tags: [providers]
+      summary: List own services
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Own services
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createService
+      tags: [providers]
+      summary: Add a new service
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateServiceRequest"
+      responses:
+        "201":
+          description: Service created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /providers/me/services/{serviceId}:
+    put:
+      operationId: updateService
+      tags: [providers]
+      summary: Update a service
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateServiceRequest"
+      responses:
+        "200":
+          description: Updated service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteService
+      tags: [providers]
+      summary: Deactivate a service
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Service deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/availability:
+    get:
+      operationId: getMyAvailability
+      tags: [providers]
+      summary: Get own availability schedule
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Availability slots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      operationId: setMyAvailability
+      tags: [providers]
+      summary: Replace own availability schedule
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetAvailabilityRequest"
+      responses:
+        "200":
+          description: Availability updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvailabilityListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /providers/me/availability/emergency-openings:
+    get:
+      operationId: listMyEmergencyOpenings
+      tags: [providers]
+      summary: List own upcoming emergency openings (one-off extra slots)
+      description: >-
+        Upcoming date-specific extra availability windows outside the weekly
+        schedule, owner-scoped. Past-dated openings are omitted.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Upcoming emergency openings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmergencyOpeningListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createEmergencyOpening
+      tags: [providers]
+      summary: Create an emergency opening (one-off extra slot window)
+      description: >-
+        Adds a date-specific extra availability window without changing the
+        weekly schedule. Optionally restricted to specific active services and
+        optionally labeled urgent-only (label only — the booking flow is
+        unchanged). Overlapping an existing opening on the same date is
+        rejected.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEmergencyOpeningRequest"
+      responses:
+        "201":
+          description: Emergency opening created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmergencyOpeningResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/me/availability/emergency-openings/{openingId}:
+    delete:
+      operationId: deleteEmergencyOpening
+      tags: [providers]
+      summary: Delete an emergency opening
+      description: >-
+        Deletes an owned emergency opening. Rejected with 409 when active
+        bookings are scheduled during the opening — deleting an opening never
+        cancels or breaks appointments.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: openingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Emergency opening deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/me/availability/blocked-ranges:
+    get:
+      operationId: listMyBlockedRanges
+      tags: [providers]
+      summary: List own upcoming blocked ranges (vacation / time off)
+      description: >-
+        Upcoming date-range blocks during which no time is bookable,
+        owner-scoped (endDate ≥ today in the marketplace timezone). The
+        private reason note is returned to the owner only.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Upcoming blocked ranges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockedRangeListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createBlockedRange
+      tags: [providers]
+      summary: Block a date range (vacation / time off)
+      description: >-
+        Blocks every day in [startDate, endDate] (inclusive, marketplace
+        timezone) — no slots are offered and no booking or reschedule can
+        land on those days. Rejected with an honest 409 when the range
+        overlaps an existing blocked range, an emergency opening (mutually
+        exclusive), or active bookings (blocking time off never cancels
+        appointments). The optional reason is a private provider-only note.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBlockedRangeRequest"
+      responses:
+        "201":
+          description: Blocked range created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockedRangeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/me/availability/blocked-ranges/{rangeId}:
+    delete:
+      operationId: deleteBlockedRange
+      tags: [providers]
+      summary: Delete a blocked range (re-opens the days)
+      description: >-
+        Deletes an owned blocked range. No guard is needed — removing time
+        off only re-opens bookable time and never affects appointments.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: rangeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Blocked range deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/travel-zones:
+    get:
+      operationId: listMyTravelZones
+      tags: [providers]
+      summary: List own travel zones
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Travel zones
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TravelZoneListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createTravelZone
+      tags: [providers]
+      summary: Add a travel zone
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTravelZoneRequest"
+      responses:
+        "201":
+          description: Travel zone created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TravelZoneResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /providers/me/travel-zones/{zoneId}:
+    delete:
+      operationId: deleteTravelZone
+      tags: [providers]
+      summary: Remove a travel zone
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Travel zone removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/service-area:
+    get:
+      operationId: getMyServiceArea
+      tags: [providers]
+      summary: Own service-area configuration and coverage (roadmap #12)
+      description: >-
+        Owner-scoped Canada-first coverage configuration: country/province,
+        optional city context, plain-language public description, active
+        normalized postal prefixes (FSA), the centrally managed travel/setup
+        buffer, and publish eligibility. Raw coverage entries are returned
+        ONLY here — public surfaces receive safe eligibility states, never
+        the prefix list.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Own service-area configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyServiceAreaResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateMyServiceArea
+      tags: [providers]
+      summary: Create or update own service-area configuration
+      description: >-
+        Upserts the provider's single service-area configuration. Only Canada
+        is accepted in this release; province is validated against the
+        canonical list. Coverage changes apply to FUTURE bookings and future
+        reschedules only — existing confirmed bookings stay valid.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateServiceAreaRequest"
+      responses:
+        "200":
+          description: Updated service-area configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyServiceAreaResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/service-area/prefixes:
+    post:
+      operationId: addMyServiceAreaPrefix
+      tags: [providers]
+      summary: Add a covered postal area (Canadian FSA prefix)
+      description: >-
+        Accepts a three-character Canadian FSA (e.g. "M5V") or a full postal
+        code (the FSA is derived). Normalized server-side; duplicates of an
+        ACTIVE entry return 409. Requires the service-area configuration to
+        exist first.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddServiceAreaPrefixRequest"
+      responses:
+        "201":
+          description: Postal area added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceAreaPrefixResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/me/service-area/prefixes/{prefixId}:
+    delete:
+      operationId: removeMyServiceAreaPrefix
+      tags: [providers]
+      summary: Remove a covered postal area
+      description: >-
+        Deactivates the coverage entry (audit-safe; the prefix can be
+        re-added). Owner-scoped — another provider's entry is a non-leaking
+        404. Existing confirmed bookings stay valid; the change applies to
+        future bookings and future reschedules only.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: prefixId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Postal area removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/earnings:
+    get:
+      operationId: getMyEarnings
+      tags: [providers]
+      summary: Get earnings summary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Earnings summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarningsSummaryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /providers/me/earnings/export:
+    get:
+      operationId: getMyEarningsExport
+      tags: [providers]
+      summary: Earnings statement export data (completed bookings only, read-only)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Line items and totals for a printable earnings statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EarningsExportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /providers/me/dashboard:
+    get:
+      operationId: getMyProviderDashboard
+      tags: [providers]
+      summary: Owner-scoped provider dashboard data (read-only)
+      description: >-
+        Aggregated read-only dashboard for the authenticated approved
+        provider: today's bookings, next booking, upcoming bookings (next 30
+        days), personal performance metrics, acquisition-source attribution,
+        recent activity, and an earnings preview. All values are derived live
+        from existing tables on every request — nothing is persisted and no
+        event is emitted. Client names are privacy-trimmed (first name + last
+        initial) and locations expose only the FSA/postal prefix or city,
+        never the full address.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderDashboardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/metrics:
+    get:
+      operationId: getMyProviderMetrics
+      tags: [providers]
+      summary: Owner-scoped provider performance metrics (read-only)
+      description: >-
+        The same personal performance metrics object served by
+        /providers/me/dashboard, exposed separately so clients can refresh
+        metrics independently of the full dashboard payload.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider performance metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderMetricsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/me/verification:
+    get:
+      operationId: getMyVerification
+      tags: [providers]
+      summary: Get own verification docs and overall status
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Verification status and submitted docs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      operationId: submitVerificationDoc
+      tags: [providers]
+      summary: Submit a credential document for admin review
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitVerificationDocRequest"
+      responses:
+        "201":
+          description: Document submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationDocResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/pilot/metrics:
+    get:
+      operationId: getAdminPilotMetrics
+      tags: [admin]
+      summary: Pilot operations metrics (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Full pilot operations metric payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PilotMetricsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/pilot/providers/{providerId}/retention:
+    patch:
+      operationId: updatePilotProviderRetention
+      tags: [admin]
+      summary: Record a provider's pilot retention intent (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePilotRetentionRequest"
+      responses:
+        "200":
+          description: Retention intent recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PilotRetentionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/verification/queue:
+    get:
+      operationId: getAdminVerificationQueue
+      tags: [admin]
+      summary: List all pending verification documents (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+            default: pending
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Verification queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminVerificationQueueResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/verification/docs/{docId}:
+    patch:
+      operationId: reviewVerificationDoc
+      tags: [admin]
+      summary: Approve or reject a verification document (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: docId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewVerificationDocRequest"
+      responses:
+        "200":
+          description: Document reviewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationDocResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/provider-applications/{applicationId}/approve:
+    post:
+      operationId: approveProviderApplication
+      tags: [admin]
+      summary: Approve a provider application under review (admin only)
+      description: |
+        Reviewer decision endpoint. Valid only when the application is
+        `under_review`; any other state — including a repeated decision —
+        fails with `409` and produces no side effects. Approving persists
+        `reviewedAt` / `reviewedBy` / optional reviewer-private
+        `reviewerNotes`, transitions the application to `approved`, and
+        records an `approved` lifecycle event in the same transaction.
+        Reviewers cannot decide their own application (`403`).
+        Provider-operations authorization is unchanged: it still additionally
+        requires an approved profile verification status.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveProviderApplicationRequest"
+      responses:
+        "200":
+          description: Application approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProviderApplicationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /admin/provider-applications/{applicationId}/reject:
+    post:
+      operationId: rejectProviderApplication
+      tags: [admin]
+      summary: Reject a provider application under review (admin only)
+      description: |
+        Reviewer decision endpoint. Valid only when the application is
+        `under_review`; any other state — including a repeated decision —
+        fails with `409` and produces no side effects. Rejecting requires a
+        provider-visible `rejectionReason`, persists `reviewedAt` /
+        `reviewedBy` / optional reviewer-private `reviewerNotes`, transitions
+        the application to `rejected`, and records a `rejected` lifecycle
+        event in the same transaction. Reviewers cannot decide their own
+        application (`403`). The owner can later reset the rejected
+        application to draft via `/providers/application/reset`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectProviderApplicationRequest"
+      responses:
+        "200":
+          description: Application rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProviderApplicationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /providers/{providerId}:
+    get:
+      operationId: getProviderById
+      tags: [providers]
+      summary: Get a provider's public profile
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Provider public profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderProfileResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/{providerId}/services:
+    get:
+      operationId: listProviderServices
+      tags: [providers]
+      summary: List a provider's active services
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Provider services
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceListResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/{providerId}/availability:
+    get:
+      operationId: getProviderAvailability
+      tags: [providers]
+      summary: Public weekly availability windows + effective marketplace timezone
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Public availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicAvailabilityResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/{providerId}/slots:
+    get:
+      operationId: getProviderSlots
+      tags: [providers]
+      summary: Bookable 30-minute slots for a service on a date
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: serviceId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: date
+          in: query
+          required: true
+          description: Calendar date (YYYY-MM-DD) in the effective marketplace timezone
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Provider slots
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderSlotsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Bookings ─────────────────────────────────────────────────────────────────
+
+  /bookings:
+    get:
+      operationId: listBookings
+      tags: [bookings]
+      summary: List own bookings (scoped by role)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [requested, confirmed, completed, cancelled, rescheduled, no_show]
+          description: Filter by status
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Bookings list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createBooking
+      tags: [bookings]
+      summary: Create a booking request (client only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingRequest"
+      responses:
+        "201":
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "400":
+          description: The booking request was rejected before creation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingRequestRejectedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The requested time conflicts with an existing booking
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/DuplicateBookingConflictResponse"
+                  - $ref: "#/components/schemas/ProviderUnavailableConflictResponse"
+
+  /bookings/history:
+    get:
+      operationId: getClientCareHistory
+      tags: [bookings]
+      summary: List the authenticated client's care history
+      description: Returns bounded, client-safe booking history. Provider-private care notes are never included.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Client care history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientCareHistoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /bookings/{bookingId}:
+    get:
+      operationId: getBooking
+      tags: [bookings]
+      summary: Get booking detail (own only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Booking detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bookings/{bookingId}/status:
+    patch:
+      operationId: updateBookingStatus
+      tags: [bookings]
+      summary: Update booking status (role-restricted transitions)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBookingStatusRequest"
+      responses:
+        "200":
+          description: Updated booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bookings/{bookingId}/reschedule-requests:
+    post:
+      operationId: createRescheduleRequest
+      tags: [bookings]
+      summary: Propose a new time (provider/admin; requires client consent)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRescheduleRequest"
+      responses:
+        "201":
+          description: Proposal created (pending client consent)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RescheduleProposalResponse"
+        "200":
+          description: Idempotent replay — the existing proposal for this key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RescheduleProposalResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    get:
+      operationId: listRescheduleRequests
+      tags: [bookings]
+      summary: List reschedule proposals for an owned booking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Proposals (newest first, bounded)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RescheduleProposalListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /reschedule-requests/{requestId}/accept:
+    post:
+      operationId: acceptRescheduleRequest
+      tags: [bookings]
+      summary: Client accepts a proposed time (makes it the confirmed time)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Proposal accepted and booking time updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptRescheduleResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /reschedule-requests/{requestId}/decline:
+    post:
+      operationId: declineRescheduleRequest
+      tags: [bookings]
+      summary: Client declines a proposal (or the proposer withdraws it)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Proposal resolved; the original appointment is unchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeclineRescheduleResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /bookings/{bookingId}/rescheduling-history:
+    get:
+      operationId: getReschedulingHistory
+      tags: [bookings]
+      summary: Append-only history of accepted time changes (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: integer
+          description: Keyset cursor (id of the last row from the previous page)
+      responses:
+        "200":
+          description: Rescheduling history, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReschedulingHistoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bookings/{bookingId}/cancellation-preview:
+    get:
+      operationId: getCancellationPreview
+      tags: [bookings]
+      summary: What cancelling right now would mean (owner only, server-computed)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancellation consequence preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancellationPreviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bookings/{bookingId}/outcome-history:
+    get:
+      operationId: getOutcomeHistory
+      tags: [bookings]
+      summary: Append-only cancellation/no-show outcome history (owner only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Outcome history, newest first (private fields admin-only)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutcomeHistoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Support (minimal, API-first — roadmap #13) ────────────────────────────────
+
+  /support/contact:
+    get:
+      operationId: getSupportContact
+      tags: [support]
+      summary: Public support contact link (env-configured, pilot placeholder fallback)
+      responses:
+        "200":
+          description: The support contact to render in public and portal footers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportContactResponse"
+
+  /support/escalations:
+    post:
+      operationId: createSupportEscalation
+      tags: [support]
+      summary: Escalate a terminal booking to support (either party, idempotent)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEscalationRequest"
+      responses:
+        "201":
+          description: Escalation ticket created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EscalationResponse"
+        "200":
+          description: An unresolved escalation for this booking already exists — returned as-is
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EscalationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /support/bookings/{bookingId}/escalations:
+    get:
+      operationId: getSupportBookingEscalations
+      tags: [support]
+      summary: Escalations + full outcome history for a booking (support/admin only, audit-logged)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Internal support view (never exposed to regular users)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportBookingEscalationsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /support/escalations/{ticketId}:
+    patch:
+      operationId: updateSupportEscalation
+      tags: [support]
+      summary: Update escalation state, record mediation outcome, correct a booking, or suspend a party (support/admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEscalationRequest"
+      responses:
+        "200":
+          description: Updated escalation (and corrected booking when requested)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EscalationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  # ── Reviews ───────────────────────────────────────────────────────────────────
+
+  /reviews:
+    post:
+      operationId: createReview
+      tags: [reviews]
+      summary: Submit a review (client only, completed booking)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReviewRequest"
+      responses:
+        "201":
+          description: Review submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /reviews/{reviewId}:
+    get:
+      operationId: getReview
+      tags: [reviews]
+      summary: Get review detail
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Review detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /reviews/booking/{bookingId}:
+    get:
+      operationId: getBookingReview
+      tags: [reviews]
+      summary: Get the client's review for a booking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Review for the booking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Invoices ──────────────────────────────────────────────────────────────────
+
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: [invoices]
+      summary: List own invoices (scoped by role)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Invoices list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /invoices/{invoiceId}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get invoice detail (own only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /providers/{providerId}/reviews:
+    get:
+      operationId: listProviderReviews
+      tags: [providers]
+      summary: List a provider's visible reviews
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Provider reviews
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewListResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    UserRole:
+      type: string
+      enum: [client, provider, admin]
+
+    ProviderApplicationStatus:
+      type: string
+      enum: [draft, under_review, approved, rejected, suspended]
+
+    ProviderApplicationStep:
+      type: string
+      enum: [profile, services, availability, verification, submitted]
+
+    ProviderApplicationState:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+        currentStep:
+          $ref: "#/components/schemas/ProviderApplicationStep"
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - status
+        - currentStep
+        - submittedAt
+        - reviewedAt
+
+    ProviderApplicationProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        city:
+          type: string
+        serviceAreaNotes:
+          type: string
+          nullable: true
+        yearsExperience:
+          type: integer
+          nullable: true
+        profileComplete:
+          type: boolean
+        verificationStatus:
+          $ref: "#/components/schemas/VerificationStatus"
+      required:
+        - id
+        - title
+        - bio
+        - city
+        - serviceAreaNotes
+        - yearsExperience
+        - profileComplete
+        - verificationStatus
+
+    ProviderApplicationPreviousSubmission:
+      type: object
+      description: |
+        Immutable snapshot of a closed submission cycle. Written only when the
+        owner resets a `rejected` application back to `draft`. Reviewer-private
+        content (`reviewerNotes`) is never exposed here; only provider-visible
+        fields are returned.
+      properties:
+        id:
+          type: integer
+        outcome:
+          type: string
+          enum: [rejected]
+        submittedAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - outcome
+        - submittedAt
+        - reviewedAt
+        - rejectionReason
+        - createdAt
+
+    ProviderApplicationNextAction:
+      type: string
+      enum:
+        - resume_draft
+        - wait_for_review
+        - provider_operations_available
+        - reset_to_draft
+        - contact_support
+
+    ProviderApplicationStatusView:
+      type: object
+      description: |
+        Compact owner-scoped status projection of a provider application.
+        Only exposes provider-visible fields; `reviewerNotes` never appears.
+      properties:
+        applicationId:
+          type: integer
+        status:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+        currentStep:
+          $ref: "#/components/schemas/ProviderApplicationStep"
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        submissionCount:
+          type: integer
+          minimum: 0
+        latestSubmission:
+          allOf:
+            - $ref: "#/components/schemas/ProviderApplicationPreviousSubmission"
+          nullable: true
+        nextAction:
+          $ref: "#/components/schemas/ProviderApplicationNextAction"
+        canEdit:
+          type: boolean
+        canReset:
+          type: boolean
+        canResubmit:
+          type: boolean
+      required:
+        - applicationId
+        - status
+        - currentStep
+        - submittedAt
+        - reviewedAt
+        - rejectionReason
+        - submissionCount
+        - latestSubmission
+        - nextAction
+        - canEdit
+        - canReset
+        - canResubmit
+
+    ProviderApplicationStatusResponse:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ProviderApplicationStatusView"
+      required:
+        - status
+
+    ProviderActivationNextAction:
+      type: string
+      description: |
+        Server-derived highest-value next step for the activation hub, in
+        provider-journey order. Derived from true business rules only.
+      enum:
+        - continue_onboarding
+        - wait_for_review
+        - review_update_needed
+        - contact_support
+        - complete_profile
+        - configure_service_area
+        - add_service
+        - set_availability
+        - publish_booking_page
+        - share_booking_page
+        - all_set
+
+    ProviderActivationVerificationStatus:
+      type: string
+      enum: [not_started, submitted, under_review, needs_update, approved]
+
+    ProviderActivationVerification:
+      type: object
+      description: |
+        Status-level verification progress only. Raw document references,
+        reviewer identity, and reviewer-private notes are never included.
+      properties:
+        status:
+          $ref: "#/components/schemas/ProviderActivationVerificationStatus"
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Most recent credential submission time, if any.
+        canResubmit:
+          type: boolean
+          description: True when a rejected verification can be resubmitted.
+      required:
+        - status
+        - submittedAt
+        - canResubmit
+
+    ProviderActivationMilestones:
+      type: object
+      description: |
+        True business-rule milestones in provider-journey order. A milestone
+        is never reported complete unless the system can prove it from raw
+        source data (same rules as readiness, roadmap #12 coverage, #11
+        booking-page publishing, and the first-value definition).
+      properties:
+        accountCreated:
+          type: boolean
+        profileCompleted:
+          type: boolean
+        verificationSubmitted:
+          type: boolean
+        approved:
+          type: boolean
+        serviceAreaConfigured:
+          type: boolean
+        activeServiceConfigured:
+          type: boolean
+        availabilityConfigured:
+          type: boolean
+        bookingPagePublished:
+          type: boolean
+        firstBookingReceived:
+          type: boolean
+      required:
+        - accountCreated
+        - profileCompleted
+        - verificationSubmitted
+        - approved
+        - serviceAreaConfigured
+        - activeServiceConfigured
+        - availabilityConfigured
+        - bookingPagePublished
+        - firstBookingReceived
+
+    ProviderActivationStatus:
+      type: object
+      description: Owner-scoped activation-hub summary. Provider-visible fields only.
+      properties:
+        applicationStatus:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+        rejectionReason:
+          type: string
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        canEdit:
+          type: boolean
+        canReset:
+          type: boolean
+        canResubmit:
+          type: boolean
+        verification:
+          $ref: "#/components/schemas/ProviderActivationVerification"
+        milestones:
+          $ref: "#/components/schemas/ProviderActivationMilestones"
+        milestonesCompleted:
+          type: integer
+          minimum: 0
+        milestonesTotal:
+          type: integer
+          minimum: 1
+        bookingPage:
+          $ref: "#/components/schemas/BookingPageSettings"
+        nextAction:
+          $ref: "#/components/schemas/ProviderActivationNextAction"
+      required:
+        - applicationStatus
+        - rejectionReason
+        - submittedAt
+        - reviewedAt
+        - canEdit
+        - canReset
+        - canResubmit
+        - verification
+        - milestones
+        - milestonesCompleted
+        - milestonesTotal
+        - bookingPage
+        - nextAction
+
+    ProviderActivationStatusResponse:
+      type: object
+      properties:
+        activation:
+          $ref: "#/components/schemas/ProviderActivationStatus"
+      required:
+        - activation
+
+    ProviderApplicationSubmissionsPagination:
+      type: object
+      description: Keyset pagination envelope for submission history.
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+        hasMore:
+          type: boolean
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+        - limit
+        - hasMore
+        - nextCursor
+
+    ProviderApplicationSubmissionHistoryResponse:
+      type: object
+      description: |
+        Owner-scoped submission history. `summary` is the same status
+        projection returned by `GET /providers/application/status`;
+        `submissions` is the newest-first, keyset-paginated list of closed
+        rejected cycles.
+      properties:
+        summary:
+          $ref: "#/components/schemas/ProviderApplicationStatusView"
+        submissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderApplicationPreviousSubmission"
+        pagination:
+          $ref: "#/components/schemas/ProviderApplicationSubmissionsPagination"
+      required:
+        - summary
+        - submissions
+        - pagination
+
+    ProviderNotification:
+      type: object
+      description: In-app provider notification derived from a lifecycle event.
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum:
+            - submitted
+            - reset_to_draft
+            - approved
+            - rejected
+        title:
+          type: string
+        body:
+          type: string
+        link:
+          type: string
+          description: Provider-safe relative in-app path.
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - title
+        - body
+        - link
+        - readAt
+        - createdAt
+
+    ProviderNotificationsPagination:
+      type: object
+      description: Keyset pagination envelope for notifications.
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+        hasMore:
+          type: boolean
+        nextCursor:
+          type: string
+          nullable: true
+      required:
+        - limit
+        - hasMore
+        - nextCursor
+
+    ProviderNotificationListResponse:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderNotification"
+        pagination:
+          $ref: "#/components/schemas/ProviderNotificationsPagination"
+      required:
+        - notifications
+        - pagination
+
+    ProviderNotificationUnreadCountResponse:
+      type: object
+      properties:
+        unreadCount:
+          type: integer
+      required:
+        - unreadCount
+
+    ProviderNotificationReadResponse:
+      type: object
+      properties:
+        notification:
+          $ref: "#/components/schemas/ProviderNotification"
+      required:
+        - notification
+
+    ProviderApplicationDetail:
+      allOf:
+        - $ref: "#/components/schemas/ProviderApplicationState"
+        - type: object
+          properties:
+            providerProfileId:
+              type: integer
+            profile:
+              $ref: "#/components/schemas/ProviderApplicationProfile"
+            rejectionReason:
+              type: string
+              nullable: true
+              description: Provider-visible reason present while `status` is `rejected`. Cleared on reset back to `draft`; historical values remain in `previousSubmissions`.
+            previousSubmissions:
+              type: array
+              description: Immutable history of closed submission cycles, ordered oldest to newest.
+              items:
+                $ref: "#/components/schemas/ProviderApplicationPreviousSubmission"
+          required:
+            - providerProfileId
+            - profile
+            - rejectionReason
+            - previousSubmissions
+
+    ProviderApplicationDetailResponse:
+      type: object
+      properties:
+        application:
+          $ref: "#/components/schemas/ProviderApplicationDetail"
+      required:
+        - application
+
+    UpdateProviderApplicationRequest:
+      type: object
+      properties:
+        currentStep:
+          $ref: "#/components/schemas/ProviderApplicationStep"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        bio:
+          type: string
+          maxLength: 2000
+        city:
+          type: string
+          minLength: 1
+          maxLength: 120
+        serviceAreaNotes:
+          type: string
+          maxLength: 2000
+        yearsExperience:
+          type: integer
+          minimum: 0
+          maximum: 80
+
+    ApplicationCompletion:
+      type: object
+      properties:
+        profileComplete:
+          type: boolean
+        servicesComplete:
+          type: boolean
+        availabilityComplete:
+          type: boolean
+        verificationComplete:
+          type: boolean
+        readyForSubmission:
+          type: boolean
+        applicationStatus:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+        missingRequirements:
+          type: array
+          items:
+            type: string
+          description: Human-readable list of missing required sections
+      required:
+        - profileComplete
+        - servicesComplete
+        - availabilityComplete
+        - verificationComplete
+        - readyForSubmission
+        - applicationStatus
+        - missingRequirements
+
+    ApplicationCompletionResponse:
+      type: object
+      properties:
+        completion:
+          $ref: "#/components/schemas/ApplicationCompletion"
+      required:
+        - completion
+
+    ProviderReadinessMissingCode:
+      type: string
+      description: >-
+        Stable activation-readiness reason codes. Mirrors the readiness
+        subset of the marketplace_event_reason_code enum; values are
+        additive-only and never renamed or removed.
+      enum:
+        - NOT_APPROVED
+        - PROFILE_INCOMPLETE
+        - NO_ACTIVE_SERVICE
+        - NO_AVAILABILITY
+        - NO_SERVICE_AREA
+        - NOT_ACCEPTING_CLIENTS
+        - DOCS_PENDING
+
+    ProviderReadinessCriteria:
+      type: object
+      description: Per-criterion activation booleans (C1–C7), each computed live from raw source fields.
+      properties:
+        approved:
+          type: boolean
+          description: C1 — provider application approved and profile verification approved
+        profileComplete:
+          type: boolean
+          description: C2 — non-empty title, city, and bio, computed live (the stored profileComplete flag is never trusted)
+        activeService:
+          type: boolean
+          description: C3 — at least one active service
+        availability:
+          type: boolean
+          description: C4 — at least one availability slot
+        serviceArea:
+          type: boolean
+          description: C5 — at least one travel zone (service area)
+        acceptingClients:
+          type: boolean
+          description: C6 — provider is accepting new clients
+        documents:
+          type: boolean
+          description: C7 — every platform-mandated document type has an approved verification document; auto-satisfied when no document type is mandated
+      required:
+        - approved
+        - profileComplete
+        - activeService
+        - availability
+        - serviceArea
+        - acceptingClients
+        - documents
+
+    ProviderReadiness:
+      type: object
+      properties:
+        activated:
+          type: boolean
+          description: Logical AND of criteria C1–C7
+        missing:
+          type: array
+          description: Reason codes for unmet criteria, in deterministic C1→C7 order
+          items:
+            $ref: "#/components/schemas/ProviderReadinessMissingCode"
+        criteria:
+          $ref: "#/components/schemas/ProviderReadinessCriteria"
+      required:
+        - activated
+        - missing
+        - criteria
+
+    ProviderReadinessResponse:
+      type: object
+      properties:
+        readiness:
+          $ref: "#/components/schemas/ProviderReadiness"
+      required:
+        - readiness
+
+    ListingPreviewProfile:
+      type: object
+      properties:
+        title: { type: string }
+        bio: { type: string, nullable: true }
+        city: { type: string }
+        serviceAreaNotes: { type: string, nullable: true }
+        yearsExperience: { type: integer, nullable: true }
+        rating: { type: number, nullable: true }
+        reviewCount: { type: integer }
+        acceptsNewClients: { type: boolean }
+        firstName: { type: string, nullable: true }
+        lastName: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+      required:
+        - title
+        - city
+        - reviewCount
+        - acceptsNewClients
+
+    ListingPreviewService:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        durationMinutes: { type: integer }
+        priceCents: { type: integer }
+        category: { type: string }
+      required:
+        - id
+        - title
+        - durationMinutes
+        - priceCents
+        - category
+
+    ListingPreviewSlotDay:
+      type: object
+      properties:
+        date: { type: string }
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderSlot"
+      required:
+        - date
+        - slots
+
+    ListingPreview:
+      type: object
+      properties:
+        isPublic:
+          type: boolean
+          description: True only when the provider is approved and publicly bookable
+        applicationStatus:
+          type: string
+          nullable: true
+          enum: [draft, under_review, approved, rejected, suspended]
+        verificationStatus:
+          type: string
+          enum: [pending, under_review, approved, rejected]
+        timezone: { type: string }
+        profile:
+          $ref: "#/components/schemas/ListingPreviewProfile"
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListingPreviewService"
+        availability:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicAvailabilityWindow"
+        slotPreviewServiceId:
+          type: integer
+          nullable: true
+        slotPreview:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListingPreviewSlotDay"
+        readiness:
+          allOf:
+            - $ref: "#/components/schemas/ProviderReadiness"
+          nullable: true
+      required:
+        - isPublic
+        - verificationStatus
+        - timezone
+        - profile
+        - services
+        - availability
+        - slotPreview
+
+    ListingPreviewResponse:
+      type: object
+      properties:
+        preview:
+          $ref: "#/components/schemas/ListingPreview"
+      required:
+        - preview
+
+    OnboardingState:
+      type: object
+      properties:
+        client:
+          type: string
+          enum: [complete]
+          nullable: true
+        provider:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+          nullable: true
+      required:
+        - client
+        - provider
+
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserRole"
+          minItems: 1
+        activeRole:
+          $ref: "#/components/schemas/UserRole"
+        onboarding:
+          $ref: "#/components/schemas/OnboardingState"
+        providerApplication:
+          allOf:
+            - $ref: "#/components/schemas/ProviderApplicationState"
+          nullable: true
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+      required:
+        - id
+        - email
+        - role
+        - roles
+        - activeRole
+        - onboarding
+        - providerApplication
+        - firstName
+        - lastName
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        role:
+          type: string
+          enum: [client, provider]
+          default: client
+        roleIntent:
+          type: string
+          enum: [client, provider]
+          description: Signup intent. The server derives initial membership and never treats this field as ongoing authorization.
+        phone:
+          type: string
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserSummary"
+      required:
+        - token
+        - user
+
+    MeResponse:
+      type: object
+      properties:
+        user:
+          allOf:
+            - $ref: "#/components/schemas/UserSummary"
+            - type: object
+              properties:
+                isActive:
+                  type: boolean
+                createdAt:
+                  type: string
+                  format: date-time
+      required:
+        - user
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
+      required:
+        - error
+
+    # ── Provider Schemas ───────────────────────────────────────────────────────
+
+    VerificationStatus:
+      type: string
+      enum: [pending, under_review, approved, rejected]
+
+    ProviderSummary:
+      type: object
+      description: Condensed provider card for list views
+      properties:
+        id:
+          type: integer
+          description: provider_profiles.id
+        userId:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        title:
+          type: string
+        city:
+          type: string
+        rating:
+          type: string
+          description: Numeric string, e.g. "4.85"
+        reviewCount:
+          type: integer
+        verificationStatus:
+          $ref: "#/components/schemas/VerificationStatus"
+        acceptsNewClients:
+          type: boolean
+        yearsExperience:
+          type: integer
+          nullable: true
+      required:
+        - id
+        - userId
+        - firstName
+        - lastName
+        - title
+        - city
+        - rating
+        - reviewCount
+        - verificationStatus
+        - acceptsNewClients
+
+    ProviderProfile:
+      description: Full provider profile including bio and service area
+      allOf:
+        - $ref: "#/components/schemas/ProviderSummary"
+        - type: object
+          properties:
+            bio:
+              type: string
+              nullable: true
+            serviceAreaNotes:
+              type: string
+              nullable: true
+            profileComplete:
+              type: boolean
+            createdAt:
+              type: string
+              format: date-time
+
+    ProviderProfileResponse:
+      type: object
+      properties:
+        provider:
+          $ref: "#/components/schemas/ProviderProfile"
+      required:
+        - provider
+
+    ProviderListResponse:
+      type: object
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderSummary"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - providers
+        - total
+        - limit
+        - offset
+
+    UpdateProviderProfileRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        bio:
+          type: string
+        city:
+          type: string
+          minLength: 1
+        serviceAreaNotes:
+          type: string
+        yearsExperience:
+          type: integer
+          minimum: 0
+        acceptsNewClients:
+          type: boolean
+
+    # ── Service Schemas ────────────────────────────────────────────────────────
+
+    Service:
+      type: object
+      properties:
+        id:
+          type: integer
+        providerId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        durationMinutes:
+          type: integer
+        priceCents:
+          type: integer
+          description: Price in cents (CAD)
+        category:
+          type: string
+        eligibilityNotes:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - providerId
+        - title
+        - durationMinutes
+        - priceCents
+        - category
+        - isActive
+
+    ServiceResponse:
+      type: object
+      properties:
+        service:
+          $ref: "#/components/schemas/Service"
+      required:
+        - service
+
+    ServiceListResponse:
+      type: object
+      properties:
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/Service"
+      required:
+        - services
+
+    CreateServiceRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        durationMinutes:
+          type: integer
+          minimum: 15
+        priceCents:
+          type: integer
+          minimum: 0
+          description: Price in cents
+        category:
+          type: string
+          default: foot_care
+        eligibilityNotes:
+          type: string
+        isActive:
+          type: boolean
+          default: true
+      required:
+        - title
+        - durationMinutes
+        - priceCents
+
+    UpdateServiceRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        durationMinutes:
+          type: integer
+          minimum: 15
+        priceCents:
+          type: integer
+          minimum: 0
+        category:
+          type: string
+        eligibilityNotes:
+          type: string
+        isActive:
+          type: boolean
+
+    # ── Availability Schemas ───────────────────────────────────────────────────
+
+    AvailabilitySlot:
+      type: object
+      properties:
+        id:
+          type: integer
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: "0 = Sunday, 6 = Saturday"
+        startTime:
+          type: string
+          description: "HH:MM 24-hour"
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+        endTime:
+          type: string
+          description: "HH:MM 24-hour"
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+      required:
+        - id
+        - dayOfWeek
+        - startTime
+        - endTime
+
+    AvailabilityListResponse:
+      type: object
+      properties:
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/AvailabilitySlot"
+      required:
+        - slots
+
+    SetAvailabilityRequest:
+      type: object
+      description: Replaces all availability slots for the provider
+      properties:
+        slots:
+          type: array
+          items:
+            type: object
+            properties:
+              dayOfWeek:
+                type: integer
+                minimum: 0
+                maximum: 6
+              startTime:
+                type: string
+                pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+              endTime:
+                type: string
+                pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+            required:
+              - dayOfWeek
+              - startTime
+              - endTime
+      required:
+        - slots
+
+    # ── Emergency Opening Schemas ─────────────────────────────────────────────
+
+    EmergencyOpening:
+      type: object
+      description: >-
+        One-off extra availability window outside the weekly schedule
+        (docs/emergency-openings-policy.md). Date is a calendar date in the
+        effective marketplace timezone.
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          description: "YYYY-MM-DD (marketplace timezone)"
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        startTime:
+          type: string
+          description: "HH:MM 24-hour"
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+        endTime:
+          type: string
+          description: "HH:MM 24-hour"
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+        serviceIds:
+          type: array
+          items:
+            type: integer
+          nullable: true
+          description: Restricted service ids; null = every active service
+        urgentOnly:
+          type: boolean
+          description: Client-facing label only — the booking flow is unchanged
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - date
+        - startTime
+        - endTime
+        - urgentOnly
+
+    EmergencyOpeningListResponse:
+      type: object
+      properties:
+        openings:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmergencyOpening"
+      required:
+        - openings
+
+    EmergencyOpeningResponse:
+      type: object
+      properties:
+        opening:
+          $ref: "#/components/schemas/EmergencyOpening"
+      required:
+        - opening
+
+    CreateEmergencyOpeningRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          description: "YYYY-MM-DD; today or later (marketplace timezone)"
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        startTime:
+          type: string
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+        endTime:
+          type: string
+          pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+        serviceIds:
+          type: array
+          items:
+            type: integer
+          description: Optional restriction to own active services; omit/empty = all
+        urgentOnly:
+          type: boolean
+          default: false
+      required:
+        - date
+        - startTime
+        - endTime
+
+    # ── Blocked Range Schemas (vacation / time off) ───────────────────────────
+
+    BlockedRange:
+      type: object
+      description: >-
+        Date-range block during which no time is bookable
+        (docs/availability-exceptions-policy.md). Dates are inclusive
+        calendar dates in the effective marketplace timezone. The reason is
+        a private provider-only note, never shown to clients.
+      properties:
+        id:
+          type: integer
+        startDate:
+          type: string
+          description: "YYYY-MM-DD inclusive (marketplace timezone)"
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        endDate:
+          type: string
+          description: "YYYY-MM-DD inclusive (marketplace timezone)"
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        reason:
+          type: string
+          nullable: true
+          description: Private provider-only note; never client-facing
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - startDate
+        - endDate
+
+    BlockedRangeListResponse:
+      type: object
+      properties:
+        ranges:
+          type: array
+          items:
+            $ref: "#/components/schemas/BlockedRange"
+      required:
+        - ranges
+
+    BlockedRangeResponse:
+      type: object
+      properties:
+        range:
+          $ref: "#/components/schemas/BlockedRange"
+      required:
+        - range
+
+    CreateBlockedRangeRequest:
+      type: object
+      properties:
+        startDate:
+          type: string
+          description: "YYYY-MM-DD; today or later (marketplace timezone)"
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        endDate:
+          type: string
+          description: "YYYY-MM-DD; on/after startDate, within 365 days"
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        reason:
+          type: string
+          maxLength: 200
+          description: Optional private note (provider-only, never client-facing)
+      required:
+        - startDate
+        - endDate
+
+    # ── Travel Zone Schemas ────────────────────────────────────────────────────
+
+    TravelZone:
+      type: object
+      properties:
+        id:
+          type: integer
+        providerId:
+          type: integer
+        zoneName:
+          type: string
+        city:
+          type: string
+        notes:
+          type: string
+          nullable: true
+      required:
+        - id
+        - providerId
+        - zoneName
+        - city
+
+    TravelZoneResponse:
+      type: object
+      properties:
+        zone:
+          $ref: "#/components/schemas/TravelZone"
+      required:
+        - zone
+
+    TravelZoneListResponse:
+      type: object
+      properties:
+        zones:
+          type: array
+          items:
+            $ref: "#/components/schemas/TravelZone"
+      required:
+        - zones
+
+    CreateTravelZoneRequest:
+      type: object
+      properties:
+        zoneName:
+          type: string
+          minLength: 1
+        city:
+          type: string
+          minLength: 1
+        notes:
+          type: string
+      required:
+        - zoneName
+        - city
+
+    # ── Review Schemas ─────────────────────────────────────────────────────────
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        clientId:
+          type: integer
+        providerId:
+          type: integer
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          nullable: true
+        clientFirstName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - bookingId
+        - clientId
+        - providerId
+        - rating
+        - clientFirstName
+
+    ReviewListResponse:
+      type: object
+      properties:
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/Review"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - reviews
+        - total
+        - limit
+        - offset
+
+    # ── Booking Schemas ────────────────────────────────────────────────────────
+
+    ClientCareHistoryProvider:
+      type: object
+      description: Client-visible provider identity for a care-history entry
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        title:
+          type: string
+        city:
+          type: string
+      required:
+        - id
+        - firstName
+        - lastName
+        - title
+        - city
+
+    ClientCareHistoryService:
+      type: object
+      description: Client-visible service summary for a care-history entry
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        durationMinutes:
+          type: integer
+        category:
+          type: string
+        priceCents:
+          type: integer
+          description: Price in cents (CAD)
+      required:
+        - id
+        - title
+        - durationMinutes
+        - category
+        - priceCents
+
+    ClientCareHistoryEntry:
+      type: object
+      description: Client-safe booking history entry; never includes careNotes
+      properties:
+        id:
+          type: integer
+        providerId:
+          type: integer
+        serviceId:
+          type: integer
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        scheduledAt:
+          type: string
+          format: date-time
+        address:
+          type: string
+        city:
+          type: string
+        postalCode:
+          type: string
+          nullable: true
+        clientNotes:
+          type: string
+          nullable: true
+        cancellationReason:
+          type: string
+          nullable: true
+        provider:
+          $ref: "#/components/schemas/ClientCareHistoryProvider"
+        service:
+          $ref: "#/components/schemas/ClientCareHistoryService"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - providerId
+        - serviceId
+        - status
+        - scheduledAt
+        - address
+        - city
+        - provider
+        - service
+
+    ClientCareHistoryResponse:
+      type: object
+      properties:
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClientCareHistoryEntry"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - history
+        - total
+        - limit
+        - offset
+
+    BookingStatus:
+      type: string
+      enum: [requested, confirmed, completed, cancelled, rescheduled, no_show]
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+        providerId:
+          type: integer
+        serviceId:
+          type: integer
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        scheduledAt:
+          type: string
+          format: date-time
+        address:
+          type: string
+        city:
+          type: string
+        postalCode:
+          type: string
+          nullable: true
+        careNotes:
+          type: string
+          nullable: true
+          description: Provider-private care note; included only in provider/admin responses
+        clientNotes:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+          description: >-
+            Privacy-safe allowlisted link attribution recorded at creation
+            (instagram, qr-card, text, facebook, website); never exposed
+            publicly and never used for authorization
+        cancellationReason:
+          type: string
+          nullable: true
+        cancellationCategory:
+          type: string
+          nullable: true
+          description: >-
+            Server-computed cancellation policy category (roadmap #13):
+            client_cancelled_early, client_cancelled_late, provider_cancelled,
+            or cancelled_by_support; null until the booking is cancelled
+        noShowMarkedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the provider recorded a no-show; null otherwise
+        clientFirstName:
+          type: string
+          nullable: true
+          description: Client first name (joined; present on list responses)
+        clientLastName:
+          type: string
+          nullable: true
+          description: Client last name (joined; present on list responses)
+        clientPhone:
+          type: string
+          nullable: true
+          description: Client phone (joined; present on list responses)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - clientId
+        - providerId
+        - serviceId
+        - status
+        - scheduledAt
+        - address
+        - city
+
+    BookingResponse:
+      type: object
+      properties:
+        booking:
+          $ref: "#/components/schemas/Booking"
+      required:
+        - booking
+
+    DuplicateBookingConflictResponse:
+      type: object
+      description: Returned when the client already has an active (requested, confirmed, or rescheduled) booking for the same provider, service, and scheduled time.
+      properties:
+        error:
+          type: string
+        bookingId:
+          type: integer
+          description: The id of the already-existing active booking
+        reason:
+          type: string
+          enum: [duplicate_booking]
+      required:
+        - error
+        - bookingId
+        - reason
+
+    ProviderUnavailableConflictResponse:
+      type: object
+      description: Returned when the requested interval overlaps another active booking for the same provider.
+      properties:
+        error:
+          type: string
+        reason:
+          type: string
+          enum: [provider_unavailable]
+      required:
+        - error
+        - reason
+
+    BookingRequestRejectedResponse:
+      type: object
+      description: Returned when a booking request is rejected before creation (invalid input or outside the provider's availability).
+      properties:
+        error:
+          type: string
+        reason:
+          type: string
+          enum: [invalid_request, outside_availability]
+      required:
+        - error
+        - reason
+
+    PublicAvailabilityWindow:
+      type: object
+      properties:
+        dayOfWeek:
+          type: integer
+          description: 0 = Sunday … 6 = Saturday
+        startTime:
+          type: string
+          description: Wall-clock start "HH:MM" in the effective marketplace timezone
+        endTime:
+          type: string
+          description: Wall-clock end "HH:MM" in the effective marketplace timezone
+      required:
+        - dayOfWeek
+        - startTime
+        - endTime
+
+    PublicAvailabilityResponse:
+      type: object
+      properties:
+        timezone:
+          type: string
+          description: Effective IANA marketplace timezone
+        windows:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicAvailabilityWindow"
+      required:
+        - timezone
+        - windows
+
+    # ── Provider booking page schemas (roadmap #11) ───────────────────────────
+
+    BookingPageSettings:
+      type: object
+      description: Owner-scoped publish state for the provider's public booking page
+      properties:
+        slug:
+          type: string
+          nullable: true
+          description: Canonical public slug; assigned at first publish, then immutable
+        published:
+          type: boolean
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        path:
+          type: string
+          nullable: true
+          description: Canonical public path (/book/{slug}) once a slug exists
+        eligible:
+          type: boolean
+          description: >-
+            True when the provider is approved AND has an active service-area
+            configuration with at least one covered postal area
+        verificationStatus:
+          $ref: "#/components/schemas/VerificationStatus"
+        serviceAreaConfigured:
+          type: boolean
+          description: >-
+            True when an active service-area configuration with at least one
+            covered postal area exists (publish prerequisite, roadmap #12)
+      required:
+        - slug
+        - published
+        - publishedAt
+        - path
+        - eligible
+        - verificationStatus
+        - serviceAreaConfigured
+
+    MyBookingPageResponse:
+      type: object
+      properties:
+        bookingPage:
+          $ref: "#/components/schemas/BookingPageSettings"
+      required:
+        - bookingPage
+
+    PublicBookingPageProvider:
+      type: object
+      description: Public-safe provider identity for the booking page (never exposes account/user ids)
+      properties:
+        id:
+          type: integer
+          description: provider_profiles.id — same public identifier used by marketplace discovery
+        firstName:
+          type: string
+        lastName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        title:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        city:
+          type: string
+        serviceAreaNotes:
+          type: string
+          nullable: true
+        rating:
+          type: string
+          description: Numeric string, e.g. "4.85"
+        reviewCount:
+          type: integer
+        yearsExperience:
+          type: integer
+          nullable: true
+        acceptsNewClients:
+          type: boolean
+        verificationStatus:
+          $ref: "#/components/schemas/VerificationStatus"
+      required:
+        - id
+        - firstName
+        - lastName
+        - title
+        - city
+        - rating
+        - reviewCount
+        - acceptsNewClients
+        - verificationStatus
+
+    PublicBookingPage:
+      type: object
+      properties:
+        slug:
+          type: string
+        provider:
+          $ref: "#/components/schemas/PublicBookingPageProvider"
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/Service"
+        availability:
+          $ref: "#/components/schemas/PublicAvailabilityResponse"
+        serviceArea:
+          $ref: "#/components/schemas/PublicServiceAreaSummary"
+        cancellationPolicy:
+          $ref: "#/components/schemas/PublicCancellationPolicySummary"
+      required:
+        - slug
+        - provider
+        - services
+        - availability
+        - serviceArea
+        - cancellationPolicy
+
+    PublicCancellationPolicySummary:
+      type: object
+      description: >-
+        Public cancellation policy summary (roadmap #13). Safe fields ONLY:
+        the notice window and plain-language copy. Internal state identifiers,
+        categories, and history are never exposed publicly.
+      properties:
+        noticeHours:
+          type: integer
+        summary:
+          type: string
+      required:
+        - noticeHours
+        - summary
+
+    PublicServiceAreaSummary:
+      type: object
+      description: >-
+        Public-safe service-area summary (roadmap #12). Contains ONLY the
+        provider-written description and coarse public context — raw coverage
+        entries (FSA prefixes) are never exposed publicly.
+      properties:
+        configured:
+          type: boolean
+          description: >-
+            True when online eligibility checks are available for this page;
+            false reports the `unavailable` state to clients
+        description:
+          type: string
+          nullable: true
+          description: Provider-written plain-language service-area summary
+        countryCode:
+          type: string
+          nullable: true
+        provinceCode:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+      required:
+        - configured
+        - description
+        - countryCode
+        - provinceCode
+        - city
+
+    ServiceAreaEligibilityState:
+      type: string
+      description: Server-authoritative service-area eligibility state (roadmap #12)
+      enum: [eligible, ineligible, needs_review, invalid, unavailable]
+
+    ServiceAreaCheckRequest:
+      type: object
+      description: >-
+        Minimal client location input for the eligibility check. Validated
+        server-side and NOT retained. No coordinates are ever collected.
+      properties:
+        country:
+          type: string
+          description: Country name or code (Canada-first; e.g. "CA", "Canada")
+        province:
+          type: string
+          description: Province/territory code or name (e.g. "ON", "Ontario")
+        city:
+          type: string
+          description: Optional city context
+        postalCode:
+          type: string
+          description: Canadian postal code; normalized server-side
+      required:
+        - country
+        - province
+        - postalCode
+
+    ServiceAreaEligibility:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ServiceAreaEligibilityState"
+        reason:
+          type: string
+          description: >-
+            Allowlisted machine reason code (safe next-step metadata):
+            fsa_match, fsa_not_covered, country_not_served, province_mismatch,
+            missing_location, malformed_postal_code, malformed_location,
+            not_configured
+        message:
+          type: string
+          description: Approved plain-language client-facing message
+      required:
+        - status
+        - reason
+        - message
+
+    ServiceAreaCheckResponse:
+      type: object
+      properties:
+        eligibility:
+          $ref: "#/components/schemas/ServiceAreaEligibility"
+      required:
+        - eligibility
+
+    MyServiceAreaPrefix:
+      type: object
+      properties:
+        id:
+          type: integer
+        countryCode:
+          type: string
+        prefix:
+          type: string
+          description: Normalized Canadian FSA (first three postal characters)
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - countryCode
+        - prefix
+        - createdAt
+
+    MyServiceArea:
+      type: object
+      description: Owner-scoped service-area configuration (roadmap #12)
+      properties:
+        configured:
+          type: boolean
+          description: Active configuration with at least one covered postal area
+        isActive:
+          type: boolean
+        countryCode:
+          type: string
+        provinceCode:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        publicDescription:
+          type: string
+          nullable: true
+        prefixes:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyServiceAreaPrefix"
+        bufferMinutes:
+          type: integer
+          description: >-
+            Centrally managed travel/setup buffer applied between this
+            provider's appointments (default 30). Provider-specific overrides
+            are not available in this release.
+        bufferSource:
+          type: string
+          enum: [default, environment]
+        publishEligible:
+          type: boolean
+          description: Coverage prerequisite for publishing the booking page
+      required:
+        - configured
+        - isActive
+        - countryCode
+        - provinceCode
+        - city
+        - publicDescription
+        - prefixes
+        - bufferMinutes
+        - bufferSource
+        - publishEligible
+
+    MyServiceAreaResponse:
+      type: object
+      properties:
+        serviceArea:
+          $ref: "#/components/schemas/MyServiceArea"
+      required:
+        - serviceArea
+
+    UpdateServiceAreaRequest:
+      type: object
+      properties:
+        countryCode:
+          type: string
+          description: Only "CA" is accepted in this release (defaults to CA)
+        provinceCode:
+          type: string
+          description: Canadian province/territory code or name
+        city:
+          type: string
+          nullable: true
+        publicDescription:
+          type: string
+          nullable: true
+          maxLength: 500
+        isActive:
+          type: boolean
+      required:
+        - provinceCode
+
+    AddServiceAreaPrefixRequest:
+      type: object
+      properties:
+        prefix:
+          type: string
+          description: Three-character Canadian FSA (e.g. "M5V") or a full postal code
+      required:
+        - prefix
+
+    ServiceAreaPrefixResponse:
+      type: object
+      properties:
+        prefix:
+          $ref: "#/components/schemas/MyServiceAreaPrefix"
+      required:
+        - prefix
+
+    PublicBookingPageResponse:
+      type: object
+      properties:
+        page:
+          $ref: "#/components/schemas/PublicBookingPage"
+      required:
+        - page
+
+    ProviderSlot:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        available:
+          type: boolean
+        urgentOnly:
+          type: boolean
+          description: >-
+            True when this time exists only because of an urgent-only
+            emergency opening. Label only — booking works the same.
+      required:
+        - start
+        - end
+        - available
+
+    ProviderSlotsResponse:
+      type: object
+      properties:
+        timezone:
+          type: string
+          description: Effective IANA marketplace timezone
+        date:
+          type: string
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderSlot"
+      required:
+        - timezone
+        - date
+        - slots
+
+    BookingListResponse:
+      type: object
+      properties:
+        bookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - bookings
+        - total
+        - limit
+        - offset
+
+    CreateBookingRequest:
+      type: object
+      properties:
+        providerId:
+          type: integer
+          description: provider_profiles.id
+        serviceId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        address:
+          type: string
+          minLength: 1
+        city:
+          type: string
+          minLength: 1
+        postalCode:
+          type: string
+        careNotes:
+          type: string
+        clientNotes:
+          type: string
+        source:
+          type: string
+          enum: [instagram, qr-card, text, facebook, website]
+          description: >-
+            Optional allowlisted acquisition-source attribution (provider
+            booking-page share links). Unknown values are dropped server-side;
+            never used for authorization or pricing.
+      required:
+        - providerId
+        - serviceId
+        - scheduledAt
+        - address
+        - city
+
+    UpdateBookingStatusRequest:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/BookingStatus"
+        cancellationReason:
+          type: string
+          description: >-
+            Required when transitioning to cancelled. Private free text —
+            support/admin-visible only, never shared cross-party
+        reasonCategory:
+          type: string
+          enum: [illness, emergency, schedule_conflict, client_request, declined_request, reschedule_declined, other]
+          description: >-
+            Required when a PROVIDER cancels (roadmap #13). Allowlisted
+            structured reason shared with the client
+        scheduledAt:
+          type: string
+          format: date-time
+          description: Required when transitioning to rescheduled
+      required:
+        - status
+
+    # ── Cancellation/no-show policy schemas (roadmap #13) ─────────────────────
+
+    CancellationPreviewResponse:
+      type: object
+      properties:
+        preview:
+          type: object
+          properties:
+            outcome:
+              type: string
+              enum: [free, late, provider, unavailable]
+            noticeHours:
+              type: integer
+            freeUntil:
+              type: string
+              format: date-time
+              nullable: true
+            message:
+              type: string
+          required: [outcome, noticeHours, freeUntil, message]
+      required: [preview]
+
+    OutcomeHistoryEntry:
+      type: object
+      description: >-
+        Append-only outcome record. Private fields (reasonSnapshot,
+        actorUserId) are present only in admin responses
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        actorRole:
+          type: string
+          enum: [client, provider, admin]
+        action:
+          type: string
+          enum: [cancelled, no_show, support_corrected]
+        category:
+          type: string
+          nullable: true
+        reasonCategory:
+          type: string
+          nullable: true
+        previousStatus:
+          $ref: "#/components/schemas/BookingStatus"
+        newStatus:
+          $ref: "#/components/schemas/BookingStatus"
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, bookingId, actorRole, action, category, reasonCategory, previousStatus, newStatus, createdAt]
+
+    OutcomeHistoryResponse:
+      type: object
+      properties:
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/OutcomeHistoryEntry"
+        limit:
+          type: integer
+      required: [history, limit]
+
+    # ── Support workflow schemas (minimal, API-first — roadmap #13) ───────────
+
+    CreateEscalationRequest:
+      type: object
+      properties:
+        bookingId:
+          type: integer
+        message:
+          type: string
+          maxLength: 2000
+          description: Optional opening message recorded on the ticket
+      required: [bookingId]
+
+    EscalationTicket:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+          nullable: true
+        subject:
+          type: string
+        status:
+          type: string
+          enum: [open, in_progress, resolved]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, bookingId, subject, status, createdAt, updatedAt]
+
+    SupportContactResponse:
+      type: object
+      required: [contact]
+      properties:
+        contact:
+          type: object
+          required: [url, label, isPlaceholder]
+          properties:
+            url:
+              type: string
+              description: "mailto: or http(s) link for reaching support"
+            label:
+              type: string
+              description: Human-readable label (the email address, or a generic label for URLs)
+            isPlaceholder:
+              type: boolean
+              description: True when no SUPPORT_CONTACT_* environment override is configured (pilot placeholder)
+
+    EscalationResponse:
+      type: object
+      properties:
+        ticket:
+          $ref: "#/components/schemas/EscalationTicket"
+        created:
+          type: boolean
+          description: True when a new ticket was created; false for idempotent replays
+      required: [ticket]
+
+    SupportBookingEscalationsResponse:
+      type: object
+      description: Internal support view — never exposed to regular clients/providers
+      properties:
+        booking:
+          type: object
+          properties:
+            id:
+              type: integer
+            status:
+              $ref: "#/components/schemas/BookingStatus"
+            scheduledAt:
+              type: string
+              format: date-time
+            cancellationCategory:
+              type: string
+              nullable: true
+            cancellationReason:
+              type: string
+              nullable: true
+            noShowMarkedAt:
+              type: string
+              format: date-time
+              nullable: true
+          required: [id, status, scheduledAt, cancellationCategory, cancellationReason, noShowMarkedAt]
+        tickets:
+          type: array
+          items:
+            $ref: "#/components/schemas/EscalationTicket"
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/OutcomeHistoryEntry"
+      required: [booking, tickets, history]
+
+    UpdateEscalationRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, in_progress, resolved]
+        resolutionNote:
+          type: string
+          maxLength: 2000
+          description: Mediation outcome — recorded as a support message
+        correction:
+          type: object
+          description: >-
+            Correct a disputed cancelled/no-show booking outcome. Appends a
+            support_corrected history row; never mutates existing history
+          properties:
+            status:
+              type: string
+              enum: [completed, cancelled]
+            reason:
+              type: string
+          required: [status, reason]
+        suspendUserId:
+          type: integer
+          description: >-
+            Trigger the existing account suspension mechanism for a party to
+            the linked booking
+
+    # ── Reschedule proposal schemas (consent-first provider rescheduling) ─────
+
+    RescheduleProposalStatus:
+      type: string
+      enum: [pending, accepted, declined, cancelled, expired, unresolved]
+
+    RescheduleProposal:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        requesterRole:
+          type: string
+          enum: [client, provider, admin]
+        originalScheduledAt:
+          type: string
+          format: date-time
+        proposedScheduledAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/RescheduleProposalStatus"
+        deadlineAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - bookingId
+        - requesterRole
+        - originalScheduledAt
+        - proposedScheduledAt
+        - status
+        - deadlineAt
+        - createdAt
+
+    CreateRescheduleRequest:
+      type: object
+      properties:
+        proposedScheduledAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          maxLength: 500
+        idempotencyKey:
+          type: string
+          maxLength: 128
+      required:
+        - proposedScheduledAt
+        - idempotencyKey
+
+    RescheduleProposalResponse:
+      type: object
+      properties:
+        proposal:
+          $ref: "#/components/schemas/RescheduleProposal"
+      required:
+        - proposal
+
+    RescheduleProposalListResponse:
+      type: object
+      properties:
+        proposals:
+          type: array
+          items:
+            $ref: "#/components/schemas/RescheduleProposal"
+      required:
+        - proposals
+
+    AcceptRescheduleResponse:
+      type: object
+      properties:
+        booking:
+          $ref: "#/components/schemas/Booking"
+        proposal:
+          $ref: "#/components/schemas/RescheduleProposal"
+      required:
+        - booking
+        - proposal
+
+    DeclineRescheduleResponse:
+      type: object
+      properties:
+        proposal:
+          $ref: "#/components/schemas/RescheduleProposal"
+        originalTimeFeasible:
+          type: boolean
+        supportMessage:
+          type: string
+      required:
+        - proposal
+        - originalTimeFeasible
+
+    RescheduleHistoryEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        originalScheduledAt:
+          type: string
+          format: date-time
+        newScheduledAt:
+          type: string
+          format: date-time
+        requesterRole:
+          type: string
+          enum: [client, provider, admin]
+        reason:
+          type: string
+          nullable: true
+        previousStatus:
+          $ref: "#/components/schemas/BookingStatus"
+        newStatus:
+          $ref: "#/components/schemas/BookingStatus"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - bookingId
+        - originalScheduledAt
+        - newScheduledAt
+        - requesterRole
+        - previousStatus
+        - newStatus
+        - createdAt
+
+    ReschedulingHistoryResponse:
+      type: object
+      properties:
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/RescheduleHistoryEntry"
+        limit:
+          type: integer
+        nextCursor:
+          type: integer
+          nullable: true
+      required:
+        - history
+        - limit
+
+    # ── Review Schemas (create/get) ────────────────────────────────────────────
+
+    ReviewResponse:
+      type: object
+      properties:
+        review:
+          $ref: "#/components/schemas/Review"
+      required:
+        - review
+
+    CreateReviewRequest:
+      type: object
+      properties:
+        bookingId:
+          type: integer
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 1000
+      required:
+        - bookingId
+        - rating
+
+    # ── Invoice Schemas ────────────────────────────────────────────────────────
+
+    InvoiceStatus:
+      type: string
+      enum: [pending, paid, cancelled]
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+        bookingId:
+          type: integer
+        clientId:
+          type: integer
+        providerId:
+          type: integer
+        amountCents:
+          type: integer
+          description: Amount in cents (CAD)
+        status:
+          $ref: "#/components/schemas/InvoiceStatus"
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - bookingId
+        - clientId
+        - providerId
+        - amountCents
+        - status
+
+    InvoiceResponse:
+      type: object
+      properties:
+        invoice:
+          $ref: "#/components/schemas/Invoice"
+      required:
+        - invoice
+
+    InvoiceListResponse:
+      type: object
+      properties:
+        invoices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - invoices
+        - total
+        - limit
+        - offset
+
+    # ── Earnings Schemas ───────────────────────────────────────────────────────
+
+    EarningsSummaryResponse:
+      type: object
+      properties:
+        totalCents:
+          type: integer
+          description: Lifetime earnings in cents
+        completedBookings:
+          type: integer
+        pendingPayoutCents:
+          type: integer
+          description: Placeholder — Stripe Connect not yet active
+      required:
+        - totalCents
+        - completedBookings
+        - pendingPayoutCents
+
+    EarningsExportItem:
+      type: object
+      properties:
+        bookingId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        clientFirstName:
+          type: string
+        clientLastName:
+          type: string
+        serviceTitle:
+          type: string
+        amountCents:
+          type: integer
+      required:
+        - bookingId
+        - scheduledAt
+        - clientFirstName
+        - clientLastName
+        - serviceTitle
+        - amountCents
+
+    EarningsExportResponse:
+      type: object
+      properties:
+        provider:
+          type: object
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            title:
+              type: string
+              nullable: true
+            city:
+              type: string
+              nullable: true
+          required:
+            - firstName
+            - lastName
+        generatedAt:
+          type: string
+          format: date-time
+        totalCents:
+          type: integer
+        count:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EarningsExportItem"
+      required:
+        - provider
+        - generatedAt
+        - totalCents
+        - count
+        - items
+
+    # ── Provider Dashboard Schemas (owner-scoped, read-only) ───────────────────
+
+    ProviderDashboardBooking:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date-time
+        clientName:
+          type: string
+          description: Privacy-trimmed client label (first name + last initial)
+        serviceName:
+          type: string
+        location:
+          type: string
+          description: FSA/postal prefix when available, otherwise city — never the full address
+        status:
+          type: string
+          enum: [requested, confirmed, rescheduled]
+      required:
+        - id
+        - date
+        - clientName
+        - serviceName
+        - location
+        - status
+
+    ProviderPerformanceMetrics:
+      type: object
+      properties:
+        completionRate:
+          type: number
+          description: completed / resolved bookings (0–1); 0 when nothing is resolved
+        cancellationRate:
+          type: number
+          description: cancelled / resolved bookings (0–1)
+        noShowRate:
+          type: number
+          description: no-shows / resolved bookings (0–1)
+        repeatClientRate:
+          type: number
+          description: Share of clients with a completed booking who completed at least twice (0–1)
+        totalBookings:
+          type: integer
+        completedBookings:
+          type: integer
+        cancelledBookings:
+          type: integer
+        noShowBookings:
+          type: integer
+        resolvedBookings:
+          type: integer
+          description: completed + cancelled + no_show — the denominator for all rates
+      required:
+        - completionRate
+        - cancellationRate
+        - noShowRate
+        - repeatClientRate
+        - totalBookings
+        - completedBookings
+        - cancelledBookings
+        - noShowBookings
+        - resolvedBookings
+
+    ProviderSourceAttribution:
+      type: object
+      description: >-
+        Booking counts grouped by allowlisted acquisition source (`qr-card`
+        is exposed as `qrCard`). `unknown` counts bookings recorded without
+        attribution; `other` is reserved for future allowlist growth.
+      properties:
+        instagram:
+          type: integer
+        qrCard:
+          type: integer
+        text:
+          type: integer
+        facebook:
+          type: integer
+        website:
+          type: integer
+        other:
+          type: integer
+        unknown:
+          type: integer
+      required:
+        - instagram
+        - qrCard
+        - text
+        - facebook
+        - website
+        - other
+        - unknown
+
+    ProviderActivityItem:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [booking, reschedule, cancellation, no_show]
+        date:
+          type: string
+          format: date-time
+          description: When the booking last changed (booking updatedAt)
+        clientName:
+          type: string
+          description: Privacy-trimmed client label (first name + last initial)
+        serviceName:
+          type: string
+        status:
+          type: string
+      required:
+        - type
+        - date
+        - clientName
+        - serviceName
+        - status
+
+    ProviderEarningsPreview:
+      type: object
+      properties:
+        estimatedMonthlyCents:
+          type: integer
+          nullable: true
+          description: >-
+            Sum of service prices for bookings completed this month (marketplace
+            timezone); null when nothing completed this month. Estimate only —
+            payments are not enabled and no money moves through the platform.
+        available:
+          type: boolean
+          description: Always false until payments are enabled
+      required:
+        - estimatedMonthlyCents
+        - available
+
+    ProviderDashboardResponse:
+      type: object
+      properties:
+        providerId:
+          type: integer
+        providerName:
+          type: string
+        slug:
+          type: string
+          nullable: true
+        bookingPagePublished:
+          type: boolean
+        bookingUrl:
+          type: string
+          nullable: true
+          description: Canonical public booking path (/book/:slug) when published, otherwise null
+        todayBookingsCount:
+          type: integer
+        nextBooking:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            date:
+              type: string
+              format: date-time
+            clientName:
+              type: string
+            serviceName:
+              type: string
+            location:
+              type: string
+            status:
+              type: string
+              enum: [requested, confirmed, rescheduled]
+          required:
+            - id
+            - date
+            - clientName
+            - serviceName
+            - location
+            - status
+        upcomingBookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderDashboardBooking"
+        pendingReschedules:
+          type: object
+          description: >-
+            Client-initiated reschedule requests awaiting the provider's
+            confirm/decline (bookings currently in status `rescheduled`;
+            state machine rescheduled → confirmed | cancelled). Count plus
+            the privacy-trimmed soonest request only — reviewing and acting
+            stays in the existing bookings workflow.
+          properties:
+            count:
+              type: integer
+              minimum: 0
+            nextRequest:
+              type: object
+              nullable: true
+              description: >-
+                The pending request with the soonest requested time,
+                privacy-trimmed exactly like every other booking in this
+                payload (first name + last initial, FSA/city — never a full
+                address).
+              properties:
+                id:
+                  type: integer
+                date:
+                  type: string
+                  format: date-time
+                clientName:
+                  type: string
+                serviceName:
+                  type: string
+                location:
+                  type: string
+                status:
+                  type: string
+                  enum: [rescheduled]
+              required:
+                - id
+                - date
+                - clientName
+                - serviceName
+                - location
+                - status
+          required:
+            - count
+            - nextRequest
+        metrics:
+          $ref: "#/components/schemas/ProviderPerformanceMetrics"
+        sourceAttribution:
+          $ref: "#/components/schemas/ProviderSourceAttribution"
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProviderActivityItem"
+        earningsPreview:
+          $ref: "#/components/schemas/ProviderEarningsPreview"
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - providerId
+        - providerName
+        - slug
+        - bookingPagePublished
+        - bookingUrl
+        - todayBookingsCount
+        - nextBooking
+        - upcomingBookings
+        - pendingReschedules
+        - metrics
+        - sourceAttribution
+        - recentActivity
+        - earningsPreview
+        - updatedAt
+
+    ProviderMetricsResponse:
+      type: object
+      properties:
+        metrics:
+          $ref: "#/components/schemas/ProviderPerformanceMetrics"
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - metrics
+        - updatedAt
+
+    # ── Verification / Credential Schemas ──────────────────────────────────────
+
+    VerificationDocStatus:
+      type: string
+      enum: [pending, approved, rejected]
+
+    VerificationDoc:
+      type: object
+      properties:
+        id:
+          type: integer
+        providerId:
+          type: integer
+        docType:
+          type: string
+          description: e.g. "license", "insurance", "certification", "other"
+        fileName:
+          type: string
+          description: URL or descriptive reference to the credential document
+        status:
+          $ref: "#/components/schemas/VerificationDocStatus"
+        reviewerNotes:
+          type: string
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - providerId
+        - docType
+        - fileName
+        - status
+        - submittedAt
+
+    VerificationDocResponse:
+      type: object
+      properties:
+        doc:
+          $ref: "#/components/schemas/VerificationDoc"
+      required:
+        - doc
+
+    VerificationStatusResponse:
+      type: object
+      properties:
+        verificationStatus:
+          type: string
+          enum: [pending, under_review, approved, rejected]
+        docs:
+          type: array
+          items:
+            $ref: "#/components/schemas/VerificationDoc"
+      required:
+        - verificationStatus
+        - docs
+
+    SubmitVerificationDocRequest:
+      type: object
+      properties:
+        docType:
+          type: string
+          enum: [license, insurance, certification, other]
+        fileName:
+          type: string
+          minLength: 3
+          maxLength: 200
+          description: URL or descriptive reference to the document
+        notes:
+          type: string
+          maxLength: 1000
+          description: Optional context for the reviewer
+      required:
+        - docType
+        - fileName
+
+    PilotRetentionIntent:
+      type: string
+      enum: [yes, "no", unknown]
+
+    UpdatePilotRetentionRequest:
+      type: object
+      properties:
+        retentionIntent:
+          $ref: "#/components/schemas/PilotRetentionIntent"
+      required:
+        - retentionIntent
+
+    PilotRetentionResponse:
+      type: object
+      properties:
+        retention:
+          type: object
+          properties:
+            providerId:
+              type: string
+            retentionIntent:
+              $ref: "#/components/schemas/PilotRetentionIntent"
+            updatedAt:
+              type: string
+          required: [providerId, retentionIntent, updatedAt]
+      required: [retention]
+
+    PilotProviderMetrics:
+      type: object
+      properties:
+        providerId:
+          type: string
+        providerName:
+          type: string
+        approvalStatus:
+          type: string
+        activationStatus:
+          type: string
+          enum: [not_started, in_progress, ready_to_publish, published, first_booking, active]
+        onboardingMilestones:
+          type: object
+          properties:
+            accountCreated: { type: boolean }
+            profileCompleted: { type: boolean }
+            verificationSubmitted: { type: boolean }
+            approved: { type: boolean }
+            serviceAreaConfigured: { type: boolean }
+            serviceConfigured: { type: boolean }
+            availabilityConfigured: { type: boolean }
+            bookingPagePublished: { type: boolean }
+            firstBookingReceived: { type: boolean }
+          required: [accountCreated, profileCompleted, verificationSubmitted, approved, serviceAreaConfigured, serviceConfigured, availabilityConfigured, bookingPagePublished, firstBookingReceived]
+        bookingPagePublished:
+          type: boolean
+        firstBookingAt:
+          type: string
+          nullable: true
+        bookings:
+          type: integer
+        completions:
+          type: integer
+        cancellations:
+          type: integer
+        noShows:
+          type: integer
+        completionRate:
+          type: number
+          nullable: true
+        cancellationRate:
+          type: number
+          nullable: true
+        noShowRate:
+          type: number
+          nullable: true
+        repeatClientRate:
+          type: number
+          nullable: true
+        attributedBookings:
+          type: integer
+        retentionIntent:
+          $ref: "#/components/schemas/PilotRetentionIntent"
+        retentionUpdatedAt:
+          type: string
+          nullable: true
+        riskFlags:
+          type: array
+          items:
+            type: string
+      required: [providerId, providerName, approvalStatus, activationStatus, onboardingMilestones, bookingPagePublished, firstBookingAt, bookings, completions, cancellations, noShows, completionRate, cancellationRate, noShowRate, repeatClientRate, attributedBookings, retentionIntent, retentionUpdatedAt, riskFlags]
+
+    PilotMetricsResponse:
+      type: object
+      properties:
+        pilot:
+          type: object
+          properties:
+            startDate: { type: string }
+            endDate: { type: string }
+            isProjected: { type: boolean }
+            configWarning: { type: string, nullable: true }
+            providerTarget: { type: integer }
+            generatedAt: { type: string }
+          required: [startDate, endDate, isProjected, configWarning, providerTarget, generatedAt]
+        summary:
+          type: object
+          properties:
+            approvedProviders: { type: integer }
+            activatedProviders: { type: integer }
+            activationRate: { type: number, nullable: true }
+            providersWithPublishedBookingPage: { type: integer }
+            providersWithAttributedBookings: { type: integer }
+            totalBookings: { type: integer }
+            completedBookings: { type: integer }
+            cancelledBookings: { type: integer }
+            noShowBookings: { type: integer }
+            completionRate: { type: number, nullable: true }
+            cancellationRate: { type: number, nullable: true }
+            noShowRate: { type: number, nullable: true }
+            supportEscalations: { type: integer }
+            retentionYes: { type: integer }
+            retentionNo: { type: integer }
+            retentionUnknown: { type: integer }
+          required: [approvedProviders, activatedProviders, activationRate, providersWithPublishedBookingPage, providersWithAttributedBookings, totalBookings, completedBookings, cancelledBookings, noShowBookings, completionRate, cancellationRate, noShowRate, supportEscalations, retentionYes, retentionNo, retentionUnknown]
+        providers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PilotProviderMetrics"
+        sourceAttribution:
+          type: array
+          items:
+            type: object
+            properties:
+              source: { type: string }
+              bookings: { type: integer }
+              percentage: { type: number, nullable: true }
+            required: [source, bookings, percentage]
+      required: [pilot, summary, providers, sourceAttribution]
+
+    AdminVerificationQueueItem:
+      type: object
+      properties:
+        doc:
+          $ref: "#/components/schemas/VerificationDoc"
+        provider:
+          type: object
+          properties:
+            id:
+              type: integer
+            userId:
+              type: integer
+            firstName:
+              type: string
+            lastName:
+              type: string
+            email:
+              type: string
+            city:
+              type: string
+            verificationStatus:
+              type: string
+          required:
+            - id
+            - userId
+            - firstName
+            - lastName
+            - email
+            - city
+            - verificationStatus
+      required:
+        - doc
+        - provider
+
+    AdminVerificationQueueResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminVerificationQueueItem"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - items
+        - total
+        - limit
+        - offset
+
+    ReviewVerificationDocRequest:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/VerificationDocStatus"
+        reviewerNotes:
+          type: string
+        updateProviderStatus:
+          type: string
+          enum: [pending, under_review, approved, rejected]
+          description: Optionally update the provider's overall verification status
+      required:
+        - status
+
+    # ── Reviewer Decision Schemas (admin only) ─────────────────────────────────
+
+    ApproveProviderApplicationRequest:
+      type: object
+      properties:
+        reviewerNotes:
+          type: string
+          description: Optional reviewer-private notes. Never exposed to providers.
+
+    RejectProviderApplicationRequest:
+      type: object
+      properties:
+        rejectionReason:
+          type: string
+          minLength: 1
+          description: Provider-visible reason surfaced to the applicant.
+        reviewerNotes:
+          type: string
+          description: Optional reviewer-private notes. Never exposed to providers.
+      required:
+        - rejectionReason
+
+    AdminProviderApplicationView:
+      type: object
+      description: |
+        Admin-scoped provider-application projection returned by reviewer
+        decision endpoints. Includes reviewer-private fields (`reviewedBy`,
+        `reviewerNotes`); it is never returned on provider-facing surfaces.
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        providerProfileId:
+          type: integer
+        status:
+          $ref: "#/components/schemas/ProviderApplicationStatus"
+        currentStep:
+          $ref: "#/components/schemas/ProviderApplicationStep"
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewedBy:
+          type: integer
+          nullable: true
+        reviewerNotes:
+          type: string
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - providerProfileId
+        - status
+        - currentStep
+        - submittedAt
+        - reviewedAt
+        - reviewedBy
+        - reviewerNotes
+        - rejectionReason
+        - createdAt
+        - updatedAt
+
+    AdminProviderApplicationResponse:
+      type: object
+      properties:
+        application:
+          $ref: "#/components/schemas/AdminProviderApplicationView"
+      required:
+        - application

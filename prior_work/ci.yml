@@ -1,0 +1,443 @@
+# CI matrix for roadmap item 10 — deterministic checks only.
+#
+# Honesty notes (do not remove):
+# - No job deploys, touches a managed database, or needs production secrets.
+#   All database jobs use a disposable PostgreSQL service container that is
+#   destroyed with the runner.
+# - Native-device behavior (iOS/Android simulators, physical devices, push
+#   taps, cold starts, permissions, device timezones, deep links) CANNOT run
+#   here and is NOT claimed. See docs/native-device-checklist.md.
+# - The Expo export jobs prove that the mobile bundles compile and export
+#   deterministically. They are NOT native validation.
+# - `prevented-bookings-daily-rebuild.test.ts` contains a Session-080
+#   changed-file-scope guard that intentionally fails on any ref whose tree
+#   differs from main. It runs as a clearly-labeled non-gating step so the
+#   guard is preserved without fabricating a pass.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+  EXPO_NO_TELEMETRY: '1'
+
+jobs:
+  typecheck:
+    name: Full workspace typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+
+  api-build:
+    name: API build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @workspace/api-server run build
+      - name: Build artifact exists
+        run: test -f artifacts/api-server/dist/index.mjs
+
+  deploy-build:
+    name: Railway-parity deploy build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # Same command Railway runs (railway.json / nixpacks.toml).
+      - run: pnpm run build:deploy
+      - name: Deploy artifacts exist
+        run: |
+          test -f artifacts/api-server/dist/index.mjs
+          test -f artifacts/web/dist/public/index.html
+
+  api-tests:
+    name: API tests (disposable PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: oncallfoot
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/oncallfoot
+      JWT_SECRET: ci-only-dummy-secret
+      PORT: '8080'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Apply schema and idempotent seed (twice)
+        run: |
+          pnpm run db:push
+          pnpm run seed
+          pnpm run seed
+      - name: Build and start API server
+        run: |
+          pnpm --filter @workspace/api-server run build
+          (cd artifacts/api-server && NODE_ENV=production node --enable-source-maps ./dist/index.mjs &)
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/api/healthz && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/api/healthz
+      - name: Unit — booking state machine + reschedule policy (incl. DST deadline math)
+        run: pnpm --filter @workspace/api-server run test
+      - name: Integration — lifecycle, availability, retention, notifications, events
+        run: |
+          cd artifacts/api-server
+          for s in test:lifecycle test:reviews test:care-history test:role-state \
+                   test:provider-application test:provider-resubmission test:provider-status \
+                   test:availability test:onboarding test:provider-history \
+                   test:provider-notifications test:reviewer-decisions test:provider-readiness \
+                   test:first-booking test:client-retention test:marketplace-events \
+                   test:booking-page test:service-area test:cancellation \
+                   test:provider-dashboard test:registration test:verification \
+                   test:activation-status test:return-path-drift test:route-read-drift test:pilot-metrics test:vacation-ranges; do
+            echo "::group::$s"
+            pnpm run "$s"
+            echo "::endgroup::"
+          done
+      - name: Integration — unscripted suites (fresh DB, single run)
+        run: |
+          cd artifacts/api-server
+          for f in availability-enforced-booking payments-foundation listing-preview.integration \
+                   prevented-booking-events.integration replay-safety-controls; do
+            echo "::group::$f"
+            node --import tsx/esm --test "src/__tests__/$f.test.ts"
+            echo "::endgroup::"
+          done
+      # prevented-booking-replay.integration.test.ts runs in its own job
+      # (api-replay-tests): its DLQ subtests consume fixed seeded slot-pool
+      # positions, so it needs a database no other booking suite has touched.
+      - name: NON-GATING — daily-rebuild suite (contains branch-scope guard that fails by design off main)
+        continue-on-error: true
+        run: |
+          git fetch origin main:refs/remotes/origin/main --depth=1 || true
+          cd artifacts/api-server
+          node --import tsx/esm --test src/__tests__/prevented-bookings-daily-rebuild.test.ts
+
+  api-replay-tests:
+    name: Replay + DLQ isolation tests (dedicated disposable PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: oncallfoot
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/oncallfoot
+      JWT_SECRET: ci-only-dummy-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Schema and seed (booking-free slot pool required by the suite)
+        run: |
+          pnpm run db:push
+          pnpm run seed
+      - name: Replay validation, outage recovery, DLQ isolation
+        run: |
+          cd artifacts/api-server
+          node --import tsx/esm --test src/__tests__/prevented-booking-replay.integration.test.ts
+
+  authz-concurrency:
+    name: Authorization, concurrency and idempotency (disposable PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: oncallfoot
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/oncallfoot
+      JWT_SECRET: ci-only-dummy-secret
+      PORT: '8080'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Schema, seed, server
+        run: |
+          pnpm run db:push
+          pnpm run seed
+          pnpm --filter @workspace/api-server run build
+          (cd artifacts/api-server && NODE_ENV=production node --enable-source-maps ./dist/index.mjs &)
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/api/healthz && break
+            sleep 1
+          done
+      - name: Authorization hardening (role gates, ownership, non-leak 403/404)
+        run: pnpm --filter @workspace/api-server run test:authorization
+      - name: Booking concurrency (races, ordered transitions, reschedule cycle)
+        run: pnpm --filter @workspace/api-server run test:integration
+      - name: Booking pressure (overlap + duplicate idempotency under load)
+        run: pnpm --filter @workspace/api-server run test:pressure
+      - name: Rescheduling enforcement (ownership, state gating, overlap, duplicates)
+        run: pnpm --filter @workspace/api-server run test:rescheduling
+      - name: Consent proposals (idempotency keys, single-pending, stale accept, races)
+        run: pnpm --filter @workspace/api-server run test:proposals
+
+  migration-checks:
+    name: Migration checks (disposable PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: oncallfoot
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/oncallfoot
+      JWT_SECRET: ci-only-dummy-secret
+      PORT: '8080'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Fresh schema application
+        run: pnpm run db:push
+      - name: Schema re-application is a no-op (idempotent)
+        run: pnpm run db:push
+      - name: Seed twice (idempotency)
+        run: |
+          pnpm run seed
+          pnpm run seed
+      - name: Frozen additive migration artifacts are intact (hash + no destructive DDL)
+        run: |
+          sha256sum docs/migrations/*.sql
+          if grep -il 'DROP TABLE\|DROP COLUMN\|TRUNCATE\|DELETE FROM' docs/migrations/*.sql; then
+            echo 'destructive statement found in a frozen additive artifact'
+            exit 1
+          fi
+      - name: Startup after migration
+        run: |
+          pnpm --filter @workspace/api-server run build
+          (cd artifacts/api-server && NODE_ENV=production node --enable-source-maps ./dist/index.mjs &)
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/api/healthz && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/api/healthz
+
+  web-tests:
+    name: Web tests (Vitest + Testing Library)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @workspace/web run test
+
+  accessibility:
+    name: Accessibility checks (axe + a11y assertions, jsdom level)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # jsdom-level a11y: roles, names, labels, focus, dialog semantics,
+      # non-color status, axe scans. Not a substitute for manual AT testing.
+      - run: pnpm --filter @workspace/web run test:a11y
+
+  timezone-dst:
+    name: Timezone and DST tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Web marketplace-timezone + DST boundary display
+        run: pnpm --filter @workspace/web run test:tz
+      - name: API reschedule-policy DST deadline math (pure)
+        run: pnpm --filter @workspace/api-server run test
+
+  mobile-typecheck:
+    name: Mobile typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # Build the referenced lib projects (d.ts outputs) first.
+      - run: pnpm run typecheck:libs
+      - run: pnpm --filter @workspace/mobile run typecheck
+
+  expo-export-ios:
+    name: Expo iOS static export (NOT native validation)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @workspace/mobile run export:ios
+      - name: Export artifact exists
+        run: test -f artifacts/mobile/dist/export-ios/metadata.json
+
+  expo-export-android:
+    name: Expo Android static export (NOT native validation)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @workspace/mobile run export:android
+      - name: Export artifact exists
+        run: test -f artifacts/mobile/dist/export-android/metadata.json
+
+  smoke:
+    name: Smoke — health, auth, route registration, artifacts (disposable PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: oncallfoot
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/oncallfoot
+      JWT_SECRET: ci-only-dummy-secret
+      PORT: '8080'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Build the deployable bundle (web + API)
+        run: pnpm run build:deploy
+      - name: Schema + seed + start the single-service bundle
+        run: |
+          pnpm run db:push
+          pnpm run seed
+          (NODE_ENV=production node --enable-source-maps artifacts/api-server/dist/index.mjs &)
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/api/healthz && break
+            sleep 1
+          done
+      - name: Health endpoint
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/healthz)
+          test "$code" = "200"
+      - name: Seeded login works (auth path registered)
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"jane@oncallfoot.com","password":"demo1234"}')
+          test "$code" = "200"
+      - name: Critical booking/rescheduling routes are registered (401, never 404)
+        run: |
+          for route in 'GET /api/bookings' \
+                       'POST /api/bookings' \
+                       'PATCH /api/bookings/1/status' \
+                       'POST /api/bookings/1/reschedule-requests' \
+                       'GET /api/bookings/1/reschedule-requests' \
+                       'GET /api/bookings/1/rescheduling-history' \
+                       'GET /api/bookings/1/cancellation-preview' \
+                       'GET /api/bookings/1/outcome-history' \
+                       'POST /api/support/escalations' \
+                       'GET /api/support/bookings/1/escalations' \
+                       'PATCH /api/support/escalations/1'; do
+            method="${route%% *}"; path="${route#* }"
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X "$method" "http://127.0.0.1:8080$path" \
+              -H 'Content-Type: application/json' -d '{}')
+            echo "$method $path -> $code"
+            test "$code" = "401"
+          done
+      - name: Web SPA artifact generated and served
+        run: |
+          test -f artifacts/web/dist/public/index.html
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/)
+          test "$code" = "200"
+
+  secret-scan:
+    name: Secret scan (deny-list, tracked files)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/secret-scan.sh
+
+  git-diff-check:
+    name: git diff --check (whitespace/conflict markers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Diff check against the merge base
+        run: |
+          if [ -n "${GITHUB_BASE_REF:-}" ]; then
+            git diff --check "origin/${GITHUB_BASE_REF}...HEAD"
+          else
+            git diff --check HEAD^ HEAD
+          fi
