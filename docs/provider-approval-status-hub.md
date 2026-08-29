@@ -67,11 +67,25 @@ rejected     → review_update_needed
 suspended    → contact_support
 under_review → wait_for_review        (setup routes are approval-gated,
                                        so waiting is the honest guidance)
-approved     → first missing of:
+approved, but verification not yet approved (pilot finding M-1):
+             → review_update_needed   when verification was rejected
+                                      (resubmission is accessible), else
+             → wait_for_review        (the verification decision is still
+                                       pending and every setup route is
+                                       behind requireApprovedProvider —
+                                       application AND verification approved)
+fully approved → first missing of:
                complete_profile → configure_service_area → add_service →
                set_availability → publish_booking_page → share_booking_page
                → all_set
 ```
+
+Invariant (recorded 2026-08-29, pilot finding M-1): every emitted
+`nextAction` must resolve to a destination the provider is authorized to use
+in the same lifecycle state. The activation checklist applies the same rule —
+approved-only deep links render only once the server-derived `approved`
+milestone (C1) is true, so no hub link can land on a 403 while the
+verification decision is pending.
 
 The client maps each code to a label, a reason ("why this matters"
 microcopy), and a deep link to the **existing** destination
