@@ -3578,3 +3578,78 @@ ledger + next-steps updated. L-1/L-2 remain deferred (LOW).
 **Delivery:** branch `fix/activation-next-action-verification-gate`,
 PR "fix: align provider next action with verification gate", squash-merge
 after CI. Product fix kept separate from any docs-only PR per pilot policy.
+
+---
+
+### Session — Canonical prototype and isolated instance operating model (2026-08-29)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (docs/continuity only — read-only architecture task)
+
+**Baseline:** `main` = `cd98b7cdb93c169b8b2d2cd52268e8923f2b40ec` (PR #74), clean tree.
+
+**Mission:** document and preserve the long-term operating model so no future
+agent confuses the prototype with a shared production marketplace, one client
+instance with another, canonical source changes with instance configuration,
+deployment metadata with secrets, local pilot data with real provider/client
+data, or vertical customization with core scheduling/privacy/authorization/
+booking changes.
+
+**Decision recorded:** OnCall Foot is the **canonical prototype** and
+reference implementation. Every future provider/client deployment is an
+**isolated instance** = one GitHub account/repository + one Railway
+account/project + one Supabase project/database + one provider/client dataset
++ one deployment configuration + one tracked release/migration/backup record.
+Deliberate early operating model — NOT multi-tenancy, NOT an accidental fork
+strategy, NOT a shared database/org/project assumption.
+
+**Deliverables (docs-only):**
+- `docs/canonical-prototype-and-instance-model.md` (new, authoritative):
+  decision statement; benefits/tradeoffs of isolation; canonical-core vs.
+  per-instance-configuration vs. never-vary-casually table; account ownership
+  models (recommended: provider-owned with documented platform-admin support
+  access) + pre-provisioning ownership questions; non-secret instance-registry
+  column spec (Google Sheet initially — no secrets/PII/booking data ever);
+  12-step provisioning lifecycle + readiness rule; release/update model
+  (versioned canonical releases, no free-evolving forks); backup/migration/
+  recovery rules on the real stack (Railway + Supabase + GitHub; Supabase Free
+  backup coverage never assumed; fresh private logical export before DDL;
+  frozen hash-verified additive artifacts via the release gate; deploy
+  separate from migration); scaling review thresholds (1 / 2–5 / 6–20 /
+  21–40 / >40); vertical-neutral vocabulary guardrails; future
+  marketing-context notes; explicit non-goals.
+- `docs/instance-provisioning-checklist.md` (new): practical one-instance
+  checkbox runbook grouped Ownership / Repository / Railway / Supabase /
+  Secrets / Backup-recovery / Migration state / Configuration / Domain /
+  Privacy / Provider-client smoke test / Release-version record /
+  Handover-offboarding. Generic placeholders only; no credentials, no
+  provider-specific values.
+- Append-only continuity notes: `docs/product-vision.md` (instance-model
+  section), `docs/github-continuation.md` (canonical vs. instance repos
+  boundary), `docs/graphify-continuity-workflow.md` (Graphify maps the
+  canonical repo only — never instance repos/registries/accounts/dumps),
+  `docs/NEXT-STEPS.md` (phase record), `docs/TODO-LEDGER.md` (dated rows:
+  model DONE; registry sheet OPEN — owner action; first real instance GATED
+  behind the canonical production gate).
+
+**Graphify:** CLI 0.9.51 available locally (uv tool). Continuity queries run
+against the committed graph and source-verified before use; no contradictions
+with the documented boundary found in docs or code (`rg` sweep for
+canonical/instance/tenant/supabase/railway confirmed tenant models remain
+explicitly deferred in `docs/provider-dashboard-future-boundaries.md`). Graph
+refresh NOT performed — deliberately: extraction is code-only and no code
+changed this session; baseline `c647d4d` remains valid and non-stale for code.
+
+**Boundaries held:** managed/production database NOT accessed; production NOT
+deployed; no GitHub/Railway/Supabase accounts, repositories, or projects
+created; no migrations applied; no data moved; no multi-tenancy implemented;
+no secrets requested, printed, stored, or committed; no client instance added
+to Graphify; no `conflict_*` branch touched; no force-push/reset/rebase.
+
+**Validation:** typecheck / build / build:deploy / root test suite /
+`git diff --check` / `scripts/secret-scan.sh` — results recorded in the PR.
+
+**Delivery:** branch `docs/canonical-instance-operating-model`,
+PR "docs: define canonical prototype and isolated instance model",
+squash-merge after CI. Next roadmap gate unchanged: complete production
+backup/export + approved Gate-B migration/deployment verification for the
+canonical prototype before provisioning any real client instance.
