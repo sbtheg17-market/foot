@@ -3435,3 +3435,83 @@ remains a post-merge TODO.
 **Docs appended:** `provider-approval-status-hub.md`, `ux-guidelines.md`, `NEXT-STEPS.md`, `TODO-LEDGER.md`. `api-routes.md` untouched (no API change).
 
 **Next best action:** clean-device pilot usability / release-readiness loop (fresh provider, clean profile, phone viewport, full journey through booking + reschedule), fixing only repeated or high-severity friction; then the owner-ready Gate-B Railway checklist and the separately authorized Gate-B migration + deploy + live provider journey verification.
+
+---
+
+### Session — Clean-device Provider–Client Pilot Journey Validation (2026-08-29)
+**Agent:** E1 Agent (Emergent, continuation of the prior credit-exhausted Neo)
+**Scope:** `L` (validation + evidence + docs; Graphify refresh; no product code change)
+
+**Continuity / recovery inspection (Phase 0):**
+- Repo `sbtheg17-market/foot`; `git rev-parse --show-toplevel` = `/app`; working
+  tree clean; `main` == `origin/main` == `c647d4da76ad6bcf59d1f4a99d4026a0ef326ba0`
+  (PR #72, provider status hub progress). No `docs/pilot-*` branch on origin; no
+  uncommitted prior-agent pilot artifact on any ref — a fresh `main` checkout.
+  Nothing was reset, cleaned, rebased, force-pushed, or overwritten.
+- Verified roadmap baseline (PR #67 emergency openings … PR #72 status hub
+  progress) matches the recorded ledger. The documented "next" item
+  (`docs/TODO-LEDGER.md` / `docs/NEXT-STEPS.md`: clean-device pilot usability /
+  release-readiness loop) was the approved task — executed this session.
+
+**What was done:**
+- Authored the repeatable protocol + first executed run:
+  `docs/pilot/provider-client-journey-validation.md` (baseline SHA, environment,
+  safety statement, severity/evidence classes, triage rules, release gate,
+  Script A + Script B tables, coverage tally, isolation note, findings,
+  evidence-based next build, Graphify status, cross-vertical note).
+- Ran the full journey on a disposable local PostgreSQL 15 + the built
+  single-service bundle on `:8080` with fresh isolated provider/client accounts.
+  Provider journey (signup → logout/re-login → truthful status + one
+  server-derived next action → profile → service → service area/FSA → weekly
+  availability → emergency opening → time off + mutual-exclusion 409 → publish →
+  public page/QR → dashboard → pending-reschedule surfacing): **PASS**. Client
+  journey (public page → eligibility eligible/ineligible → slots → emergency
+  urgent slot → time-off 0 slots → book w/ source attribution → confirm →
+  client direct reschedule → provider consent-first proposal → decline →
+  truthful state → cancellation preview / no-show / escalation): **PASS**.
+- Confirmed the intended trust boundary: a brand-new provider becomes bookable
+  only after one **admin approval** (application + verification) — otherwise fully
+  self-serve.
+- Test tally (disposable PG only): typecheck / build / build:deploy / secret-scan
+  / diff-check clean; web 240 + a11y 33 + tz 10; API unit 70; scripted 26/27
+  (`test:lifecycle` **14/14 in isolation** — the shared-DB run's single failure
+  was a concurrency/slot-pool artifact from the manual journey running against the
+  same DB, re-verified clean on `oncallfoot_iso`); authz/concurrency
+  7/16/13/12/17; unscripted 6/6/9/9/27; replay 14 on `oncallfoot_replay`
+  (booking-free). Desktop `smoke:real-browser` **13/13**; `smoke:mobile-emulation`
+  **9/9** (iPhone 13 WebKit + Pixel 5 Chromium, 3G throttle, deep links,
+  PST→Toronto tz).
+- **Graphify refresh (required deliverable):** code-only local AST rebuild via the
+  graphify Python API at baseline `c647d4d` → `graphify-out/{graph.json,
+  GRAPH_REPORT.md, graph.html, manifest.json}` = 4,796 nodes / 8,709 edges / 379
+  communities. `.graphifyignore` honored (no `.env`/secrets/runtime DB/logs/caches
+  indexed); no LLM, no managed-DB introspection, no external services, no hooks/CI
+  gate. Three continuity queries run and source-verified before use. SQL migration
+  files not parsed (optional `tree_sitter_sql` absent) — acceptable.
+
+**Findings:** 0 BLOCKER, 0 HIGH. M-1 (MEDIUM, deferred): activation hub can
+surface `nextAction=configure_service_area` when the application is approved but
+verification is still `under_review`, while `PUT /providers/me/service-area`
+requires full approval (403 in that window) — narrow future fix, no change this
+phase. L-1 (LOW): verification `notes` stored in the doc `reviewerNotes` column
+(admin-only visible; no provider leak). L-2 (LOW): two availability routes by
+application state. No privacy/a11y/mobile-only failures.
+
+**Boundaries held:** managed/production database NOT accessed; production deploy
+NOT performed (NOT authorized); no payments/reminders/ranking/CRM/organization/
+recurring-time-off/SEO/social work; no schema/migration change; no product-code
+change; no provider-facing schema-drift banner; no `conflict_*` branch touched;
+no force-push/reset/rebase.
+
+**Files changed (docs/tests-only PR):** `docs/pilot/provider-client-journey-validation.md`
+(new), `docs/test-coverage-matrix.md`, `docs/NEXT-STEPS.md`, `docs/TODO-LEDGER.md`,
+`.agents/LOG.md`, and the refreshed `graphify-out/` artifacts.
+
+**Recommended next build (evidence-based):** complete the managed-DB release gate
+(backup/restore evidence + authorized read-only catalog verification), then apply
+the frozen Gate-B migrations, deploy, and re-run this exact protocol on production
+with a brand-new provider + client — before any SEO/marketing/outreach work.
+
+**Next best action:** open PR `docs/pilot-provider-client-journey-validation`
+(docs + tests + Graphify refresh only), let CI go green, squash-merge. Any future
+fix for M-1 must be a separate, tightly scoped product PR.

@@ -258,3 +258,34 @@ production secrets, no deploy, no managed DB:
 - Real-browser E2E (Playwright): not added; jsdom-level only (ledger follow-up).
 - Reminders, payments, service-area enforcement, managed-DB migration: deferred
   (see `docs/TODO-LEDGER.md`).
+
+---
+
+## 9. Addendum — 2026-08-29: Clean-device pilot journey validation run
+
+Recorded during the provider–client pilot journey validation
+(`docs/pilot/provider-client-journey-validation.md`), baseline `main`
+`c647d4d`. All results are disposable-PostgreSQL-only; managed DB NOT accessed;
+production NOT deployed. This addendum maps the coverage actually exercised this
+run — it adds no new test framework.
+
+| Layer / area | Command(s) | Result this run |
+|---|---|---|
+| Static gates | `typecheck`, `build`, `build:deploy`, `git diff --check`, `scripts/secret-scan.sh` | PASS |
+| Web unit/component | `@workspace/web test` | 240/240 PASS |
+| Web accessibility (jsdom) | `@workspace/web test:a11y` | 33/33 PASS |
+| Web timezone/DST | `@workspace/web test:tz` | 10/10 PASS |
+| API unit (state machine + reschedule policy incl. DST) | `@workspace/api-server test` | 70/70 PASS |
+| API scripted integration (26 suites) | full CI `api-tests` list | 26/26 PASS |
+| API lifecycle (concurrency/slot-pool sensitive) | `test:lifecycle` | 14/14 PASS in isolation (FAILS only on a shared DB with concurrent writers — env artifact, not a defect) |
+| API authorization/concurrency | `test:authorization` 7, `test:integration` 16, `test:pressure` 13, `test:rescheduling` 12, `test:proposals` 17 | PASS |
+| API unscripted | `availability-enforced-booking` 6, `payments-foundation` 6, `listing-preview.integration` 9, `prevented-booking-events.integration` 9, `replay-safety-controls` 27 | PASS |
+| API replay/DLQ (own booking-free DB) | `prevented-booking-replay.integration` | 14 PASS |
+| Real-browser E2E (desktop Chromium) | `smoke:real-browser` | 13/13 PASS |
+| Native-device EMULATION (390-class) | `smoke:mobile-emulation` (iPhone 13 WebKit + Pixel 5 Chromium, 3G throttle) | 9/9 PASS |
+| Native hardware devices | — | NOT RUN (no device/simulator; see `docs/native-device-checklist.md`) |
+| Managed-DB catalog / production journey | — | NOT RUN (out of scope / not authorized) |
+
+Findings from the run: 0 BLOCKER, 0 HIGH; M-1 (MEDIUM, deferred), L-1/L-2
+(LOW). Full detail and the repeatable protocol live in
+`docs/pilot/provider-client-journey-validation.md`.
