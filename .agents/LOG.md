@@ -3653,3 +3653,47 @@ PR "docs: define canonical prototype and isolated instance model",
 squash-merge after CI. Next roadmap gate unchanged: complete production
 backup/export + approved Gate-B migration/deployment verification for the
 canonical prototype before provisioning any real client instance.
+
+---
+
+### Session — Private Supabase backup/export script + guide (2026-08-29)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (scripts/docs only — code generation, nothing executed against any database)
+
+**Baseline:** `main` = `e965797976ea6cb543ac98c9a3fb1a03217384ea` (PR #75), clean tree.
+
+**Deliverables:**
+- `scripts/backup-supabase-instance.sh` (bash, strict mode): reads the
+  connection string only from `SUPABASE_DB_URL` (explicit `DATABASE_URL`
+  fallback), validates it and `pg_dump` availability, optional
+  `--output-dir` (created if missing), timestamped UTC
+  `supabase-backup-YYYY-MM-DD-HHMM.sql` (seconds suffix if re-run within the
+  same minute — never overwrites), `pg_dump --schema=public --format=plain
+  --no-owner --no-privileges`, exit-code capture, non-empty-file
+  verification, human-readable summary, Git-working-tree warning, registry
+  reminder. The connection string is never printed, logged, or stored.
+- `scripts/backup-supabase-instance.ps1`: PowerShell equivalent with the
+  same behavior.
+- `docs/backup-supabase-instance.md`: purpose; pg_dump install per platform;
+  obtaining the Supabase URI; secure env-var setup (session-only, both
+  shells); run commands + expected output; verification steps; secure
+  storage options; registry metadata columns (`backup_method`,
+  `backup_verified_date`, `backup_artifact_label`, `backup_location_note`);
+  explicit never-commit / never-share / never-store-secrets warnings. All
+  examples use placeholder values and the allow-listed `db.example.com`
+  host — no real project names, regions, or identifiers.
+
+**Boundaries held:** no Supabase/Railway/GitHub-account access beyond the
+connected repo; no secrets requested/printed/stored/committed; no database
+touched; the script was NOT executed against any database (syntax check
+only); no plan/backup feature assumed (docs say verify per instance); no
+production deployment.
+
+**Validation:** `bash -n` syntax check PASS; typecheck / build /
+build:deploy PASS; `git diff --check` clean; `scripts/secret-scan.sh` clean.
+Managed DB NOT accessed.
+
+**Delivery:** branch `scripts/supabase-backup-tool`, PR "scripts: add
+private Supabase backup/export script and docs", squash-merge after CI.
+Next: the operator runs the script against the OnCall Foot Supabase project,
+records backup metadata in the registry, then proceeds to Gate-B.
