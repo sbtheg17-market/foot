@@ -112,3 +112,23 @@ That reaction comes from three things:
 3. The visual quality signals it can be trusted
 
 Every screen, every component, every copy string should be judged against that reaction.
+
+---
+
+## Canonical Prototype and Isolated Instance Model (added 2026-08-29)
+
+OnCall Foot is the **canonical prototype** and reference implementation of
+this vision — not a shared customer database and not a multi-tenant
+marketplace. Each future provider business is served by a deliberately
+**isolated instance**: one GitHub account/repository, one Railway
+account/project, one Supabase project/database, one provider/client dataset,
+one deployment configuration, one tracked release/migration/backup record.
+
+The core vocabulary stays vertical-neutral (provider, client, service,
+service territory, availability, schedule exception, booking page,
+appointment, application, readiness, next action). Vertical changes are
+vocabulary, branding, and configuration — never changes to core security,
+booking, privacy, or schedule behavior.
+
+Authoritative operating model: `docs/canonical-prototype-and-instance-model.md`
+and `docs/instance-provisioning-checklist.md`.

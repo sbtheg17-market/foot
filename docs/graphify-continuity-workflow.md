@@ -187,3 +187,14 @@ directly. No build/test/deploy script depends on Graphify.
   explicit privacy approval.
 - The graph goes stale: `GRAPH_REPORT.md` records the commit it was built
   from — compare with `git rev-parse HEAD`.
+
+## Instance-model scope note (added 2026-08-29)
+
+Graphify maps the **canonical prototype repository only**
+(`sbtheg17-market/foot` — OnCall Foot). Client/provider instances — the
+isolated per-provider GitHub/Railway/Supabase deployments defined in
+`docs/canonical-prototype-and-instance-model.md` — are **never** added to
+this graph. Do not index instance repositories, the instance registry,
+external account data, secret files, database dumps, browser artifacts,
+screenshots, `.env` files, credentials, or client data. `.graphifyignore`
+remains the boundary for what may be extracted here.

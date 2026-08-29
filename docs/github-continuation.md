@@ -132,3 +132,17 @@ Never commit:
 - database connection strings;
 - uploaded prompts, critiques, or temporary handoff files;
 - private provider documents, reviewer notes, care notes, or personal data.
+
+## Canonical repository vs. isolated instance repositories (added 2026-08-29)
+
+`sbtheg17-market/foot` is the **canonical prototype repository** (OnCall
+Foot). Future provider/client instances live in **separate GitHub accounts
+and repositories** created from an approved canonical release tag/template —
+they are never branches of this repository, never forks tracking `main`, and
+never shared write targets. Generalizable, security-, privacy-, scheduling-,
+or conversion-sensitive changes are developed and tested here first, then
+reach instances as versioned releases. Instance repositories must never be
+added as remotes of this clone, and instance credentials or client data must
+never be committed here. See
+`docs/canonical-prototype-and-instance-model.md` and
+`docs/instance-provisioning-checklist.md`.

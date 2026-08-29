@@ -525,3 +525,11 @@ validation + docs phase (baseline `main` `c647d4d`). Authoritative record:
 | M-1: activation-hub next action vs. verification gate | **CLOSED 2026-08-29** | Server fix in `deriveActivationNextAction`: an approved application that has not passed the full approved-provider gate (application AND verification approved) now emits `wait_for_review`, or `review_update_needed` when verification was rejected (resubmission is accessible). Checklist deep links key on the server-derived `approved` milestone; the `review_update_needed` anchor target exists in both producing states. Invariant regression-tested table-driven against live routes (`test:activation-status` 13/13; web 242/242; drift suites green). Branch `fix/activation-next-action-verification-gate`. |
 | L-1: verification `notes` in `reviewerNotes` column | DEFERRED (LOW) | Unchanged. |
 | L-2: two availability routes by application state | DOCUMENTED (LOW) | Unchanged. |
+
+### Canonical prototype and isolated instance model — documented (2026-08-29)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Canonical prototype + isolated instance operating model | DONE 2026-08-29 | Docs-only (branch `docs/canonical-instance-operating-model`): `docs/canonical-prototype-and-instance-model.md` (decision statement, benefits/tradeoffs, core-vs-configuration boundary, ownership model, non-secret registry spec, provisioning lifecycle, update/release model, backup/migration/recovery rules, scaling thresholds, cross-vertical guardrails, explicit non-goals) + `docs/instance-provisioning-checklist.md`; append-only notes in `docs/product-vision.md`, `docs/github-continuation.md`, `docs/graphify-continuity-workflow.md`, `docs/NEXT-STEPS.md`, `.agents/LOG.md`. No runtime/schema/deploy change. |
+| Instance registry (Google Sheet, non-secret metadata only) | OPEN — owner action | Owner creates the sheet from the column spec in `docs/canonical-prototype-and-instance-model.md` §E. Must never contain secrets, connection strings, PII, or booking data. |
+| First real isolated client instance | GATED | Only after the canonical production gate: backup/export evidence → Gate-B apply → deploy → production pilot protocol re-run. Then provision via `docs/instance-provisioning-checklist.md`. |
