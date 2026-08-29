@@ -157,13 +157,19 @@ export default function ProviderApplicationStatus() {
 
   // ── Loaded ───────────────────────────────────────────────────────────────
   const isRejected = activation.applicationStatus === 'rejected';
+  // Server truth only: an approved application whose verification needs an
+  // update — the review_update_needed CTA anchors here in both states.
+  const verificationNeedsUpdate =
+    activation.applicationStatus === 'approved' &&
+    activation.verification.status === 'needs_update';
 
   return (
     <HubShell>
       <ActivationHero firstName={me.user.firstName} activation={activation} />
 
-      {/* Rejected-application recovery (provider-visible reason only) */}
-      {isRejected && (
+      {/* Recovery feedback: application rejection (provider-visible reason
+          only) or a verification document that needs an update. */}
+      {(isRejected || verificationNeedsUpdate) && (
         <section
           id="activation-feedback"
           aria-labelledby="activation-feedback-heading"
@@ -171,12 +177,20 @@ export default function ProviderApplicationStatus() {
           className="rounded-2xl border border-destructive/40 bg-destructive/5 p-5"
         >
           <h2 id="activation-feedback-heading" className="text-xs font-semibold uppercase tracking-[0.12em] text-destructive">
-            Reviewer feedback
+            {isRejected ? 'Reviewer feedback' : 'Verification update needed'}
           </h2>
-          <p data-testid="activation-rejection-reason" className="mt-2 text-sm leading-6 text-foreground">
-            {activation.rejectionReason ??
-              "We need a small update before we can complete your review. Contact support and we'll help you continue."}
-          </p>
+          {isRejected ? (
+            <p data-testid="activation-rejection-reason" className="mt-2 text-sm leading-6 text-foreground">
+              {activation.rejectionReason ??
+                "We need a small update before we can complete your review. Contact support and we'll help you continue."}
+            </p>
+          ) : (
+            <p data-testid="activation-verification-update-note" className="mt-2 text-sm leading-6 text-foreground">
+              A document update is needed before review can continue. Use
+              &ldquo;Update and submit again&rdquo; in the Verification section
+              below and we&apos;ll take another look.
+            </p>
+          )}
         </section>
       )}
 

@@ -2025,16 +2025,35 @@ type ProviderActivationNextAction =
   | "share_booking_page"
   | "all_set";
 
-/** Journey-ordered next action from true state only — never promises outcomes. */
+/**
+ * Journey-ordered next action from true state only — never promises outcomes.
+ *
+ * Invariant (pilot finding M-1): every emitted action must resolve to a
+ * destination the provider is authorized to use in the same lifecycle state.
+ * The setup destinations below (profile, service area, services,
+ * availability, publishing) all sit behind the approved-provider boundary
+ * (application AND verification approved — requireApprovedProvider, mirrored
+ * by the C1 `approved` milestone), so an approved application alone must
+ * never surface a setup CTA while the verification decision is pending.
+ */
 function deriveActivationNextAction(
   applicationStatus: ApplicationRow["status"],
   m: ProviderActivationMilestones,
+  verificationStatus: BookingPageProfileRow["verificationStatus"],
 ): ProviderActivationNextAction {
   if (applicationStatus === "draft") return "continue_onboarding";
   if (applicationStatus === "rejected") return "review_update_needed";
   if (applicationStatus === "suspended") return "contact_support";
   if (applicationStatus === "under_review") return "wait_for_review";
-  // approved — booking-readiness journey order
+  // approved application — but not yet past the full approved-provider gate:
+  // a rejected verification has an accessible recovery path (resubmission);
+  // any other pending verification state can only truthfully wait.
+  if (!m.approved) {
+    return verificationStatus === "rejected"
+      ? "review_update_needed"
+      : "wait_for_review";
+  }
+  // fully approved — booking-readiness journey order
   if (!m.profileCompleted) return "complete_profile";
   if (!m.serviceAreaConfigured) return "configure_service_area";
   if (!m.activeServiceConfigured) return "add_service";
@@ -2182,7 +2201,11 @@ router.get(
         milestonesCompleted: milestoneValues.filter(Boolean).length,
         milestonesTotal: milestoneValues.length,
         bookingPage: bookingPageView(profile, serviceAreaConfigured),
-        nextAction: deriveActivationNextAction(statusView.status, milestones),
+        nextAction: deriveActivationNextAction(
+          statusView.status,
+          milestones,
+          profile.verificationStatus,
+        ),
       },
     });
   },

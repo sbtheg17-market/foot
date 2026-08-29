@@ -52,6 +52,8 @@ export const STATUS_COPY: Record<
 
 /** Approved-state hero titles refined by how far setup has progressed. */
 export const APPROVED_TITLES: Partial<Record<ProviderActivationNextAction, string>> = {
+  wait_for_review: "You're almost there — verification is the last review step",
+  review_update_needed: 'Your verification needs a small update',
   publish_booking_page: "You're approved and nearly ready to share your booking page",
   share_booking_page: 'Your booking page is live',
   all_set: "You're up and running",

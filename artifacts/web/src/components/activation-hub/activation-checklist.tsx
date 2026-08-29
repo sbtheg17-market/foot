@@ -12,7 +12,11 @@ import type { ProviderActivationStatus } from '@workspace/api-client-react';
 import { MILESTONE_DEFS, type MilestoneDef } from '@/lib/activation-hub';
 
 function stepHref(def: MilestoneDef, activation: ProviderActivationStatus): string | null {
-  if (activation.applicationStatus === 'approved') return def.approvedHref;
+  // Approved-only destinations sit behind the full approved-provider boundary
+  // (application AND verification approved) — the same server-derived
+  // `approved` milestone the routes enforce — so no checklist link can land
+  // on a 403 while the verification decision is pending (pilot finding M-1).
+  if (activation.milestones['approved']) return def.approvedHref;
   if (activation.applicationStatus === 'draft') return def.draftHref;
   return null;
 }
