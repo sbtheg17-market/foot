@@ -198,3 +198,11 @@ this graph. Do not index instance repositories, the instance registry,
 external account data, secret files, database dumps, browser artifacts,
 screenshots, `.env` files, credentials, or client data. `.graphifyignore`
 remains the boundary for what may be extracted here.
+
+## Export/recovery scope note (added 2026-08-29)
+
+Graphify maps canonical code and safe source-controlled documentation. It
+must never ingest credentials, instance registries with PII, database dumps,
+provider exports, database snapshots, or production runtime artifacts.
+Graphify is not a backup system and holds no responsibility for backup or
+export storage (`docs/provider-export-and-recovery-backup-architecture.md`).

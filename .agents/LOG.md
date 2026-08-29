@@ -3697,3 +3697,86 @@ Managed DB NOT accessed.
 private Supabase backup/export script and docs", squash-merge after CI.
 Next: the operator runs the script against the OnCall Foot Supabase project,
 records backup metadata in the registry, then proceeds to Gate-B.
+
+---
+
+### Session — Provider export and operator recovery backup architecture (2026-08-29)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `M` (docs/Graphify-continuity only — design task, no runtime change)
+
+**Baseline:** `main` = `efbbf13d1764ef9982624fcb46da52205da50b03` (PR #76), clean tree.
+
+**Decision recorded:** two permanently separate capabilities.
+Provider Data Export = provider-scoped CSV/JSON portability package,
+server-authorized, delivered via short-lived authenticated downloads from
+Foot. Operator Recovery Backup = operator-only full PostgreSQL logical
+recovery artifact via a controlled workflow; never a dashboard download,
+never in GitHub, never in Graphify. The Foot app never receives GitHub
+repository-admin access; database credentials never reach the browser, logs,
+docs, or dashboards; commit/push/PR/merge stay in the developer/release
+workflow only.
+
+**Deliverables (docs-only):**
+- `docs/provider-export-and-recovery-backup-architecture.md`: decision
+  summary + capability separation table; roles/permissions matrix
+  (provider/client/operator/automated recovery runner ×14 actions; raw SQL,
+  credentials, GitHub admin, restore = operator-only / never via UI);
+  provider export design (UX flow, file set mapped to actual schema —
+  `provider_profiles`, `services`, `availability`,
+  `provider_emergency_openings`, `provider_blocked_ranges`, `travel_zones`,
+  `bookings` — mandatory controls, example manifest with invented values,
+  exclusion list); operator recovery design (workflow, gate, non-secret
+  metadata list); Codespaces transitional role + limitations + mandatory
+  pg_dump-major ≥ server-major preflight + observed version-mismatch failure
+  class (no identifying details recorded); Phases A/B/C boundaries (Phase C
+  never via app-held GitHub admin tokens); threat/control table (14 threats);
+  per-instance scaling rules; explicit non-goals.
+- `docs/provider-data-export-spec.md`: provider-facing copy for all states
+  (entry/preparing/ready/history/errors), included/not-included lists,
+  privacy + expiry wording, support/escalation, accessibility, approved
+  vocabulary, banned infra vocabulary, honesty rules (snapshot, no
+  guarantees).
+- `docs/provider-export-implementation-plan.md`: inspection map (real files:
+  `middlewares/auth.ts`, `lib/role-state.ts`, `routes/providers.ts`
+  `/providers/me/*` pattern, event-table precedents, Orval contracts);
+  proposed endpoints under `/api/providers/me/exports*`; DTO contracts;
+  state model; authorization boundaries; allowlist strategy;
+  job/storage/download/rate-limit/audit/retention designs; test plan;
+  rollout + flags; one additive gate-released migration; 7 open
+  product/legal/security questions; isolated-instance compatibility plan.
+  Confirmed real gaps: no rate limiter, no job runner, no object storage, no
+  settings page exist today.
+- `docs/restore-rehearsal-design.md`: disposable-target-only restore script
+  requirements — env-only inputs, `--confirm-disposable-target`, second typed
+  confirmation, identity-mismatch validation, disposable naming convention,
+  refuse-on-uncertainty, no URL/credential logging, non-secret metadata,
+  non-destructive verification, mandatory target deletion, never
+  provider-UI, never production.
+- Append-only continuity: `docs/product-vision.md` (portability/recovery
+  note), `docs/github-continuation.md` (GitHub never a backup/export store;
+  Codespaces transitional), `docs/graphify-continuity-workflow.md` (Graphify
+  never ingests exports/dumps/registries with PII; not a backup system),
+  `docs/NEXT-STEPS.md` (phase record; export MVP deferred until canonical
+  production validation; restore rehearsal = next backup-hardening task),
+  `docs/TODO-LEDGER.md` (dated rows incl. pg_dump preflight OPEN).
+
+**Graphify:** CLI 0.9.51; 3 continuity queries run against the committed
+code-only graph; useful hits source-verified (`RoleState` at
+`artifacts/api-server/src/lib/role-state.ts` L26, `usersTable` at
+`lib/db/src/schema/users.ts` L18, `dashboard.tsx`,
+`authorization-hardening.integration.test.ts`). Graph refresh NOT performed —
+code unchanged; baseline remains valid. Graphify is not a backup system.
+
+**Boundaries held:** no live system connected/inspected/modified/backed
+up/restored/deployed; no secrets handled; no scripts executed; no accounts
+provisioned; no migrations; no provider/client data, hostnames, project
+references, or backup filenames recorded anywhere.
+
+**Validation:** typecheck / build / build:deploy / test / `git diff --check`
+/ `scripts/secret-scan.sh` — results recorded in the PR.
+
+**Delivery:** branch `docs/provider-export-recovery-architecture`, PR
+"docs: define provider export and recovery backup architecture",
+squash-merge after CI. Next: first successful canonical backup + disposable
+restore rehearsal before Gate-B; provider export MVP only after canonical
+production journey validation.
