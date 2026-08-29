@@ -49,3 +49,6 @@ attached_assets/
 .pnpm-store/
 .cache/
 .local/
+
+# Database backup artifacts (must never be ingested)
+supabase-backup-*.sql

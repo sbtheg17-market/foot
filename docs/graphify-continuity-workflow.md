@@ -206,3 +206,11 @@ must never ingest credentials, instance registries with PII, database dumps,
 provider exports, database snapshots, or production runtime artifacts.
 Graphify is not a backup system and holds no responsibility for backup or
 export storage (`docs/provider-export-and-recovery-backup-architecture.md`).
+
+## Recovery-tooling scope note (added 2026-08-29)
+
+`.graphifyignore` now also excludes `supabase-backup-*.sql` artifacts as
+defense-in-depth. Backup dumps, restore transcripts, and rehearsal outputs
+must never be ingested; Graphify may map only the backup/restore *scripts and
+documentation* themselves. Graphify remains neither a backup nor a
+secret-management system.
