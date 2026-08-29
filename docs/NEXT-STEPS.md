@@ -611,3 +611,36 @@ accidental fork strategy.
   only then provision the first real isolated client instance.
 - No runtime behavior changed; managed DB NOT accessed; production NOT
   deployed; no accounts/repositories/projects created.
+
+## Provider export and operator recovery backup — architecture documented (2026-08-29)
+
+Docs-only design phase (branch `docs/provider-export-recovery-architecture`).
+Two future capabilities are now formally separated:
+
+- **Provider Data Export** — provider-facing, authorization-scoped CSV/JSON
+  portability package (Settings → Data and privacy), server-authorized,
+  allowlisted DTOs, short-lived authenticated downloads, audited lifecycle.
+  Implementation (Phase B) is **deferred until canonical production journey
+  validation**.
+- **Operator Recovery Backup** — operator-only full PostgreSQL logical
+  recovery artifact via a controlled workflow (preflight → isolated runner →
+  runtime-only secrets → pg_dump → encrypted private storage → checksum →
+  restore rehearsal on a disposable target). Raw SQL remains operator-only,
+  never a dashboard download, never stored in GitHub or Graphify.
+
+Key records:
+
+- Architecture: `docs/provider-export-and-recovery-backup-architecture.md`
+  (decision, roles matrix, export design, recovery design, Codespaces
+  transitional role + PostgreSQL version preflight, Phases A/B/C, threat
+  model, instance scaling, non-goals).
+- Provider-facing wording: `docs/provider-data-export-spec.md`.
+- Technical plan: `docs/provider-export-implementation-plan.md`.
+- Restore rehearsal: `docs/restore-rehearsal-design.md` — the next
+  backup-hardening task; a non-empty dump is never treated as a verified
+  restore.
+- GitHub/Codespaces: transitional manual operator recovery route only; **no
+  GitHub admin OAuth is authorized for normal application backup behavior**;
+  GitHub is never a backup/export store.
+- No runtime behavior changed; managed DB NOT accessed; production NOT
+  deployed; no scripts executed.

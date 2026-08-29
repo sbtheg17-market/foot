@@ -132,3 +132,14 @@ booking, privacy, or schedule behavior.
 
 Authoritative operating model: `docs/canonical-prototype-and-instance-model.md`
 and `docs/instance-provisioning-checklist.md`.
+
+## Data portability and recovery (added 2026-08-29)
+
+Two separate planned capabilities, never to be conflated: **Provider Data
+Export** (a provider-facing, authorization-scoped CSV/JSON portability package
+delivered securely from Foot) and **Operator Recovery Backup** (an
+operator-only full PostgreSQL logical recovery artifact — never delivered
+through the dashboard, never stored in GitHub or Graphify). Raw SQL backups
+remain operator-only; the Foot application never receives GitHub
+repository-admin access or database credentials in the browser. Authoritative
+design: `docs/provider-export-and-recovery-backup-architecture.md`.
