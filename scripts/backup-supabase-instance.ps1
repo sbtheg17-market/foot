@@ -11,6 +11,11 @@ The connection string is read ONLY from the environment (SUPABASE_DB_URL, or
 DATABASE_URL as an explicit operator-set fallback) and is never printed,
 logged, or stored. Output: supabase-backup-YYYY-MM-DD-HHMM.sql in the chosen
 directory. Never commit the backup file to Git.
+
+Preflight: pg_dump must be the same major version as, or newer than, the
+target PostgreSQL server (an older client aborts and produces no usable
+backup). psql is required to read the target server version; only version
+numbers are ever printed.
 Full guide: docs/backup-supabase-instance.md
 #>
 param(
@@ -32,6 +37,55 @@ if (-not (Get-Command pg_dump -ErrorAction SilentlyContinue)) {
   Write-Host "Install the PostgreSQL client tools first (docs/backup-supabase-instance.md - Prerequisites)."
   exit 1
 }
+
+if (-not (Get-Command psql -ErrorAction SilentlyContinue)) {
+  Write-Host "ERROR: psql not found on PATH." -ForegroundColor Red
+  Write-Host "psql is required for the version-compatibility preflight (it reads the"
+  Write-Host "target server version). Install the PostgreSQL client tools first"
+  Write-Host "(docs/backup-supabase-instance.md - Prerequisites)."
+  exit 1
+}
+
+# --- Version-compatibility preflight ----------------------------------------
+# pg_dump must be the same major version as, or newer than, the target
+# PostgreSQL server; an older client aborts mid-dump and produces no usable
+# backup. Only version numbers are read and printed here — never the
+# connection string and never query output containing sensitive identifiers.
+# The target version can only be learned after connecting, so run this script
+# only from a trusted environment with runtime-only secret injection. The
+# preflight performs no database mutation.
+$pgDumpVersionRaw = ""
+try { $pgDumpVersionRaw = (& pg_dump --version 2>$null | Out-String).Trim() } catch { $pgDumpVersionRaw = "" }
+$pgDumpMajor = $null
+if ($pgDumpVersionRaw -match '^pg_dump \(PostgreSQL[^)]*\) (\d+)') { $pgDumpMajor = [int]$Matches[1] }
+if ($null -eq $pgDumpMajor) {
+  Write-Host "ERROR: could not determine the local pg_dump major version." -ForegroundColor Red
+  Write-Host "'pg_dump --version' returned malformed or empty output. Reinstall the"
+  Write-Host "PostgreSQL client tools, then retry. No backup was created."
+  exit 1
+}
+
+$serverVersionNum = ""
+try {
+  $serverVersionNum = (& psql --dbname=$dbUrl --no-psqlrc --quiet --tuples-only --no-align --command='SHOW server_version_num;' 2>$null | Out-String).Trim()
+  if ($LASTEXITCODE -ne 0) { $serverVersionNum = "" }
+} catch { $serverVersionNum = "" }
+if ($serverVersionNum -notmatch '^\d{5,6}$') {
+  Write-Host "ERROR: could not determine the target PostgreSQL server major version." -ForegroundColor Red
+  Write-Host "The preflight version query failed or returned unexpected output."
+  Write-Host "Verify connectivity and the connection string in your secure runtime"
+  Write-Host "environment, then retry. No backup was created."
+  exit 1
+}
+$serverMajor = [math]::Floor([int]$serverVersionNum / 10000)
+
+if ($pgDumpMajor -lt $serverMajor) {
+  Write-Host "ERROR: pg_dump major version $pgDumpMajor is older than target PostgreSQL major version $serverMajor." -ForegroundColor Red
+  Write-Host "Install or select PostgreSQL client version $serverMajor or newer, then retry."
+  Write-Host "No backup was created."
+  exit 1
+}
+Write-Host "Preflight OK: pg_dump major $pgDumpMajor / target PostgreSQL major $serverMajor."
 
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
