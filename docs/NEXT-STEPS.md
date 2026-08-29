@@ -582,3 +582,32 @@ regression test against live routes. See
 Remaining recommended sequence is unchanged: managed-DB release gate
 (backup/restore evidence + authorized read-only catalog verification) → apply
 frozen Gate-B migrations → deploy → re-run the pilot protocol on production.
+
+## Canonical prototype and isolated instance operating model documented (2026-08-29)
+
+Docs-only continuity phase (branch `docs/canonical-instance-operating-model`).
+OnCall Foot (`sbtheg17-market/foot`) is now formally documented as the
+**canonical prototype**; every future provider/client deployment is an
+**isolated instance**: one GitHub account/repository + one Railway
+account/project + one Supabase project/database + one provider/client dataset
++ one deployment configuration + one tracked release/migration/backup record.
+This is a deliberate early operating model — not multi-tenancy, and not an
+accidental fork strategy.
+
+- Authoritative model: `docs/canonical-prototype-and-instance-model.md`
+  (decision statement, benefits/tradeoffs, core-vs-configuration boundary,
+  account ownership model, non-secret instance-registry spec, provisioning
+  lifecycle, update/release model, backup/migration/recovery rules, scaling
+  thresholds, cross-vertical guardrails, explicit non-goals).
+- Per-instance runbook: `docs/instance-provisioning-checklist.md`.
+- Instance registry: **non-secret operational metadata only**; secrets live
+  only in native platform secret managers / a password manager — never in
+  Git, Graphify, docs, Google Sheets, screenshots, or chat.
+- Backup/export evidence + the frozen-migration release gate remain required
+  before every instance schema change (`docs/managed-db-release-gate.md`,
+  `docs/backup-restore-runbook.md`).
+- Broad rollout is deferred until the canonical production path is proven:
+  managed-DB release gate → Gate-B apply → deploy → production pilot re-run —
+  only then provision the first real isolated client instance.
+- No runtime behavior changed; managed DB NOT accessed; production NOT
+  deployed; no accounts/repositories/projects created.
