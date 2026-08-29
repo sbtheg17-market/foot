@@ -519,3 +519,47 @@ organization/workspace remain FUTURE, NOT IMPLEMENTED. Authoritative doc:
   phone-sized viewport, full journey signup → publish → book → reschedule),
   fixing only repeated or high-severity friction before SEO/marketing/
   payments expansion.
+
+## Clean-device Provider–Client Pilot Journey Validation executed (2026-08-29)
+
+The clean-device pilot usability / release-readiness loop is now DONE as a
+validation + evidence phase (baseline `main` `c647d4d`, PR #72). Full protocol
+and executed run: `docs/pilot/provider-client-journey-validation.md`.
+
+- Provider journey (signup → logout/re-login → truthful status + one
+  server-derived next action → profile → service → territory → weekly
+  availability → emergency opening → time off → publish → QR/share → dashboard
+  → pending-reschedule surfacing): **PASS**. A brand-new provider becomes
+  bookable only after one **admin approval** of application + verification (the
+  intended trust gate; everything else is self-serve).
+- Client journey (public page → eligibility eligible/ineligible → slots →
+  emergency-opening urgent slot → time-off = 0 slots → book w/ source
+  attribution → confirm → client direct reschedule → provider consent-first
+  proposal → decline → truthful state → cancellation preview / no-show /
+  escalation): **PASS**.
+- Desktop (real Chromium `smoke:real-browser` 13/13) and **390×844** mobile
+  emulation (`smoke:mobile-emulation` 9/9) both PASS. Web a11y subset 33/33.
+- Full suite tally: typecheck/build/build:deploy/secret-scan/diff-check clean;
+  web 240 + a11y 33 + tz 10; API unit 70; 26/27 scripted (the one non-pass,
+  `test:lifecycle`, is a shared-DB concurrency artifact — **14/14 in
+  isolation**); authz/concurrency (7/16/13/12/17); unscripted (6/6/9/9/27) +
+  replay 14 on its own booking-free DB.
+- Findings: **0 BLOCKER, 0 HIGH**; 1 MEDIUM (activation-hub next action can
+  point to `configure_service_area` before verification is approved while the
+  endpoint is gated on full approval — deferred), 2 LOW (verification `notes`
+  stored in the `reviewerNotes` column; two availability routes by state).
+- Managed DB: **NOT ACCESSED**. Production deploy: **NOT PERFORMED / NOT
+  AUTHORIZED**.
+
+**Recommended next build (evidence-based):** complete the managed-DB release
+gate (backup/restore evidence + authorized read-only catalog verification),
+then apply the frozen Gate-B migrations, deploy, and re-run this exact protocol
+on production before any SEO/marketing/outreach work.
+
+Graphify status:
+- Main graph artifact baseline: c647d4da76ad6bcf59d1f4a99d4026a0ef326ba0 (refreshed 2026-08-29; previous baseline 96b7102694d656112d9e486205d4850333040918)
+- Extraction mode: CODE-ONLY LOCAL (graphify Python API; AST only, no LLM)
+- Graph files: graphify-out/graph.json (4,796 nodes / 8,709 edges / 379 communities), GRAPH_REPORT.md, graph.html, manifest.json
+- Refresh policy: manual after major merged roadmap work or significant refactor
+- Safety: no external APIs, no managed DB introspection, no public Graphify server, no hooks, no CI gate; .graphifyignore honored (no .env/secrets/runtime DB/logs/caches indexed); SQL artifacts not parsed (optional tree_sitter_sql absent)
+- Queries this run were source-verified before use

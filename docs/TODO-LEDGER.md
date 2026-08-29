@@ -501,3 +501,19 @@ Recommended priority: after Provider Dashboard gap-closure; only with pilot
 | Status hub progress meter + next-step clarity | DONE 2026-08-28 | `feat/provider-status-hub-progress`: hero reordered to mobile CTA priority (status → one server-derived next action → compact text-first progress → checklist); factual "what follows" line added per next action (`NEXT_ACTION_COPY.after`). Server authority unchanged (`GET /providers/me/activation-status` milestones/nextAction; no client readiness computation). No API/schema change. Web 240 tests (3 new) + axe green; live 390×844 + desktop verification (CTA above fold, next action above progress, zero horizontal overflow, semantic progressbar). Mobile app: NOT APPLICABLE (no status hub surface). |
 | Provider-facing schema/drift health banner | REJECTED (deliberate) | Schema compatibility is an internal operational concern; PR #69/#71 safe degradation + feature-specific truthful states are the correct behavior. Do not add a global provider-facing infrastructure banner. |
 | Clean-device pilot usability / release-readiness loop | TODO (next) | Fresh provider account + clean browser profile + phone viewport: full journey (signup → re-login → status page → follow every next action → services/territory/availability/opening/time-off → publish → QR → client booking → reschedule). Record dead ends and friction; fix only repeated/high-severity issues before SEO/marketing/payments. |
+
+### Clean-device Provider–Client Pilot Journey Validation (2026-08-29)
+
+Executed the clean-device pilot usability / release-readiness loop as a
+validation + docs phase (baseline `main` `c647d4d`). Authoritative record:
+`docs/pilot/provider-client-journey-validation.md`.
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| Pilot journey validation protocol + executed run | DONE 2026-08-29 | Provider + client journeys PASS on desktop (real Chromium 13/13) and 390×844 (mobile emulation 9/9); web a11y 33/33; API unit 70; 26/27 scripted (`test:lifecycle` 14/14 in isolation — shared-DB concurrency artifact only); authz/concurrency + unscripted + replay all PASS. 0 blockers, 0 high. Managed DB NOT accessed; production NOT deployed. |
+| M-1: activation-hub next action vs. verification gate | DEFERRED (MEDIUM) | Hub can surface `nextAction=configure_service_area` when the application is approved but verification is still `under_review`, while `PUT /providers/me/service-area` requires full approval (403 in that window). Transient/admin-controlled. Narrow future fix: gate the hub next action on full approval. No code change this phase. |
+| L-1: verification `notes` in `reviewerNotes` column | DEFERRED (LOW) | Provider-submitted notes stored in the doc `reviewerNotes` column; admin-only visible, no provider-facing leak observed. Field-name reuse; watch during the managed-DB gate. |
+| L-2: two availability routes by application state | DOCUMENTED (LOW) | `PUT /providers/application/availability` (draft/rejected) vs `PUT /providers/me/availability` (approved). Web UI selects correctly; API-only integrators could be briefly confused. No change. |
+| Managed-DB release gate (backup/restore + read-only catalog verify) | OPEN (NEXT) | The real blocker to a production pilot. See `docs/managed-db-release-gate.md`. |
+| Apply Gate-B migrations + deploy + re-run protocol on production | TODO / NOT AUTHORIZED | After the gate. Then re-run `docs/pilot/provider-client-journey-validation.md` on production with a brand-new provider + client. |
+| Native-device hardware run | STILL DEFERRED | No simulator/device in this environment; mobile emulation is not hardware validation. `docs/native-device-checklist.md`. |
