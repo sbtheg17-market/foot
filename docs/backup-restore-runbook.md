@@ -4,6 +4,27 @@ This runbook is provider-agnostic. It defines the evidence required before a
 managed database release; it does not choose a provider, set recovery targets,
 or initiate a backup or restore.
 
+## Repository tooling (operator-only)
+
+Two guarded script pairs exist for the manual, operator-only procedures this
+runbook governs. They never run from application code, a provider dashboard,
+or CI, and they never store artifacts or secrets in the repository:
+
+- Logical backup: `scripts/backup-supabase-instance.sh` /
+  `scripts/backup-supabase-instance.ps1` (guide:
+  `docs/backup-supabase-instance.md`). Includes a mandatory
+  version-compatibility preflight — `pg_dump` must be the same major version
+  as, or newer than, the target server, or the script fails closed before any
+  dump is created.
+- Restore rehearsal (disposable, non-production targets only):
+  `scripts/restore-supabase-instance-rehearsal.sh` /
+  `scripts/restore-supabase-instance-rehearsal.ps1` (guide:
+  `docs/restore-supabase-instance-rehearsal.md`).
+
+These scripts do not replace, weaken, or satisfy any decision, gate, or
+evidence requirement below; they only produce the technical artifacts and
+rehearsal evidence the gates require.
+
 ## Required decisions
 
 The platform owner and database owner must fill these values through the
