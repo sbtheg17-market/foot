@@ -146,3 +146,16 @@ added as remotes of this clone, and instance credentials or client data must
 never be committed here. See
 `docs/canonical-prototype-and-instance-model.md` and
 `docs/instance-provisioning-checklist.md`.
+
+## GitHub is never a backup or export store (added 2026-08-29)
+
+GitHub remains source control and approved release history **only**. Database
+backups, provider data exports, SQL dumps, and recovery artifacts are never
+committed, pushed, attached to PRs, or published as release artifacts. The
+Foot application never holds GitHub repository-admin tokens, and no
+application feature may commit/push on a user's behalf. GitHub Codespaces may
+serve only as a temporary, authorized-operator recovery workspace (private
+repo, temporary secret, output kept outside the workspace, secret rotated,
+Codespace deleted) — a transitional manual route, not application
+infrastructure. Details:
+`docs/provider-export-and-recovery-backup-architecture.md` (§1, §5).
