@@ -226,6 +226,62 @@ describe('under review state', () => {
   });
 });
 
+describe('approved application, verification still pending (pilot finding M-1)', () => {
+  it('keeps a truthful wait state with no setup CTA and locked checklist links', async () => {
+    arrange(
+      activationFixture(
+        {
+          applicationStatus: 'approved',
+          canEdit: false,
+          nextAction: 'wait_for_review',
+          verification: { status: 'under_review', submittedAt: '2026-08-27T12:00:00Z', canResubmit: false },
+        },
+        { profileCompleted: true, verificationSubmitted: true },
+      ),
+    );
+    const { container } = render(<ProviderApplicationStatus />);
+    expect(screen.getByTestId('activation-title')).toHaveTextContent(
+      'verification is the last review step',
+    );
+    expect(screen.getByTestId('activation-next-action')).toHaveTextContent('No action needed right now');
+    // The primary CTA must never point at an approval-gated destination here.
+    expect(screen.queryByTestId('activation-next-action-link')).not.toBeInTheDocument();
+    // Checklist deep links stay locked until the full approved-provider gate.
+    expect(screen.queryByTestId('activation-step-action-serviceAreaConfigured')).not.toBeInTheDocument();
+    expect(screen.getByTestId('activation-step-locked-serviceAreaConfigured')).toHaveTextContent(
+      'Available after approval',
+    );
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('routes an approved application with rejected verification to the accessible update path', () => {
+    arrange(
+      activationFixture(
+        {
+          applicationStatus: 'approved',
+          canEdit: false,
+          nextAction: 'review_update_needed',
+          verification: { status: 'needs_update', submittedAt: '2026-08-27T12:00:00Z', canResubmit: true },
+        },
+        { profileCompleted: true, verificationSubmitted: true },
+      ),
+    );
+    render(<ProviderApplicationStatus />);
+    // The CTA anchor target must exist in this state.
+    expect(screen.getByTestId('activation-next-action-link')).toHaveAttribute(
+      'href',
+      '#activation-feedback',
+    );
+    expect(screen.getByTestId('activation-feedback')).toBeInTheDocument();
+    expect(screen.getByTestId('activation-verification-update-note')).toBeInTheDocument();
+    // Verification recovery stays available (accessible, non-gated route).
+    expect(screen.getByTestId('activation-verification-resubmit')).toHaveAttribute(
+      'href',
+      '/provider/credentials',
+    );
+  });
+});
+
 describe('progress and next-step clarity', () => {
   it('keeps the one primary next action above the progress summary (mobile CTA priority)', () => {
     arrange(

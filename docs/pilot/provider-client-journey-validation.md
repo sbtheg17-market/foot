@@ -326,3 +326,36 @@ The first vertical is mobile foot care, but this protocol uses vertical-neutral 
 schedule exception, application, readiness, next action** — so the same protocol can
 validate future provider-based verticals without change. No vertical-specific
 assumption was hard-coded into any artifact this phase.
+
+---
+
+## Addendum — 2026-08-29: Finding M-1 CLOSED
+
+Pilot finding **M-1** (MEDIUM — the activation hub could emit
+`nextAction = configure_service_area` while the application was approved but
+verification was still `under_review`, sending the provider into a `403`) was
+fixed in the follow-up product PR `fix: align provider next action with
+verification gate` (branch `fix/activation-next-action-verification-gate`).
+
+- Root cause: `deriveActivationNextAction` branched on `applicationStatus`
+  alone; every setup destination it emitted is behind the approved-provider
+  boundary (application **and** verification approved — `requireApprovedProvider`,
+  mirrored by the C1 `approved` milestone), which the derivation never consulted.
+- Fix (server source of truth): an approved application that has not passed the
+  full gate now resolves to `wait_for_review` (verification decision pending)
+  or `review_update_needed` (verification rejected — resubmission is the
+  accessible recovery path). The activation checklist's approved-only deep
+  links now key on the server-derived `approved` milestone for the same reason,
+  and the `review_update_needed` CTA anchor target exists in both producing
+  states.
+- Invariant now enforced and regression-tested (table-driven, real routes):
+  *every server-derived provider `nextAction` resolves to a destination the
+  provider is authorized to use in the same lifecycle state.*
+- Evidence: `test:activation-status` 13/13 (two new tests: gate alignment with
+  a live `403` probe, and the lifecycle-state × route-eligibility table); web
+  suite 242/242 with two new hub tests (wait state without setup CTA + locked
+  checklist at 390-class widths; accessible update path incl. axe scan); drift
+  suites (`test:return-path-drift` 11, `test:route-read-drift` 19) unchanged
+  and green. Managed DB not accessed; production not deployed.
+
+L-1 and L-2 remain LOW/deferred as recorded in §10.

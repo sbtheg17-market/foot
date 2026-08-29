@@ -364,6 +364,105 @@ describe("provider activation status (approval & activation hub)", () => {
       .where(eq(providerProfilesTable.id, providerProfileId));
   });
 
+  it("aligns nextAction with the approved-provider gate (pilot finding M-1)", async () => {
+    // application approved + verification under_review: every setup
+    // destination is still behind requireApprovedProvider, so the hub must
+    // emit the wait state — never a setup CTA that resolves to a 403.
+    await db
+      .update(providerProfilesTable)
+      .set({ verificationStatus: "under_review" })
+      .where(eq(providerProfilesTable.id, providerProfileId));
+
+    let { activation } = await getActivation(providerToken);
+    assert.equal(activation.applicationStatus, "approved");
+    assert.equal(activation.milestones["approved"], false);
+    assert.equal(activation.nextAction, "wait_for_review");
+
+    // Route-eligibility truth for the same state: the destination the old
+    // derivation pointed at rejects this provider.
+    const gated = await apiFetch("/providers/me/service-area", {
+      method: "PUT",
+      token: providerToken,
+      body: JSON.stringify({ countryCode: "CA", provinceCode: "ON", city: "Toronto" }),
+    });
+    assert.equal(gated.status, 403, JSON.stringify(gated.body));
+
+    // application approved + verification rejected: resubmission is the
+    // truthful, accessible recovery action (never a locked setup CTA).
+    await db
+      .update(providerProfilesTable)
+      .set({ verificationStatus: "rejected" })
+      .where(eq(providerProfilesTable.id, providerProfileId));
+
+    ({ activation } = await getActivation(providerToken));
+    assert.equal(activation.nextAction, "review_update_needed");
+    assert.equal(activation.verification.canResubmit, true);
+
+    await db
+      .update(providerProfilesTable)
+      .set({ verificationStatus: "approved" })
+      .where(eq(providerProfilesTable.id, providerProfileId));
+  });
+
+  it("emits only route-eligible next actions in every lifecycle state (table-driven)", async () => {
+    // Action codes whose destinations require the full approved-provider
+    // boundary. Every other code resolves to this hub, onboarding,
+    // verification resubmission, support, or a wait state.
+    const GATED_ACTIONS = new Set([
+      "complete_profile",
+      "configure_service_area",
+      "add_service",
+      "set_availability",
+      "publish_booking_page",
+      "share_booking_page",
+      "all_set",
+    ]);
+    const CASES: Array<{
+      app: "draft" | "under_review" | "approved" | "rejected" | "suspended";
+      verif: "pending" | "under_review" | "approved" | "rejected";
+    }> = [
+      { app: "draft", verif: "under_review" },
+      { app: "under_review", verif: "under_review" },
+      { app: "approved", verif: "pending" },
+      { app: "approved", verif: "under_review" },
+      { app: "approved", verif: "rejected" },
+      { app: "rejected", verif: "approved" },
+      { app: "suspended", verif: "approved" },
+      { app: "approved", verif: "approved" }, // restores the suite baseline
+    ];
+
+    for (const c of CASES) {
+      await db
+        .update(providerApplicationsTable)
+        .set({ status: c.app })
+        .where(eq(providerApplicationsTable.userId, providerUserId));
+      await db
+        .update(providerProfilesTable)
+        .set({ verificationStatus: c.verif })
+        .where(eq(providerProfilesTable.id, providerProfileId));
+
+      const { activation } = await getActivation(providerToken);
+      // Read-only probe of the same boundary the setup destinations enforce.
+      const probe = await apiFetch("/providers/me/services", { token: providerToken });
+      const gateOpen = probe.status === 200;
+
+      if (GATED_ACTIONS.has(activation.nextAction)) {
+        assert.equal(
+          gateOpen,
+          true,
+          `state app=${c.app}/verification=${c.verif} emitted gated action ` +
+            `"${activation.nextAction}" while approved-provider routes answer ${probe.status}`,
+        );
+      }
+      if (!gateOpen) {
+        assert.ok(
+          !GATED_ACTIONS.has(activation.nextAction),
+          `state app=${c.app}/verification=${c.verif} must not point at a 403 destination`,
+        );
+      }
+    }
+  });
+
   it("surfaces rejected applications with the provider-visible reason only", async () => {
     await db
       .update(providerApplicationsTable)

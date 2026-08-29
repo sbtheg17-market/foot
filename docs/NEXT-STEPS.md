@@ -563,3 +563,22 @@ Graphify status:
 - Refresh policy: manual after major merged roadmap work or significant refactor
 - Safety: no external APIs, no managed DB introspection, no public Graphify server, no hooks, no CI gate; .graphifyignore honored (no .env/secrets/runtime DB/logs/caches indexed); SQL artifacts not parsed (optional tree_sitter_sql absent)
 - Queries this run were source-verified before use
+
+## Pilot finding M-1 fixed (2026-08-29)
+
+The single MEDIUM finding from the pilot validation is CLOSED. The activation
+hub's server-derived `nextAction` now respects the approved-provider boundary
+(application AND verification approved): pre-gate approved applications emit
+`wait_for_review` (decision pending) or `review_update_needed` (verification
+rejected — accessible resubmission), never a setup CTA that resolves to a 403.
+The checklist's approved-only deep links key on the server-derived `approved`
+milestone, and the update-path CTA anchor exists in both producing states.
+Invariant: every emitted `nextAction` maps to a destination the provider is
+authorized to use in the same lifecycle state — enforced by a table-driven
+regression test against live routes. See
+`docs/provider-approval-status-hub.md` (derivation) and
+`docs/pilot/provider-client-journey-validation.md` (addendum).
+
+Remaining recommended sequence is unchanged: managed-DB release gate
+(backup/restore evidence + authorized read-only catalog verification) → apply
+frozen Gate-B migrations → deploy → re-run the pilot protocol on production.

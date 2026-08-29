@@ -517,3 +517,11 @@ validation + docs phase (baseline `main` `c647d4d`). Authoritative record:
 | Managed-DB release gate (backup/restore + read-only catalog verify) | OPEN (NEXT) | The real blocker to a production pilot. See `docs/managed-db-release-gate.md`. |
 | Apply Gate-B migrations + deploy + re-run protocol on production | TODO / NOT AUTHORIZED | After the gate. Then re-run `docs/pilot/provider-client-journey-validation.md` on production with a brand-new provider + client. |
 | Native-device hardware run | STILL DEFERRED | No simulator/device in this environment; mobile emulation is not hardware validation. `docs/native-device-checklist.md`. |
+
+### Pilot finding M-1 — CLOSED (2026-08-29)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| M-1: activation-hub next action vs. verification gate | **CLOSED 2026-08-29** | Server fix in `deriveActivationNextAction`: an approved application that has not passed the full approved-provider gate (application AND verification approved) now emits `wait_for_review`, or `review_update_needed` when verification was rejected (resubmission is accessible). Checklist deep links key on the server-derived `approved` milestone; the `review_update_needed` anchor target exists in both producing states. Invariant regression-tested table-driven against live routes (`test:activation-status` 13/13; web 242/242; drift suites green). Branch `fix/activation-next-action-verification-gate`. |
+| L-1: verification `notes` in `reviewerNotes` column | DEFERRED (LOW) | Unchanged. |
+| L-2: two availability routes by application state | DOCUMENTED (LOW) | Unchanged. |

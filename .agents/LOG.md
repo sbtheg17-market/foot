@@ -3515,3 +3515,66 @@ with a brand-new provider + client — before any SEO/marketing/outreach work.
 **Next best action:** open PR `docs/pilot-provider-client-journey-validation`
 (docs + tests + Graphify refresh only), let CI go green, squash-merge. Any future
 fix for M-1 must be a separate, tightly scoped product PR.
+
+---
+
+### Session — Fix pilot finding M-1: activation next action vs. verification gate (2026-08-29)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (narrow product fix + focused regression tests + docs)
+
+**Baseline:** `main` = `b10e242e583ead1b2bbb4bfc6c3c27974e28aeab` (PR #73), clean tree.
+
+**Root cause (verified in source):** `deriveActivationNextAction`
+(`artifacts/api-server/src/routes/providers.ts`) branched on
+`applicationStatus` alone. Every setup destination it emits
+(`complete_profile`, `configure_service_area`, `add_service`,
+`set_availability`, `publish_booking_page`, `share_booking_page`, `all_set`)
+is behind `requireApprovedProvider` (application AND verification approved —
+the C1 `approved` milestone), which the derivation never consulted. In the
+window "application approved, verification still `under_review`", the hub's
+primary CTA pointed at routes answering 403.
+
+**Fix (smallest source-of-truth change, no schema/contract change):**
+- Server: the approved-application branch now gates on the C1 milestone.
+  Pre-gate it returns `wait_for_review` (verification decision pending) or
+  `review_update_needed` (verification rejected — resubmission via
+  `/providers/me/verification` is accessible pre-gate). Both codes already
+  existed in the OpenAPI enum; no client regeneration needed.
+- Web (presentation of server truth only): `APPROVED_TITLES` entries for the
+  two pre-gate codes; activation-checklist `stepHref` keys approved-only deep
+  links on `milestones.approved` (was `applicationStatus === 'approved'`),
+  matching the component's own "no links that would land on a 403" contract;
+  the `#activation-feedback` anchor section now also renders for an approved
+  application with `verification.status === 'needs_update'` (truthful copy,
+  no reviewer-private data), so the `review_update_needed` CTA target exists
+  in both producing states. `requireApprovedProvider` untouched; no client-side
+  readiness recomputation; no route made accessible to unapproved providers.
+
+**Tests added:**
+- API (`provider-activation-status.integration.test.ts`, +2):
+  gate-alignment test (approved+under_review → `wait_for_review` with a live
+  `PUT /providers/me/service-area` 403 probe; approved+rejected →
+  `review_update_needed` + `canResubmit`), and a table-driven
+  lifecycle-state × route-eligibility test (8 states, read-only
+  `GET /providers/me/services` gate probe) proving gated action codes are
+  emitted only when the gate answers 200.
+- Web (`provider-activation-hub.test.tsx`, +2): M-1 wait state (no setup CTA,
+  locked checklist links, axe scan) and the accessible update path
+  (anchor target exists, verification resubmit link).
+
+**Validation (local disposable PostgreSQL only):** typecheck PASS; build PASS;
+build:deploy PASS; API unit 132/132; web 242/242; web a11y PASS; tz 10/10;
+targeted suites all PASS — activation-status 13, provider-status 9,
+onboarding 23, verification 13, role-state 2, registration 15, authorization 7,
+return-path-drift 11, route-read-drift 19, provider-readiness 14,
+provider-application 8, provider-dashboard 17, booking-page 17,
+service-area 30; `git diff --check` clean; secret scan clean.
+Managed DB NOT accessed; production NOT deployed.
+
+**Docs:** derivation section updated in `docs/provider-approval-status-hub.md`;
+M-1 CLOSED addendum in `docs/pilot/provider-client-journey-validation.md`;
+ledger + next-steps updated. L-1/L-2 remain deferred (LOW).
+
+**Delivery:** branch `fix/activation-next-action-verification-gate`,
+PR "fix: align provider next action with verification gate", squash-merge
+after CI. Product fix kept separate from any docs-only PR per pilot policy.
