@@ -26,6 +26,11 @@ Options:
                        directory; created if it does not exist).
   -h, --help           Show this help and exit.
 
+Preflight: pg_dump must be the same major version as, or newer than, the
+target PostgreSQL server (an older client aborts and produces no usable
+backup). psql is required to read the target server version; only version
+numbers are ever printed.
+
 The connection string is never printed or stored by this script.
 Store the resulting .sql file in secure private storage only —
 NEVER commit it to Git or attach it to shared documents.
@@ -65,6 +70,63 @@ if ! command -v pg_dump >/dev/null 2>&1; then
   echo "(docs/backup-supabase-instance.md → Prerequisites)." >&2
   exit 1
 fi
+
+if ! command -v psql >/dev/null 2>&1; then
+  echo "ERROR: psql not found on PATH." >&2
+  echo "psql is required for the version-compatibility preflight (it reads the" >&2
+  echo "target server version). Install the PostgreSQL client tools first" >&2
+  echo "(docs/backup-supabase-instance.md → Prerequisites)." >&2
+  exit 1
+fi
+
+# --- Version-compatibility preflight ----------------------------------------
+# pg_dump must be the same major version as, or newer than, the target
+# PostgreSQL server; an older client aborts mid-dump and produces no usable
+# backup. Only version numbers are read and printed here — never the
+# connection string and never query output containing sensitive identifiers.
+# The target version can only be learned after connecting, so run this script
+# only from a trusted environment with runtime-only secret injection. The
+# preflight performs no database mutation.
+PG_DUMP_VERSION_RAW="$(pg_dump --version 2>/dev/null || true)"
+PG_DUMP_MAJOR="$(printf '%s\n' "$PG_DUMP_VERSION_RAW" \
+  | sed -n 's/^pg_dump (PostgreSQL[^)]*) \([0-9][0-9]*\).*/\1/p' | head -n 1)"
+case "$PG_DUMP_MAJOR" in
+  ''|*[!0-9]*)
+    echo "ERROR: could not determine the local pg_dump major version." >&2
+    echo "'pg_dump --version' returned malformed or empty output. Reinstall the" >&2
+    echo "PostgreSQL client tools, then retry. No backup was created." >&2
+    exit 1
+    ;;
+esac
+
+SERVER_VERSION_NUM="$( { psql --dbname="$DB_URL" --no-psqlrc --quiet \
+  --tuples-only --no-align --command='SHOW server_version_num;' \
+  2>/dev/null || true; } | tr -d '[:space:]')"
+case "$SERVER_VERSION_NUM" in
+  ''|*[!0-9]*)
+    echo "ERROR: could not determine the target PostgreSQL server major version." >&2
+    echo "The preflight version query failed or returned unexpected output." >&2
+    echo "Verify connectivity and the connection string in your secure runtime" >&2
+    echo "environment, then retry. No backup was created." >&2
+    exit 1
+    ;;
+esac
+if [ "${#SERVER_VERSION_NUM}" -lt 5 ] || [ "${#SERVER_VERSION_NUM}" -gt 6 ]; then
+  echo "ERROR: could not determine the target PostgreSQL server major version." >&2
+  echo "The preflight version query returned an unexpected value. Verify the" >&2
+  echo "target in your secure runtime environment, then retry." >&2
+  echo "No backup was created." >&2
+  exit 1
+fi
+SERVER_MAJOR=$((SERVER_VERSION_NUM / 10000))
+
+if [ "$PG_DUMP_MAJOR" -lt "$SERVER_MAJOR" ]; then
+  echo "ERROR: pg_dump major version $PG_DUMP_MAJOR is older than target PostgreSQL major version $SERVER_MAJOR." >&2
+  echo "Install or select PostgreSQL client version $SERVER_MAJOR or newer, then retry." >&2
+  echo "No backup was created." >&2
+  exit 1
+fi
+echo "Preflight OK: pg_dump major $PG_DUMP_MAJOR / target PostgreSQL major $SERVER_MAJOR."
 
 mkdir -p "$OUTPUT_DIR"
 

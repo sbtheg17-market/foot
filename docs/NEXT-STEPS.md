@@ -644,3 +644,32 @@ Key records:
   GitHub is never a backup/export store.
 - No runtime behavior changed; managed DB NOT accessed; production NOT
   deployed; no scripts executed.
+
+## Backup preflight and disposable restore-rehearsal tooling (2026-08-29)
+
+Source-only tooling/docs phase (branch
+`scripts/backup-preflight-and-restore-rehearsal`). No script was run against
+production or any managed database as part of this repository task.
+
+- Backup tooling now requires a PostgreSQL major-version compatibility
+  preflight: `pg_dump` must be the same major version as, or newer than, the
+  target server, or the script fails closed before any dump is created
+  (`scripts/backup-supabase-instance.sh` + `.ps1`; `psql` is now a preflight
+  prerequisite; malformed/unqueryable versions also fail closed).
+- New operator-only, disposable-target-only restore rehearsal scripts:
+  `scripts/restore-supabase-instance-rehearsal.sh` / `.ps1` —
+  `RESTORE_TARGET_DB_URL` only, explicit `--confirm-disposable-target`, safe
+  target-label allowlist/denylist (defense-in-depth), second typed
+  confirmation, fail-closed safety checks, suppressed restore output,
+  non-destructive verification, explicit cleanup reminder. Guide:
+  `docs/restore-supabase-instance-rehearsal.md`.
+- Local-safe mocked test harnesses (no live database, loopback fixture URL
+  only): `scripts/tests/test-backup-preflight.sh`,
+  `scripts/tests/test-restore-rehearsal.sh`.
+- Next manual operational gate: an authorized operator runs a successful
+  canonical backup with a compatible PostgreSQL client, completes a restore
+  rehearsal into a separately provisioned disposable target, and records
+  non-secret evidence. **Gate-B remains blocked until that non-secret
+  backup/rehearsal evidence exists.**
+- Provider export remains a later, separate, application-level capability.
+- No GitHub administrative application permission is authorized.

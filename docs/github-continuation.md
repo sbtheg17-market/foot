@@ -159,3 +159,13 @@ repo, temporary secret, output kept outside the workspace, secret rotated,
 Codespace deleted) — a transitional manual route, not application
 infrastructure. Details:
 `docs/provider-export-and-recovery-backup-architecture.md` (§1, §5).
+## Recovery tooling is operator-only and never runs through GitHub (added 2026-08-29)
+
+The backup and restore-rehearsal scripts
+(`scripts/backup-supabase-instance.*`,
+`scripts/restore-supabase-instance-rehearsal.*`) are operator-only source
+tooling. They are never executed by GitHub Actions, Codespaces automation, CI,
+or any application runtime path; GitHub holds only their source and release
+history. Database dumps, restore transcripts, and connection strings are never
+committed or pushed. No GitHub administrative application permission is
+authorized for normal Foot backup/export behavior.

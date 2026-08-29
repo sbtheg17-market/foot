@@ -1,0 +1,220 @@
+# Restore Rehearsal Guide — Disposable Targets Only
+
+**Added:** 2026-08-29. Companion tooling for
+`docs/restore-rehearsal-design.md`,
+`docs/backup-supabase-instance.md`,
+`docs/backup-restore-runbook.md`, and
+`docs/provider-export-and-recovery-backup-architecture.md` (§4–§5).
+
+## Purpose
+
+```text
+This is a restore rehearsal for verifying a backup procedure using a disposable,
+non-production PostgreSQL target. It is not a production restore workflow.
+```
+
+The rehearsal proves a backup artifact can actually be restored. A non-empty
+dump file is necessary evidence, never sufficient evidence. A successful
+script run is a **basic technical verification only** — it is not a
+substitute for full application-level recovery validation.
+
+The scripts:
+
+```text
+scripts/restore-supabase-instance-rehearsal.sh   (macOS/Linux/WSL)
+scripts/restore-supabase-instance-rehearsal.ps1  (Windows PowerShell)
+```
+
+are **operator-only tooling**. They are never called from application runtime
+code, never exposed through the provider/vendor dashboard, never run in CI or
+unattended, and never touch GitHub, Railway, or Supabase dashboard APIs.
+
+## Preconditions
+
+- Operator authorization for the rehearsal.
+- A confirmed **non-production, disposable** target, provisioned separately
+  and **empty** (the script never deletes, truncates, drops, resets, alters,
+  or migrates the target before restoring — start from a fresh empty
+  database).
+- Clear ownership of the disposable target and an agreed cleanup plan.
+- A local backup file, verified to exist and be non-empty.
+- The backup file is stored **outside any Git working tree**.
+- PostgreSQL client tools (`psql`) installed.
+- The target connection information kept in a secure **runtime-only** method
+  (password manager or platform secret manager → session environment
+  variable). No actual credentials are ever entered in this document or
+  copied to GitHub.
+
+## Safety gates enforced by the scripts
+
+1. Strict shell error behavior (`set -euo pipefail` / PowerShell
+   `$ErrorActionPreference = "Stop"`); every failure exits non-zero and fails
+   closed.
+2. All three inputs are required: backup file, target label, and the explicit
+   disposable-target acknowledgement flag.
+3. Backup file must exist, be a regular file, be non-empty, and have a
+   `.sql` extension (or the operator must explicitly pass
+   `--allow-nonstandard-extension` / `-AllowNonstandardExtension`).
+4. The target URL comes **only** from `RESTORE_TARGET_DB_URL`. It is verified
+   non-empty without ever being printed. `SUPABASE_DB_URL` (the backup
+   *source* variable) is never read as a target, and the script refuses to
+   run if the two values are identical.
+5. `psql` must exist on `PATH`.
+6. The target label must contain one of these case-insensitive terms:
+
+   ```text
+   disposable
+   test
+   rehearsal
+   sandbox
+   temporary
+   ```
+
+   and is rejected if it contains any of:
+
+   ```text
+   production
+   prod
+   canonical
+   live
+   primary
+   oncall-foot
+   ```
+
+   **Label checks are defense-in-depth, not proof of target safety.** The
+   operator remains responsible for where `RESTORE_TARGET_DB_URL` actually
+   points.
+7. The script connects and reads only minimal safe metadata (the server major
+   version) before doing anything else; if it cannot, it fails closed and
+   instructs the operator not to proceed. Optionally,
+   `RESTORE_EXPECTED_SERVER_MAJOR` (a plain number such as `17`, never a URL)
+   cross-checks the target against the recorded source server major version.
+8. After all preflight checks, a second **typed interactive confirmation** is
+   required:
+
+   ```text
+   Type exactly: RESTORE TO DISPOSABLE TARGET
+   ```
+
+   Any other input aborts. Piping the phrase to defeat the interactive
+   intent is prohibited.
+9. The restore runs via `psql` with `ON_ERROR_STOP=1`, and its output is
+   fully suppressed so no SQL contents, credentials, hostnames, usernames,
+   project references, or personal data can leak into terminals, logs, or
+   transcripts.
+10. Post-restore verification is **non-destructive and read-only**: a
+    connection check, the server major version, and a count of `public`
+    schema tables (schema metadata only — never user records). It is clearly
+    labeled a basic technical verification, not full recovery validation.
+
+## Bash example (placeholders only)
+
+```bash
+export RESTORE_TARGET_DB_URL='[private disposable target URL]'
+bash scripts/restore-supabase-instance-rehearsal.sh \
+  --backup-file '/private/path/to/backup.sql' \
+  --target-label 'disposable-rehearsal-YYYY-MM-DD' \
+  --confirm-disposable-target
+unset RESTORE_TARGET_DB_URL
+```
+
+## PowerShell example (placeholders only)
+
+```powershell
+$env:RESTORE_TARGET_DB_URL = "[private disposable target URL]"
+.\scripts\restore-supabase-instance-rehearsal.ps1 `
+  -BackupFile "C:\private\path\to\backup.sql" `
+  -TargetLabel "disposable-rehearsal-YYYY-MM-DD" `
+  -ConfirmDisposableTarget
+Remove-Item Env:RESTORE_TARGET_DB_URL
+```
+
+## Required process
+
+```text
+1. Verify the backup exists and is non-empty.
+2. Create/select an empty disposable target under operator control.
+3. Set the target URL only for the current local session.
+4. Run the guarded script.
+5. Complete the second typed confirmation.
+6. Record non-secret rehearsal evidence.
+7. Independently inspect approved technical checks.
+8. Delete the disposable target according to the approved cleanup process.
+9. Remove the runtime secret from the environment.
+```
+
+## Registry evidence (non-secret metadata only)
+
+Record only safe metadata such as:
+
+```text
+instance_id
+backup_event_id
+backup_method
+database_engine_major_version
+pg_dump_major_version
+backup_artifact_label
+artifact_size_bytes
+backup_verified_date
+restore_rehearsal_status
+restore_rehearsal_date
+restore_target_label
+verification_status
+operator_role_label
+purpose_code
+cleanup_confirmed_date
+```
+
+It is **explicitly prohibited** to record:
+
+```text
+database URLs
+passwords
+API keys
+Supabase project reference IDs
+GitHub/Railway tokens
+backup files
+backup storage paths
+provider/client data
+SQL contents
+```
+
+## Explicit non-goals of the scripts
+
+The scripts do **not**:
+
+- auto-provision a database;
+- auto-detect or auto-connect to production;
+- run backup creation;
+- store, upload, or download a copy of the backup;
+- execute in CI or run unattended;
+- run from the provider dashboard or accept a browser-supplied target URL;
+- use `SUPABASE_DB_URL` as a target;
+- include any production identifier;
+- claim a restore is fully validated from a successful `psql` exit code
+  alone.
+
+## Warnings (non-negotiable)
+
+```text
+Never use a production target.
+Never use the OnCall Foot production database as a target.
+Never pass a connection string on the command line.
+Never commit a backup, connection string, or restore transcript.
+Never paste credentials or SQL output into chat, a ticket, or documentation.
+Never treat a successful script run as a substitute for full application-level
+recovery validation.
+```
+
+## Local-safe tests
+
+`scripts/tests/test-restore-rehearsal.sh` exercises every safety gate with a
+mocked `psql` on a controlled `PATH`. It never contacts any database and uses
+only a loopback fixture URL. Run:
+
+```bash
+bash scripts/tests/test-restore-rehearsal.sh
+```
+
+(companion: `bash scripts/tests/test-backup-preflight.sh` for the backup
+version preflight).

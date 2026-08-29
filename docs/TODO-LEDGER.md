@@ -543,3 +543,12 @@ validation + docs phase (baseline `main` `c647d4d`). Authoritative record:
 | pg_dump version preflight in backup procedure | OPEN | Add client-major ≥ server-major preflight to the operator procedure/script before the next real backup run (observed failure class: newer server vs older client → no usable artifact). |
 | Provider Data Export MVP (Phase B) | DEFERRED | Only after canonical production journey validation. Implement per `docs/provider-export-implementation-plan.md`; open product/legal questions (§17) must be answered first. |
 | Operator recovery control plane (Phase C) | FUTURE | Platform-operations capability; never implemented by giving the Foot app a GitHub repository-admin token. |
+
+### Backup preflight + restore rehearsal tooling (2026-08-29)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| pg_dump version preflight in backup procedure (OPEN row above) | **CLOSED 2026-08-29** | Both backup scripts fail closed before any dump when the `pg_dump` major version is older than the target server major version (equal or newer proceeds); `psql` is now a preflight prerequisite; missing tools, missing URL, malformed versions, and failed version queries all fail closed with safe messages. Local-safe mocked tests: `scripts/tests/test-backup-preflight.sh`. |
+| Restore rehearsal script (disposable-target-only) (OPEN row above) | **CLOSED 2026-08-29 — tooling built; rehearsal NOT run** | `scripts/restore-supabase-instance-rehearsal.sh` / `.ps1` + `docs/restore-supabase-instance-rehearsal.md`: `RESTORE_TARGET_DB_URL` only, three required inputs, label allowlist/denylist (defense-in-depth), typed confirmation, fail-closed checks, suppressed output, non-destructive verification, cleanup reminder. Operator-only; never dashboard/CI/runtime. Tests: `scripts/tests/test-restore-rehearsal.sh`. |
+| First verified canonical backup + disposable restore rehearsal | OPEN — human operator action | Run only from a trusted environment with runtime-only secret injection and a compatible client; restore only into a separately provisioned disposable target; record non-secret registry evidence per `docs/restore-supabase-instance-rehearsal.md`. Not performed by this repository task. |
+| Gate-B migration/deployment verification | BLOCKED (unchanged) | Blocked until non-secret backup/rehearsal evidence exists; see `docs/managed-db-release-gate.md`. |

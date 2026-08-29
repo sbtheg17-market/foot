@@ -3780,3 +3780,62 @@ references, or backup filenames recorded anywhere.
 squash-merge after CI. Next: first successful canonical backup + disposable
 restore rehearsal before Gate-B; provider export MVP only after canonical
 production journey validation.
+
+### Session — Backup preflight hardening + disposable restore-rehearsal tooling (2026-08-29)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `M` (scripts + local-safe tests + docs only — no runtime change)
+
+**Baseline:** `main` = `881212723d6050d0946a0eb8720bb7e3276abbff` (PR #77), clean tree.
+
+**Deliverables:**
+- Backup preflight: `scripts/backup-supabase-instance.sh` + `.ps1` now
+  require `psql`, read the local `pg_dump` major version and the target
+  server major version (`SHOW server_version_num;`, output never printed
+  beyond the number), and fail closed BEFORE any dump when the client major
+  is older than the server major (equal/newer proceeds). Missing tools,
+  missing URL, malformed versions, and failed version queries fail closed.
+  Captures the observed generic failure class (older client vs newer server
+  → no usable backup) without recording any identifying detail.
+- Restore rehearsal (operator-only, disposable-target-only):
+  `scripts/restore-supabase-instance-rehearsal.sh` + `.ps1` —
+  `RESTORE_TARGET_DB_URL` only (never `SUPABASE_DB_URL`; equality with it is
+  refused), `--backup-file` + `--target-label` + `--confirm-disposable-target`
+  required, file existence/regular/non-empty/.sql checks
+  (`--allow-nonstandard-extension` escape hatch), label allowlist
+  (disposable/test/rehearsal/sandbox/temporary) + denylist
+  (production/prod/canonical/live/primary/oncall-foot; defense-in-depth
+  only), minimal safe target metadata read, optional non-secret
+  `RESTORE_EXPECTED_SERVER_MAJOR` cross-check, second typed confirmation
+  ("RESTORE TO DISPOSABLE TARGET"), restore via `psql` with ON_ERROR_STOP=1
+  and fully suppressed output, non-destructive read-only verification
+  (connection, server major, public table count) labeled basic-technical
+  only, cleanup reminder, exit non-zero on every failure. Never
+  drops/truncates/alters the target; operators start from a fresh empty
+  disposable database.
+- Docs: new `docs/restore-supabase-instance-rehearsal.md` (purpose,
+  preconditions, placeholder-only examples, required process, non-secret
+  registry evidence + prohibited items, warnings);
+  `docs/backup-supabase-instance.md` gained the mandatory
+  version-compatibility preflight section, psql prerequisite, and the
+  non-empty-export-is-not-restore-validation clarification;
+  `docs/backup-restore-runbook.md` links both script pairs without changing
+  any gate; `.graphifyignore` excludes `supabase-backup-*.sql`.
+- Tests (local-safe, mocked, no database contact, loopback fixture URL only):
+  `scripts/tests/test-backup-preflight.sh` (missing pg_dump/psql/URL,
+  malformed local/target versions, query failure fail-closed, 16-vs-17 fails
+  before dump, 17/17 and 18/17 allowed, no-secret-leak invariant) and
+  `scripts/tests/test-restore-rehearsal.sh` (missing/empty file, missing
+  URL/psql/flag, extension gate, all six banned labels, unsafe label, wrong
+  typed confirmation, connection-failure fail-closed, restore failure,
+  full mocked success, no-secret-leak invariant).
+
+**Boundaries held:** no database accessed; no Supabase/Railway/Codespaces
+access; no secrets requested/printed/stored/committed; no SQL dump generated
+or added; no migration applied; no deployment; no accounts or infrastructure
+created/modified; scripts are operator-only and not imported by web/API
+runtime code.
+
+**Next:** human operator runs the first verified canonical backup with a
+compatible client, then a restore rehearsal into a separately provisioned
+disposable target, records non-secret evidence, and only then requests
+Gate-B migration/deployment verification approval.

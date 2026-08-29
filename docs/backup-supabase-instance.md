@@ -27,17 +27,51 @@ documents, sheets, chat, or email.
 
 ## Prerequisites
 
-You need the PostgreSQL client tools (`pg_dump`) on the machine that runs the
+You need the PostgreSQL client tools (`pg_dump` for the dump itself and
+`psql` for the version-compatibility preflight) on the machine that runs the
 backup:
 
 | Platform | Install |
 |---|---|
-| macOS | `brew install libpq` then `brew link --force libpq` (or `brew install postgresql@16`) |
+| macOS | `brew install libpq` then `brew link --force libpq` (or `brew install postgresql@<major>` matching or exceeding the target server's major version) |
 | Debian/Ubuntu | `sudo apt-get install postgresql-client` |
 | Fedora/RHEL | `sudo dnf install postgresql` |
 | Windows | Install "Command Line Tools" from the EDB PostgreSQL installer, or use WSL with the Debian/Ubuntu command above |
 
-Verify: `pg_dump --version` prints a version number.
+Verify: `pg_dump --version` and `psql --version` both print a version number.
+
+## PostgreSQL version compatibility (mandatory preflight)
+
+`pg_dump` must be the **same major version as, or newer than**, the target
+PostgreSQL server. An older client aborts partway through and produces **no
+usable backup** — this failure class has been observed in practice (for
+example, a version-16 `pg_dump` against a version-17 server) and is now
+rejected before any dump is attempted.
+
+Both scripts therefore run a preflight before creating anything:
+
+1. Confirm `pg_dump` and `psql` exist on `PATH`.
+2. Read the local `pg_dump` major version from `pg_dump --version`.
+3. Read the target server major version with a minimal `psql` query
+   (`SHOW server_version_num;`). Only the version number is read and shown;
+   the connection string and any identifying query output are never printed.
+4. Compare major versions numerically. An equal or newer client proceeds;
+   an older client fails closed:
+
+   ```text
+   ERROR: pg_dump major version 16 is older than target PostgreSQL major version 17.
+   Install or select PostgreSQL client version 17 or newer, then retry.
+   No backup was created.
+   ```
+
+If `psql` is missing, the version query fails, or either version string is
+malformed, the script also fails closed with a safe message and creates no
+backup file.
+
+**Design limitation:** the target server version can only be learned after
+connecting to the database. No database mutation occurs during preflight, but
+the operator must still run the script only from a trusted environment with
+runtime-only secret injection.
 
 ## Getting the connection string (Supabase dashboard)
 
@@ -102,6 +136,7 @@ script warns if it detects it wrote inside one.
 Expected output (shape):
 
 ```text
+Preflight OK: pg_dump major 17 / target PostgreSQL major 17.
 Starting logical backup (public schema, plain SQL)…
 
 Backup complete.
@@ -133,9 +168,13 @@ file and never overwrites an earlier one.
    ```bash
    grep -c "CREATE TABLE" supabase-backup-YYYY-MM-DD-HHMM.sql
    ```
-4. For real recovery confidence, periodically restore into a **disposable
-   local database** and inspect it (see `docs/backup-restore-runbook.md`).
-   A backup that has never been restore-tested is unproven.
+4. For real recovery confidence, periodically restore into a **disposable,
+   non-production database** using the guarded rehearsal tooling —
+   `scripts/restore-supabase-instance-rehearsal.sh` / `.ps1`, guide:
+   `docs/restore-supabase-instance-rehearsal.md` (runbook:
+   `docs/backup-restore-runbook.md`). A non-empty export alone is **not**
+   restore validation; a backup that has never been restore-tested is
+   unproven.
 
 ## Storing the backup securely
 
