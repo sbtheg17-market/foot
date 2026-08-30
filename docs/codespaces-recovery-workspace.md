@@ -37,6 +37,7 @@ Files:
 
 ```text
 .devcontainer/devcontainer.json
+.devcontainer/Dockerfile
 .devcontainer/ensure-user-home.sh
 .devcontainer/install-postgres-client.sh
 .devcontainer/verify-postgres-client.sh
@@ -44,7 +45,18 @@ Files:
 
 At Codespace creation/rebuild:
 
-0. Both lifecycle commands first run `ensure-user-home.sh` (added 2026-08-30
+1. **Image build stage — primary installation (added 2026-08-30).**
+   `devcontainer.json` builds `.devcontainer/Dockerfile`, which starts from
+   the same `mcr.microsoft.com/devcontainers/universal:2` base and runs
+   `install-postgres-client.sh` as root during the build. This is a stage
+   GitHub Codespaces must execute: the image has to be built before the
+   container can start, and the installer ends with the fail-closed
+   verifier, so the build itself fails (never a silently degraded
+   workspace) if PostgreSQL 17+ client tools are not selected. This became
+   necessary after a fresh Codespace was observed starting without
+   executing lifecycle commands at all — see the troubleshooting section
+   below.
+2. Both lifecycle commands first run `ensure-user-home.sh` (added 2026-08-30
    after a recovery-mode incident — see the troubleshooting section below).
    It derives the **active** lifecycle user and home directory at runtime
    (account database entry for the active uid, then `$HOME`), creates or
@@ -55,7 +67,10 @@ At Codespace creation/rebuild:
    configuration: the base image's own default user metadata is used as-is,
    and this repository defines no `remoteUser`, `containerUser`, custom
    user, or forced `HOME`/`USER` value.
-1. `onCreateCommand` then runs `install-postgres-client.sh`, which detects the
+3. `onCreateCommand` then re-runs `install-postgres-client.sh` as
+   redundancy and self-healing only: a fast path exits immediately when a
+   compatible client is already selected (the normal case after the build
+   stage). On a full run it detects the
    base distribution codename from `/etc/os-release` (the Codespaces
    universal image is Ubuntu 22.04 "jammy"), configures the PGDG apt
    repository (modern `signed-by` keyring — no deprecated `apt-key`), then
@@ -70,11 +85,14 @@ At Codespace creation/rebuild:
    unrelated broken repositories in the base image cannot break the
    bootstrap; only the PGDG index refresh is mandatory. The bootstrap is
    idempotent across rebuilds.
-2. PostgreSQL 17 client binaries take PATH precedence two ways:
-   `devcontainer.json` prepends `/usr/lib/postgresql/17/bin` via `remoteEnv`,
-   and Debian/Ubuntu's `postgresql-common` wrapper selects the newest
-   installed client by default.
-3. `postCreateCommand` runs `verify-postgres-client.sh`, which prints only
+4. PostgreSQL 17 client binaries reach the final user's PATH three ways:
+   Debian/Ubuntu's `postgresql-common` wrapper exposes the newest installed
+   client on `/usr/bin` (default PATH — works in every shell for every
+   user), the installer writes a login-shell precedence snippet to
+   `/etc/profile.d/99-foot-postgres-client-path.sh` (guarded against
+   duplicate entries), and `devcontainer.json` prepends
+   `/usr/lib/postgresql/17/bin` via `remoteEnv`.
+5. `postCreateCommand` runs `verify-postgres-client.sh`, which prints only
    version numbers and **fails the bootstrap (non-zero)** if `pg_dump` or
    `psql` is missing or older than the version-17 workspace baseline.
 
@@ -175,7 +193,57 @@ If a Codespace still lands in recovery mode, open the creation log
 Then do a Full Rebuild (Command Palette → "Codespaces: Full Rebuild
 Container") after the fix is merged.
 
+## Troubleshooting: PostgreSQL clients missing (lifecycle commands skipped)
+
+Incident (2026-08-30, after the home-initialization fix): a fresh Codespace
+from `main` started normally, but `pg_dump`/`psql` were absent. The creation
+log showed the container running as user `vscode` with **no evidence that
+`onCreateCommand`/`postCreateCommand` executed at all**; the only trace was
+the verifier's fail-closed output:
+
+```text
+pg_dump: command not found
+psql: command not found
+ERROR: pg_dump not found on PATH.
+```
+
+Diagnosis: the configuration relied exclusively on lifecycle commands for
+installation. The observed creation log proves the actual Codespaces
+lifecycle can start a container without running them — and with a different
+active user than the base image metadata declares — so lifecycle hooks must
+not be the sole installation mechanism.
+
+Hardening: installation moved to the **image build stage**
+(`.devcontainer/Dockerfile`). Codespaces must build that image to produce
+the container, and the build fails loudly if the installer or its final
+verification fails — a Codespace can no longer start "successfully" without
+PostgreSQL 17+ client tools baked in. Lifecycle commands remain as
+redundancy: the installer has a fast path that exits immediately when a
+compatible client is already selected, and `postCreateCommand` re-verifies.
+Everything stays user-agnostic (`vscode`, `codespace`, or root) via the home
+preflight and the sudo-only-when-needed pattern.
+
+Verification on a fresh rebuild: create a new Codespace (or run
+"Codespaces: Full Rebuild Container") and check the creation/build log for
+`OK: PostgreSQL client tools meet the 17+ workspace baseline.` during the
+image build, then run `pg_dump --version` and `psql --version` in the
+terminal — both must print 17 or newer. The backup script's runtime
+server/client preflight remains mandatory regardless.
+
 ## Local-safe tests
+
+`scripts/tests/test-devcontainer-install-mechanism.sh` statically verifies
+the installation mechanism itself: `devcontainer.json` builds
+`.devcontainer/Dockerfile` (no bare `image` reference), the Dockerfile pins
+the universal:2 base, runs the installer during the build and ends with the
+fail-closed verifier, defines no `USER`/`HOME` override and creates no
+user, only client packages are ever referenced (no server, no apt-key), the
+17 baseline is consistent, lifecycle redundancy stays preflight-first, and
+no secret-shaped value appears in the devcontainer configuration. Run:
+
+```bash
+bash scripts/tests/test-devcontainer-install-mechanism.sh
+```
 
 `scripts/tests/test-ensure-user-home.sh` exercises the home preflight with
 sandboxed home paths (the real home directory is never read or modified):
@@ -198,7 +266,9 @@ repository contacted): Ubuntu 22.04 codename handling, preexisting
 conflicting PGDG entries, idempotent reruns, unrelated-broken-repo
 tolerance, mandatory PGDG refresh failure, and all verifier gates
 (missing tools, version 16 rejection, 17/18 acceptance, malformed versions,
-no secret output). Run:
+no secret output), plus the already-installed fast path (skips package
+setup, never masks an old client) and the login-shell PATH precedence
+snippet (prepend, dedup guard, valid sh, idempotent rerun). Run:
 
 ```bash
 bash scripts/tests/test-codespaces-bootstrap.sh

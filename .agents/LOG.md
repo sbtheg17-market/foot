@@ -3971,3 +3971,52 @@ Existing `test-codespaces-bootstrap.sh` still passes (16 checks).
 **Boundaries held:** no database accessed; no Supabase/Railway access; no
 Codespaces secret created/read/changed; no backup/restore executed; no SQL;
 no application runtime change; runtime backup preflight untouched.
+
+### Session — Codespaces PostgreSQL client build-stage install (2026-08-30)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (devcontainer bootstrap + local-safe tests + docs; no runtime change)
+
+**Baseline:** `main` = `42afbd1728b98597c46b69ffab8fad3821426f5d` (PR #81), clean tree.
+
+**Incident:** fresh Codespace from `main` started normally (home fix held),
+but `pg_dump`/`psql` were absent (`ERROR: pg_dump not found on PATH.`). The
+creation log showed the container running as user `vscode` and no evidence
+that `onCreateCommand`/`postCreateCommand` executed.
+
+**Root cause:** installation relied exclusively on lifecycle commands; the
+observed creation log proves the actual Codespaces lifecycle can start a
+container without running them (and with a different active user than the
+base image metadata declares). Lifecycle hooks are not a guaranteed
+execution stage.
+
+**Fix:** primary installation moved to the image build stage — new
+`.devcontainer/Dockerfile` (FROM the same universal:2 base, no USER/HOME
+override, no user creation) COPYs and RUNs `install-postgres-client.sh` as
+root at build time; the installer ends with the fail-closed verifier so a
+bad build fails instead of producing a degraded workspace.
+`devcontainer.json` switches `image` → `build.dockerfile`. Lifecycle
+commands kept as redundancy: installer gained an already-installed fast
+path (exits when a 17+ client is selected; test override
+`FOOT_BOOTSTRAP_FORCE_INSTALL`), and now also writes a guarded, idempotent
+login-shell PATH precedence snippet (`/etc/profile.d/`; sandbox override
+`FOOT_BOOTSTRAP_PROFILE_DIR`). Preserved unchanged: home preflight fix,
+PGDG Signed-By conflict fix, client-only PG 17, no apt-key, `remoteEnv`
+PATH precedence, fail-closed verifier, runtime backup preflight.
+
+**Tests:** `test-codespaces-bootstrap.sh` extended (fast-path skip,
+fast path never masks an old client, PATH snippet content/prepend/dedup/
+valid-sh/idempotency; forced-install override for the existing cases). New
+`test-devcontainer-install-mechanism.sh` (15 static checks: build-stage
+mechanism, pinned base, no USER/HOME/user-creation, client-only, apt-key
+absent, 17 baseline consistency, preflight-first lifecycle, no
+secret-shaped values). `test-ensure-user-home.sh` static guard updated for
+`build.dockerfile`. All suites pass locally.
+
+**Validation limits:** Docker and the devcontainer CLI's container path are
+unavailable in the validation environment — the Dockerfile was validated
+statically only; a full image build was NOT executed here. A fresh
+Codespace rebuild proves the setup end-to-end.
+
+**Boundaries held:** no database accessed; no Supabase/Railway access; no
+Codespaces secret created/read/changed; no backup/restore executed; no SQL;
+no application runtime change; runtime backup preflight untouched.

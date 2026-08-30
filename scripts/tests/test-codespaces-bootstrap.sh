@@ -37,7 +37,7 @@ STATUS=0
 new_case() {
   CASE_BIN="$TMP_ROOT/bin-$1"
   SANDBOX="$TMP_ROOT/sandbox-$1"
-  mkdir -p "$CASE_BIN" "$SANDBOX/etc-apt/sources.list.d" "$SANDBOX/keys"
+  mkdir -p "$CASE_BIN" "$SANDBOX/etc-apt/sources.list.d" "$SANDBOX/keys" "$SANDBOX/profile-d"
   # Ubuntu 22.04 (jammy) os-release fixture — the actual Codespaces base.
   printf 'NAME="Ubuntu"\nVERSION_ID="22.04"\nVERSION_CODENAME=jammy\n' > "$SANDBOX/os-release"
   # sudo passthrough mock (harness may run as non-root).
@@ -102,12 +102,25 @@ write_mock_pg_tools() { # $1 = major version for both tools, or "garbage"
   chmod +x "$CASE_BIN/pg_dump" "$CASE_BIN/psql"
 }
 
-run_install() {
+run_install() { # forced full install (bypasses the already-installed fast path)
   OUTPUT="$(env -i PATH="$CASE_BIN:$CLEAN_BIN" \
     FOOT_BOOTSTRAP_APT_DIR="$SANDBOX/etc-apt" \
     FOOT_BOOTSTRAP_PGDG_KEY_DIR="$SANDBOX/keys" \
     FOOT_BOOTSTRAP_OS_RELEASE="$SANDBOX/os-release" \
     FOOT_BOOTSTRAP_VERSIONED_BIN="$SANDBOX/no-such-versioned-bin" \
+    FOOT_BOOTSTRAP_PROFILE_DIR="$SANDBOX/profile-d" \
+    FOOT_BOOTSTRAP_FORCE_INSTALL=1 \
+    bash "$INSTALL_SCRIPT" 2>&1)"
+  STATUS=$?
+}
+
+run_install_nofast() { # no force flag: exercises the already-installed fast path
+  OUTPUT="$(env -i PATH="$CASE_BIN:$CLEAN_BIN" \
+    FOOT_BOOTSTRAP_APT_DIR="$SANDBOX/etc-apt" \
+    FOOT_BOOTSTRAP_PGDG_KEY_DIR="$SANDBOX/keys" \
+    FOOT_BOOTSTRAP_OS_RELEASE="$SANDBOX/os-release" \
+    FOOT_BOOTSTRAP_VERSIONED_BIN="$SANDBOX/no-such-versioned-bin" \
+    FOOT_BOOTSTRAP_PROFILE_DIR="$SANDBOX/profile-d" \
     bash "$INSTALL_SCRIPT" 2>&1)"
   STATUS=$?
 }
@@ -228,6 +241,51 @@ new_case "verify-malformed-version"
 write_mock_pg_tools garbage
 run_verify
 check "verifier fails closed on unparsable versions" nonzero "could not parse"
+
+new_case "fast-path-skip"
+write_mock_curl; write_mock_apt_get ok; write_mock_pg_tools 17
+run_install_nofast
+check "fast path: already-compatible client skips package setup (build-stage redundancy)" zero "nothing to install"
+if [ ! -e "$SANDBOX/etc-apt/sources.list.d/pgdg.list" ]; then
+  PASS=$((PASS + 1)); echo "PASS: fast path performed no apt source changes"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: fast path unexpectedly wrote apt sources"
+fi
+
+new_case "fast-path-never-masks-old-client"
+write_mock_curl; write_mock_apt_get ok; write_mock_pg_tools 16
+run_install_nofast
+check "fast path never masks an old client (full bootstrap attempted; 16 rejected)" nonzero "older than the workspace baseline 17"
+
+new_case "profile-path-snippet"
+write_mock_curl; write_mock_apt_get ok; write_mock_pg_tools 17
+run_install
+SNIPPET="$SANDBOX/profile-d/99-foot-postgres-client-path.sh"
+check "forced bootstrap succeeds and writes the PATH precedence snippet" zero "Wrote login-shell PATH precedence snippet"
+if [ -f "$SNIPPET" ] && grep -Fq '/usr/lib/postgresql/17/bin' "$SNIPPET" && grep -Fq 'case ":$PATH:"' "$SNIPPET"; then
+  PASS=$((PASS + 1)); echo "PASS: snippet prefers the versioned client dir with a dedup guard"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: snippet missing or malformed"
+fi
+if sh -n "$SNIPPET" 2>/dev/null; then
+  PASS=$((PASS + 1)); echo "PASS: snippet is valid sh"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: snippet is not valid sh"
+fi
+PREPEND_PATH="$(env PATH="/usr/bin:/bin" sh -c ". '$SNIPPET'; printf %s \"\$PATH\"")"
+case "$PREPEND_PATH" in
+  /usr/lib/postgresql/17/bin:*) PASS=$((PASS + 1)); echo "PASS: snippet prepends the versioned client dir (PATH precedence)" ;;
+  *) FAIL=$((FAIL + 1)); echo "FAIL: snippet did not prepend the versioned client dir" ;;
+esac
+DEDUP_PATH="$(env PATH="/usr/lib/postgresql/17/bin:/usr/bin:/bin" sh -c ". '$SNIPPET'; printf %s \"\$PATH\"")"
+DEDUP_COUNT="$(printf '%s' "$DEDUP_PATH" | grep -o '/usr/lib/postgresql/17/bin' | wc -l | tr -d ' ')"
+if [ "$DEDUP_COUNT" = "1" ]; then
+  PASS=$((PASS + 1)); echo "PASS: snippet never duplicates the PATH entry (idempotent sourcing)"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: snippet duplicated the PATH entry ($DEDUP_COUNT occurrences)"
+fi
+run_install
+check "forced rerun keeps the snippet and stays idempotent" zero
 
 echo
 echo "Results: PASS=$PASS FAIL=$FAIL"
