@@ -4130,3 +4130,57 @@ evidence (`base:alpine`, `User: vscode`).
 access; no Codespaces secret created/read/changed; no backup/restore
 executed; no SQL; no application runtime change; network use limited to
 public package-mirror metadata (PGDG primary/archive) read-only.
+
+### Session — Restore rehearsal: single-transaction + private error log (2026-08-30)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (operator recovery tooling + local-safe tests + docs; no runtime change)
+
+**Baseline:** `main` = `50da5409e1b580ea091a58fd64fa2401dbea2914` (PR #84), clean tree.
+
+**Incident (operator-reported, screenshot evidence):** the first real restore
+rehearsal against a disposable Supabase target passed every preflight
+(backup 60K present, client 17.5, target major 17, typed confirmation) and
+then failed during the psql restore. The script discarded ALL psql output
+(`>/dev/null 2>&1`), so the cause was undiagnosable, and the
+non-transactional restore left the disposable target possibly partially
+restored (forcing delete + re-provision per attempt).
+
+**Fix (both shell and PowerShell rehearsal scripts):**
+- `--single-transaction` + `ON_ERROR_STOP=1`: the restore is now
+  all-or-nothing; any failure rolls back and the target stays unchanged, so
+  reruns need no re-provisioning. (Safe for pg_dump plain output: no
+  CONCURRENTLY/VACUUM statements.)
+- psql stderr is captured to a private, operator-only error log
+  `<backup-file>.restore-error.log` (umask 077 → 600, same private directory
+  and sensitivity class as the backup itself; `VERBOSITY=verbose` for
+  SQLSTATE + context). The script prints only the log PATH — never its
+  contents — with handling rules (treat like the backup; never commit or
+  paste; delete after diagnosis). Deleted automatically on success.
+- stdout remains fully suppressed; the URL is still never printed; all
+  existing gates (label checks, env-only URL, source≠target, typed
+  confirmation) unchanged.
+
+**Diagnosis support:** the Drizzle public schema is vanilla PostgreSQL (no
+auth./extensions. references, no policies; partial indexes only), so a
+public-only dump restores cleanly into an EMPTY target — most probable
+failure classes documented in the new troubleshooting section (target not
+actually empty → 42P07/42710; pooler interruption; version mismatch already
+gated).
+
+**Tests:** `test-restore-rehearsal.sh` extended — mock psql now records its
+restore argv and emits fixture stderr on failure; new checks: rolled-back
+message, error-log path printed, stderr captured to the log and NEVER echoed
+to the terminal, log mode 600, `--single-transaction` present in psql argv,
+no leftover log after success. 28/28 PASS. Full suite regression:
+backup-preflight 19/19, bootstrap 28/28, mechanism 17/17, home 14/14;
+`git diff --check` clean; `scripts/secret-scan.sh` clean.
+
+**Docs:** `docs/restore-supabase-instance-rehearsal.md` — safety gate 9
+rewritten (single transaction + private error log semantics), new
+troubleshooting section with the operator recovery path (pre-fix partial
+restore → re-provision once; post-fix failures leave the target unchanged)
+and generic non-secret failure checklist.
+
+**Boundaries held:** no database accessed from this session; no
+Supabase/Railway/production access; no secret read or printed; no SQL
+generated; no application runtime change; the operator runs the rehearsal.
