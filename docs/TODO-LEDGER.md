@@ -552,3 +552,11 @@ validation + docs phase (baseline `main` `c647d4d`). Authoritative record:
 | Restore rehearsal script (disposable-target-only) (OPEN row above) | **CLOSED 2026-08-29 — tooling built; rehearsal NOT run** | `scripts/restore-supabase-instance-rehearsal.sh` / `.ps1` + `docs/restore-supabase-instance-rehearsal.md`: `RESTORE_TARGET_DB_URL` only, three required inputs, label allowlist/denylist (defense-in-depth), typed confirmation, fail-closed checks, suppressed output, non-destructive verification, cleanup reminder. Operator-only; never dashboard/CI/runtime. Tests: `scripts/tests/test-restore-rehearsal.sh`. |
 | First verified canonical backup + disposable restore rehearsal | OPEN — human operator action | Run only from a trusted environment with runtime-only secret injection and a compatible client; restore only into a separately provisioned disposable target; record non-secret registry evidence per `docs/restore-supabase-instance-rehearsal.md`. Not performed by this repository task. |
 | Gate-B migration/deployment verification | BLOCKED (unchanged) | Blocked until non-secret backup/rehearsal evidence exists; see `docs/managed-db-release-gate.md`. |
+
+### Codespaces recovery-workspace bootstrap (2026-08-29)
+
+| Item | Status | Notes |
+| --- | --- | --- |
+| PostgreSQL 17 client tools in Codespaces | DONE 2026-08-29 | `.devcontainer/devcontainer.json` + `install-postgres-client.sh` + `verify-postgres-client.sh`: PGDG apt source (signed-by keyring), noninteractive client-only install pinned to major 17, PATH precedence, fail-closed bootstrap verification (`pg_dump --version`, `psql --version`, major ≥ 17). No server, no secrets, no identifiers. Guide: `docs/codespaces-recovery-workspace.md`. |
+| Existing Codespaces adoption | OPEN — operator action | Rebuild the current container or create a fresh Codespace from `main`; existing Codespaces do not receive the bootstrap automatically. |
+| Runtime version preflight | UNCHANGED — mandatory | The backup script still checks the actual target server major version at run time and fails closed; the bootstrap is a convenience layer only (the managed server may move past 17). |

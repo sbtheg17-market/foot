@@ -39,7 +39,9 @@ unattended, and never touch GitHub, Railway, or Supabase dashboard APIs.
 - Clear ownership of the disposable target and an agreed cleanup plan.
 - A local backup file, verified to exist and be non-empty.
 - The backup file is stored **outside any Git working tree**.
-- PostgreSQL client tools (`psql`) installed.
+- PostgreSQL client tools (`psql`) installed. (In a GitHub Codespaces
+  operator workspace, new/rebuilt Codespaces provide compatible client tools
+  automatically — see `docs/codespaces-recovery-workspace.md`.)
 - The target connection information kept in a secure **runtime-only** method
   (password manager or platform secret manager → session environment
   variable). No actual credentials are ever entered in this document or

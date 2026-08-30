@@ -169,3 +169,14 @@ or any application runtime path; GitHub holds only their source and release
 history. Database dumps, restore transcripts, and connection strings are never
 committed or pushed. No GitHub administrative application permission is
 authorized for normal Foot backup/export behavior.
+
+## Codespaces devcontainer bootstrap (added 2026-08-29)
+
+`.devcontainer/` now standardizes the temporary operator recovery workspace:
+new or rebuilt Codespaces install PostgreSQL 17 client tools (client only,
+never a server) and verify them at bootstrap. The configuration is
+non-secret by policy — no connection string, key, token, project reference,
+or backup path may ever be added to it. All GitHub boundaries above are
+unchanged: GitHub is never a backup/export store, no dumps are committed, and
+no GitHub administrative application permission is authorized. See
+`docs/codespaces-recovery-workspace.md`.

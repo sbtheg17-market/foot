@@ -448,3 +448,15 @@ This design does **not** authorize:
 - account provisioning;
 - storing secrets in documentation;
 - treating a non-empty dump as a verified restore.
+
+## Addendum — Codespaces client bootstrap (2026-08-29)
+
+The transitional Codespaces pattern in §5 is now supported by a repository
+devcontainer bootstrap (`.devcontainer/`): new or rebuilt Codespaces install
+PostgreSQL 17 **client** tools (`pg_dump`, `psql`; never a database server)
+and fail the container bootstrap if a compatible client cannot be selected.
+Details: `docs/codespaces-recovery-workspace.md`. This is a convenience layer
+only — the backup script's runtime server/client version preflight remains
+mandatory and fails closed, because the managed server major version may
+change in the future. No secret, connection string, project reference, or
+backup path appears in the devcontainer configuration.
