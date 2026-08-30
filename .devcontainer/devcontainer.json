@@ -1,8 +1,8 @@
 {
   "name": "Foot canonical repository",
   "image": "mcr.microsoft.com/devcontainers/universal:2",
-  "onCreateCommand": "bash .devcontainer/install-postgres-client.sh",
-  "postCreateCommand": "bash .devcontainer/verify-postgres-client.sh",
+  "onCreateCommand": "bash .devcontainer/ensure-user-home.sh && bash .devcontainer/install-postgres-client.sh",
+  "postCreateCommand": "bash .devcontainer/ensure-user-home.sh && bash .devcontainer/verify-postgres-client.sh",
   "remoteEnv": {
     "PATH": "/usr/lib/postgresql/17/bin:${containerEnv:PATH}"
   }
