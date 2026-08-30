@@ -9,7 +9,8 @@
 # project reference, or backup path appears here or anywhere in the
 # devcontainer configuration.
 #
-# Reliability notes (Ubuntu 22.04 Codespaces universal image):
+# Reliability notes (Codespaces universal image — Ubuntu 20.04 "focal" as of
+# universal:2; the codename is always detected at runtime, never assumed):
 # - The base image already ships its own PGDG apt entry with a different
 #   signed-by keyring. Two entries for the same repository with different
 #   keyrings make 'apt-get update' fail hard ("Conflicting values set for
@@ -18,6 +19,11 @@
 # - Unrelated broken repositories in the base image must not break this
 #   bootstrap: the full index refresh is best-effort, and only the PGDG
 #   index refresh is mandatory.
+# - PGDG removes end-of-life distributions from the primary repository
+#   (observed 2026-08-30: 'focal-pgdg ... does not have a Release file'
+#   failed the image build and sent the Codespace into recovery mode). When
+#   the primary dist index is gone, the bootstrap retries against the PGDG
+#   EOL archive (apt-archive.postgresql.org) before failing closed.
 #
 # Execution stages (2026-08-30): the PRIMARY invocation is the image build
 # stage (.devcontainer/Dockerfile RUN, as root) because GitHub Codespaces
@@ -104,19 +110,42 @@ if grep -qsE '^[[:space:]]*deb.*apt\.postgresql\.org' "$APT_DIR/sources.list" 2>
   echo "Commented preexisting PGDG entry in sources.list (avoids apt Signed-By conflict)"
 fi
 
-echo "deb [signed-by=$KEY_FILE] https://apt.postgresql.org/pub/repos/apt ${CODENAME}-pgdg main" \
-  | $SUDO tee "$LIST_FILE" >/dev/null
+# Primary PGDG repository, plus the PGDG archive that keeps serving
+# end-of-life distributions after they are removed from the primary
+# repository (both public package mirrors; nothing secret-shaped).
+PGDG_PRIMARY_URL="https://apt.postgresql.org/pub/repos/apt"
+PGDG_ARCHIVE_URL="https://apt-archive.postgresql.org/pub/repos/apt"
+
+write_pgdg_list() { # $1 = PGDG repository base URL
+  echo "deb [signed-by=$KEY_FILE] $1 ${CODENAME}-pgdg main" \
+    | $SUDO tee "$LIST_FILE" >/dev/null
+}
+
+refresh_pgdg_index() {
+  $SUDO apt-get update -qq \
+    -o Dir::Etc::sourcelist="$LIST_FILE" \
+    -o Dir::Etc::sourceparts="-" \
+    -o APT::Get::List-Cleanup="0"
+}
+
+write_pgdg_list "$PGDG_PRIMARY_URL"
 
 # Refresh package indexes. The full refresh is best-effort only — unrelated
 # broken repositories in the base image must not break this bootstrap. The
 # PGDG index refresh below is mandatory and fails the bootstrap clearly.
 $SUDO apt-get update -qq \
   || echo "WARNING: full 'apt-get update' reported errors from unrelated repositories; continuing with the PGDG index only." >&2
-$SUDO apt-get update -qq \
-  -o Dir::Etc::sourcelist="$LIST_FILE" \
-  -o Dir::Etc::sourceparts="-" \
-  -o APT::Get::List-Cleanup="0" \
-  || fail "could not refresh the PGDG package index for ${CODENAME}-pgdg."
+
+# Mandatory PGDG index refresh: primary repository first; when the detected
+# distribution has been removed from the primary repository (EOL — observed
+# 2026-08-30 with focal on the universal:2 image), retry against the PGDG
+# EOL archive. Fails closed when neither serves the dist.
+if ! refresh_pgdg_index; then
+  echo "WARNING: primary PGDG repository has no usable ${CODENAME}-pgdg index (EOL distributions are removed from it); trying the PGDG archive." >&2
+  write_pgdg_list "$PGDG_ARCHIVE_URL"
+  refresh_pgdg_index \
+    || fail "could not refresh the PGDG package index for ${CODENAME}-pgdg from the primary repository or the EOL archive."
+fi
 
 $SUDO apt-get install -y -qq --no-install-recommends "postgresql-client-${PG_CLIENT_MAJOR}" \
   || fail "could not install postgresql-client-${PG_CLIENT_MAJOR} (client tools only; no server)."

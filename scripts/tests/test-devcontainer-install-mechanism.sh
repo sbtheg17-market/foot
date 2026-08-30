@@ -68,6 +68,8 @@ grep -qxF 'REQUIRED_MAJOR=17' "$DC_DIR/verify-postgres-client.sh"
 assert "verifier baseline is PostgreSQL 17" $?
 grep -q 'bash "$SCRIPT_DIR/verify-postgres-client.sh"' "$DC_DIR/install-postgres-client.sh"
 assert "installer ends by running the fail-closed verifier (build fails on bad selection)" $?
+grep -q 'apt-archive.postgresql.org' "$DC_DIR/install-postgres-client.sh"
+assert "installer falls back to the PGDG EOL archive when the primary dist index is gone" $?
 
 # 5. Lifecycle redundancy preserved and ordered: preflight first, then
 #    installer (onCreate) / verifier (postCreate); PG 17 PATH precedence kept.
