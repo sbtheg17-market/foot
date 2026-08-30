@@ -112,7 +112,14 @@ unattended, and never touch GitHub, Railway, or Supabase dashboard APIs.
    script — only its path. It may contain SQL identifiers or hostnames:
    treat it exactly like the backup file itself (never commit it, never paste
    it into chat/tickets/documentation, delete it after diagnosis). The log is
-   deleted automatically on success.
+   deleted automatically on success. One managed-provider compatibility rule
+   applies (confirmed incident 2026-08-30, SQLSTATE 42P06): when the dump
+   contains a provider-emitted `CREATE SCHEMA public;` statement, that single
+   statement is skipped in the psql **input stream only** — managed targets
+   always ship with an existing `public` schema, the backup file on disk is
+   never modified, line numbers are preserved (same-line SQL comment), and
+   lines inside `COPY` data blocks are never touched. A note is printed when
+   this happens.
 10. Post-restore verification is **non-destructive and read-only**: a
     connection check, the server major version, and a count of `public`
     schema tables (schema metadata only — never user records). It is clearly
@@ -250,6 +257,13 @@ Operator recovery path after a pre-fix failed attempt:
 Common causes to check first (generic, non-secret):
 
 ```text
+- CREATE SCHEMA public in the dump (SQLSTATE 42P06 "schema public already
+  exists" — CONFIRMED as the 2026-08-30 incident cause, dump line 24):
+  pg_dump emits it when the managed SOURCE customizes the public schema,
+  and every managed TARGET already has public. Fixed: the rehearsal now
+  skips exactly that statement in the psql input stream (backup file
+  untouched, line numbers preserved, COPY data never rewritten) and prints
+  a note when it does.
 - Target not actually empty (SQLSTATE 42P07/42710 "already exists"):
   a previous partial restore, a schema push, or a reused project.
   Remedy: provision a fresh disposable target or empty its public schema

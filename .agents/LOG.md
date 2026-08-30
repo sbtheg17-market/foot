@@ -4184,3 +4184,57 @@ and generic non-secret failure checklist.
 **Boundaries held:** no database accessed from this session; no
 Supabase/Railway/production access; no secret read or printed; no SQL
 generated; no application runtime change; the operator runs the rehearsal.
+
+### Session — Restore rehearsal 42P06 root cause fixed: skip provider CREATE SCHEMA public (2026-08-30)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (operator recovery tooling + local-safe tests + docs; no runtime change)
+
+**Baseline:** `main` = `c0d07175c38d692963326852785ddf627c0089ec` (PR #85), clean tree.
+
+**Incident (operator-supplied sanitized error-log extract — the PR #85 error
+log worked exactly as designed):**
+`ERROR: 42P06: schema "public" already exists` at backup line 24. The
+single-transaction rollback held: the disposable target was left unchanged.
+
+**Root cause:** pg_dump emits `CREATE SCHEMA public;` in `--schema=public`
+dumps whenever the SOURCE database's public schema is not the stock initdb
+one (managed providers — and Debian/Ubuntu packaging — customize it). Every
+managed PostgreSQL target already ships with an existing `public` schema, so
+that one statement fails on ANY managed-to-managed plain-SQL restore. This
+is deterministic, not operator error.
+
+**Fix (both shell and PowerShell rehearsal scripts):** the restore now feeds
+psql via an input-stream filter that comments out exactly
+`^CREATE SCHEMA public;$` — the backup file on disk is NEVER modified, the
+replacement is a same-line SQL comment (line numbers preserved for the error
+log), and lines inside COPY data blocks are never touched (a data row could
+legitimately contain the same text; awk COPY-block state machine / PowerShell
+equivalent). A note is printed whenever the skip happens; no note otherwise.
+All prior gates (single transaction, private error log, env-only URL, label
+checks, typed confirmation) unchanged.
+
+**Tests:** harness now 36/36 — new cases: dump containing the provider
+statement succeeds; header statement commented at the exact line; identical
+COPY data row preserved verbatim; line count preserved; backup file on disk
+still byte-identical (both original occurrences intact); no skip note for
+plain backups; stdin capture proves stream delivery.
+
+**End-to-end validation (local scratch PostgreSQL 15 ONLY — loopback
+127.0.0.1, no managed system):** real pg_dump of a scratch source (enum +
+table + a data row whose text is exactly 'CREATE SCHEMA public;') actually
+reproduced the incident shape (Debian PG15 emits CREATE SCHEMA public at
+line 25 unprompted). Real run of the actual script: restore SUCCEEDED into
+an empty scratch target (2 rows restored incl. the booby-trap row, note
+printed, no error log left). Rerun into the now-populated target FAILED
+CLOSED with SQLSTATE 42710 captured in the 600-perm private log, contents
+never echoed, and the target verifiably unchanged (rollback held). Scratch
+cluster dropped and stopped afterwards.
+
+**Docs:** `docs/restore-supabase-instance-rehearsal.md` — gate 9 extended
+with the managed-provider compatibility rule; troubleshooting checklist
+updated with the CONFIRMED 42P06 cause and fix.
+
+**Boundaries held:** no managed database accessed; only a local loopback
+scratch PostgreSQL 15 created and dropped for validation; no secret read or
+printed; no application runtime change; the operator runs the real
+rehearsal.

@@ -23,7 +23,7 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 # never be reached by accident.
 CLEAN_BIN="$TMP_ROOT/clean-bin"
 mkdir -p "$CLEAN_BIN"
-for tool in bash sh env sed grep head tr date mkdir du cut rm cat ls basename dirname; do
+for tool in bash sh env sed grep head tr date mkdir du cut rm cat ls basename dirname awk; do
   src="$(command -v "$tool" 2>/dev/null || true)"
   [ -n "$src" ] && ln -s "$src" "$CLEAN_BIN/$tool"
 done
@@ -34,6 +34,17 @@ EMPTY_BACKUP="$TMP_ROOT/fixture-empty.sql"
 : > "$EMPTY_BACKUP"
 ODD_EXT_BACKUP="$TMP_ROOT/fixture-backup.dump"
 printf -- '-- fixture plain-SQL dump (mock content only)\nSELECT 1;\n' > "$ODD_EXT_BACKUP"
+# Fixture dump with a provider-emitted 'CREATE SCHEMA public;' statement AND a
+# COPY data row containing the exact same text (which must never be touched).
+SCHEMA_BACKUP="$TMP_ROOT/fixture-schema.sql"
+{
+  printf 'SET statement_timeout = 0;\n'
+  printf 'CREATE SCHEMA public;\n'
+  printf 'COPY public.notes (body) FROM stdin;\n'
+  printf 'CREATE SCHEMA public;\n'
+  printf '\\.\n'
+  printf 'SELECT 1;\n'
+} > "$SCHEMA_BACKUP"
 
 PASS=0
 FAIL=0
@@ -54,6 +65,7 @@ write_mock_psql() { # $1 version-mode "num:<n>"|"fail", $2 restore exit code, $3
     printf 'for a in "$@"; do case "$a" in --command=*) cmd="${a#--command=}" ;; --file=*) isfile=1 ;; esac; done\n'
     printf 'if [ "$isfile" -eq 1 ]; then\n'
     printf '  printf "%%s\\n" "$@" > "%s"\n' "$CASE_BIN/restore-args"
+    printf '  cat - > "%s" 2>/dev/null || true\n' "$CASE_BIN/restore-stdin"
     printf '  if [ %s -ne 0 ]; then echo "ERROR:  42P07: fixture-relation already exists (mock stderr detail)" >&2; fi\n' "$rexit"
     printf '  exit %s\n' "$rexit"
     printf 'fi\n'
@@ -218,6 +230,56 @@ if [ ! -e "$GOOD_BACKUP.restore-error.log" ]; then
   PASS=$((PASS + 1)); echo "PASS: no error log is left behind after a successful rehearsal"
 else
   FAIL=$((FAIL + 1)); echo "FAIL: error log left behind after success"
+fi
+if grep -Fxq 'SELECT 1;' "$CASE_BIN/restore-stdin" 2>/dev/null; then
+  PASS=$((PASS + 1)); echo "PASS: restore feeds the backup contents to psql via the input stream"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: psql did not receive the backup contents on stdin"
+fi
+
+new_case "public-schema-statement-skipped"
+write_mock_psql num:170004 0 12
+run_restore "$CONFIRM_PHRASE" "$FIXTURE_URL" --backup-file "$SCHEMA_BACKUP" \
+  --target-label "disposable-rehearsal-check" --confirm-disposable-target
+check "rehearsal succeeds when the dump contains CREATE SCHEMA public (42P06 incident)" zero \
+  "skipped during the restore"
+STDIN_CAPTURE="$CASE_BIN/restore-stdin"
+if sed -n '2p' "$STDIN_CAPTURE" 2>/dev/null | grep -q '^-- CREATE SCHEMA public; (skipped'; then
+  PASS=$((PASS + 1)); echo "PASS: the header CREATE SCHEMA public statement is commented in the input stream"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: the header CREATE SCHEMA public statement was not neutralized"
+fi
+if [ "$(grep -c '^CREATE SCHEMA public;$' "$STDIN_CAPTURE" 2>/dev/null)" = "1" ] \
+  && sed -n '4p' "$STDIN_CAPTURE" | grep -qx 'CREATE SCHEMA public;'; then
+  PASS=$((PASS + 1)); echo "PASS: the identical COPY data row is preserved verbatim (data never rewritten)"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: COPY data was altered by the schema-statement filter"
+fi
+if [ "$(grep -c '' "$STDIN_CAPTURE" 2>/dev/null)" = "6" ]; then
+  PASS=$((PASS + 1)); echo "PASS: line count preserved (dump line numbers stay meaningful in error logs)"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: the filter changed the line count"
+fi
+if cmp -s "$SCHEMA_BACKUP" "$STDIN_CAPTURE"; then
+  FAIL=$((FAIL + 1)); echo "FAIL: filter did not change the stream at all"
+else
+  PASS=$((PASS + 1)); echo "PASS: backup file on disk untouched while the stream was filtered"
+fi
+HASH_BEFORE_CHECK="$(grep -c '^CREATE SCHEMA public;$' "$SCHEMA_BACKUP")"
+if [ "$HASH_BEFORE_CHECK" = "2" ]; then
+  PASS=$((PASS + 1)); echo "PASS: the backup file itself still contains both original lines (never modified)"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: the backup file was modified"
+fi
+
+new_case "no-schema-note-for-plain-backup"
+write_mock_psql num:170004 0 12
+run_restore "$CONFIRM_PHRASE" "$FIXTURE_URL" --backup-file "$GOOD_BACKUP" \
+  --target-label "disposable-rehearsal-check" --confirm-disposable-target
+if printf '%s' "$OUTPUT" | grep -q "skipped during the restore"; then
+  FAIL=$((FAIL + 1)); echo "FAIL: schema-skip note printed for a backup without CREATE SCHEMA public"
+else
+  PASS=$((PASS + 1)); echo "PASS: no schema-skip note for a backup without CREATE SCHEMA public"
 fi
 
 echo
