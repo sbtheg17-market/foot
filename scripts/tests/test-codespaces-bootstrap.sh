@@ -107,12 +107,15 @@ run_install() {
     FOOT_BOOTSTRAP_APT_DIR="$SANDBOX/etc-apt" \
     FOOT_BOOTSTRAP_PGDG_KEY_DIR="$SANDBOX/keys" \
     FOOT_BOOTSTRAP_OS_RELEASE="$SANDBOX/os-release" \
+    FOOT_BOOTSTRAP_VERSIONED_BIN="$SANDBOX/no-such-versioned-bin" \
     bash "$INSTALL_SCRIPT" 2>&1)"
   STATUS=$?
 }
 
 run_verify() {
-  OUTPUT="$(env -i PATH="$CASE_BIN:$CLEAN_BIN" bash "$VERIFY_SCRIPT" 2>&1)"
+  OUTPUT="$(env -i PATH="$CASE_BIN:$CLEAN_BIN" \
+    FOOT_BOOTSTRAP_VERSIONED_BIN="$SANDBOX/no-such-versioned-bin" \
+    bash "$VERIFY_SCRIPT" 2>&1)"
   STATUS=$?
 }
 
