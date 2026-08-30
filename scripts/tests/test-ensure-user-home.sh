@@ -150,12 +150,13 @@ assert not present, f"forbidden user/env overrides present: {present}"
 remote_env = cfg.get("remoteEnv", {})
 assert "HOME" not in remote_env and "USER" not in remote_env, "remoteEnv must not force HOME/USER"
 assert "/home/codespace" not in json.dumps(cfg), "no hard-coded /home/codespace in devcontainer.json"
-assert cfg["image"] == "mcr.microsoft.com/devcontainers/universal:2", "base image changed unexpectedly"
+assert "image" not in cfg, "installation must come from the build stage, not a bare image reference"
+assert cfg["build"]["dockerfile"] == "Dockerfile", "devcontainer must build .devcontainer/Dockerfile"
 for key in ("onCreateCommand", "postCreateCommand"):
     cmd = cfg[key]
     assert cmd.startswith("bash .devcontainer/ensure-user-home.sh && "), f"{key} must run the home preflight first"
 PYEOF
-check_static "devcontainer.json is strict JSON with image-default user, no HOME/USER forcing, and preflight-first lifecycle commands" $?
+check_static "devcontainer.json is strict JSON with build-stage config, no HOME/USER forcing, and preflight-first lifecycle commands" $?
 
 # 11. PATH precedence for PostgreSQL 17 clients is still declared via the
 #     spec-standard containerEnv expansion (no raw \$PATH, no home paths).
