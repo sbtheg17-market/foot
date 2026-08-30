@@ -176,12 +176,35 @@ fi
 
 echo
 echo "Restoring backup into the disposable target…"
-# psql output is fully suppressed so no SQL contents, identifiers, hostnames,
-# or data can leak into the terminal, logs, or transcripts.
+# --single-transaction makes the restore all-or-nothing: on any error psql
+# rolls the entire restore back, leaving the (empty) target unchanged.
+# psql stdout is fully suppressed so no SQL contents or data can leak into
+# the terminal. stderr is captured to a private, operator-only error log
+# created next to the backup file with owner-only permissions — the same
+# private location and sensitivity class as the backup itself (it may
+# contain SQL identifiers or hostnames; the connection string is never
+# printed by psql error output or this script). The log is deleted on
+# success and its CONTENTS are never printed here.
+ERROR_LOG="${BACKUP_FILE}.restore-error.log"
+rm -f "$ERROR_LOG"
+( umask 077; : > "$ERROR_LOG" )
 if ! psql --dbname="$RESTORE_TARGET_DB_URL" --no-psqlrc --quiet \
-  --set ON_ERROR_STOP=1 --file="$BACKUP_FILE" >/dev/null 2>&1; then
-  fail "psql reported a failure during the restore (output suppressed to avoid exposing SQL or identifiers). The disposable target may be partially restored: delete and re-provision it before retrying."
+  --single-transaction \
+  --set ON_ERROR_STOP=1 --set VERBOSITY=verbose \
+  --file="$BACKUP_FILE" >/dev/null 2>>"$ERROR_LOG"; then
+  printf 'ERROR: psql reported a failure during the restore.\n' >&2
+  printf 'The restore ran in a single transaction and was rolled back: the disposable\n' >&2
+  printf 'target should be unchanged by this attempt.\n' >&2
+  printf 'The psql error output was captured to a private, operator-only log file:\n' >&2
+  printf '  %s\n' "$ERROR_LOG" >&2
+  printf 'Review it privately to diagnose the failure. It may contain SQL identifiers\n' >&2
+  printf 'or hostnames: treat it exactly like the backup file itself — never commit it,\n' >&2
+  printf 'never paste it into chat, tickets, or documentation, and delete it after\n' >&2
+  printf 'diagnosis.\n' >&2
+  printf 'The rehearsal fails closed: do not proceed until the condition is fixed.\n' >&2
+  exit 1
 fi
+rm -f "$ERROR_LOG"
 
 # Non-destructive, read-only technical verification. This is a basic
 # technical verification only — NOT full application-level recovery

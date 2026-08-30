@@ -140,16 +140,34 @@ if ($confirmInput -cne $ConfirmPhrase) {
 
 Write-Host ""
 Write-Host "Restoring backup into the disposable target..."
-# psql output is fully suppressed so no SQL contents, identifiers, hostnames,
-# or data can leak into the terminal, logs, or transcripts.
+# --single-transaction makes the restore all-or-nothing: on any error psql
+# rolls the entire restore back, leaving the (empty) target unchanged.
+# psql stdout is fully suppressed so no SQL contents or data can leak into
+# the terminal. stderr is captured to a private, operator-only error log next
+# to the backup file — the same private location and sensitivity class as the
+# backup itself. The log is deleted on success and its CONTENTS are never
+# printed here.
+$errorLog = "$BackupFile.restore-error.log"
+Remove-Item -LiteralPath $errorLog -ErrorAction SilentlyContinue
 try {
-  & psql --dbname=$targetUrl --no-psqlrc --quiet --set ON_ERROR_STOP=1 --file=$BackupFile *> $null
+  & psql --dbname=$targetUrl --no-psqlrc --quiet --single-transaction --set ON_ERROR_STOP=1 --set VERBOSITY=verbose --file=$BackupFile 1> $null 2> $errorLog
 } catch {
   # Native stderr can raise in strict configurations; exit code decides below.
 }
 if ($LASTEXITCODE -ne 0) {
-  Fail "psql reported a failure during the restore (output suppressed to avoid exposing SQL or identifiers). The disposable target may be partially restored: delete and re-provision it before retrying."
+  Write-Host "ERROR: psql reported a failure during the restore." -ForegroundColor Red
+  Write-Host "The restore ran in a single transaction and was rolled back: the disposable"
+  Write-Host "target should be unchanged by this attempt."
+  Write-Host "The psql error output was captured to a private, operator-only log file:"
+  Write-Host "  $errorLog"
+  Write-Host "Review it privately to diagnose the failure. It may contain SQL identifiers"
+  Write-Host "or hostnames: treat it exactly like the backup file itself - never commit it,"
+  Write-Host "never paste it into chat, tickets, or documentation, and delete it after"
+  Write-Host "diagnosis."
+  Write-Host "The rehearsal fails closed: do not proceed until the condition is fixed."
+  exit 1
 }
+Remove-Item -LiteralPath $errorLog -ErrorAction SilentlyContinue
 
 # Non-destructive, read-only technical verification. This is a basic
 # technical verification only — NOT full application-level recovery

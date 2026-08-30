@@ -52,7 +52,11 @@ write_mock_psql() { # $1 version-mode "num:<n>"|"fail", $2 restore exit code, $3
     printf '#!/usr/bin/env bash\n'
     printf 'cmd=""\nisfile=0\n'
     printf 'for a in "$@"; do case "$a" in --command=*) cmd="${a#--command=}" ;; --file=*) isfile=1 ;; esac; done\n'
-    printf 'if [ "$isfile" -eq 1 ]; then exit %s; fi\n' "$rexit"
+    printf 'if [ "$isfile" -eq 1 ]; then\n'
+    printf '  printf "%%s\\n" "$@" > "%s"\n' "$CASE_BIN/restore-args"
+    printf '  if [ %s -ne 0 ]; then echo "ERROR:  42P07: fixture-relation already exists (mock stderr detail)" >&2; fi\n' "$rexit"
+    printf '  exit %s\n' "$rexit"
+    printf 'fi\n'
     printf 'case "$cmd" in\n'
     printf '  *server_version_num*)\n'
     case "$vmode" in
@@ -170,9 +174,30 @@ check "target connection/version failure fails closed" nonzero "could not connec
 
 new_case "restore-failure"
 write_mock_psql num:170004 3 12
+ERROR_LOG_PATH="$GOOD_BACKUP.restore-error.log"
+rm -f "$ERROR_LOG_PATH"
 run_restore "$CONFIRM_PHRASE" "$FIXTURE_URL" --backup-file "$GOOD_BACKUP" \
   --target-label "disposable-rehearsal-check" --confirm-disposable-target
 check "psql restore failure is reported safely" nonzero "failure during the restore"
+check "failure message states the single transaction was rolled back" nonzero "rolled back"
+check "failure message points to the private error log path" nonzero "restore-error.log"
+if printf '%s' "$OUTPUT" | grep -Fq 'fixture-relation already exists'; then
+  FAIL=$((FAIL + 1)); echo "FAIL: psql stderr contents leaked into terminal output"
+else
+  PASS=$((PASS + 1)); echo "PASS: psql stderr contents never reach the terminal"
+fi
+if [ -f "$ERROR_LOG_PATH" ] && grep -Fq 'fixture-relation already exists' "$ERROR_LOG_PATH"; then
+  PASS=$((PASS + 1)); echo "PASS: psql stderr is captured to the private error log next to the backup"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: private error log missing or does not contain the psql stderr"
+fi
+LOG_MODE="$(stat -c '%a' "$ERROR_LOG_PATH" 2>/dev/null || stat -f '%Lp' "$ERROR_LOG_PATH" 2>/dev/null)"
+if [ "$LOG_MODE" = "600" ]; then
+  PASS=$((PASS + 1)); echo "PASS: private error log has owner-only permissions (600)"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: private error log permissions are '$LOG_MODE', expected 600"
+fi
+rm -f "$ERROR_LOG_PATH"
 
 new_case "successful-rehearsal"
 write_mock_psql num:170004 0 12
@@ -184,6 +209,16 @@ check "verification is labeled as basic/technical only" zero \
   "Basic technical verification only (not full recovery validation)"
 check "cleanup reminder is printed" zero \
   "Delete the disposable target according to the runbook"
+if grep -qx -- '--single-transaction' "$CASE_BIN/restore-args" 2>/dev/null; then
+  PASS=$((PASS + 1)); echo "PASS: restore runs with --single-transaction (all-or-nothing)"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: restore did not pass --single-transaction to psql"
+fi
+if [ ! -e "$GOOD_BACKUP.restore-error.log" ]; then
+  PASS=$((PASS + 1)); echo "PASS: no error log is left behind after a successful rehearsal"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: error log left behind after success"
+fi
 
 echo
 echo "Results: PASS=$PASS FAIL=$FAIL"

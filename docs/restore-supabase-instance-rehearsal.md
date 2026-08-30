@@ -100,10 +100,19 @@ unattended, and never touch GitHub, Railway, or Supabase dashboard APIs.
 
    Any other input aborts. Piping the phrase to defeat the interactive
    intent is prohibited.
-9. The restore runs via `psql` with `ON_ERROR_STOP=1`, and its output is
-   fully suppressed so no SQL contents, credentials, hostnames, usernames,
-   project references, or personal data can leak into terminals, logs, or
-   transcripts.
+9. The restore runs via `psql` with `ON_ERROR_STOP=1` **inside a single
+   transaction** (`--single-transaction`): on any error the entire restore is
+   rolled back, so a failed rehearsal leaves the (empty) disposable target
+   unchanged instead of partially restored. `psql` stdout is fully suppressed
+   so no SQL contents, credentials, project references, or personal data can
+   leak into terminals, logs, or transcripts. `psql` **stderr is captured to a
+   private, operator-only error log** written next to the backup file
+   (`<backup-file>.restore-error.log`, owner-only permissions) so a failure
+   can actually be diagnosed. The log's contents are never printed by the
+   script — only its path. It may contain SQL identifiers or hostnames:
+   treat it exactly like the backup file itself (never commit it, never paste
+   it into chat/tickets/documentation, delete it after diagnosis). The log is
+   deleted automatically on success.
 10. Post-restore verification is **non-destructive and read-only**: a
     connection check, the server major version, and a count of `public`
     schema tables (schema metadata only — never user records). It is clearly
@@ -208,10 +217,54 @@ Never treat a successful script run as a substitute for full application-level
 recovery validation.
 ```
 
+## Troubleshooting: restore failed with all output suppressed (2026-08-30)
+
+Incident: a rehearsal against a disposable Supabase target passed every
+preflight (client 17.5, target major 17, typed confirmation) and then failed
+during the `psql` restore. The script at that time discarded **all** psql
+output, so the operator had no way to learn the cause, and the
+non-transactional restore left the target possibly partially restored.
+
+Hardening (this change):
+
+- `--single-transaction`: any failure now rolls the whole restore back — the
+  disposable target is left unchanged, and the rehearsal can be re-run
+  against the same still-empty target without re-provisioning.
+- Private error log: psql stderr is captured to
+  `<backup-file>.restore-error.log` (owner-only permissions, same private
+  directory as the backup itself). Review it privately; delete it after
+  diagnosis. Never commit or paste it.
+
+Operator recovery path after a pre-fix failed attempt:
+
+```text
+1. The pre-fix attempt was NOT transactional: delete and re-provision the
+   disposable target once (it may be partially restored).
+2. Pull the updated main into the operator workspace.
+3. Re-set RESTORE_TARGET_DB_URL for the session (never printed).
+4. Re-run the guarded rehearsal.
+5. If it fails again: open the printed .restore-error.log privately, fix the
+   condition it names, delete the log, re-run (the target stays unchanged).
+```
+
+Common causes to check first (generic, non-secret):
+
+```text
+- Target not actually empty (SQLSTATE 42P07/42710 "already exists"):
+  a previous partial restore, a schema push, or a reused project.
+  Remedy: provision a fresh disposable target or empty its public schema
+  through the provider's own tooling before rerunning.
+- Connection interrupted mid-restore through a pooler: retry; prefer the
+  provider's session-mode connection for long-running psql work.
+- Client/server major-version mismatch: already blocked by preflight.
+```
+
 ## Local-safe tests
 
 `scripts/tests/test-restore-rehearsal.sh` exercises every safety gate with a
-mocked `psql` on a controlled `PATH`. It never contacts any database and uses
+mocked `psql` on a controlled `PATH` — including the single-transaction
+rollback flag, the private error-log capture (path printed, contents never),
+and its owner-only permissions. It never contacts any database and uses
 only a loopback fixture URL. Run:
 
 ```bash
