@@ -1,0 +1,9 @@
+[2026-08-30T05:09:12.401Z] @devcontainers/cli 0.88.0. Node.js v20.20.2. linux 6.12.85+ arm64.
+[2026-08-30T05:09:12.401Z] Start: Run: git rev-parse --show-cdup
+[2026-08-30T05:09:12.407Z] Stop (6 ms): Run: git rev-parse --show-cdup
+[2026-08-30T05:09:12.408Z] Start: Run: docker ps -q -a --filter label=devcontainer.local_folder=/app/foot --filter label=devcontainer.config_file=/app/foot/.devcontainer/devcontainer.json
+[2026-08-30T05:09:12.410Z] Stop (2 ms): Run: docker ps -q -a --filter label=devcontainer.local_folder=/app/foot --filter label=devcontainer.config_file=/app/foot/.devcontainer/devcontainer.json
+[2026-08-30T05:09:12.410Z] Error: spawn docker ENOENT
+    at ChildProcess._handle.onexit (node:internal/child_process:285:19)
+    at onErrorNT (node:internal/child_process:483:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
