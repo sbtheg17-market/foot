@@ -43,10 +43,21 @@ Files:
 
 At Codespace creation/rebuild:
 
-1. `onCreateCommand` runs `install-postgres-client.sh`, which configures the
-   PGDG apt repository (modern `signed-by` keyring — no deprecated `apt-key`),
-   then noninteractively installs `postgresql-client-17` (client packages
-   only, `--no-install-recommends`; no server package, nothing started).
+1. `onCreateCommand` runs `install-postgres-client.sh`, which detects the
+   base distribution codename from `/etc/os-release` (the Codespaces
+   universal image is Ubuntu 22.04 "jammy"), configures the PGDG apt
+   repository (modern `signed-by` keyring — no deprecated `apt-key`), then
+   noninteractively installs `postgresql-client-17` (client packages only,
+   `--no-install-recommends`; no server package, nothing started).
+   Reliability behavior (added 2026-08-30 after a real Codespace creation
+   failure): any **preexisting** `apt.postgresql.org` entry shipped by the
+   base image is disabled first — two entries for the same repository with
+   different `signed-by` keyrings make `apt-get update` fail hard
+   ("Conflicting values set for option Signed-By") and previously sent the
+   Codespace into recovery mode. The full index refresh is best-effort so
+   unrelated broken repositories in the base image cannot break the
+   bootstrap; only the PGDG index refresh is mandatory. The bootstrap is
+   idempotent across rebuilds.
 2. PostgreSQL 17 client binaries take PATH precedence two ways:
    `devcontainer.json` prepends `/usr/lib/postgresql/17/bin` via `remoteEnv`,
    and Debian/Ubuntu's `postgresql-common` wrapper selects the newest
@@ -105,6 +116,20 @@ Printing connection strings.
 Storing credentials in devcontainer configuration.
 Using provider dashboard flows for recovery.
 Leaving dumps or secrets in a Codespace after use.
+```
+
+## Local-safe tests
+
+`scripts/tests/test-codespaces-bootstrap.sh` exercises the bootstrap logic
+with mocked `apt-get`/`curl` and sandboxed paths (no packages installed, no
+repository contacted): Ubuntu 22.04 codename handling, preexisting
+conflicting PGDG entries, idempotent reruns, unrelated-broken-repo
+tolerance, mandatory PGDG refresh failure, and all verifier gates
+(missing tools, version 16 rejection, 17/18 acceptance, malformed versions,
+no secret output). Run:
+
+```bash
+bash scripts/tests/test-codespaces-bootstrap.sh
 ```
 
 ## Cleanup checklist (after any recovery run)

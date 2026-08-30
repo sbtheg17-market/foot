@@ -689,3 +689,17 @@ it. The backup script's runtime server/client version preflight remains
 mandatory and fails closed. Guide: `docs/codespaces-recovery-workspace.md`.
 Next manual operational gate unchanged: verified canonical backup +
 disposable restore rehearsal with non-secret evidence, then Gate-B.
+
+## Codespaces bootstrap recovery fix (2026-08-30)
+
+The first real Codespace built from the bootstrap entered recovery mode. Root
+cause (reproduced deterministically on real apt): the universal image already
+ships a PGDG apt entry, and a second entry for the same repository with a
+different `signed-by` keyring makes `apt-get update` fail hard. The bootstrap
+now disables preexisting `apt.postgresql.org` entries, keeps exactly one
+canonical entry, treats the full index refresh as best-effort (only the PGDG
+refresh is mandatory), fails with clear messages, and is idempotent on
+rebuild. Local-safe mocked tests: `scripts/tests/test-codespaces-bootstrap.sh`.
+Operator action after merge: rebuild or create a fresh Codespace from `main`
+and verify `pg_dump --version` / `psql --version` report 17+. The backup
+script's runtime preflight remains mandatory and unchanged.

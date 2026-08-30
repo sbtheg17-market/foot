@@ -3877,3 +3877,50 @@ Codespaces secret created/read/printed; no secret, connection string,
 hostname, database name, project reference, or backup path added anywhere;
 no SQL generated; no backup/restore executed; no application runtime,
 schema, migration, or deployment change; no database server installed.
+
+### Session — Codespaces bootstrap recovery fix (2026-08-30)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (devcontainer bootstrap + local-safe tests + docs; no runtime change)
+
+**Baseline:** `main` = `3be2a2ad1158839fe1518fc88e61defaedef9717` (PR #79), clean tree.
+
+**Incident:** the first Codespace created from the new devcontainer entered
+recovery mode during setup (base: mcr.microsoft.com/devcontainers/universal,
+Ubuntu 22.04.5).
+
+**Root cause (reproduced deterministically on real apt):** the universal
+image already ships an `apt.postgresql.org` entry with its own keyring (which
+is why the default workspace had pg_dump 16). The bootstrap wrote a second
+entry for the same repository with a different `signed-by` keyring, so
+`apt-get update` failed hard:
+`E: Conflicting values set for option Signed-By regarding source
+https://apt.postgresql.org/pub/repos/apt …` /
+`E: The list of sources could not be read.` (exit 100) → `set -e` aborted
+`onCreateCommand` → recovery mode.
+
+**Fix (`.devcontainer/install-postgres-client.sh`):** disable every
+preexisting `apt.postgresql.org` entry (`sources.list.d/*.list`, `*.sources`,
+and active `deb` lines in the main `sources.list`) before writing exactly one
+canonical signed-by entry; treat the full `apt-get update` as best-effort
+(unrelated broken repos in the base image cannot break the bootstrap) while
+the scoped PGDG index refresh is mandatory and fails closed; explicit
+preflight checks for sudo/curl/apt-get; clear ERROR messages; idempotent on
+rebuild (its own file is never disabled; commented lines are not re-matched).
+Base-image strategy unchanged: universal:2 (the observed Ubuntu 22.04 image)
+with codename detection from /etc/os-release — works on jammy and bookworm.
+Verifier unchanged (fails closed on missing/unparsable/<17 clients).
+
+**Tests:** new `scripts/tests/test-codespaces-bootstrap.sh` (16 checks,
+mocked apt-get/curl, sandboxed FOOT_BOOTSTRAP_* paths, no packages installed,
+no repo contact): jammy codename handling, conflicting `.list`+`.sources`
+entries disabled with exactly one active entry remaining, idempotent rerun,
+unrelated-broken-repo tolerance, mandatory PGDG refresh failure fails
+closed, verifier gates (16 rejected, 17/18 accepted, missing tools,
+malformed versions), no connection-string-shaped output. Real-apt
+validation on Debian 12: exact conflict scenario → bootstrap disables the
+entry and completes with client 17.11; rerun with a broken unrelated repo →
+success; disabled file stays disabled.
+
+**Boundaries held:** no database accessed; no Supabase/Railway access; no
+Codespaces secret created/read/changed; no backup/restore executed; no SQL;
+no application runtime change; runtime backup preflight untouched.
