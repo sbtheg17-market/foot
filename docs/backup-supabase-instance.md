@@ -40,6 +40,12 @@ backup:
 
 Verify: `pg_dump --version` and `psql --version` both print a version number.
 
+GitHub Codespaces (operator recovery workspace): new or rebuilt Codespaces
+receive PostgreSQL 17 client tools automatically via the repository
+devcontainer bootstrap — see `docs/codespaces-recovery-workspace.md`.
+Existing Codespaces must be rebuilt first. The bootstrap is a convenience
+layer only; the runtime preflight below remains mandatory.
+
 ## PostgreSQL version compatibility (mandatory preflight)
 
 `pg_dump` must be the **same major version as, or newer than**, the target
