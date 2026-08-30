@@ -230,6 +230,71 @@ image build, then run `pg_dump --version` and `psql --version` in the
 terminal — both must print 17 or newer. The backup script's runtime
 server/client preflight remains mandatory regardless.
 
+## Troubleshooting: fresh Codespace still missing clients (recovery container / stale configuration)
+
+Incident (2026-08-30, after the build-stage install landed on `main` as
+`c2225c8`): a Codespace created from `main` roughly **two minutes after the
+merge** opened with `pg_dump`/`psql` absent again:
+
+```text
+pg_dump: command not found
+psql: command not found
+ERROR: pg_dump not found on PATH.
+```
+
+The decisive fingerprint: the terminal user was **`vscode`**.
+
+Diagnosis (read-only public registry/API metadata; no live system touched):
+
+- The published `mcr.microsoft.com/devcontainers/universal:2` image config
+  sets Docker-level `User: root` (so the Dockerfile `RUN` install executes
+  as root at build time) and declares `containerUser`/`remoteUser` =
+  `codespace` in its embedded devcontainer metadata (applied at container
+  runtime). This repository overrides neither.
+- Therefore a container whose active user is `vscode` **cannot be the image
+  built from this repository's Dockerfile**. `vscode` is the default user of
+  GitHub's fallback/recovery container family — proof that the built image
+  never started in that Codespace, not that the build stage is unreliable.
+- The Codespaces API showed the affected Codespace was created **without a
+  prebuild** and with `.devcontainer/devcontainer.json` recognized, and the
+  repository's configuration on `main` passes every installation-mechanism
+  test (see "Local-safe tests" below).
+
+Two provider-side ways this happens — same remedy for both:
+
+1. **Image build or container start failed** (for example a transient
+   network/apt failure while the build ran): Codespaces falls back to the
+   minimal recovery container and **skips `onCreateCommand`/
+   `postCreateCommand` entirely**.
+2. **Stale devcontainer configuration snapshot**: a Codespace created
+   moments after a configuration-changing merge can be provisioned from
+   GitHub's cached pre-merge configuration instead of the just-merged one.
+
+Diagnostic check inside any suspect Codespace terminal (non-secret):
+
+```bash
+id -un   # codespace → the built image is running; vscode → recovery/stale container
+```
+
+Then open the creation log (Command Palette → "Codespaces: View Creation
+Log") and look for the image build stage and its
+`OK: PostgreSQL client tools meet the 17+ workspace baseline.` line.
+
+Remedy: **delete the affected Codespace and create a fresh one from `main`**
+(or run "Codespaces: Full Rebuild Container" inside it). Merely stopping,
+restarting, or reopening the Codespace is not sufficient — the recovery/stale
+container persists across restarts. After the rebuild, confirm:
+
+```bash
+id -un              # expected: codespace (the image's own default user)
+pg_dump --version   # expected: 17 or newer
+psql --version      # expected: 17 or newer
+```
+
+No repository-side change can prevent the provider-side failure modes above;
+the configuration itself is fail-closed (a Codespace that actually builds
+this Dockerfile cannot start without PostgreSQL 17+ client tools).
+
 ## Local-safe tests
 
 `scripts/tests/test-devcontainer-install-mechanism.sh` statically verifies

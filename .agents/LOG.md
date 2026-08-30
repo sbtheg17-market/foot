@@ -4020,3 +4020,53 @@ Codespace rebuild proves the setup end-to-end.
 **Boundaries held:** no database accessed; no Supabase/Railway access; no
 Codespaces secret created/read/changed; no backup/restore executed; no SQL;
 no application runtime change; runtime backup preflight untouched.
+
+### Session — Codespaces recovery-container diagnosis (2026-08-30)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `XS` (investigation + docs; no configuration, test, or runtime change)
+
+**Baseline:** `main` = `c2225c8445575744ec91e60d447f19db5ef3f674` (PR #82), clean tree.
+
+**Incident:** a fresh Codespace created from `main` at `c2225c8` (~2 minutes
+after the merge) again had no `pg_dump`/`psql`, and its terminal ran as user
+`vscode`.
+
+**Investigation (all read-only; no live system, database, or secret touched):**
+- All nine configuration checkpoints re-verified on `main`:
+  `devcontainer.json` uses a valid `build` object (`dockerfile: "Dockerfile"`,
+  `context: "."`, no stale `image` key); the Dockerfile pins
+  `mcr.microsoft.com/devcontainers/universal:2`, COPYs the installer, and RUNs
+  it at build time with exit status propagated (`RUN cmd && cleanup`,
+  `set -euo pipefail`, fail-closed verifier last); PATH reaches the final user
+  three ways; `postCreateCommand` is verify-only redundancy; no
+  `remoteUser`/`containerUser`/`USER`/`HOME` override; no secret-shaped value.
+- Public MCR registry metadata (read-only): universal:2 sets Docker-level
+  `User: root` — the build-stage installer executes as root — while
+  `containerUser`/`remoteUser` metadata (`codespace`) applies only at runtime.
+- Codespaces API (read-only GETs): the failing Codespace used **no prebuild**,
+  recognized `.devcontainer/devcontainer.json`, machine `basicLinux32gb`, and
+  was created at 09:38:11 −0400 — under two minutes after the 09:36:19 merge.
+- Conclusion: a container running as `vscode` cannot be the built image
+  (its runtime user is `codespace`); the Codespace ran GitHub's
+  recovery/stale-configuration container, so the image build stage was never
+  the failing party. Provider-side causes: build/start failure → recovery
+  container (lifecycle commands skipped), or a stale cached devcontainer
+  configuration snapshot from before the merge. Remedy is operator-side:
+  delete + fresh create (or Full Rebuild); a restart is not sufficient.
+
+**Change:** docs only — new troubleshooting section in
+`docs/codespaces-recovery-workspace.md` (recovery-container fingerprint
+`id -un`, registry facts, delete-plus-fresh-create remedy) + this log entry.
+No `.devcontainer/`, test, or application file changed.
+
+**Validation:** `bash -n` on all three bootstrap scripts OK;
+`test-devcontainer-install-mechanism.sh` 16/16;
+`test-codespaces-bootstrap.sh` 25/25; `test-ensure-user-home.sh` 14/14;
+`pnpm run typecheck`, `pnpm run build`, `pnpm run build:deploy`, `pnpm test`
+all pass (242 web tests + full node:test suites); `git diff --check` clean;
+`scripts/secret-scan.sh` clean.
+
+**Boundaries held:** no database accessed; no Supabase/Railway/production
+access; no Codespaces secret created/read/changed; no backup/restore
+executed; no SQL; no application runtime change; only read-only GETs against
+the public MCR registry and the Codespaces API metadata.
