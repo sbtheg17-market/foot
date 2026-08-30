@@ -4070,3 +4070,63 @@ all pass (242 web tests + full node:test suites); `git diff --check` clean;
 access; no Codespaces secret created/read/changed; no backup/restore
 executed; no SQL; no application runtime change; only read-only GETs against
 the public MCR registry and the Codespaces API metadata.
+
+### Session — Codespaces EOL-dist PGDG archive fallback (2026-08-30)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (devcontainer bootstrap + local-safe tests + docs; no runtime change)
+
+**Baseline:** `main` = `d5c745cc7928dd2939321cf9b52674dd3108c74f` (PR #83), clean tree.
+
+**Incident (root cause CONFIRMED via operator-supplied creation log):** the
+fresh-Codespace image build DID run (devcontainer.json correctly triggered
+`docker buildx build` of `.devcontainer/Dockerfile`) and failed fail-closed:
+`E: The repository 'https://apt.postgresql.org/pub/repos/apt focal-pgdg
+Release' does not have a Release file.` → `ERROR: could not refresh the PGDG
+package index for focal-pgdg.` Codespaces then logged "Creating recovery
+container.", pulled `mcr.microsoft.com/devcontainers/base:alpine`, and
+started it with `User: vscode` — confirming the PR #83 fingerprint analysis
+(a `vscode`-user container is never the built image; lifecycle hooks are
+skipped in recovery mode).
+
+**Root cause:** `mcr.microsoft.com/devcontainers/universal:2` is Ubuntu
+20.04 "focal" (not 22.04 as previously assumed in comments/docs; the
+installer detected the codename correctly), and PGDG removes end-of-life
+distributions from its primary repository. `focal-pgdg` is now HTTP 404 on
+`apt.postgresql.org` and is served by the PGDG EOL archive
+`apt-archive.postgresql.org`, which still provides `postgresql-client-17`
+(verified live, read-only: archive Release HTTP 200; package index lists
+`postgresql-client-17 17.5-1.pgdg20.04+1` amd64).
+
+**Fix:** `install-postgres-client.sh` — the mandatory PGDG index refresh now
+tries the primary repository first and, when the detected dist has no usable
+index there (EOL removal), rewrites the canonical list to the PGDG archive
+and retries; still fails closed when neither serves the dist. Same
+`signed-by` keyring for both (archive verified against the same PGDG key).
+No other mechanism changed: build-stage install, fail-closed verifier,
+client-only PG 17, no apt-key, no USER/HOME override, lifecycle redundancy
+all preserved.
+
+**Tests:** `test-codespaces-bootstrap.sh` extended — new apt-get mock mode
+`primary-dist-gone-archive-ok` (scoped refresh succeeds only when the
+sourcelist targets the archive) and a focal EOL case (fallback succeeds,
+canonical entry ends on the archive URL + `focal-pgdg main`, keyring
+preserved); both-repos-down still fails closed. 28/28 PASS.
+`test-devcontainer-install-mechanism.sh` +1 static check (archive fallback
+present), 17/17 PASS. `test-ensure-user-home.sh` 14/14 PASS.
+
+**End-to-end evidence (sandboxed, this container):** real `apt-get update`
+scoped to a temp sources list + temp lists dir against the archive
+`focal-pgdg` verified the InRelease signature with the PGDG key and resolved
+candidate `postgresql-client-17 17.5-1.pgdg20.04+1`. A fresh Codespace
+rebuild remains the final end-to-end proof (Docker unavailable here).
+
+**Docs:** `docs/codespaces-recovery-workspace.md` — corrected the base-image
+codename (focal, detected at runtime), documented the primary→archive
+mandatory-refresh behavior, and replaced the speculative troubleshooting
+diagnosis with the confirmed creation-log root cause + recovery-container
+evidence (`base:alpine`, `User: vscode`).
+
+**Boundaries held:** no database accessed; no Supabase/Railway/production
+access; no Codespaces secret created/read/changed; no backup/restore
+executed; no SQL; no application runtime change; network use limited to
+public package-mirror metadata (PGDG primary/archive) read-only.

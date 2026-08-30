@@ -38,7 +38,8 @@ new_case() {
   CASE_BIN="$TMP_ROOT/bin-$1"
   SANDBOX="$TMP_ROOT/sandbox-$1"
   mkdir -p "$CASE_BIN" "$SANDBOX/etc-apt/sources.list.d" "$SANDBOX/keys" "$SANDBOX/profile-d"
-  # Ubuntu 22.04 (jammy) os-release fixture — the actual Codespaces base.
+  # Generic non-EOL os-release fixture (jammy). The real universal:2 base is
+  # Ubuntu 20.04 focal — covered by the dedicated EOL-archive-fallback case.
   printf 'NAME="Ubuntu"\nVERSION_ID="22.04"\nVERSION_CODENAME=jammy\n' > "$SANDBOX/os-release"
   # sudo passthrough mock (harness may run as non-root).
   printf '#!/usr/bin/env bash\nexec "$@"\n' > "$CASE_BIN/sudo"
@@ -60,7 +61,7 @@ EOF
   chmod +x "$CASE_BIN/curl"
 }
 
-write_mock_apt_get() { # $1 = "ok" | "scoped-update-fail" | "full-update-fail-scoped-ok"
+write_mock_apt_get() { # $1 = "ok" | "scoped-update-fail" | "full-update-fail-scoped-ok" | "primary-dist-gone-archive-ok"
   local mode="$1"
   cat > "$CASE_BIN/apt-get" <<EOF
 #!/usr/bin/env bash
@@ -69,15 +70,22 @@ EOF
   cat >> "$CASE_BIN/apt-get" <<'EOF'
 scoped=0
 cmd=""
+srcfile=""
 for a in "$@"; do
   case "$a" in
     update|install) cmd="$a" ;;
     -o) : ;;
-    Dir::Etc::sourcelist=*) scoped=1 ;;
+    Dir::Etc::sourcelist=*) scoped=1; srcfile="${a#Dir::Etc::sourcelist=}" ;;
   esac
 done
 if [ "$cmd" = "update" ] && [ "$scoped" -eq 1 ]; then
   [ "$MODE" = "scoped-update-fail" ] && exit 100
+  if [ "$MODE" = "primary-dist-gone-archive-ok" ]; then
+    # EOL-dist simulation: the primary repository has no Release file for the
+    # dist; only the PGDG archive serves it (incident 2026-08-30).
+    grep -qs 'apt-archive\.postgresql\.org' "$srcfile" && exit 0
+    exit 100
+  fi
   exit 0
 fi
 if [ "$cmd" = "update" ]; then
@@ -207,8 +215,28 @@ check "unrelated broken repositories do not break the bootstrap (scoped PGDG ref
 new_case "pgdg-index-failure"
 write_mock_curl; write_mock_apt_get scoped-update-fail; write_mock_pg_tools 17
 run_install
-check "PGDG index refresh failure fails closed with a clear message" nonzero \
+check "PGDG index refresh failure (primary and archive) fails closed with a clear message" nonzero \
   "could not refresh the PGDG package index"
+
+new_case "eol-dist-archive-fallback"
+write_mock_curl; write_mock_apt_get primary-dist-gone-archive-ok; write_mock_pg_tools 17
+# The real incident dist: universal:2 is Ubuntu 20.04 focal, removed from the
+# primary PGDG repository after EOL (image-build failure, 2026-08-30).
+printf 'NAME="Ubuntu"\nVERSION_ID="20.04"\nVERSION_CODENAME=focal\n' > "$SANDBOX/os-release"
+run_install
+check "EOL dist (focal) falls back to the PGDG archive and succeeds" zero \
+  "trying the PGDG archive"
+if grep -qs 'apt-archive\.postgresql\.org' "$SANDBOX/etc-apt/sources.list.d/pgdg.list" \
+  && grep -qs 'focal-pgdg main' "$SANDBOX/etc-apt/sources.list.d/pgdg.list"; then
+  PASS=$((PASS + 1)); echo "PASS: canonical entry ends on the archive URL with the detected focal codename"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: canonical entry does not target the archive focal-pgdg dist"
+fi
+if grep -qs "signed-by=$SANDBOX/keys/apt.postgresql.org.asc" "$SANDBOX/etc-apt/sources.list.d/pgdg.list"; then
+  PASS=$((PASS + 1)); echo "PASS: archive fallback keeps the modern signed-by keyring"
+else
+  FAIL=$((FAIL + 1)); echo "FAIL: archive fallback lost the signed-by keyring"
+fi
 
 new_case "verify-17-accepted"
 write_mock_pg_tools 17

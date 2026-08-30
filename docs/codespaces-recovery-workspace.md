@@ -72,8 +72,9 @@ At Codespace creation/rebuild:
    compatible client is already selected (the normal case after the build
    stage). On a full run it detects the
    base distribution codename from `/etc/os-release` (the Codespaces
-   universal image is Ubuntu 22.04 "jammy"), configures the PGDG apt
-   repository (modern `signed-by` keyring — no deprecated `apt-key`), then
+   `universal:2` image is Ubuntu 20.04 "focal"; the codename is never
+   assumed), configures the PGDG apt repository (modern `signed-by` keyring —
+   no deprecated `apt-key`), then
    noninteractively installs `postgresql-client-17` (client packages only,
    `--no-install-recommends`; no server package, nothing started).
    Reliability behavior (added 2026-08-30 after a real Codespace creation
@@ -83,7 +84,11 @@ At Codespace creation/rebuild:
    ("Conflicting values set for option Signed-By") and previously sent the
    Codespace into recovery mode. The full index refresh is best-effort so
    unrelated broken repositories in the base image cannot break the
-   bootstrap; only the PGDG index refresh is mandatory. The bootstrap is
+   bootstrap; only the PGDG index refresh is mandatory — primary repository
+   first, then the PGDG **EOL archive** (`apt-archive.postgresql.org`) when
+   the primary no longer serves the detected distribution (PGDG removes
+   end-of-life dists — this is exactly what broke focal on 2026-08-30; see
+   the troubleshooting section below). The bootstrap is
    idempotent across rebuilds.
 4. PostgreSQL 17 client binaries reach the final user's PATH three ways:
    Debian/Ubuntu's `postgresql-common` wrapper exposes the newest installed
@@ -233,8 +238,8 @@ server/client preflight remains mandatory regardless.
 ## Troubleshooting: fresh Codespace still missing clients (recovery container / stale configuration)
 
 Incident (2026-08-30, after the build-stage install landed on `main` as
-`c2225c8`): a Codespace created from `main` roughly **two minutes after the
-merge** opened with `pg_dump`/`psql` absent again:
+`c2225c8`): a Codespace created from `main` opened with `pg_dump`/`psql`
+absent again:
 
 ```text
 pg_dump: command not found
@@ -244,46 +249,58 @@ ERROR: pg_dump not found on PATH.
 
 The decisive fingerprint: the terminal user was **`vscode`**.
 
-Diagnosis (read-only public registry/API metadata; no live system touched):
+**Confirmed root cause (from the actual creation log, 2026-08-30 15:21Z):**
+the image build DID run — `devcontainer.json` correctly triggered
+`docker buildx build` of `.devcontainer/Dockerfile` — and the installer
+failed fail-closed exactly as designed:
 
-- The published `mcr.microsoft.com/devcontainers/universal:2` image config
-  sets Docker-level `User: root` (so the Dockerfile `RUN` install executes
-  as root at build time) and declares `containerUser`/`remoteUser` =
-  `codespace` in its embedded devcontainer metadata (applied at container
-  runtime). This repository overrides neither.
-- Therefore a container whose active user is `vscode` **cannot be the image
-  built from this repository's Dockerfile**. `vscode` is the default user of
-  GitHub's fallback/recovery container family — proof that the built image
-  never started in that Codespace, not that the build stage is unreliable.
-- The Codespaces API showed the affected Codespace was created **without a
-  prebuild** and with `.devcontainer/devcontainer.json` recognized, and the
-  repository's configuration on `main` passes every installation-mechanism
-  test (see "Local-safe tests" below).
+```text
+E: The repository 'https://apt.postgresql.org/pub/repos/apt focal-pgdg Release' does not have a Release file.
+ERROR: could not refresh the PGDG package index for focal-pgdg.
+Codespaces bootstrap failed: PostgreSQL client tools were not installed.
+```
 
-Two provider-side ways this happens — same remedy for both:
+Two facts combined:
 
-1. **Image build or container start failed** (for example a transient
-   network/apt failure while the build ran): Codespaces falls back to the
-   minimal recovery container and **skips `onCreateCommand`/
-   `postCreateCommand` entirely**.
-2. **Stale devcontainer configuration snapshot**: a Codespace created
-   moments after a configuration-changing merge can be provisioned from
-   GitHub's cached pre-merge configuration instead of the just-merged one.
+1. `mcr.microsoft.com/devcontainers/universal:2` is **Ubuntu 20.04 "focal"**
+   (not 22.04 as this document previously assumed; the installer always
+   detects the codename at runtime and detected it correctly).
+2. PGDG **removes end-of-life distributions from its primary repository**.
+   Focal reached EOL, `focal-pgdg` disappeared from
+   `apt.postgresql.org` (HTTP 404), and EOL dists are served from the PGDG
+   archive `apt-archive.postgresql.org` instead — which still provides
+   `postgresql-client-17` for focal.
+
+After the failed build, Codespaces logged `Creating recovery container.`,
+pulled `mcr.microsoft.com/devcontainers/base:alpine`, and started it with
+`User: vscode` — which is why the terminal user is `vscode` and no lifecycle
+command ran. A container whose active user is `vscode` is therefore **never
+the image built from this repository** (universal:2's runtime user is
+`codespace`, and MCR registry metadata confirms its Docker-level build user
+is `root`, so the build-stage install runs as root).
+
+**Fix (2026-08-30):** the installer's mandatory PGDG index refresh now tries
+the primary repository first and automatically falls back to the PGDG EOL
+archive for the detected codename, still failing closed when neither serves
+the dist. Covered by the local-safe bootstrap tests (EOL focal fallback,
+keyring preserved, both-repos-down fail-closed).
 
 Diagnostic check inside any suspect Codespace terminal (non-secret):
 
 ```bash
-id -un   # codespace → the built image is running; vscode → recovery/stale container
+id -un   # codespace → the built image is running; vscode → recovery container
 ```
 
 Then open the creation log (Command Palette → "Codespaces: View Creation
 Log") and look for the image build stage and its
-`OK: PostgreSQL client tools meet the 17+ workspace baseline.` line.
+`OK: PostgreSQL client tools meet the 17+ workspace baseline.` line — or the
+first `ERROR:` line when the build failed.
 
-Remedy: **delete the affected Codespace and create a fresh one from `main`**
-(or run "Codespaces: Full Rebuild Container" inside it). Merely stopping,
-restarting, or reopening the Codespace is not sufficient — the recovery/stale
-container persists across restarts. After the rebuild, confirm:
+Remedy after any recovery-mode incident: **delete the affected Codespace and
+create a fresh one from `main`** (or run "Codespaces: Full Rebuild
+Container" inside it). Merely stopping, restarting, or reopening the
+Codespace is not sufficient — the recovery container persists across
+restarts. After the rebuild, confirm:
 
 ```bash
 id -un              # expected: codespace (the image's own default user)
@@ -291,9 +308,9 @@ pg_dump --version   # expected: 17 or newer
 psql --version      # expected: 17 or newer
 ```
 
-No repository-side change can prevent the provider-side failure modes above;
-the configuration itself is fail-closed (a Codespace that actually builds
-this Dockerfile cannot start without PostgreSQL 17+ client tools).
+A related provider-side failure mode also exists: a Codespace created
+moments after a configuration-changing merge can be provisioned from a stale
+cached devcontainer configuration snapshot. Same fingerprint, same remedy.
 
 ## Local-safe tests
 
@@ -327,9 +344,11 @@ bash scripts/tests/test-ensure-user-home.sh
 
 `scripts/tests/test-codespaces-bootstrap.sh` exercises the bootstrap logic
 with mocked `apt-get`/`curl` and sandboxed paths (no packages installed, no
-repository contacted): Ubuntu 22.04 codename handling, preexisting
+repository contacted): codename detection, preexisting
 conflicting PGDG entries, idempotent reruns, unrelated-broken-repo
-tolerance, mandatory PGDG refresh failure, and all verifier gates
+tolerance, mandatory PGDG refresh failure (primary and archive both down),
+the EOL-dist archive fallback (focal removed from the primary repository —
+the 2026-08-30 image-build failure), and all verifier gates
 (missing tools, version 16 rejection, 17/18 acceptance, malformed versions,
 no secret output), plus the already-installed fast path (skips package
 setup, never masks an old client) and the login-shell PATH precedence
