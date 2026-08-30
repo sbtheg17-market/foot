@@ -149,8 +149,38 @@ Write-Host "Restoring backup into the disposable target..."
 # printed here.
 $errorLog = "$BackupFile.restore-error.log"
 Remove-Item -LiteralPath $errorLog -ErrorAction SilentlyContinue
+
+# Managed-provider compatibility (confirmed incident 2026-08-30, SQLSTATE
+# 42P06): pg_dump emits 'CREATE SCHEMA public;' in --schema=public dumps when
+# the SOURCE provider customizes the public schema, but every managed
+# PostgreSQL target already ships with an existing public schema, so that one
+# statement always fails. It is neutralized in the psql INPUT STREAM only:
+# the backup file itself is never modified, the replacement is a same-line
+# SQL comment (line numbers preserved), and lines inside COPY data blocks
+# are never touched (a data row could legitimately contain the same text).
+$inCopy = $false
+$hasSchemaStatement = $false
+$restoreInput = Get-Content -LiteralPath $BackupFile | ForEach-Object {
+  if ($inCopy) {
+    if ($_ -ceq '\.') { $inCopy = $false }
+    $_
+  } elseif ($_ -match '^COPY .* FROM stdin;$') {
+    $inCopy = $true
+    $_
+  } elseif ($_ -match '^CREATE SCHEMA public;\s*$') {
+    $script:hasSchemaStatement = $true
+    '-- CREATE SCHEMA public; (skipped by restore rehearsal: managed targets already provide it)'
+  } else {
+    $_
+  }
+}
+if ($hasSchemaStatement) {
+  Write-Host "Note: the backup contains 'CREATE SCHEMA public;' - that single statement is"
+  Write-Host "skipped during the restore because managed PostgreSQL targets already provide"
+  Write-Host "the public schema. The backup file itself is not modified."
+}
 try {
-  & psql --dbname=$targetUrl --no-psqlrc --quiet --single-transaction --set ON_ERROR_STOP=1 --set VERBOSITY=verbose --file=$BackupFile 1> $null 2> $errorLog
+  $restoreInput | & psql --dbname=$targetUrl --no-psqlrc --quiet --single-transaction --set ON_ERROR_STOP=1 --set VERBOSITY=verbose --file=- 1> $null 2> $errorLog
 } catch {
   # Native stderr can raise in strict configurations; exit code decides below.
 }

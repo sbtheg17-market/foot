@@ -188,10 +188,38 @@ echo "Restoring backup into the disposable target…"
 ERROR_LOG="${BACKUP_FILE}.restore-error.log"
 rm -f "$ERROR_LOG"
 ( umask 077; : > "$ERROR_LOG" )
-if ! psql --dbname="$RESTORE_TARGET_DB_URL" --no-psqlrc --quiet \
+
+# Managed-provider compatibility (confirmed incident 2026-08-30, SQLSTATE
+# 42P06): pg_dump emits 'CREATE SCHEMA public;' in --schema=public dumps when
+# the SOURCE provider customizes the public schema, but every managed
+# PostgreSQL target already ships with an existing public schema, so that one
+# statement always fails. It is neutralized in the psql INPUT STREAM only:
+# the backup file itself is never modified, the replacement is a same-line
+# SQL comment (line numbers preserved), and lines inside COPY data blocks
+# are never touched (a data row could legitimately contain the same text).
+if grep -qE '^CREATE SCHEMA public;[[:space:]]*$' "$BACKUP_FILE"; then
+  echo "Note: the backup contains 'CREATE SCHEMA public;' — that single statement is"
+  echo "skipped during the restore because managed PostgreSQL targets already provide"
+  echo "the public schema. The backup file itself is not modified."
+fi
+restore_input() {
+  awk '
+    incopy == 1 {
+      if ($0 == "\\.") incopy = 0
+      print; next
+    }
+    /^COPY .* FROM stdin;$/ { incopy = 1; print; next }
+    /^CREATE SCHEMA public;[ \t]*$/ {
+      print "-- CREATE SCHEMA public; (skipped by restore rehearsal: managed targets already provide it)"
+      next
+    }
+    { print }
+  ' "$BACKUP_FILE"
+}
+if ! restore_input | psql --dbname="$RESTORE_TARGET_DB_URL" --no-psqlrc --quiet \
   --single-transaction \
   --set ON_ERROR_STOP=1 --set VERBOSITY=verbose \
-  --file="$BACKUP_FILE" >/dev/null 2>>"$ERROR_LOG"; then
+  --file=- >/dev/null 2>>"$ERROR_LOG"; then
   printf 'ERROR: psql reported a failure during the restore.\n' >&2
   printf 'The restore ran in a single transaction and was rolled back: the disposable\n' >&2
   printf 'target should be unchanged by this attempt.\n' >&2
