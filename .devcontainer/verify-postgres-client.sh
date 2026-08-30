@@ -15,8 +15,10 @@ set -euo pipefail
 REQUIRED_MAJOR=17
 
 # Prefer the versioned client binaries when present (standard Debian/Ubuntu
-# packaging location; no production information is encoded here).
-VERSIONED_BIN="/usr/lib/postgresql/${REQUIRED_MAJOR}/bin"
+# packaging location; no production information is encoded here). The
+# FOOT_BOOTSTRAP_VERSIONED_BIN override exists for the local-safe test
+# harness only; never set it in devcontainer configuration.
+VERSIONED_BIN="${FOOT_BOOTSTRAP_VERSIONED_BIN:-/usr/lib/postgresql/${REQUIRED_MAJOR}/bin}"
 if [ -d "$VERSIONED_BIN" ]; then
   PATH="$VERSIONED_BIN:$PATH"
 fi
