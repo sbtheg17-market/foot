@@ -3924,3 +3924,50 @@ success; disabled file stays disabled.
 **Boundaries held:** no database accessed; no Supabase/Railway access; no
 Codespaces secret created/read/changed; no backup/restore executed; no SQL;
 no application runtime change; runtime backup preflight untouched.
+
+### Session — Codespaces home-directory initialization fix (2026-08-30)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (devcontainer bootstrap + local-safe tests + docs; no runtime change)
+
+**Baseline:** `main` = `ce670a3` (PR #80), clean tree.
+
+**Incident:** the latest Codespace still entered recovery mode; the creation
+flow failed while initializing first-run state under the home directory:
+`mkdir: cannot create directory '/home/codespace': Permission denied` /
+`touch: … first-run-notice-already-displayed: No such file or directory`.
+
+**Root cause (evidence: read-only inspection of the published
+mcr.microsoft.com/devcontainers/universal:2 image metadata):** the image
+itself declares `containerUser`/`remoteUser` = `codespace` and ships that
+user's home; this repository never overrode them. The failure is a
+fixed-home assumption — setup wrote first-run state under `/home/codespace`
+while that directory was missing or unwritable for the active non-root user
+(`/home` is root-owned, so the user cannot create its own home), which
+failed setup and triggered recovery mode. Nothing in our configuration
+guaranteed the active user's home was valid before lifecycle commands ran.
+
+**Fix:** new `.devcontainer/ensure-user-home.sh` preflight runs first in
+both `onCreateCommand` and `postCreateCommand`: derives the ACTIVE user and
+home at runtime (account database, then `$HOME`; nothing hard-coded),
+creates/repairs the home (sudo only when needed and available),
+pre-creates `~/.config/vscode-dev-containers` so first-run marker writes
+cannot fail, and fails closed with clear ERROR lines otherwise. No
+`remoteUser`/`containerUser`/`USER`/`HOME` was added or needed (image
+defaults kept, per upstream metadata); no custom user created. PostgreSQL
+client bootstrap behavior unchanged: client-only, PG 17, idempotent, no
+apt-key, PGDG conflict fix intact, PATH precedence via
+`remoteEnv` `${containerEnv:PATH}`, fail-closed verifier. Runtime backup
+preflight untouched.
+
+**Tests:** new `scripts/tests/test-ensure-user-home.sh` (14 checks,
+sandboxed home paths, real home never touched, root- and non-root-safe):
+active user/home detection, missing-home creation, writability
+verification/repair, idempotent reruns, `$HOME` fallback, fail-closed
+uncreatable/relative/unresolvable homes, static guards (no hard-coded
+`/home/codespace`, no user/HOME overrides in devcontainer.json,
+preflight-first lifecycle order, PG 17 PATH precedence preserved).
+Existing `test-codespaces-bootstrap.sh` still passes (16 checks).
+
+**Boundaries held:** no database accessed; no Supabase/Railway access; no
+Codespaces secret created/read/changed; no backup/restore executed; no SQL;
+no application runtime change; runtime backup preflight untouched.
