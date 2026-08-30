@@ -214,3 +214,10 @@ defense-in-depth. Backup dumps, restore transcripts, and rehearsal outputs
 must never be ingested; Graphify may map only the backup/restore *scripts and
 documentation* themselves. Graphify remains neither a backup nor a
 secret-management system.
+
+## Codespaces bootstrap scope note (added 2026-08-29)
+
+The `.devcontainer/` configuration and bootstrap scripts are safe, non-secret
+source configuration and may be mapped like any other code/docs. Codespaces
+runtime metadata, temporary operator secrets, and any recovery artifacts
+produced inside a Codespace remain excluded from Graphify, as before.

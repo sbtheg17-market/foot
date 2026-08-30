@@ -3839,3 +3839,41 @@ runtime code.
 compatible client, then a restore rehearsal into a separately provisioned
 disposable target, records non-secret evidence, and only then requests
 Gate-B migration/deployment verification approval.
+
+### Session — Codespaces PostgreSQL client bootstrap (2026-08-29)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (devcontainer configuration + docs only — no runtime change)
+
+**Baseline:** `main` = `bd86b93062e2e9ace58d5c84f2e3373b09868c7e` (PR #78), clean tree.
+
+**Deliverables:**
+- `.devcontainer/devcontainer.json` (universal base image — same as the
+  previous no-devcontainer default; `onCreateCommand` install +
+  `postCreateCommand` verify; `remoteEnv` PATH prepends
+  `/usr/lib/postgresql/17/bin`).
+- `.devcontainer/install-postgres-client.sh`: PGDG apt repository via the
+  modern signed-by keyring (no deprecated apt-key), noninteractive
+  `postgresql-client-17` install with `--no-install-recommends` (client
+  only — never a database server), distribution codename detected from
+  /etc/os-release, ends by running the verifier so a failed selection fails
+  the container bootstrap.
+- `.devcontainer/verify-postgres-client.sh`: prints pg_dump/psql versions
+  only, contacts nothing, exits non-zero when either tool is missing,
+  unparsable, or older than the version-17 workspace baseline.
+- `docs/codespaces-recovery-workspace.md`: purpose/scope, bootstrap
+  mechanics, operator verification, new-vs-existing Codespaces behavior
+  (rebuild required for existing), boundaries, prohibitions, cleanup
+  checklist. Concise updates: backup + restore-rehearsal guides,
+  architecture doc §5 addendum, github-continuation, graphify workflow
+  scope note, NEXT-STEPS, TODO-LEDGER.
+
+**Key invariant recorded everywhere:** the Codespaces client bootstrap is a
+convenience layer; the backup script's runtime server/client version
+preflight remains mandatory and fails closed (the managed server major
+version may change in the future).
+
+**Boundaries held:** no database accessed; no Supabase/Railway access; no
+Codespaces secret created/read/printed; no secret, connection string,
+hostname, database name, project reference, or backup path added anywhere;
+no SQL generated; no backup/restore executed; no application runtime,
+schema, migration, or deployment change; no database server installed.

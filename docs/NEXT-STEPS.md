@@ -673,3 +673,19 @@ production or any managed database as part of this repository task.
   backup/rehearsal evidence exists.**
 - Provider export remains a later, separate, application-level capability.
 - No GitHub administrative application permission is authorized.
+
+## Codespaces PostgreSQL client bootstrap (2026-08-29)
+
+Devcontainer/docs-only phase (branch
+`chore/codespaces-postgres-client-bootstrap`). New or rebuilt Codespaces now
+install PostgreSQL 17 client tools automatically (`.devcontainer/`:
+PGDG apt source with modern signed-by keyring, noninteractive
+`postgresql-client-17` install, PATH precedence for
+`/usr/lib/postgresql/17/bin`, fail-closed post-create verification printing
+version numbers only). Client only — no database server installed or
+started; no secret, URL, or project identifier in the configuration.
+Existing Codespaces must be rebuilt (or recreated from `main`) to receive
+it. The backup script's runtime server/client version preflight remains
+mandatory and fails closed. Guide: `docs/codespaces-recovery-workspace.md`.
+Next manual operational gate unchanged: verified canonical backup +
+disposable restore rehearsal with non-secret evidence, then Gate-B.
