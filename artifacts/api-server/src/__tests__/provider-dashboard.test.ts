@@ -129,8 +129,16 @@ async function createService(providerId: number) {
 
 /** Local hour-of-day in the marketplace timezone. */
 function localHour(date: Date, timeZone: string): number {
-  return Number(
-    new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", hour12: false }).format(date),
+  // hourCycle "h23" (never "h24"): with hour12:false, en-US formats local
+  // midnight as "24", which made usedFuture false during the 00:00–00:59
+  // local hour and seeded the "today" booking 90 minutes into YESTERDAY —
+  // a deterministic todayBookingsCount failure for that whole hour.
+  return (
+    Number(
+      new Intl.DateTimeFormat("en-US", { timeZone, hourCycle: "h23", hour: "numeric" }).format(
+        date,
+      ),
+    ) % 24
   );
 }
 
