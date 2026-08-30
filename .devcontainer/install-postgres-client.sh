@@ -19,6 +19,13 @@
 #   bootstrap: the full index refresh is best-effort, and only the PGDG
 #   index refresh is mandatory.
 #
+# Execution stages (2026-08-30): the PRIMARY invocation is the image build
+# stage (.devcontainer/Dockerfile RUN, as root) because GitHub Codespaces
+# must build the image before starting the container — a fresh Codespace was
+# observed starting without running lifecycle commands at all. The
+# onCreateCommand invocation is REDUNDANCY/SELF-HEALING only: a fast path
+# below exits immediately when a compatible client is already selected.
+#
 # This bootstrap is a convenience layer for NEW or REBUILT Codespaces only.
 # The backup script's runtime server/client version preflight remains
 # mandatory and fails closed — the managed server major version may move
@@ -34,12 +41,25 @@ PG_CLIENT_MAJOR=17
 APT_DIR="${FOOT_BOOTSTRAP_APT_DIR:-/etc/apt}"
 PGDG_KEY_DIR="${FOOT_BOOTSTRAP_PGDG_KEY_DIR:-/usr/share/postgresql-common/pgdg}"
 OS_RELEASE_FILE="${FOOT_BOOTSTRAP_OS_RELEASE:-/etc/os-release}"
+PROFILE_DIR="${FOOT_BOOTSTRAP_PROFILE_DIR:-/etc/profile.d}"
 
 fail() {
   printf 'ERROR: %s\n' "$1" >&2
   printf 'Codespaces bootstrap failed: PostgreSQL client tools were not installed.\n' >&2
   exit 1
 }
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Fast path: when a compatible client is already the selected default
+# (normally because the image build stage already ran this installer), the
+# bootstrap has nothing to do. FOOT_BOOTSTRAP_FORCE_INSTALL is a test-only
+# override; never set it in devcontainer configuration.
+if [ -z "${FOOT_BOOTSTRAP_FORCE_INSTALL:-}" ] \
+  && bash "$SCRIPT_DIR/verify-postgres-client.sh" >/dev/null 2>&1; then
+  echo "PostgreSQL ${PG_CLIENT_MAJOR}+ client tools already present and selected; nothing to install."
+  exit 0
+fi
 
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
@@ -101,5 +121,23 @@ $SUDO apt-get update -qq \
 $SUDO apt-get install -y -qq --no-install-recommends "postgresql-client-${PG_CLIENT_MAJOR}" \
   || fail "could not install postgresql-client-${PG_CLIENT_MAJOR} (client tools only; no server)."
 
+# Login-shell PATH precedence for the versioned client binaries — in
+# addition to remoteEnv in devcontainer.json and Debian/Ubuntu's
+# postgresql-common wrapper (which already exposes the newest installed
+# client on /usr/bin). Guarded against duplicate PATH entries; idempotent.
+VERSIONED_BIN_DIR="/usr/lib/postgresql/${PG_CLIENT_MAJOR}/bin"
+PROFILE_FILE="$PROFILE_DIR/99-foot-postgres-client-path.sh"
+$SUDO install -d -m 0755 "$PROFILE_DIR"
+printf '%s\n' \
+  "# foot devcontainer bootstrap: prefer PostgreSQL ${PG_CLIENT_MAJOR} client tools on PATH." \
+  '# Client tools only - no PostgreSQL server is installed or started.' \
+  'case ":$PATH:" in' \
+  "  *\":${VERSIONED_BIN_DIR}:\"*) ;;" \
+  "  *) PATH=\"${VERSIONED_BIN_DIR}:\$PATH\" ;;" \
+  'esac' \
+  'export PATH' \
+  | $SUDO tee "$PROFILE_FILE" >/dev/null
+echo "Wrote login-shell PATH precedence snippet: $PROFILE_FILE"
+
 # Fail the container bootstrap clearly if a compatible client is not selected.
-bash "$(dirname "${BASH_SOURCE[0]}")/verify-postgres-client.sh"
+bash "$SCRIPT_DIR/verify-postgres-client.sh"
