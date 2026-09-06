@@ -29,14 +29,6 @@ This checklist does not weaken, reinterpret, or replace the CI prohibition in
 the existing scripts. Completing this checklist produces *evidence*; it never
 authorizes a production migration or deployment by itself.
 
-Design provenance: the public `slowfound/supabase-database-backup` project was
-reviewed as a conceptual reference only. Compatible ideas adopted here:
-deliberate enable/confirmation gates (realized as operator authorization plus
-the typed confirmation phrase), documented restore ordering, and treating
-scheduling/retention as operator-owned decisions. Its core pattern of
-committing roles/schema/data dump files to the Git repository is explicitly
-rejected: database backup material must never enter Git history.
-
 ## Phase 0 — Preconditions
 
 - [ ] Named operator authorized to run a backup for this change window.
