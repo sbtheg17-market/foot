@@ -1,0 +1,34 @@
+[
+  {
+    "content": "Phase 1: Programmatic extraction of all identifiers/objects from the 8 catalog-absent artifacts (line-mapped, lengths, truncation, implicit server names, sequences, FK actions, checks, unique/null semantics, prerequisites)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Draft docs/gate-b-artifact-extraction-review.md locally",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Draft DEFERRED §6 R1 collision-check query for docs/gate-b-catalog-queries-readonly.sql locally; validate SQL syntax locally (no DB)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Prepare complete unified diffs locally",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2: Establish Playwright-driven code-server terminal; run read-only git status --short / branch / HEAD on workstation",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 3: Present file list, complete diffs, read-only/catalog-only explanation, narrow-scope confirmation; report dirty-tree blocker (.env.example staged deletion); PAUSE for explicit 'go'",
+    "status": "in_progress"
+  },
+  {
+    "content": "Phase 4 (after 'go'): create local-only branch neo/gate-b-artifact-review (only if clean / as instructed), write the two files byte-exact (sha256 verify)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 4 (after 'go'): git diff --check, scripts/secret-scan.sh, direct pattern scan of new/modified files, git status --short, confirm only two files changed, stop; clean up /tmp/neo-out + helper http.server on workstation",
+    "status": "pending"
+  }
+]
