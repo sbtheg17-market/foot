@@ -80,3 +80,21 @@ graphify-out/cache/
 graphify-out/cost.json
 graphify-out/.graphify_analysis.json
 graphify-out/.graphify_root
+
+# Database backup material — operator-only, NEVER committed
+# (docs/backup-supabase-instance.md, docs/gate-b-backup-rehearsal-checklist.md).
+# Deliberately no bare "*.sql" pattern: docs/migrations/*.sql must stay tracked.
+*.dump
+*.backup
+*.sql.gz
+*.sql.enc
+*.dump.enc
+*.tar.gz
+*.sql.gpg
+*.sql.age
+supabase-backup-*.sql
+*.restore-error.log
+backup/
+backups/
+restore-work/
+private-backups/

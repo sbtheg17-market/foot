@@ -25,6 +25,12 @@ These scripts do not replace, weaken, or satisfy any decision, gate, or
 evidence requirement below; they only produce the technical artifacts and
 rehearsal evidence the gates require.
 
+For the Gate-B release process specifically, the end-to-end operator sequence
+(backup → integrity checksum → encryption → private storage → disposable
+restore rehearsal → Gate-B preflight handoff → cleanup) is
+`docs/gate-b-backup-rehearsal-checklist.md`, and the per-release editable
+evidence record is `docs/backup-release-evidence-template.md`.
+
 ## Required decisions
 
 The platform owner and database owner must fill these values through the
