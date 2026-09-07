@@ -58,8 +58,8 @@ field, and attach it to the release record (`docs/backup-restore-runbook.md`
 | Field | Value |
 | --- | --- |
 | Artifact state confirmation (expected 2 existing / 8 absent / 0 partial) | |
-| §7 prerequisite check result (`docs/gate-b-catalog-queries-readonly.sql`) | |
-| §6 R1 collision check result (REQUIRED verdict row) | |
+| Prerequisite enum/key check result (Gate-B read-only preflight) | |
+| Identifier-truncation collision check result (REQUIRED verdict row) | |
 | Named SQL reviewer | |
 | Named release approver | |
 | Explicit approval decision (go / no-go / blocked) | |

@@ -4,9 +4,11 @@
 existing local-only backup/restore tooling to the Gate-B release process.
 Companions: `docs/backup-supabase-instance.md`,
 `docs/restore-supabase-instance-rehearsal.md`, `docs/backup-restore-runbook.md`,
-`docs/restore-rehearsal-design.md`, `docs/managed-db-release-gate.md`,
-`docs/gate-b-artifact-extraction-review.md`,
-`docs/gate-b-catalog-queries-readonly.sql`.
+`docs/restore-rehearsal-design.md`, `docs/managed-db-release-gate.md`.
+
+The Gate-B artifact review and its read-only preflight query set are tracked
+separately as part of the Gate-B release process. This checklist is
+self-contained and does not require those files to be present in the tree.
 
 ## Authoritative execution model (policy)
 
@@ -152,16 +154,15 @@ command-line arguments, never in logs.
          0 partial** (the two applied artifacts
          `PREVENTED_BOOKING_RECORDS_V1` and
          `PROVIDER_APPLICATION_REJECTION_REASON_V1` must never be reapplied).
-3. - [ ] Run the §7 prerequisite enum/key catalog check in
-         `docs/gate-b-catalog-queries-readonly.sql`; any non-`PASS` row is a
-         stop condition.
-4. - [ ] Run the deferred §6 R1 collision check in the same file during an
-         approved preflight window; review the REQUIRED verdict row and any
-         ADVISORY rows with a named human.
-5. - [ ] Obtain named human SQL approval for the eight-artifact order
-         (draft: `docs/gate-b-artifact-extraction-review.md` §7) **and** for
-         transaction/error-stop handling (the self-wrapped
-         `PREVENTED_BOOKINGS_DAILY_V1` is reviewed separately).
+3. - [ ] Run the approved read-only prerequisite enum/key catalog check from
+         the Gate-B release process; any non-`PASS` row is a stop condition.
+4. - [ ] Run the approved read-only identifier-truncation collision check
+         during an approved preflight window; review the REQUIRED verdict row
+         and any ADVISORY rows with a named human.
+5. - [ ] Obtain named human SQL approval for the eight-artifact order (per the
+         Gate-B artifact review) **and** for transaction/error-stop handling
+         (the self-wrapped `PREVENTED_BOOKINGS_DAILY_V1` is reviewed
+         separately).
 6. - [ ] Apply **nothing**. Artifact application requires a separate,
          explicit rehearsal/production authorization that this checklist does
          not grant.
