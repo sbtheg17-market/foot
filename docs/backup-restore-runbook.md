@@ -177,3 +177,13 @@ The OnCall Foot repository currently has no verified backup owner, provider,
 retention, PITR, restore-test cadence, RPO, or RTO. Every value above remains
 `TBD — operator/provider decision`. No backup or restore was performed by the
 documentation audit. This is a release blocker for managed schema changes.
+
+## Gate-B backup rehearsal
+
+Use `docs/gate-b-backup-rehearsal-checklist.md` before any production migration or deployment.
+
+This runbook does not execute backups or restores. It defines a local, operator-led process for collecting backup and disposable restore-rehearsal evidence.
+
+Do not put credentials, hostnames, project references, backup data, or restore output in this repository.
+
+Production changes remain blocked until the designated operator records the required evidence and approvals.
