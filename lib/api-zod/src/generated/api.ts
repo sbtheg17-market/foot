@@ -1748,6 +1748,39 @@ export const SubmitVerificationDocResponse = zod.object({
 
 
 /**
+ * @summary Deployment configuration health (admin only)
+ */
+export const GetAdminSystemStatusResponse = zod.object({
+  "generatedAt": zod.string(),
+  "overall": zod.enum(['healthy', 'degraded']),
+  "runtime": zod.object({
+  "nodeVersion": zod.string(),
+  "uptimeSeconds": zod.int(),
+  "nodeEnv": zod.string().nullable()
+}),
+  "database": zod.object({
+  "connected": zod.boolean(),
+  "serverVersion": zod.string().nullable(),
+  "latencyMs": zod.int().nullable(),
+  "host": zod.string().nullable(),
+  "error": zod.string().nullable()
+}),
+  "env": zod.array(zod.object({
+  "name": zod.string(),
+  "required": zod.boolean(),
+  "isSet": zod.boolean(),
+  "purpose": zod.string()
+})),
+  "migrations": zod.array(zod.object({
+  "artifact": zod.string(),
+  "applied": zod.boolean().nullable(),
+  "enables": zod.string(),
+  "probe": zod.string()
+}))
+})
+
+
+/**
  * @summary Pilot operations metrics (admin only)
  */
 export const GetAdminPilotMetricsResponse = zod.object({

@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 import adminPilotRouter from "./admin-pilot.js";
+import { computeSystemStatus } from "../lib/system-status.js";
 import { createApplicationNotification } from "../lib/application-notifications.js";
 import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
 
@@ -20,6 +21,13 @@ router.use(requireAuth, requireRole("admin"));
 
 // Pilot Operations Dashboard (admin-only; inherits the gate above).
 router.use("/pilot", adminPilotRouter);
+
+// ── GET /admin/system-status ─────────────────────────────────────────────────
+// Deployment config health: env var presence (never values) + applied migrations.
+
+router.get("/system-status", async (_req: Request, res: Response): Promise<void> => {
+  res.json(await computeSystemStatus());
+});
 
 // ── GET /admin/verification/queue ─────────────────────────────────────────────
 

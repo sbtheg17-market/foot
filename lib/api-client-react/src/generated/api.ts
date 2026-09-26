@@ -110,6 +110,7 @@ import type {
   SubmitVerificationDocRequest,
   SupportBookingEscalationsResponse,
   SupportContactResponse,
+  SystemStatusResponse,
   TravelZoneListResponse,
   TravelZoneResponse,
   UnauthorizedResponse,
@@ -4607,6 +4608,83 @@ export const useSubmitVerificationDoc = <TError = ErrorType<BadRequestResponse |
       > => {
       return useMutation(getSubmitVerificationDocMutationOptions(options));
     }
+
+export const getGetAdminSystemStatusUrl = () => {
+
+
+
+
+  return `/api/admin/system-status`
+}
+
+/**
+ * @summary Deployment configuration health (admin only)
+ */
+export const getAdminSystemStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<SystemStatusResponse> => {
+
+  return customFetch<SystemStatusResponse>(getGetAdminSystemStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminSystemStatusQueryKey = () => {
+    return [
+    `/api/admin/system-status`
+    ] as const;
+    }
+
+
+export const getGetAdminSystemStatusQueryOptions = <TData = Awaited<ReturnType<typeof getAdminSystemStatus>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSystemStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminSystemStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminSystemStatus>>> = ({ signal }) => getAdminSystemStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminSystemStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminSystemStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminSystemStatus>>>
+export type GetAdminSystemStatusQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Deployment configuration health (admin only)
+ */
+
+export function useGetAdminSystemStatus<TData = Awaited<ReturnType<typeof getAdminSystemStatus>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSystemStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminSystemStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetAdminPilotMetricsUrl = () => {
 

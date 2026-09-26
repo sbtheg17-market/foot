@@ -1980,6 +1980,51 @@ export interface AdminProviderApplicationResponse {
   application: AdminProviderApplicationView;
 }
 
+export type SystemStatusResponseOverall = typeof SystemStatusResponseOverall[keyof typeof SystemStatusResponseOverall];
+
+
+export const SystemStatusResponseOverall = {
+  healthy: 'healthy',
+  degraded: 'degraded',
+} as const;
+
+export type SystemStatusResponseRuntime = {
+  nodeVersion: string;
+  uptimeSeconds: number;
+  nodeEnv: string | null;
+};
+
+export type SystemStatusResponseDatabase = {
+  connected: boolean;
+  serverVersion: string | null;
+  latencyMs: number | null;
+  host: string | null;
+  error: string | null;
+};
+
+export type SystemStatusResponseEnvItem = {
+  name: string;
+  required: boolean;
+  isSet: boolean;
+  purpose: string;
+};
+
+export type SystemStatusResponseMigrationsItem = {
+  artifact: string;
+  applied: boolean | null;
+  enables: string;
+  probe: string;
+};
+
+export interface SystemStatusResponse {
+  generatedAt: string;
+  overall: SystemStatusResponseOverall;
+  runtime: SystemStatusResponseRuntime;
+  database: SystemStatusResponseDatabase;
+  env: SystemStatusResponseEnvItem[];
+  migrations: SystemStatusResponseMigrationsItem[];
+}
+
 /**
  * Validation error
  */
