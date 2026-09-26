@@ -593,3 +593,17 @@ execute Phases 1–6.
 | Preview regression: approval, verification, bookings pages, reschedule cards render | [VERIFIED-PRIOR, preview only] `test_reports/iteration_3.json`, `iteration_4.json`; not re-run on Railway |
 | All 10 migration artifacts applied; schema parity 260/260 | [VERIFIED-PRIOR at apply time]; re-verify in Phase 0 via `/admin/system` in preview (read-only) |
 | Remote branch `docs/admin-handoff-2026-09-26` identical to `origin/main` | [VERIFIED-PRIOR]; not inspectable from this workspace (no remote) |
+
+## Appendix C — Phase 0 result (2026-09-26, E2 session)
+
+| Item | Result |
+|---|---|
+| Live Railway `/api/healthz` | 200 at 2026-09-26T17:28Z [VERIFIED] |
+| Live bundle | `index-C2Z5U7C7.js`; grep hits: `/admin/system` 0, `system-status` 0, `demo-data` 0, `/admin/verification` 1, `/admin/pilot` 1 [VERIFIED] — `/admin/system` still not deployed |
+| Local build bundle | `index-CVNSPxq3.js` (contains the admin/system work) |
+| Migration ledger | copied to `docs/migrations/APPLIED_LEDGER_2026-09-26.md`; 8/8 hashes match checkout [VERIFIED] |
+| Credentials in tracked tests | redacted in commit `7e41646` (`backend/tests/_creds.py`); history unchanged → owner rotates the real password |
+| `docs/commit-strategy.md` constraint | lifted by owner decision 2026-09-26 (admin work scoped to this plan) |
+| `.agents/LOG.md` | 2026-09-26 entry back-filled; Current Build State rows added |
+| Workspace | transferred to a new Emergent workspace; `origin` = GitHub; local `main` ahead of `origin/main` (squash divergence); no push |
+| Owner decisions recorded | ship `/admin/system` + demo-data as-is via Save to Github → PR; proceed with Phase 1 smallest slice |

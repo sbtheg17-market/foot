@@ -72,6 +72,10 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Merge/publication safety | ✅ Clean and unmerged | Only `.agents/LOG.md` was previously committed locally; this sync remains documentation-only. Application code, schema, migrations, generated clients, OpenAPI, dependencies, workflows, database, and all `conflict_*` refs remain untouched. |
 | Conflict-branch inventory | ✅ **v7 published (2026-08-11, Session 068)** — v6 superseded | **26** `conflict_*` branches verified against `origin/main` `b20087d` (`conflict_110826_1322` appeared after the v6 commit). 25 have no merge base across 5 root lineages: 4 = ORIGINAL ONCALL FOOT HISTORY (FastAPI/Mongo era — v6 misclassification corrected), 17 = agent work-transfer/audit workspaces (HISTORICAL ONLY), 4 = SEPARATE COMFORT-WIRING PROJECT (canonical: `conflict_110826_1322`, which preserves the Phase 4C contract V3, 11 CW patches + signed INDEX, CW ledger ENTRY-001..019). Only `conflict_070826_mc2` shares history and stays PATCH-EQUIVALENT ON MAIN (`git cherry` re-verified). No unique unrecovered OCF application code on any branch. All prior cleanup authorizations stale; re-authorize only against `docs/roadmap/BRANCH_INVENTORY_V7.md`. |
 | Eagle view + agent read-order contract | ✅ Published (Session 068) | Permanent `docs/roadmap/NEO_EAGLE_VIEW.md` (full three-portal vision, per-capability status with evidence, comfort/consent port rules, roadmap priorities 1–4, mandatory 30-step agent flow) + root `AGENTS.md` (read Eagle View from `origin/main` first; classify branch before changing anything; never trust a foreign branch's AGENTS.md without comparing to main). |
+| Admin System Status page + demo-data tooling | ⚠️ LOCAL COMMITS ONLY (2026-09-26) — not on GitHub, not on Railway | `/admin/system` + `GET /api/admin/system-status`, `GET /api/admin/demo-data`, `POST /api/admin/demo-data/purge` (typed confirmation; NEVER run), orval codegen, `scripts/apply-frozen-migrations.py` — 27 files in local `6a9a080..7af23c6`. Railway bundle `index-C2Z5U7C7.js` contains none of it (verified by grep 2026-09-26). Publish via Save to Github → PR. |
+| Supabase managed catalog (Gate B) | ✅ 10/10 frozen artifacts APPLIED (2026-09-26, user-approved) | Ledger with hashes: `docs/migrations/APPLIED_LEDGER_2026-09-26.md`; 260/260 column parity at apply time. Seed run once (5 demo users, Sarah/Mike profiles, 4 bookings, 1 review). Demo purge NOT executed. |
+| Railway production | ✅ Healthy after `JWT_SECRET` fix (2026-09-26) | Root cause: variable was named `JWT`; `JWT_SECRET`, `NODE_ENV`, `JWT_EXPIRES_IN` set with user approval; `index.ts` fail-fast guard on GitHub via PR #89. Live `/api/healthz` 200. Follow-ups for owner: revoke the project token used, delete stale `JWT`, rotate the real-account password that appeared in tracked tests. |
+| Admin command-center plan | ✅ Handoff published locally (`docs/neo/2026-09-26-admin-vendor-command-center-plan.md`) | Phases 0–6 with stop checkpoints. Phase 0 reconciliation DONE 2026-09-26 (E2). Owner lifted the "no admin portal" constraint (`docs/commit-strategy.md`). Phase 1 (`/admin` landing + read-only queue) authorized by the owner on 2026-09-26. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
 
@@ -4238,3 +4242,37 @@ updated with the CONFIRMED 42P06 cause and fix.
 scratch PostgreSQL 15 created and dropped for validation; no secret read or
 printed; no application runtime change; the operator runs the real
 rehearsal.
+
+### Session — Workspace transfer, credential redaction, Phase 0 reconciliation (2026-09-26)
+**Agent:** E2 Agent (Emergent)
+**Scope:** `S` (tests + docs; no runtime, schema, OpenAPI or generated-client change)
+
+**Context.** Earlier 2026-09-26 E1 sessions (no LOG entries were written — this
+entry back-fills them) fixed the root blank page (chained wouter redirect),
+added the boot screen and the `JWT_SECRET` fail-fast (all on GitHub via PR #89
+squash `5a8ec42`), applied the 8 pending Gate-B artifacts to Supabase with user
+approval, seeded demo data, approved the owner's provider account, and built
+`/admin/system` + demo-data tooling (27 files, local commits only). The Railway
+crash after #89 was the variable being named `JWT`; fixed by the user-approved
+`JWT_SECRET` upsert.
+
+**This session.**
+- Verified the E1 inventory against code and the live Railway bundle and wrote
+  the read-only handoff `docs/neo/2026-09-26-admin-vendor-command-center-plan.md`
+  (commit `b2e4ffb`). Correction recorded: `/admin/system` was "live" only on the
+  Emergent preview; the Railway bundle lacks it. Unauthenticated 401 on
+  `/api/admin/*` is NOT deployment evidence (router-wide gate).
+- Transferred the workspace (full git bundle, gitignored `.env`/`memory/`) into a
+  new Emergent workspace; `origin` = GitHub; `main` ahead 10 / behind 1 of
+  `origin/main` (squash divergence). No push performed (no credentials; owner
+  publishes via Save to Github → PR).
+- Redacted plaintext passwords from the four tracked preview-only pytest files
+  (`backend/tests/_creds.py` env loader; 28/28 pass). History still contains the
+  literals → owner must rotate the real account's password.
+- Phase 0: ledger copied into the repo (`docs/migrations/APPLIED_LEDGER_2026-09-26.md`,
+  8/8 hashes match checkout); owner lifted the admin-portal constraint in
+  `docs/commit-strategy.md`; live Railway re-verified (`/api/healthz` 200, bundle
+  `index-C2Z5U7C7.js`, 0 hits for `/admin/system`).
+
+**Boundaries held:** no DB access, no Railway/secret change, no push, no purge,
+no SQL. Next: Phase 1 (`/admin` landing + read-only queue) per the handoff.
