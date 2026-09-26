@@ -1,0 +1,8 @@
+{
+  "name": "emergent-preview-frontend-shim",
+  "private": true,
+  "packageManager": "yarn@1.22.22",
+  "scripts": {
+    "start": "node --enable-source-maps --env-file=../.env ../artifacts/api-server/dist/index.mjs"
+  }
+}
