@@ -48,7 +48,7 @@ export default function QueueCard(props: QueueCardProps) {
   const ring = error ? TONE_RING.warn : TONE_RING[tone];
 
   return (
-    <section data-testid={testId} data-tone={error ? 'error' : tone} className={`rounded-2xl border p-5 shadow-sm flex flex-col gap-4 ${ring}`}>
+    <section data-testid={testId} data-tone={error ? 'error' : tone} className={`min-w-0 rounded-2xl border p-5 shadow-sm flex flex-col gap-4 ${ring}`}>
       <header className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl bg-white/80 border border-border flex items-center justify-center flex-shrink-0 text-primary" aria-hidden="true">
           {icon}
