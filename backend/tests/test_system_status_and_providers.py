@@ -1,5 +1,7 @@
 """System status endpoint + post-migration provider endpoints + demo seed logins.
 
+Credentials come from the environment (see _creds.py); none are stored here.
+
 Covers review request items:
   - GET /api/admin/system-status auth matrix (admin 200, provider 403, none 401)
   - Response shape: overall=healthy, database.connected=true, 10 migrations applied,
@@ -9,19 +11,21 @@ Covers review request items:
   - Providers listing includes Sarah Chen and Mike Okafor
   - Previously-erroring provider endpoints return 200 (booking-page, service-area)
 """
-import re
 import pytest
 import requests
 
-BASE_URL = "https://785221eb-8dfb-4b06-bfc8-c01c12209808.preview.emergentagent.com"
+from _creds import BASE_URL, demo_credentials, orbite_credentials
 
-CREDS = {
-    "admin": ("admin@oncallfoot.com", "demo1234"),
-    "sarah": ("sarah@oncallfoot.com", "demo1234"),
-    "mike": ("mike@oncallfoot.com", "demo1234"),
-    "jane": ("jane@oncallfoot.com", "demo1234"),
-    "orbite": ("orbitetech12@gmail.com", "1234Fake"),
-}
+
+def _creds():
+    """Resolved lazily so missing env vars skip instead of erroring at import."""
+    return {
+        "admin": demo_credentials("admin"),
+        "sarah": demo_credentials("sarah"),
+        "mike": demo_credentials("mike"),
+        "jane": demo_credentials("jane"),
+        "orbite": orbite_credentials(),
+    }
 
 
 def _login(email, password):
@@ -33,12 +37,12 @@ def _login(email, password):
 
 @pytest.fixture(scope="session")
 def tokens():
-    return {name: _login(*c)["token"] for name, c in CREDS.items()}
+    return {name: _login(*c)["token"] for name, c in _creds().items()}
 
 
 @pytest.fixture(scope="session")
 def users():
-    return {name: _login(*c)["user"] for name, c in CREDS.items()}
+    return {name: _login(*c)["user"] for name, c in _creds().items()}
 
 
 # ============ Demo seed logins ============

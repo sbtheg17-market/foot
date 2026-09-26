@@ -1,17 +1,19 @@
-"""Iteration 4: verify orbitetech12 is fully approved (application + verification)
-and every provider endpoint listed in the review request returns 200.
+"""Iteration 4: verify the owner's provider account is fully approved (application +
+verification) and every provider endpoint listed in the review request returns 200.
+
+Credentials come from the environment (see _creds.py); none are stored here.
 """
 import pytest
 import requests
 
-BASE_URL = "https://785221eb-8dfb-4b06-bfc8-c01c12209808.preview.emergentagent.com"
-ORBITE = ("orbitetech12@gmail.com", "1234Fake")
+from _creds import BASE_URL, orbite_credentials
 
 
 @pytest.fixture(scope="module")
 def orbite_token():
+    email, password = orbite_credentials()
     r = requests.post(f"{BASE_URL}/api/auth/login",
-                      json={"email": ORBITE[0], "password": ORBITE[1]}, timeout=20)
+                      json={"email": email, "password": password}, timeout=20)
     assert r.status_code == 200, r.text
     return r.json()["token"]
 
