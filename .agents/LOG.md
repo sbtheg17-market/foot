@@ -4290,3 +4290,14 @@ Added `ApplicationDecisionDialog` on `/admin` over the existing reviewer-decisio
 endpoints (no API change). 5 component tests incl. axe; web 251/251; typecheck
 + build pass; live browser check without submitting a decision. Commit below.
 
+**Phase 2 slice 1 — finished (2026-09-26, E1 session, new workspace).** Workspace
+rebuilt from `origin/conflict_260926_1408` (= old HEAD `8dcaecd`); `.env` and
+`memory/` carried over. Fixed a real 390px overflow on `/admin` (QueueCard grid
+items lacked `min-w-0`; page scrolled to 410px). Ran the decision flow for real
+against Supabase on the QA account only (application #9 submitted → rejected
+in browser → provider reset/resubmit → approved in browser; events 6–9
+recorded; 409 on stale state, 401/403 gates, no `reviewerNotes`/email leaks;
+independent testing agent 12/12, `test_reports/iteration_2.json`). Real
+applications #1 and #5 untouched. `origin/main` (`827ed81`, squash of #89/#90)
+merged in with our tree kept so Save to GitHub → PR lands without conflicts.
+
