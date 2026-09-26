@@ -25,6 +25,7 @@ import PortalReadiness from '@/pages/portal/readiness';
 import PortalListingPreview from '@/pages/portal/listing-preview';
 import PortalTravelZones from '@/pages/portal/travel-zones';
 import PortalServiceArea from '@/pages/portal/service-area';
+import AdminHome from '@/pages/admin/index';
 import AdminVerification from '@/pages/admin/verification';
 import AdminPilot from '@/pages/admin/pilot';
 import AdminSystem from '@/pages/admin/system';
@@ -118,6 +119,7 @@ function Router() {
       <Route path="/bookings/:id">{clientRoute(ClientBookingDetail, true)}</Route>
 
       {/* ── Admin ────────────────────────────────────────────────────────── */}
+      <Route path={ROUTES.admin.root} component={AdminHome} />
       <Route path={ROUTES.admin.verification} component={AdminVerification} />
       <Route path={ROUTES.admin.pilot} component={AdminPilot} />
       <Route path={ROUTES.admin.system} component={AdminSystem} />

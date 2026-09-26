@@ -1899,6 +1899,79 @@ export interface PilotMetricsResponse {
   sourceAttribution: PilotMetricsResponseSourceAttributionItem[];
 }
 
+export interface AdminProviderApplicationApplicant {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  providerProfileId: number;
+  city: string;
+  verificationStatus: string;
+}
+
+export type AdminProviderApplicationListItemApplicationStatus = typeof AdminProviderApplicationListItemApplicationStatus[keyof typeof AdminProviderApplicationListItemApplicationStatus];
+
+
+export const AdminProviderApplicationListItemApplicationStatus = {
+  draft: 'draft',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+  suspended: 'suspended',
+} as const;
+
+export type AdminProviderApplicationListItemApplication = {
+  id: number;
+  status: AdminProviderApplicationListItemApplicationStatus;
+  currentStep: string;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export interface AdminProviderApplicationListItem {
+  application: AdminProviderApplicationListItemApplication;
+  applicant: AdminProviderApplicationApplicant;
+}
+
+export interface AdminProviderApplicationsResponse {
+  items: AdminProviderApplicationListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export type AdminProviderApplicationEventType = typeof AdminProviderApplicationEventType[keyof typeof AdminProviderApplicationEventType];
+
+
+export const AdminProviderApplicationEventType = {
+  submitted: 'submitted',
+  reset_to_draft: 'reset_to_draft',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type AdminProviderApplicationEventApplicant = {
+  userId: number;
+  firstName: string;
+  lastName: string;
+};
+
+export interface AdminProviderApplicationEvent {
+  id: number;
+  providerApplicationId: number;
+  type: AdminProviderApplicationEventType;
+  fromStatus: string;
+  toStatus: string;
+  createdAt: string;
+  applicant: AdminProviderApplicationEventApplicant;
+}
+
+export interface AdminProviderApplicationEventsResponse {
+  items: AdminProviderApplicationEvent[];
+}
+
 export type AdminVerificationQueueItemProvider = {
   id: number;
   userId: number;
@@ -2143,6 +2216,31 @@ export const GetAdminVerificationQueueStatus = {
   approved: 'approved',
   rejected: 'rejected',
 } as const;
+
+export type ListAdminProviderApplicationsParams = {
+status?: ListAdminProviderApplicationsStatus;
+limit?: number;
+offset?: number;
+};
+
+export type ListAdminProviderApplicationsStatus = typeof ListAdminProviderApplicationsStatus[keyof typeof ListAdminProviderApplicationsStatus];
+
+
+export const ListAdminProviderApplicationsStatus = {
+  draft: 'draft',
+  under_review: 'under_review',
+  approved: 'approved',
+  rejected: 'rejected',
+  suspended: 'suspended',
+} as const;
+
+export type ListAdminProviderApplicationEventsParams = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+};
 
 export type GetProviderSlotsParams = {
 serviceId: number;

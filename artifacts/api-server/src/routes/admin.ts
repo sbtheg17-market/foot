@@ -185,6 +185,128 @@ router.patch(
   }
 );
 
+// ── GET /admin/provider-applications (read-only queue feed) ──────────────────
+//
+// Admin command-center feed: applications in one status, oldest submission
+// first, with a minimal applicant summary. Reviewer-private `reviewerNotes`
+// and the provider-visible `rejectionReason` are deliberately excluded from
+// this list projection (the decision endpoints return them).
+
+const APPLICATION_STATUSES = [
+  "draft",
+  "under_review",
+  "approved",
+  "rejected",
+  "suspended",
+] as const;
+type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+
+router.get(
+  "/provider-applications",
+  async (req: Request, res: Response): Promise<void> => {
+    const statusFilter = (req.query["status"] as string | undefined) ?? "under_review";
+    if (!APPLICATION_STATUSES.includes(statusFilter as ApplicationStatus)) {
+      res.status(400).json({
+        error: `status must be one of ${APPLICATION_STATUSES.join(", ")}.`,
+      });
+      return;
+    }
+    const rawLimit = Number(req.query["limit"] ?? 50);
+    const rawOffset = Number(req.query["offset"] ?? 0);
+    if (!Number.isInteger(rawLimit) || rawLimit < 1 || !Number.isInteger(rawOffset) || rawOffset < 0) {
+      res.status(400).json({ error: "limit must be a positive integer and offset a non-negative integer." });
+      return;
+    }
+    const limit = Math.min(rawLimit, 200);
+    const offset = rawOffset;
+    const status = statusFilter as ApplicationStatus;
+
+    const rows = await db
+      .select({
+        application: {
+          id: providerApplicationsTable.id,
+          status: providerApplicationsTable.status,
+          currentStep: providerApplicationsTable.currentStep,
+          submittedAt: providerApplicationsTable.submittedAt,
+          reviewedAt: providerApplicationsTable.reviewedAt,
+          createdAt: providerApplicationsTable.createdAt,
+          updatedAt: providerApplicationsTable.updatedAt,
+        },
+        applicant: {
+          userId: usersTable.id,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+          email: usersTable.email,
+          providerProfileId: providerProfilesTable.id,
+          city: providerProfilesTable.city,
+          verificationStatus: providerProfilesTable.verificationStatus,
+        },
+      })
+      .from(providerApplicationsTable)
+      .innerJoin(usersTable, eq(providerApplicationsTable.userId, usersTable.id))
+      .innerJoin(
+        providerProfilesTable,
+        eq(providerApplicationsTable.providerProfileId, providerProfilesTable.id),
+      )
+      .where(eq(providerApplicationsTable.status, status))
+      // Oldest waiting first: submittedAt asc (nulls last), then createdAt.
+      .orderBy(
+        sql`${providerApplicationsTable.submittedAt} asc nulls last`,
+        sql`${providerApplicationsTable.createdAt} asc`,
+      )
+      .limit(limit)
+      .offset(offset);
+
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(providerApplicationsTable)
+      .where(eq(providerApplicationsTable.status, status));
+
+    res.json({ items: rows, total: countRow?.count ?? 0, limit, offset });
+  },
+);
+
+// ── GET /admin/provider-applications/events (recent decisions, read-only) ────
+//
+// Newest-first slice of the append-only lifecycle log. Only the four recorded
+// transition types exist (see provider-application-events.ts); this is not a
+// complete history and the UI must say so.
+
+router.get(
+  "/provider-applications/events",
+  async (req: Request, res: Response): Promise<void> => {
+    const rawLimit = Number(req.query["limit"] ?? 10);
+    if (!Number.isInteger(rawLimit) || rawLimit < 1 || rawLimit > 50) {
+      res.status(400).json({ error: "limit must be an integer between 1 and 50." });
+      return;
+    }
+
+    const items = await db
+      .select({
+        id: providerApplicationEventsTable.id,
+        providerApplicationId: providerApplicationEventsTable.providerApplicationId,
+        type: providerApplicationEventsTable.type,
+        fromStatus: providerApplicationEventsTable.fromStatus,
+        toStatus: providerApplicationEventsTable.toStatus,
+        createdAt: providerApplicationEventsTable.createdAt,
+        applicant: {
+          userId: usersTable.id,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+        },
+      })
+      .from(providerApplicationEventsTable)
+      .innerJoin(usersTable, eq(providerApplicationEventsTable.userId, usersTable.id))
+      .orderBy(
+        sql`${providerApplicationEventsTable.createdAt} desc`,
+        sql`${providerApplicationEventsTable.id} desc`,
+      )
+      .limit(rawLimit);
+
+    res.json({ items });
+  },
+);
+
 // ── Reviewer decisions on provider applications (MC9 Commit 1) ───────────────
 //
 // Admin-only approve/reject of a provider application. The only valid source
