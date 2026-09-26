@@ -4284,3 +4284,9 @@ application activity) and two read-only admin endpoints, contract-first via
 read-only preview pytests and an independent testing-agent run all green.
 Integration suite `admin-overview.integration.test.ts` written for a scratch
 DB and deliberately NOT executed against Supabase. Commits `957623d`, `cb765d3`.
+
+**Phase 2 slice 1 addendum (same day).** Owner authorized "approve in browser".
+Added `ApplicationDecisionDialog` on `/admin` over the existing reviewer-decision
+endpoints (no API change). 5 component tests incl. axe; web 251/251; typecheck
++ build pass; live browser check without submitting a decision. Commit below.
+

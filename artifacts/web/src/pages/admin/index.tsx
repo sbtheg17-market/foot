@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import {
   useGetAdminVerificationQueue,
@@ -11,6 +12,7 @@ import {
   getListAdminProviderApplicationEventsQueryKey,
   getGetAdminSystemStatusQueryKey,
   getGetAdminDemoDataQueryKey,
+  type AdminProviderApplicationListItem,
 } from '@workspace/api-client-react';
 import {
   Activity,
@@ -26,10 +28,12 @@ import {
   UserX,
   Send,
   Undo2,
+  ChevronRight,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/routes';
 import { timeAgo, daysSince } from '@/lib/time-ago';
 import QueueCard from '@/components/admin-home/queue-card';
+import ApplicationDecisionDialog from '@/components/admin-home/application-decision-dialog';
 
 function errorStatus(error: unknown): number | undefined {
   if (error && typeof error === 'object' && 'status' in error) {
@@ -84,6 +88,23 @@ export default function AdminHome() {
   const refreshAll = () => feeds.forEach((f) => void f.refetch());
 
   const demoUserIds = useMemo(() => new Set((demo.data?.users ?? []).map((u) => u.id)), [demo.data]);
+
+  // ── Decide-in-browser (Phase 2 slice) ───────────────────────────────────
+  const queryClient = useQueryClient();
+  const [selected, setSelected] = useState<AdminProviderApplicationListItem | null>(null);
+  const [showAllApplications, setShowAllApplications] = useState(false);
+  const pendingDocsByProfile = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const { provider } of verification.data?.items ?? []) m.set(provider.id, (m.get(provider.id) ?? 0) + 1);
+    return m;
+  }, [verification.data]);
+  const onDecided = () => {
+    // Refresh every feed the decision can change: the under_review queue, the
+    // events list and (via activation events) pilot/system are unaffected here.
+    void queryClient.invalidateQueries({ queryKey: getListAdminProviderApplicationsQueryKey(applicationParams) });
+    void queryClient.invalidateQueries({ queryKey: getListAdminProviderApplicationEventsQueryKey(eventParams) });
+    void queryClient.invalidateQueries({ queryKey: getGetAdminVerificationQueueQueryKey(verificationParams) });
+  };
 
   // ── Derived queue facts ────────────────────────────────────────────────
   const pendingDocs = verification.data?.total ?? null;
@@ -163,31 +184,46 @@ export default function AdminHome() {
               tone={underReview === null ? 'neutral' : underReview === 0 ? 'ok' : oldestAppDays >= SLOW_DAYS ? 'attention' : 'neutral'}
               what={underReview === 0 ? 'No provider application is waiting for a decision.' : `${underReview ?? '…'} provider application${underReview === 1 ? '' : 's'} ${underReview === 1 ? 'is' : 'are'} submitted and waiting for approve/reject.`}
               why="Approval needs two steps: the application decision and the credential verification. Until both are approved the provider stays in review."
-              next={{ href: ROUTES.admin.verification, label: 'Review credentials (decisions via API for now)', testId: 'card-applications-next' }}
-              success="Every submitted application has a recorded approve or reject event."
+              next={{ href: ROUTES.admin.verification, label: 'Open verification queue', testId: 'card-applications-next' }}
+              success="Every submitted application has a recorded approve or reject event. Tap an applicant below to decide."
               loading={applications.isLoading}
               error={feedError(applications, 'applications under review')}
             >
               {applications.data && applications.data.items.length > 0 && (
-                <ul data-testid="applications-preview" className="divide-y divide-border rounded-xl border border-border bg-white/70">
-                  {applications.data.items.slice(0, QUEUE_PREVIEW).map(({ application, applicant }) => {
+                <ul data-testid="applications-preview" aria-label="Applications under review — tap to decide" className="divide-y divide-border rounded-xl border border-border bg-white/70">
+                  {(showAllApplications ? applications.data.items : applications.data.items.slice(0, QUEUE_PREVIEW)).map((row) => {
+                    const { application, applicant } = row;
                     const waited = daysSince(application.submittedAt);
                     const isDemo = demoUserIds.has(applicant.userId);
+                    const docs = pendingDocsByProfile.get(applicant.providerProfileId) ?? 0;
                     return (
-                      <li key={application.id} data-testid={`application-row-${application.id}`} className="flex items-center gap-3 px-3 py-2 text-sm">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-foreground truncate">
-                            {applicant.firstName} {applicant.lastName}
-                            {isDemo && <span data-testid={`application-demo-badge-${application.id}`} className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Demo</span>}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">{applicant.city || 'City not set'} · profile {applicant.verificationStatus.replace('_', ' ')}</p>
-                        </div>
-                        <span className={`text-xs font-medium tabular-nums ${waited >= SLOW_DAYS ? 'text-amber-700' : 'text-muted-foreground'}`}>{application.submittedAt ? `${waited}d` : '—'}</span>
+                      <li key={application.id} data-testid={`application-row-${application.id}`}>
+                        <button
+                          type="button"
+                          data-testid={`application-open-${application.id}`}
+                          onClick={() => setSelected(row)}
+                          aria-label={`Decide application ${application.id} from ${applicant.firstName} ${applicant.lastName}`}
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-foreground truncate">
+                              {applicant.firstName} {applicant.lastName}
+                              {isDemo && <span data-testid={`application-demo-badge-${application.id}`} className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Demo</span>}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">{applicant.city || 'City not set'} · profile {applicant.verificationStatus.replace('_', ' ')} · {docs} doc{docs === 1 ? '' : 's'} pending</p>
+                          </div>
+                          <span className={`text-xs font-medium tabular-nums ${waited >= SLOW_DAYS ? 'text-amber-700' : 'text-muted-foreground'}`}>{application.submittedAt ? `${waited}d` : '—'}</span>
+                          <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+                        </button>
                       </li>
                     );
                   })}
                   {applications.data.items.length > QUEUE_PREVIEW && (
-                    <li className="px-3 py-2 text-xs text-muted-foreground">+{applications.data.items.length - QUEUE_PREVIEW} more</li>
+                    <li className="px-3 py-2 text-xs">
+                      <button type="button" data-testid="applications-toggle-all" onClick={() => setShowAllApplications((v) => !v)} className="text-primary hover:underline">
+                        {showAllApplications ? 'Show fewer' : `Show all ${applications.data.items.length}`}
+                      </button>
+                    </li>
                   )}
                 </ul>
               )}
@@ -265,6 +301,15 @@ export default function AdminHome() {
               </ol>
             )}
           </section>
+
+          <ApplicationDecisionDialog
+            item={selected}
+            open={selected !== null}
+            onOpenChange={(open) => { if (!open) setSelected(null); }}
+            pendingDocs={selected ? (pendingDocsByProfile.get(selected.applicant.providerProfileId) ?? 0) : 0}
+            isDemo={selected ? demoUserIds.has(selected.applicant.userId) : false}
+            onDecided={onDecided}
+          />
 
           <p className="text-xs text-muted-foreground text-center" data-testid="home-footnote">
             Counts are exact reads of the live database (auto-refresh every minute). No funnel, revenue or forecast figures are shown here because those events are not yet recorded.

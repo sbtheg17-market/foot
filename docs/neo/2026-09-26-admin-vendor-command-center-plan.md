@@ -620,3 +620,13 @@ execute Phases 1–6.
 | Commits (local, unpushed) | `7e41646` redaction · `7885cc9` Phase 0 docs · `957623d` Phase 1 · `cb765d3` regression test |
 | STOP | Phase 2 (approve/reject drawer, support escalation list) requires a fresh owner go-ahead |
 
+## Appendix E — Phase 2, slice 1 result (2026-09-26, E2 session; owner-authorized)
+
+| Item | Result |
+|---|---|
+| Delivered | Approve/reject from `/admin`: tapping an applicant opens `components/admin-home/application-decision-dialog.tsx` (applicant facts, pending-doc count, explicit two-part activation gate, Approve with private notes / Reject with required provider-visible reason + private notes, plain-language 409/403/404/401 handling, in-flight lock). Queue, events and verification feeds refresh after a decision; success toast names the next step (credentials) when verification is still pending. "Show all" toggle for long queues |
+| APIs | none new — reuses `POST /admin/provider-applications/:id/approve|reject` (transactional event + notification + activation events, self-review 403, non-`under_review` 409) |
+| Tests | `application-decision-dialog.test.tsx` 5/5 (facts/gate/axe, approve payload, reject validation + payload, 409 message, in-flight lock); web suite 251/251; typecheck; `build:deploy`; browser check on live data at 390px/1920px with **no decision submitted** (Cancel/Esc only) |
+| Exclusions held | no support-escalation UI yet (next slice), no bulk actions, no new audit table (Phase 4), no DB writes by the agent |
+| STOP | Support escalation list + resolve action requires a fresh go-ahead |
+
