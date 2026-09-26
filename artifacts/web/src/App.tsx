@@ -74,14 +74,17 @@ function Router() {
       <Route path={ROUTES.onboarding.provider} component={ProviderOnboarding} />
       <Route path={ROUTES.provider.applicationStatus} component={ProviderApplicationStatus} />
 
-      {/* Provider-first: root redirects to the provider home */}
-      <Route path={ROUTES.home}>
-        <Redirect to={ROUTES.provider.root} />
+      {/* Provider-first: root redirects straight to the provider dashboard.
+          Redirect routes carry explicit keys so React remounts <Redirect>
+          when one redirect lands on another redirect route; without this the
+          second redirect's mount effect never fires and the page stays blank. */}
+      <Route key="redirect-home" path={ROUTES.home}>
+        <Redirect to={ROUTES.provider.dashboard} />
       </Route>
 
       {/* ── Provider portal (canonical /provider/*) ─────────────────────── */}
       {/* Provider root resolves to the dashboard (canonical /provider/dashboard) */}
-      <Route path={ROUTES.provider.root}>
+      <Route key="redirect-provider-root" path={ROUTES.provider.root}>
         <Redirect to={ROUTES.provider.dashboard} />
       </Route>
       <Route path={ROUTES.provider.dashboard}>{providerRoute(PortalDashboard)}</Route>
@@ -100,7 +103,7 @@ function Router() {
 
       {/* ── Legacy /portal/* → /provider/* redirects (backward compat) ──── */}
       {LEGACY_PORTAL_REDIRECTS.map(({ from, to }) => (
-        <Route key={from} path={from}>
+        <Route key={`redirect-${from}`} path={from}>
           <Redirect to={to} />
         </Route>
       ))}
