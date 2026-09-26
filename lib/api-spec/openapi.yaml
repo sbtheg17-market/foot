@@ -1618,6 +1618,80 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+  /admin/system-status:
+    get:
+      operationId: getAdminSystemStatus
+      tags: [admin]
+      summary: Deployment configuration health (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Env var presence, database connectivity and applied migration artifacts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/demo-data:
+    get:
+      operationId: getAdminDemoData
+      tags: [admin]
+      summary: Summary of seed/demo accounts and sample data still present (admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Demo users and counts of dependent sample data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoDataSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/demo-data/purge:
+    post:
+      operationId: purgeAdminDemoData
+      tags: [admin]
+      summary: Permanently remove seed/demo accounts and their sample data (admin only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm:
+                  type: string
+                  description: Must equal "DELETE DEMO DATA"
+              required: [confirm]
+      responses:
+        "200":
+          description: What was removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  removed:
+                    $ref: "#/components/schemas/DemoDataSummary"
+                required: [removed]
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /admin/pilot/metrics:
     get:
       operationId: getAdminPilotMetrics
@@ -5959,3 +6033,72 @@ components:
           $ref: "#/components/schemas/AdminProviderApplicationView"
       required:
         - application
+
+    SystemStatusResponse:
+      type: object
+      properties:
+        generatedAt: { type: string }
+        overall: { type: string, enum: [healthy, degraded] }
+        runtime:
+          type: object
+          properties:
+            nodeVersion: { type: string }
+            uptimeSeconds: { type: integer }
+            nodeEnv: { type: string, nullable: true }
+          required: [nodeVersion, uptimeSeconds, nodeEnv]
+        database:
+          type: object
+          properties:
+            connected: { type: boolean }
+            serverVersion: { type: string, nullable: true }
+            latencyMs: { type: integer, nullable: true }
+            host: { type: string, nullable: true }
+            error: { type: string, nullable: true }
+          required: [connected, serverVersion, latencyMs, host, error]
+        env:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              required: { type: boolean }
+              isSet: { type: boolean }
+              purpose: { type: string }
+            required: [name, required, isSet, purpose]
+        migrations:
+          type: array
+          items:
+            type: object
+            properties:
+              artifact: { type: string }
+              applied: { type: boolean, nullable: true }
+              enables: { type: string }
+              probe: { type: string }
+            required: [artifact, applied, enables, probe]
+      required: [generatedAt, overall, runtime, database, env, migrations]
+
+    DemoDataSummary:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              email: { type: string }
+              role: { type: string }
+            required: [id, email, role]
+        counts:
+          type: object
+          properties:
+            users: { type: integer }
+            providerProfiles: { type: integer }
+            services: { type: integer }
+            bookings: { type: integer }
+            reviews: { type: integer }
+            invoices: { type: integer }
+            supportTickets: { type: integer }
+            marketplaceEvents: { type: integer }
+          required: [users, providerProfiles, services, bookings, reviews, invoices, supportTickets, marketplaceEvents]
+      required: [users, counts]

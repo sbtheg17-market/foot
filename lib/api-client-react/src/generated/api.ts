@@ -46,6 +46,7 @@ import type {
   CreateServiceRequest,
   CreateTravelZoneRequest,
   DeclineRescheduleResponse,
+  DemoDataSummary,
   DuplicateBookingConflictResponse,
   EarningsExportResponse,
   EarningsSummaryResponse,
@@ -93,6 +94,8 @@ import type {
   ProviderUnavailableConflictResponse,
   PublicAvailabilityResponse,
   PublicBookingPageResponse,
+  PurgeAdminDemoData200,
+  PurgeAdminDemoDataBody,
   RegisterRequest,
   RejectProviderApplicationRequest,
   RescheduleProposalListResponse,
@@ -110,6 +113,7 @@ import type {
   SubmitVerificationDocRequest,
   SupportBookingEscalationsResponse,
   SupportContactResponse,
+  SystemStatusResponse,
   TravelZoneListResponse,
   TravelZoneResponse,
   UnauthorizedResponse,
@@ -4606,6 +4610,231 @@ export const useSubmitVerificationDoc = <TError = ErrorType<BadRequestResponse |
         TContext
       > => {
       return useMutation(getSubmitVerificationDocMutationOptions(options));
+    }
+
+export const getGetAdminSystemStatusUrl = () => {
+
+
+
+
+  return `/api/admin/system-status`
+}
+
+/**
+ * @summary Deployment configuration health (admin only)
+ */
+export const getAdminSystemStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<SystemStatusResponse> => {
+
+  return customFetch<SystemStatusResponse>(getGetAdminSystemStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminSystemStatusQueryKey = () => {
+    return [
+    `/api/admin/system-status`
+    ] as const;
+    }
+
+
+export const getGetAdminSystemStatusQueryOptions = <TData = Awaited<ReturnType<typeof getAdminSystemStatus>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSystemStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminSystemStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminSystemStatus>>> = ({ signal }) => getAdminSystemStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminSystemStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminSystemStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminSystemStatus>>>
+export type GetAdminSystemStatusQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Deployment configuration health (admin only)
+ */
+
+export function useGetAdminSystemStatus<TData = Awaited<ReturnType<typeof getAdminSystemStatus>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSystemStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminSystemStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminDemoDataUrl = () => {
+
+
+
+
+  return `/api/admin/demo-data`
+}
+
+/**
+ * @summary Summary of seed/demo accounts and sample data still present (admin only)
+ */
+export const getAdminDemoData = async ( options?: Parameters<typeof customFetch>[1]): Promise<DemoDataSummary> => {
+
+  return customFetch<DemoDataSummary>(getGetAdminDemoDataUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminDemoDataQueryKey = () => {
+    return [
+    `/api/admin/demo-data`
+    ] as const;
+    }
+
+
+export const getGetAdminDemoDataQueryOptions = <TData = Awaited<ReturnType<typeof getAdminDemoData>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminDemoData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminDemoDataQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminDemoData>>> = ({ signal }) => getAdminDemoData({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminDemoData>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminDemoDataQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminDemoData>>>
+export type GetAdminDemoDataQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Summary of seed/demo accounts and sample data still present (admin only)
+ */
+
+export function useGetAdminDemoData<TData = Awaited<ReturnType<typeof getAdminDemoData>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminDemoData>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminDemoDataQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPurgeAdminDemoDataUrl = () => {
+
+
+
+
+  return `/api/admin/demo-data/purge`
+}
+
+/**
+ * @summary Permanently remove seed/demo accounts and their sample data (admin only)
+ */
+export const purgeAdminDemoData = async (purgeAdminDemoDataBody: PurgeAdminDemoDataBody, options?: Parameters<typeof customFetch>[1]): Promise<PurgeAdminDemoData200> => {
+
+  return customFetch<PurgeAdminDemoData200>(getPurgeAdminDemoDataUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(purgeAdminDemoDataBody)
+  }
+);}
+
+
+
+
+
+export const getPurgeAdminDemoDataMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeAdminDemoData>>, TError,{data: BodyType<PurgeAdminDemoDataBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof purgeAdminDemoData>>, TError,{data: BodyType<PurgeAdminDemoDataBody>}, TContext> => {
+
+const mutationKey = ['purgeAdminDemoData'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof purgeAdminDemoData>>, {data: BodyType<PurgeAdminDemoDataBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  purgeAdminDemoData(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PurgeAdminDemoDataMutationResult = NonNullable<Awaited<ReturnType<typeof purgeAdminDemoData>>>
+    export type PurgeAdminDemoDataMutationBody = BodyType<PurgeAdminDemoDataBody>
+    export type PurgeAdminDemoDataMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+    /**
+ * @summary Permanently remove seed/demo accounts and their sample data (admin only)
+ */
+export const usePurgeAdminDemoData = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof purgeAdminDemoData>>, TError,{data: BodyType<PurgeAdminDemoDataBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof purgeAdminDemoData>>,
+        TError,
+        {data: BodyType<PurgeAdminDemoDataBody>},
+        TContext
+      > => {
+      return useMutation(getPurgeAdminDemoDataMutationOptions(options));
     }
 
 export const getGetAdminPilotMetricsUrl = () => {

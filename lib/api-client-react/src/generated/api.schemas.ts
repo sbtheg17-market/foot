@@ -1980,6 +1980,73 @@ export interface AdminProviderApplicationResponse {
   application: AdminProviderApplicationView;
 }
 
+export type SystemStatusResponseOverall = typeof SystemStatusResponseOverall[keyof typeof SystemStatusResponseOverall];
+
+
+export const SystemStatusResponseOverall = {
+  healthy: 'healthy',
+  degraded: 'degraded',
+} as const;
+
+export type SystemStatusResponseRuntime = {
+  nodeVersion: string;
+  uptimeSeconds: number;
+  nodeEnv: string | null;
+};
+
+export type SystemStatusResponseDatabase = {
+  connected: boolean;
+  serverVersion: string | null;
+  latencyMs: number | null;
+  host: string | null;
+  error: string | null;
+};
+
+export type SystemStatusResponseEnvItem = {
+  name: string;
+  required: boolean;
+  isSet: boolean;
+  purpose: string;
+};
+
+export type SystemStatusResponseMigrationsItem = {
+  artifact: string;
+  applied: boolean | null;
+  enables: string;
+  probe: string;
+};
+
+export interface SystemStatusResponse {
+  generatedAt: string;
+  overall: SystemStatusResponseOverall;
+  runtime: SystemStatusResponseRuntime;
+  database: SystemStatusResponseDatabase;
+  env: SystemStatusResponseEnvItem[];
+  migrations: SystemStatusResponseMigrationsItem[];
+}
+
+export type DemoDataSummaryUsersItem = {
+  id: number;
+  email: string;
+  role: string;
+};
+
+export type DemoDataSummaryCounts = {
+  users: number;
+  providerProfiles: number;
+  services: number;
+  bookings: number;
+  reviews: number;
+  invoices: number;
+  supportTickets: number;
+  marketplaceEvents: number;
+};
+
+export interface DemoDataSummary {
+  users: DemoDataSummaryUsersItem[];
+  counts: DemoDataSummaryCounts;
+}
+
 /**
  * Validation error
  */
@@ -2051,6 +2118,15 @@ limit?: number;
  * Opaque pagination cursor returned as `nextCursor` by a prior page.
  */
 cursor?: string;
+};
+
+export type PurgeAdminDemoDataBody = {
+  /** Must equal "DELETE DEMO DATA" */
+  confirm: string;
+};
+
+export type PurgeAdminDemoData200 = {
+  removed: DemoDataSummary;
 };
 
 export type GetAdminVerificationQueueParams = {

@@ -50,6 +50,8 @@ export const ROUTES = {
     verification: '/admin/verification',
     // Platform-administrator-only pilot operations dashboard (Part 2).
     pilot: '/admin/pilot',
+    // Deployment configuration health (env vars, DB, migrations) — admin only.
+    system: '/admin/system',
   },
 
   // ── Provider-owned public booking page (roadmap #11) ─────────────────────────
