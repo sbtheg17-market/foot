@@ -607,3 +607,16 @@ execute Phases 1–6.
 | `.agents/LOG.md` | 2026-09-26 entry back-filled; Current Build State rows added |
 | Workspace | transferred to a new Emergent workspace; `origin` = GitHub; local `main` ahead of `origin/main` (squash divergence); no push |
 | Owner decisions recorded | ship `/admin/system` + demo-data as-is via Save to Github → PR; proceed with Phase 1 smallest slice |
+
+## Appendix D — Phase 1 result (2026-09-26, E2 session; owner-authorized)
+
+| Item | Result |
+|---|---|
+| Delivered | `/admin` landing page (`artifacts/web/src/pages/admin/index.tsx`, `components/admin-home/queue-card.tsx`): cards for credentials awaiting review, applications under review (with Demo tags), system health, demo data; recent application activity; nav + Home links on the three existing admin pages; admin login now lands on `/admin` |
+| New read-only APIs (contract first) | `GET /admin/provider-applications?status&limit&offset` and `GET /admin/provider-applications/events?limit` in `routes/admin.ts`; `openapi.yaml` + orval codegen; both behind the router-wide admin gate; 400 on bad input; no `reviewerNotes`/`rejectionReason`/email in list/event payloads. Deviation from the plan's "one endpoint": two, both read-only |
+| Tests | `admin-overview.integration.test.ts` (node:test; run only against a scratch/test DB — NOT run against Supabase), `time-ago.test.ts`; full typecheck; api unit 132/132; web 246/246; `build:deploy` pass; preview pytest 41/41 read-only incl. `test_admin_provider_applications.py`; independent testing agent 100% (`test_reports/iteration_1.json`, workspace-only) |
+| Observed on live data | 2 real applications under review since 2026-08-14 and 2026-08-27 (43 and 30 days) — the queue is working as intended; owner action needed |
+| Exclusions held | no approve/reject UI, no new tables, no funnel/revenue figures, no DB writes by the agent |
+| Commits (local, unpushed) | `7e41646` redaction · `7885cc9` Phase 0 docs · `957623d` Phase 1 · `cb765d3` regression test |
+| STOP | Phase 2 (approve/reject drawer, support escalation list) requires a fresh owner go-ahead |
+

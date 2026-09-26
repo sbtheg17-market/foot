@@ -75,7 +75,7 @@ Since agent credit balances cannot be read programmatically, each session entry 
 | Admin System Status page + demo-data tooling | ⚠️ LOCAL COMMITS ONLY (2026-09-26) — not on GitHub, not on Railway | `/admin/system` + `GET /api/admin/system-status`, `GET /api/admin/demo-data`, `POST /api/admin/demo-data/purge` (typed confirmation; NEVER run), orval codegen, `scripts/apply-frozen-migrations.py` — 27 files in local `6a9a080..7af23c6`. Railway bundle `index-C2Z5U7C7.js` contains none of it (verified by grep 2026-09-26). Publish via Save to Github → PR. |
 | Supabase managed catalog (Gate B) | ✅ 10/10 frozen artifacts APPLIED (2026-09-26, user-approved) | Ledger with hashes: `docs/migrations/APPLIED_LEDGER_2026-09-26.md`; 260/260 column parity at apply time. Seed run once (5 demo users, Sarah/Mike profiles, 4 bookings, 1 review). Demo purge NOT executed. |
 | Railway production | ✅ Healthy after `JWT_SECRET` fix (2026-09-26) | Root cause: variable was named `JWT`; `JWT_SECRET`, `NODE_ENV`, `JWT_EXPIRES_IN` set with user approval; `index.ts` fail-fast guard on GitHub via PR #89. Live `/api/healthz` 200. Follow-ups for owner: revoke the project token used, delete stale `JWT`, rotate the real-account password that appeared in tracked tests. |
-| Admin command-center plan | ✅ Handoff published locally (`docs/neo/2026-09-26-admin-vendor-command-center-plan.md`) | Phases 0–6 with stop checkpoints. Phase 0 reconciliation DONE 2026-09-26 (E2). Owner lifted the "no admin portal" constraint (`docs/commit-strategy.md`). Phase 1 (`/admin` landing + read-only queue) authorized by the owner on 2026-09-26. |
+| Admin command-center plan | ✅ Handoff published locally (`docs/neo/2026-09-26-admin-vendor-command-center-plan.md`) | Phases 0–6 with stop checkpoints. Phase 0 reconciliation DONE 2026-09-26 (E2). Owner lifted the "no admin portal" constraint (`docs/commit-strategy.md`). Phase 1 DONE 2026-09-26 (commit `957623d`): `/admin` landing page + `GET /admin/provider-applications` (+`/events`), tests green, testing agent 100%. Phase 2 needs a fresh go-ahead. |
 
 **MVP completion estimate: ~85%** (core auth, discovery, booking, mobile, shared signup, and provider onboarding are built; remaining: deeper provider onboarding, broader admin operations, and Stripe payments)
 
@@ -4276,3 +4276,11 @@ crash after #89 was the variable being named `JWT`; fixed by the user-approved
 
 **Boundaries held:** no DB access, no Railway/secret change, no push, no purge,
 no SQL. Next: Phase 1 (`/admin` landing + read-only queue) per the handoff.
+
+**Phase 1 addendum (same day).** Owner authorized Phase 1. Delivered `/admin`
+command-center landing page (four what/why/next/done-when cards + recent
+application activity) and two read-only admin endpoints, contract-first via
+`openapi.yaml` + orval. Typecheck, 132 api unit, 246 web, `build:deploy`, 41
+read-only preview pytests and an independent testing-agent run all green.
+Integration suite `admin-overview.integration.test.ts` written for a scratch
+DB and deliberately NOT executed against Supabase. Commits `957623d`, `cb765d3`.
