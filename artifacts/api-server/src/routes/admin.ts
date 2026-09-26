@@ -11,6 +11,8 @@ import {
 import { requireAuth, requireRole } from "../middlewares/auth.js";
 import adminPilotRouter from "./admin-pilot.js";
 import { computeSystemStatus } from "../lib/system-status.js";
+import { summarizeDemoData, purgeDemoData, PURGE_CONFIRMATION } from "../lib/demo-data.js";
+import { logger } from "../lib/logger.js";
 import { createApplicationNotification } from "../lib/application-notifications.js";
 import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
 
@@ -27,6 +29,26 @@ router.use("/pilot", adminPilotRouter);
 
 router.get("/system-status", async (_req: Request, res: Response): Promise<void> => {
   res.json(await computeSystemStatus());
+});
+
+// ── Demo data (seed accounts + sample bookings) ──────────────────────────────
+
+router.get("/demo-data", async (_req: Request, res: Response): Promise<void> => {
+  res.json(await summarizeDemoData());
+});
+
+router.post("/demo-data/purge", async (req: Request, res: Response): Promise<void> => {
+  const confirm = (req.body as { confirm?: unknown } | undefined)?.confirm;
+  if (confirm !== PURGE_CONFIRMATION) {
+    res.status(400).json({ error: `Type "${PURGE_CONFIRMATION}" to confirm.` });
+    return;
+  }
+  const removed = await purgeDemoData();
+  logger.warn(
+    { adminUserId: req.user!.sub, removed: removed.counts },
+    "Demo data purged",
+  );
+  res.json({ removed });
 });
 
 // ── GET /admin/verification/queue ─────────────────────────────────────────────

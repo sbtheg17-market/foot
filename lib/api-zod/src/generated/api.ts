@@ -1781,6 +1781,56 @@ export const GetAdminSystemStatusResponse = zod.object({
 
 
 /**
+ * @summary Summary of seed/demo accounts and sample data still present (admin only)
+ */
+export const GetAdminDemoDataResponse = zod.object({
+  "users": zod.array(zod.object({
+  "id": zod.int(),
+  "email": zod.string(),
+  "role": zod.string()
+})),
+  "counts": zod.object({
+  "users": zod.int(),
+  "providerProfiles": zod.int(),
+  "services": zod.int(),
+  "bookings": zod.int(),
+  "reviews": zod.int(),
+  "invoices": zod.int(),
+  "supportTickets": zod.int(),
+  "marketplaceEvents": zod.int()
+})
+})
+
+
+/**
+ * @summary Permanently remove seed/demo accounts and their sample data (admin only)
+ */
+export const PurgeAdminDemoDataBody = zod.object({
+  "confirm": zod.string().describe('Must equal \"DELETE DEMO DATA\"')
+})
+
+export const PurgeAdminDemoDataResponse = zod.object({
+  "removed": zod.object({
+  "users": zod.array(zod.object({
+  "id": zod.int(),
+  "email": zod.string(),
+  "role": zod.string()
+})),
+  "counts": zod.object({
+  "users": zod.int(),
+  "providerProfiles": zod.int(),
+  "services": zod.int(),
+  "bookings": zod.int(),
+  "reviews": zod.int(),
+  "invoices": zod.int(),
+  "supportTickets": zod.int(),
+  "marketplaceEvents": zod.int()
+})
+})
+})
+
+
+/**
  * @summary Pilot operations metrics (admin only)
  */
 export const GetAdminPilotMetricsResponse = zod.object({

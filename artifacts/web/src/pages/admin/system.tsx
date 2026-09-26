@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { useGetAdminSystemStatus } from '@workspace/api-client-react';
 import { Activity, CheckCircle2, Database, KeyRound, Lock, RefreshCw, ShieldAlert, XCircle, HelpCircle } from 'lucide-react';
 import { ROUTES } from '@/lib/routes';
+import DemoDataSection from '@/components/admin-system/demo-data-section';
 
 function errorStatus(error: unknown): number | undefined {
   if (error && typeof error === 'object' && 'status' in error) {
@@ -122,6 +123,8 @@ export default function AdminSystem() {
               ))}
             </ul>
           </section>
+
+          <DemoDataSection />
         </>
       ) : null}
     </main>

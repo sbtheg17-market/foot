@@ -2025,6 +2025,28 @@ export interface SystemStatusResponse {
   migrations: SystemStatusResponseMigrationsItem[];
 }
 
+export type DemoDataSummaryUsersItem = {
+  id: number;
+  email: string;
+  role: string;
+};
+
+export type DemoDataSummaryCounts = {
+  users: number;
+  providerProfiles: number;
+  services: number;
+  bookings: number;
+  reviews: number;
+  invoices: number;
+  supportTickets: number;
+  marketplaceEvents: number;
+};
+
+export interface DemoDataSummary {
+  users: DemoDataSummaryUsersItem[];
+  counts: DemoDataSummaryCounts;
+}
+
 /**
  * Validation error
  */
@@ -2096,6 +2118,15 @@ limit?: number;
  * Opaque pagination cursor returned as `nextCursor` by a prior page.
  */
 cursor?: string;
+};
+
+export type PurgeAdminDemoDataBody = {
+  /** Must equal "DELETE DEMO DATA" */
+  confirm: string;
+};
+
+export type PurgeAdminDemoData200 = {
+  removed: DemoDataSummary;
 };
 
 export type GetAdminVerificationQueueParams = {
