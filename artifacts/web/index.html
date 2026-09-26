@@ -16,9 +16,38 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      .app-boot {
+        position: fixed; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 20px;
+        background: hsl(45 30% 97%); color: hsl(155 30% 40%);
+        font-family: Inter, system-ui, sans-serif;
+      }
+      .app-boot__logo {
+        width: 64px; height: 64px; border-radius: 16px; background: hsl(155 30% 40%);
+        color: #fff; display: flex; align-items: center; justify-content: center;
+        font-family: Fraunces, Georgia, serif; font-weight: 700; font-size: 30px;
+        box-shadow: 0 10px 25px -8px hsl(155 30% 40% / .5);
+        animation: app-boot-pulse 1.4s ease-in-out infinite;
+      }
+      .app-boot__spinner {
+        width: 28px; height: 28px; border-radius: 50%;
+        border: 3px solid hsl(155 30% 40% / .2); border-top-color: hsl(155 30% 40%);
+        animation: app-boot-spin .8s linear infinite;
+      }
+      .app-boot__text { font-size: 14px; color: hsl(155 10% 40%); letter-spacing: .01em; }
+      @keyframes app-boot-spin { to { transform: rotate(360deg); } }
+      @keyframes app-boot-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="app-boot" role="status" aria-live="polite" data-testid="app-boot-screen">
+        <div class="app-boot__logo" aria-hidden="true">O</div>
+        <div class="app-boot__spinner" aria-hidden="true"></div>
+        <p class="app-boot__text">Loading OnCall Foot…</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
