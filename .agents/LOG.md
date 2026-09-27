@@ -4420,3 +4420,21 @@ AGENTS.md clarification on platform checkpoint branches with a merge base). This
 yes/no; (C) next gated item — Phase 4 scratch rehearsal vs Ground Game §8 answers. Outstanding
 owner hygiene: revoke Railway project token, delete stale `JWT`, fix Railway source trigger,
 rotate the GitHub token embedded in the workspace remote.
+
+---
+
+### Session — Ground Game Phase 1 review packet (verified against code; design only) (2026-09-27)
+**Agent:** E2 Agent (Emergent). **Scope:** `S` docs only. No code, schema, migration, push, merge, deploy.
+
+Re-inspected schema (28 tables / 13 enums), routers, auth middleware, support and marketplace-event
+models, web routes and admin/dashboard components against `docs/neo/2026-09-27-ground-game-design.md`
+(v1). v1 inventory confirmed accurate. Wrote `docs/neo/2026-09-27-ground-game-phase1-review-packet.md`
+which supersedes v1 Phase 0 (points to the reconciliation evidence) and carries the Phase 1 packet with
+these deltas: `requireProviderOperation` is file-local in `routes/providers.ts:67` (D9); new columns
+`leads.attribution_evidence` (required for `exact`), `leads.contact_redacted_at` (retention, D2),
+`leads.first_provider_response_at` (nullable, unused until D7), `sources.landing_ref`; index
+`leads(booking_id)`; source-type → `bookings.source` mapping in the adapter file (D10); reply/call
+actions open mailto/tel then record an outbound note; `/admin` gets one QueueCard. Migration need:
+one additive artifact `GROUND_GAME_LEADS_V1.sql` (NOT written), independent of Phase 4.
+
+**Stopped for review**: owner answers D1–D10 before any file is created.
