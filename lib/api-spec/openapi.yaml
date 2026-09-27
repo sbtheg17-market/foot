@@ -1817,6 +1817,79 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /admin/verification/events:
+    get:
+      operationId: listAdminVerificationEvents
+      tags: [admin]
+      summary: Most recent credential (verification document) decisions (admin only, read-only)
+      description: |
+        Documents that carry a reviewer decision (status approved or rejected), newest
+        decision first. verification_docs has no separate event table, so this is the
+        decision record itself — not a full audit trail. Reviewer notes and emails are
+        never included.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+      responses:
+        "200":
+          description: Recent credential decisions with provider display name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminVerificationEventsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/support/escalations:
+    get:
+      operationId: listAdminSupportEscalations
+      tags: [admin]
+      summary: Support tickets for the admin command center (admin only, read-only)
+      description: |
+        Default filter `unresolved` (open + in_progress), oldest first so nothing sits
+        unanswered. Each row carries the requester's display name and role, message
+        count and the latest message preview. Resolve via PATCH /support/escalations/{ticketId}.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [unresolved, open, in_progress, resolved, all]
+            default: unresolved
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: Support tickets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSupportEscalationsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /admin/provider-applications:
     get:
       operationId: listAdminProviderApplications
@@ -6029,6 +6102,81 @@ components:
             $ref: "#/components/schemas/AdminProviderApplicationEvent"
       required: [items]
 
+    AdminVerificationEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        docType: { type: string }
+        status: { type: string, enum: [approved, rejected] }
+        submittedAt: { type: string }
+        reviewedAt: { type: string, nullable: true }
+        provider:
+          type: object
+          properties:
+            id: { type: integer }
+            userId: { type: integer }
+            firstName: { type: string }
+            lastName: { type: string }
+            verificationStatus: { type: string }
+          required: [id, userId, firstName, lastName, verificationStatus]
+      required: [id, docType, status, submittedAt, reviewedAt, provider]
+
+    AdminVerificationEventsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminVerificationEvent"
+      required: [items]
+
+    AdminSupportEscalation:
+      type: object
+      properties:
+        id: { type: integer }
+        subject: { type: string }
+        status: { type: string, enum: [open, in_progress, resolved] }
+        bookingId: { type: integer, nullable: true }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+        requester:
+          type: object
+          properties:
+            userId: { type: integer }
+            firstName: { type: string }
+            lastName: { type: string }
+            role: { type: string }
+          required: [userId, firstName, lastName, role]
+        messageCount: { type: integer }
+        latestMessage:
+          type: object
+          nullable: true
+          properties:
+            message: { type: string }
+            createdAt: { type: string }
+            fromAdmin: { type: boolean }
+          required: [message, createdAt, fromAdmin]
+      required: [id, subject, status, bookingId, createdAt, updatedAt, requester, messageCount, latestMessage]
+
+    AdminSupportEscalationsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminSupportEscalation"
+        total: { type: integer }
+      required: [items, total]
+
+    DecisionEmailOutcome:
+      type: object
+      description: Whether the applicant was emailed about the decision (server-side templates; never blocks the decision)
+      properties:
+        sent: { type: boolean }
+        id: { type: string, nullable: true }
+        reason: { type: string, enum: [not_configured, rejected_by_gate, provider_error, invalid_recipient] }
+      required: [sent]
+
     AdminVerificationQueueItem:
       type: object
       properties:
@@ -6177,6 +6325,8 @@ components:
       properties:
         application:
           $ref: "#/components/schemas/AdminProviderApplicationView"
+        email:
+          $ref: "#/components/schemas/DecisionEmailOutcome"
       required:
         - application
 

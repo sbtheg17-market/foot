@@ -99,13 +99,20 @@ export default function ApplicationDecisionDialog(props: ApplicationDecisionDial
     const reviewerNotes = notes.trim() || undefined;
     const common = {
       onSuccess: (res: AdminProviderApplicationResponse) => {
+        const emailNote = res.email
+          ? res.email.sent
+            ? ' Email sent to the applicant.'
+            : res.email.reason === 'not_configured'
+              ? ' No email sent (email is not configured on this server).'
+              : ' Email to the applicant could not be sent — they still see the decision in-app.'
+          : '';
         toast.success(decision === 'approve' ? 'Application approved' : 'Application rejected', {
           description:
-            decision === 'approve' && !verificationApproved
+            (decision === 'approve' && !verificationApproved
               ? 'Next: approve their credentials on the Verification page so they can take bookings.'
               : decision === 'approve'
                 ? 'Credentials are already approved — this provider can now operate.'
-                : 'The provider will see your reason on their application status page.',
+                : 'The provider will see your reason on their application status page.') + emailNote,
         });
         onDecided?.(decision, res);
         onOpenChange(false);
@@ -253,7 +260,7 @@ export default function ApplicationDecisionDialog(props: ApplicationDecisionDial
               </button>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Recorded as an application event with your reviewer id; the provider is notified in-app.
+              Recorded as an application event with your reviewer id; the provider is notified in-app{decision === 'reject' ? ' and by email with your reason' : ' and by email'} when email is configured.
             </p>
           </>
         )}

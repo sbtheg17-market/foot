@@ -1,11 +1,13 @@
 import { Router, type Request, type Response } from "express";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray, desc } from "drizzle-orm";
 import {
   db,
   verificationDocsTable,
   providerApplicationsTable,
   providerApplicationEventsTable,
   providerProfilesTable,
+  supportTicketsTable,
+  supportMessagesTable,
   usersTable,
 } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth.js";
@@ -15,6 +17,7 @@ import { summarizeDemoData, purgeDemoData, PURGE_CONFIRMATION } from "../lib/dem
 import { logger } from "../lib/logger.js";
 import { createApplicationNotification } from "../lib/application-notifications.js";
 import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
+import { sendApplicationDecisionEmail, type EmailOutcome } from "../lib/decision-emails.js";
 
 const router = Router();
 
@@ -183,6 +186,159 @@ router.patch(
 
     res.json({ doc: updated });
   }
+);
+
+// ── GET /admin/verification/events (recent credential decisions, read-only) ──
+//
+// Honesty boundary: verification_docs has no separate event table. This feed
+// is the set of documents that carry a reviewer decision (status approved or
+// rejected + reviewedAt), newest decision first. Reviewer notes and emails are
+// excluded from the projection.
+
+router.get(
+  "/verification/events",
+  async (req: Request, res: Response): Promise<void> => {
+    const rawLimit = req.query["limit"] === undefined ? 10 : Number(req.query["limit"]);
+    if (!Number.isInteger(rawLimit) || rawLimit < 1 || rawLimit > 50) {
+      res.status(400).json({ error: "limit must be an integer between 1 and 50." });
+      return;
+    }
+    const rows = await db
+      .select({
+        id: verificationDocsTable.id,
+        docType: verificationDocsTable.docType,
+        status: verificationDocsTable.status,
+        submittedAt: verificationDocsTable.submittedAt,
+        reviewedAt: verificationDocsTable.reviewedAt,
+        provider: {
+          id: providerProfilesTable.id,
+          userId: providerProfilesTable.userId,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+          verificationStatus: providerProfilesTable.verificationStatus,
+        },
+      })
+      .from(verificationDocsTable)
+      .innerJoin(providerProfilesTable, eq(verificationDocsTable.providerId, providerProfilesTable.id))
+      .innerJoin(usersTable, eq(providerProfilesTable.userId, usersTable.id))
+      .where(inArray(verificationDocsTable.status, ["approved", "rejected"]))
+      .orderBy(desc(verificationDocsTable.reviewedAt), desc(verificationDocsTable.id))
+      .limit(rawLimit);
+
+    res.json({
+      items: rows.map((r) => ({
+        ...r,
+        submittedAt: r.submittedAt.toISOString(),
+        reviewedAt: r.reviewedAt?.toISOString() ?? null,
+      })),
+    });
+  },
+);
+
+// ── GET /admin/support/escalations (open support requests, read-only) ────────
+//
+// Command-center feed of support tickets. Default filter `unresolved` = open +
+// in_progress, oldest first so nothing sits unanswered. Resolution happens via
+// the existing PATCH /support/escalations/:ticketId (admin-gated, audit-logged).
+
+const TICKET_FILTERS = ["unresolved", "open", "in_progress", "resolved", "all"] as const;
+
+router.get(
+  "/support/escalations",
+  async (req: Request, res: Response): Promise<void> => {
+    const filter = (req.query["status"] as string | undefined) ?? "unresolved";
+    if (!TICKET_FILTERS.includes(filter as (typeof TICKET_FILTERS)[number])) {
+      res.status(400).json({ error: `status must be one of: ${TICKET_FILTERS.join(", ")}.` });
+      return;
+    }
+    const rawLimit = req.query["limit"] === undefined ? 50 : Number(req.query["limit"]);
+    if (!Number.isInteger(rawLimit) || rawLimit < 1 || rawLimit > 200) {
+      res.status(400).json({ error: "limit must be an integer between 1 and 200." });
+      return;
+    }
+
+    const where =
+      filter === "all"
+        ? undefined
+        : filter === "unresolved"
+          ? inArray(supportTicketsTable.status, ["open", "in_progress"])
+          : eq(supportTicketsTable.status, filter as "open" | "in_progress" | "resolved");
+
+    const base = db
+      .select({
+        id: supportTicketsTable.id,
+        subject: supportTicketsTable.subject,
+        status: supportTicketsTable.status,
+        bookingId: supportTicketsTable.bookingId,
+        createdAt: supportTicketsTable.createdAt,
+        updatedAt: supportTicketsTable.updatedAt,
+        requester: {
+          userId: usersTable.id,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+          role: usersTable.role,
+        },
+      })
+      .from(supportTicketsTable)
+      .innerJoin(usersTable, eq(supportTicketsTable.userId, usersTable.id));
+    const tickets = await (where ? base.where(where) : base)
+      .orderBy(
+        filter === "resolved" || filter === "all"
+          ? desc(supportTicketsTable.updatedAt)
+          : sql`${supportTicketsTable.createdAt} asc`,
+      )
+      .limit(rawLimit);
+
+    const countQuery = db.select({ count: sql<number>`count(*)::int` }).from(supportTicketsTable);
+    const [countRow] = await (where ? countQuery.where(where) : countQuery);
+
+    const ticketIds = tickets.map((t) => t.id);
+    const messages = ticketIds.length
+      ? await db
+          .select({
+            id: supportMessagesTable.id,
+            ticketId: supportMessagesTable.ticketId,
+            userId: supportMessagesTable.userId,
+            message: supportMessagesTable.message,
+            createdAt: supportMessagesTable.createdAt,
+            authorRole: usersTable.role,
+          })
+          .from(supportMessagesTable)
+          .innerJoin(usersTable, eq(supportMessagesTable.userId, usersTable.id))
+          .where(inArray(supportMessagesTable.ticketId, ticketIds))
+          .orderBy(desc(supportMessagesTable.createdAt), desc(supportMessagesTable.id))
+      : [];
+    const latestByTicket = new Map<number, (typeof messages)[number]>();
+    const countByTicket = new Map<number, number>();
+    for (const m of messages) {
+      countByTicket.set(m.ticketId, (countByTicket.get(m.ticketId) ?? 0) + 1);
+      if (!latestByTicket.has(m.ticketId)) latestByTicket.set(m.ticketId, m);
+    }
+
+    res.json({
+      items: tickets.map((t) => {
+        const latest = latestByTicket.get(t.id);
+        return {
+          id: t.id,
+          subject: t.subject,
+          status: t.status,
+          bookingId: t.bookingId,
+          createdAt: t.createdAt.toISOString(),
+          updatedAt: t.updatedAt.toISOString(),
+          requester: t.requester,
+          messageCount: countByTicket.get(t.id) ?? 0,
+          latestMessage: latest
+            ? {
+                message: latest.message.slice(0, 280),
+                createdAt: latest.createdAt.toISOString(),
+                fromAdmin: latest.authorRole === "admin",
+              }
+            : null,
+        };
+      }),
+      total: countRow?.count ?? 0,
+    });
+  },
 );
 
 // ── GET /admin/provider-applications (read-only queue feed) ──────────────────
@@ -417,6 +573,7 @@ async function decideProviderApplication(
 /** Admin-scoped response projection; includes reviewer-private fields. */
 function adminApplicationResponse(
   application: typeof providerApplicationsTable.$inferSelect,
+  email?: EmailOutcome,
 ) {
   return {
     application: {
@@ -433,7 +590,31 @@ function adminApplicationResponse(
       createdAt: application.createdAt,
       updatedAt: application.updatedAt,
     },
+    ...(email ? { email } : {}),
   };
+}
+
+/**
+ * After the decision committed: email the applicant from server-side records.
+ * Runs outside the transaction (a mail failure never rolls back a decision);
+ * the outcome is returned to the admin so the UI can state it honestly.
+ */
+async function emailApplicant(
+  application: typeof providerApplicationsTable.$inferSelect,
+  decision: "approved" | "rejected",
+): Promise<EmailOutcome> {
+  const [applicant] = await db
+    .select({ email: usersTable.email, firstName: usersTable.firstName })
+    .from(usersTable)
+    .where(eq(usersTable.id, application.userId))
+    .limit(1);
+  if (!applicant) return { sent: false, reason: "invalid_recipient" };
+  return sendApplicationDecisionEmail({
+    to: applicant.email,
+    firstName: applicant.firstName,
+    decision,
+    rejectionReason: decision === "rejected" ? application.rejectionReason : null,
+  });
 }
 
 function parseApplicationId(req: Request, res: Response): number | null {
@@ -500,7 +681,8 @@ router.post(
       sendDecisionError(res, outcome);
       return;
     }
-    res.json(adminApplicationResponse(outcome.application));
+    const email = await emailApplicant(outcome.application, "approved");
+    res.json(adminApplicationResponse(outcome.application, email));
   },
 );
 
@@ -542,7 +724,8 @@ router.post(
       sendDecisionError(res, outcome);
       return;
     }
-    res.json(adminApplicationResponse(outcome.application));
+    const email = await emailApplicant(outcome.application, "rejected");
+    res.json(adminApplicationResponse(outcome.application, email));
   },
 );
 

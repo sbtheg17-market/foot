@@ -1972,6 +1972,93 @@ export interface AdminProviderApplicationEventsResponse {
   items: AdminProviderApplicationEvent[];
 }
 
+export type AdminVerificationEventStatus = typeof AdminVerificationEventStatus[keyof typeof AdminVerificationEventStatus];
+
+
+export const AdminVerificationEventStatus = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type AdminVerificationEventProvider = {
+  id: number;
+  userId: number;
+  firstName: string;
+  lastName: string;
+  verificationStatus: string;
+};
+
+export interface AdminVerificationEvent {
+  id: number;
+  docType: string;
+  status: AdminVerificationEventStatus;
+  submittedAt: string;
+  reviewedAt: string | null;
+  provider: AdminVerificationEventProvider;
+}
+
+export interface AdminVerificationEventsResponse {
+  items: AdminVerificationEvent[];
+}
+
+export type AdminSupportEscalationStatus = typeof AdminSupportEscalationStatus[keyof typeof AdminSupportEscalationStatus];
+
+
+export const AdminSupportEscalationStatus = {
+  open: 'open',
+  in_progress: 'in_progress',
+  resolved: 'resolved',
+} as const;
+
+export type AdminSupportEscalationRequester = {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  role: string;
+};
+
+export type AdminSupportEscalationLatestMessage = {
+  message: string;
+  createdAt: string;
+  fromAdmin: boolean;
+} | null;
+
+export interface AdminSupportEscalation {
+  id: number;
+  subject: string;
+  status: AdminSupportEscalationStatus;
+  bookingId: number | null;
+  createdAt: string;
+  updatedAt: string;
+  requester: AdminSupportEscalationRequester;
+  messageCount: number;
+  latestMessage: AdminSupportEscalationLatestMessage;
+}
+
+export interface AdminSupportEscalationsResponse {
+  items: AdminSupportEscalation[];
+  total: number;
+}
+
+export type DecisionEmailOutcomeReason = typeof DecisionEmailOutcomeReason[keyof typeof DecisionEmailOutcomeReason];
+
+
+export const DecisionEmailOutcomeReason = {
+  not_configured: 'not_configured',
+  rejected_by_gate: 'rejected_by_gate',
+  provider_error: 'provider_error',
+  invalid_recipient: 'invalid_recipient',
+} as const;
+
+/**
+ * Whether the applicant was emailed about the decision (server-side templates; never blocks the decision)
+ */
+export interface DecisionEmailOutcome {
+  sent: boolean;
+  id?: string | null;
+  reason?: DecisionEmailOutcomeReason;
+}
+
 export type AdminVerificationQueueItemProvider = {
   id: number;
   userId: number;
@@ -2051,6 +2138,7 @@ export interface AdminProviderApplicationView {
 
 export interface AdminProviderApplicationResponse {
   application: AdminProviderApplicationView;
+  email?: DecisionEmailOutcome;
 }
 
 export type SystemStatusResponseOverall = typeof SystemStatusResponseOverall[keyof typeof SystemStatusResponseOverall];
@@ -2215,6 +2303,34 @@ export const GetAdminVerificationQueueStatus = {
   pending: 'pending',
   approved: 'approved',
   rejected: 'rejected',
+} as const;
+
+export type ListAdminVerificationEventsParams = {
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+};
+
+export type ListAdminSupportEscalationsParams = {
+status?: ListAdminSupportEscalationsStatus;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+};
+
+export type ListAdminSupportEscalationsStatus = typeof ListAdminSupportEscalationsStatus[keyof typeof ListAdminSupportEscalationsStatus];
+
+
+export const ListAdminSupportEscalationsStatus = {
+  unresolved: 'unresolved',
+  open: 'open',
+  in_progress: 'in_progress',
+  resolved: 'resolved',
+  all: 'all',
 } as const;
 
 export type ListAdminProviderApplicationsParams = {
