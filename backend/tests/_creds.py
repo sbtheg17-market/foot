@@ -33,7 +33,7 @@ def _load_env_file() -> None:
 
 _load_env_file()
 
-BASE_URL = os.environ.get("TEST_BASE_URL", "https://oncall-operations.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("TEST_BASE_URL", "https://8f3f5a3f-d59c-4ffd-8b8a-8c0d683fb9e8.preview.emergentagent.com").rstrip("/")
 
 QA_EMAIL = os.environ.get("TEST_QA_EMAIL", "qa.provider@oncallfoot.test")
 ORBITE_EMAIL = os.environ.get("TEST_ORBITE_EMAIL", "orbitetech12@gmail.com")

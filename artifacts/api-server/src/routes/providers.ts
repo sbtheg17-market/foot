@@ -34,6 +34,8 @@ import {
   loadReadinessSourceByUserId,
 } from "../lib/provider-readiness.js";
 import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
+import { computeScorecard } from "../lib/provider-scorecard.js";
+import { DEMO_EMAILS } from "../lib/demo-data.js";
 import {
   getMarketplaceTimezone,
   generateSlotsForDate,
@@ -3459,19 +3461,32 @@ router.get(
       return;
     }
 
-    // Sum invoice amounts for completed bookings belonging to this provider
-    const result = await db
-      .select({ totalCents: sql<number>`coalesce(sum(${invoicesTable.amountCents}), 0)::int` })
-      .from(invoicesTable)
-      .where(eq(invoicesTable.providerId, profile.id));
+    // Invoice-based figures only — nothing here is money received unless an
+    // invoice was explicitly marked paid. Cancelled invoices are excluded.
+    const [sums, completedRows] = await Promise.all([
+      db
+        .select({
+          paidCents: sql<number>`coalesce(sum(case when ${invoicesTable.status} = 'paid' then ${invoicesTable.amountCents} else 0 end), 0)::int`,
+          pendingCents: sql<number>`coalesce(sum(case when ${invoicesTable.status} = 'pending' then ${invoicesTable.amountCents} else 0 end), 0)::int`,
+          invoiceCount: sql<number>`count(*) filter (where ${invoicesTable.status} <> 'cancelled')::int`,
+        })
+        .from(invoicesTable)
+        .where(eq(invoicesTable.providerId, profile.id)),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(bookingsTable)
+        .where(and(eq(bookingsTable.providerId, profile.id), eq(bookingsTable.status, "completed"))),
+    ]);
 
-    const totalCents = result[0]?.totalCents ?? 0;
-    const completedBookings = profile.reviewCount; // approximation until booking count query added
+    const paidCents = sums[0]?.paidCents ?? 0;
+    const pendingPayoutCents = sums[0]?.pendingCents ?? 0;
 
     res.json({
-      totalCents,
-      completedBookings,
-      pendingPayoutCents: 0, // Stripe Connect not yet active
+      totalCents: paidCents + pendingPayoutCents,
+      paidCents,
+      pendingPayoutCents,
+      completedBookings: completedRows[0]?.count ?? 0,
+      invoiceCount: sums[0]?.invoiceCount ?? 0,
     });
   }
 );
@@ -3851,6 +3866,41 @@ router.get(
     res.json({
       metrics: computeDashboardMetrics(rows),
       updatedAt: new Date().toISOString(),
+    });
+  },
+);
+
+/**
+ * GET /providers/me/scorecard — exact counts over the provider's own bookings
+ * and reviews (last 30 days by scheduled time + all time), rates past a
+ * minimum, one suggestion per gap. Derived live; nothing persisted.
+ */
+router.get(
+  "/me/scorecard",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+    const [bookingRows, reviewRows, userRows] = await Promise.all([
+      db
+        .select({ status: bookingsTable.status, scheduledAt: bookingsTable.scheduledAt, clientId: bookingsTable.clientId })
+        .from(bookingsTable)
+        .where(eq(bookingsTable.providerId, profile.id)),
+      db
+        .select({ rating: reviewsTable.rating, createdAt: reviewsTable.createdAt })
+        .from(reviewsTable)
+        .where(eq(reviewsTable.providerId, profile.id)),
+      db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, profile.userId)).limit(1),
+    ]);
+    const now = new Date();
+    const email = userRows[0]?.email ?? "";
+    res.json({
+      ...computeScorecard(bookingRows, reviewRows, now),
+      isDemo: (DEMO_EMAILS as readonly string[]).includes(email),
+      updatedAt: now.toISOString(),
     });
   },
 );

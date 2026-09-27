@@ -22,9 +22,11 @@ manager and are supplied only to the operator's process.
 - Schema entry point: `lib/db/src/schema/index.ts`
 - Schema modules: `lib/db/src/schema/*.ts`
 - Drizzle configuration: `lib/db/drizzle.config.ts`
-- Frozen artifacts:
-  - `docs/migrations/PREVENTED_BOOKING_RECORDS_V1.sql`
-  - `docs/migrations/PREVENTED_BOOKINGS_DAILY_V1.sql`
+- Frozen artifacts: every `docs/migrations/*_V1.sql`; applied ones are listed
+  with hashes in `docs/migrations/APPLIED_LEDGER_*.md`.
+- Proposed, NOT applied (2026-09-27): `USERS_IS_DEMO_V1.sql`,
+  `USERS_IS_DEMO_BACKFILL_V1.sql`, `ADMIN_AUDIT_LOG_V1.sql` — see
+  `docs/migrations/PROPOSED_2026-09-27_DEMO_FLAG_AUDIT_LOG.md`.
 - There is currently no committed Drizzle migration-history directory or
   migration journal. `db:push` is a local scratch-only tool.
 

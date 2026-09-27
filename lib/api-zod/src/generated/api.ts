@@ -1572,10 +1572,12 @@ export const RemoveMyServiceAreaPrefixResponse = zod.object({
  * @summary Get earnings summary
  */
 export const GetMyEarningsResponse = zod.object({
-  "totalCents": zod.int().describe('Lifetime earnings in cents'),
-  "completedBookings": zod.int(),
-  "pendingPayoutCents": zod.int().describe('Placeholder — Stripe Connect not yet active')
-})
+  "totalCents": zod.int().describe('Invoiced value in cents across pending + paid invoices (NOT confirmed paid)'),
+  "paidCents": zod.int().describe('Sum of invoices marked paid'),
+  "pendingPayoutCents": zod.int().describe('Sum of invoices still pending (invoiced, not yet paid)'),
+  "completedBookings": zod.int().describe('Exact count of bookings with status completed'),
+  "invoiceCount": zod.int()
+}).describe('Invoice-based figures only. No payment backend is wired, so nothing here is confirmed money received unless an invoice was explicitly marked paid.')
 
 
 /**
@@ -1675,6 +1677,62 @@ export const GetMyProviderDashboardResponse = zod.object({
   "estimatedMonthlyCents": zod.int().nullable().describe('Sum of service prices for bookings completed this month (marketplace timezone); null when nothing completed this month. Estimate only — payments are not enabled and no money moves through the platform.'),
   "available": zod.boolean().describe('Always false until payments are enabled')
 }),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * Exact booking-outcome counts over two windows — visits scheduled in the last 30 days and all time — with review count/average, repeat clients (distinct clients with two or more completed visits), rates only once `minimumForRates` outcomes exist, and at most one practical suggestion per gap. Every suggestion is computed from the provider's own bookings and reviews only; no cross-provider benchmark, no forecast, no revenue figure. Derived live on every request; nothing is persisted.
+ * @summary Owner-scoped provider scorecard (exact counts, read-only)
+ */
+export const GetMyProviderScorecardResponse = zod.object({
+  "windowDays": zod.int(),
+  "windowStart": zod.coerce.date(),
+  "windowEnd": zod.coerce.date(),
+  "minimumForRates": zod.int().describe('Resolved visits needed before rates are shown'),
+  "isDemo": zod.boolean().describe('True for seed\/demo provider accounts'),
+  "last30": zod.object({
+  "total": zod.int(),
+  "completed": zod.int(),
+  "cancelled": zod.int(),
+  "noShow": zod.int(),
+  "awaitingOutcome": zod.int().describe('Visits still `requested`, `confirmed` or `rescheduled` (in the 30-day window these are past visits without a recorded outcome)'),
+  "resolved": zod.int().describe('completed + cancelled + noShow — the denominator for rates'),
+  "distinctClients": zod.int().describe('Distinct clients with at least one completed visit'),
+  "repeatClients": zod.int().describe('Distinct clients with two or more completed visits'),
+  "reviews": zod.object({
+  "count": zod.int(),
+  "averageRating": zod.number().nullable().describe('Mean of 1–5 ratings, one decimal; null when there are no reviews')
+}),
+  "rates": zod.object({
+  "completion": zod.number(),
+  "cancellation": zod.number(),
+  "noShow": zod.number()
+}).describe('Shares of resolved visits (0–1). Present only when resolved >= minimumForRates.').nullable()
+}).describe('Exact counts of the provider\'s own bookings by current status. In the 30-day window a booking is included when its scheduled time falls inside the window; reviews are counted by the time they were written.'),
+  "allTime": zod.object({
+  "total": zod.int(),
+  "completed": zod.int(),
+  "cancelled": zod.int(),
+  "noShow": zod.int(),
+  "awaitingOutcome": zod.int().describe('Visits still `requested`, `confirmed` or `rescheduled` (in the 30-day window these are past visits without a recorded outcome)'),
+  "resolved": zod.int().describe('completed + cancelled + noShow — the denominator for rates'),
+  "distinctClients": zod.int().describe('Distinct clients with at least one completed visit'),
+  "repeatClients": zod.int().describe('Distinct clients with two or more completed visits'),
+  "reviews": zod.object({
+  "count": zod.int(),
+  "averageRating": zod.number().nullable().describe('Mean of 1–5 ratings, one decimal; null when there are no reviews')
+}),
+  "rates": zod.object({
+  "completion": zod.number(),
+  "cancellation": zod.number(),
+  "noShow": zod.number()
+}).describe('Shares of resolved visits (0–1). Present only when resolved >= minimumForRates.').nullable()
+}).describe('Exact counts of the provider\'s own bookings by current status. In the 30-day window a booking is included when its scheduled time falls inside the window; reviews are counted by the time they were written.'),
+  "suggestions": zod.array(zod.object({
+  "gap": zod.enum(['unresolved_past_visits', 'no_recent_visits', 'no_shows', 'cancellations', 'no_repeat_clients', 'no_reviews']),
+  "message": zod.string().describe('One practical next step, computed from the provider\'s own data only')
+})),
   "updatedAt": zod.coerce.date()
 })
 

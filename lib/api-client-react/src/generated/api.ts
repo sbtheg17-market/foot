@@ -98,6 +98,7 @@ import type {
   ProviderNotificationUnreadCountResponse,
   ProviderProfileResponse,
   ProviderReadinessResponse,
+  ProviderScorecardResponse,
   ProviderSlotsResponse,
   ProviderUnavailableConflictResponse,
   PublicAvailabilityResponse,
@@ -4382,6 +4383,84 @@ export function useGetMyProviderDashboard<TData = Awaited<ReturnType<typeof getM
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMyProviderDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyProviderScorecardUrl = () => {
+
+
+
+
+  return `/api/providers/me/scorecard`
+}
+
+/**
+ * Exact booking-outcome counts over two windows — visits scheduled in the last 30 days and all time — with review count/average, repeat clients (distinct clients with two or more completed visits), rates only once `minimumForRates` outcomes exist, and at most one practical suggestion per gap. Every suggestion is computed from the provider's own bookings and reviews only; no cross-provider benchmark, no forecast, no revenue figure. Derived live on every request; nothing is persisted.
+ * @summary Owner-scoped provider scorecard (exact counts, read-only)
+ */
+export const getMyProviderScorecard = async ( options?: Parameters<typeof customFetch>[1]): Promise<ProviderScorecardResponse> => {
+
+  return customFetch<ProviderScorecardResponse>(getGetMyProviderScorecardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyProviderScorecardQueryKey = () => {
+    return [
+    `/api/providers/me/scorecard`
+    ] as const;
+    }
+
+
+export const getGetMyProviderScorecardQueryOptions = <TData = Awaited<ReturnType<typeof getMyProviderScorecard>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderScorecard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyProviderScorecardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyProviderScorecard>>> = ({ signal }) => getMyProviderScorecard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyProviderScorecard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyProviderScorecardQueryResult = NonNullable<Awaited<ReturnType<typeof getMyProviderScorecard>>>
+export type GetMyProviderScorecardQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary Owner-scoped provider scorecard (exact counts, read-only)
+ */
+
+export function useGetMyProviderScorecard<TData = Awaited<ReturnType<typeof getMyProviderScorecard>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProviderScorecard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyProviderScorecardQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

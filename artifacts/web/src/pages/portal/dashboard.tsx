@@ -18,6 +18,7 @@ import NextBestActionCard from '@/components/dashboard/next-best-action';
 import PendingReschedules from '@/components/dashboard/pending-reschedules';
 import UpcomingBookings from '@/components/dashboard/upcoming-bookings';
 import PerformanceMetrics from '@/components/dashboard/performance-metrics';
+import ScorecardCard from '@/components/dashboard/scorecard-card';
 import SourceAttributionChart from '@/components/dashboard/source-attribution-chart';
 import RecentActivity from '@/components/dashboard/recent-activity';
 import EarningsPreview from '@/components/dashboard/earnings-preview';
@@ -154,6 +155,8 @@ export default function PortalDashboard() {
       />
 
       <PerformanceMetrics metrics={data.metrics} />
+
+      <ScorecardCard />
 
       <section
         id="booking-link-card"

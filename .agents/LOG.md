@@ -4300,3 +4300,83 @@ recorded; 409 on stale state, 401/403 gates, no `reviewerNotes`/email leaks;
 independent testing agent 12/12, `test_reports/iteration_2.json`). Real
 applications #1 and #5 untouched. `origin/main` (`827ed81`, squash of #89/#90)
 merged in with our tree kept so Save to GitHub → PR lands without conflicts.
+
+### Session — Phase 2 slices 2 + 3 finished: credential + support dialogs, decision email (2026-09-27)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `M` (web UI + 2 read-only admin feeds + decision email lib; contract-first; no schema change)
+
+**Baseline:** local `main` = `92331da` (all implementation files identical to the
+previous code-server workspace; `.env` + `memory/` recovered from it).
+Toolchain rebuilt: corepack pnpm@10.18.3, `pnpm install --frozen-lockfile`,
+`pnpm run build:deploy`; preview shims unchanged.
+
+**Finished this session.**
+- Component tests for the two new dialogs (7 + 5, incl. axe) and a node:test
+  suite for `decision-emails.ts` (added to the api `test` script). Web 263/263,
+  api unit 137/137, typecheck + `build:deploy` green.
+- Read-only preview regression `backend/tests/test_admin_phase2_feeds.py`
+  (14/14) for `GET /admin/verification/events` and `GET /admin/support/escalations`.
+- Live browser run on QA/demo data only: credential #5 approved (profile flip
+  unticked → profile unchanged), demo ticket #1 → in progress, #2 → resolved
+  with admin outcome message. Real accounts untouched.
+- Plan doc Appendix F records slices 2 + 3; `memory/PRD.md` and
+  `memory/test_credentials.md` updated (preview URL now this workspace).
+
+**Boundaries held:** no DDL, no push, no secret printed; `.env` values never
+logged. Owner publishes via Save to GitHub → PR (Railway deploys `main`).
+
+### Session — Phase 3: provider scorecard, earnings correction, Railway email vars (2026-09-27)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `M` (1 new owner-scoped endpoint + earnings response change, contract-first; no schema change)
+
+- `GET /providers/me/scorecard` + `lib/provider-scorecard.ts` (pure, unit-tested 6/6):
+  exact counts last-30-days (by scheduled time) and all-time, rates only past 5
+  resolved visits, one suggestion per gap from own data only, `isDemo`.
+- `GET /providers/me/earnings` corrected: invoiced (pending+paid) vs paid vs
+  pending, real completed-booking count; `/provider/earnings` relabelled.
+- `ScorecardCard` on `/provider/dashboard`; web 267/267, api 143/143, typecheck,
+  `build:deploy`, preview pytest 7/7 read-only, 390 px check.
+- Railway: three email vars upserted on the `foot` service via owner token;
+  redeploy SUCCESS, healthz 200. Token should now be revoked by the owner.
+- Plan doc Appendix G. **Boundaries held:** no DDL, no push, no secret printed.
+
+### Session — Phase 4 proposal: users.is_demo + admin_audit_log artifacts, metric definitions (2026-09-27)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (docs + frozen SQL artifacts; NOT applied; no runtime change)
+
+- Frozen for review: `USERS_IS_DEMO_V1.sql`, `USERS_IS_DEMO_BACKFILL_V1.sql`,
+  `ADMIN_AUDIT_LOG_V1.sql`; hashes + design + sequencing in
+  `docs/migrations/PROPOSED_2026-09-27_DEMO_FLAG_AUDIT_LOG.md`; gate doc updated.
+- Syntax-validated with libpg_query only; local scratch rehearsal outstanding.
+- `docs/metrics-definitions.md` written (Phase 4 acceptance item).
+- **Boundaries held:** no DB connection, no DDL/DML, no schema declaration, no push.
+
+### Session — Ground Game (source-to-lead layer) Phase 0 + design for review (2026-09-27)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (docs only; no code, no migration, no schema declaration)
+
+- Read-only reconciliation (evidence table in
+  `docs/neo/2026-09-27-ground-game-design.md`): GitHub `main` = `ee0d180`
+  (PR #93 merged 03:22Z = `92331da`, Phase 2 code); Railway last deploy still
+  `5177fd4` at 02:52Z → merge did not trigger a deploy (owner to check);
+  `JWT_SECRET` present and working (stale `JWT` remains); local commits
+  `7b2bb2c..933d165` (scorecard, Phase 4 proposals) not yet on GitHub.
+- Design delivered: inventory (28 tables, routers, role checks; no
+  profiles/tenant/lead tables), 4-table additive model (`sources`, `leads`,
+  `lead_messages`, `lead_events`), 14-file Phase 1 list, permission/privacy
+  boundaries, adapter config (foot_care / tire_sourcing), acceptance-test map,
+  8 unresolved decisions, deferred list.
+- Phase 4 demo-flag/audit-log apply: NOT performed (confirmation superseded).
+- **Boundaries held:** no DB connection, no DDL, no push, no deploy, no
+  Railway change, no purge. STOP for owner review.
+
+### Session completion — read-only handoff written (2026-09-27)
+**Agent:** E1 Agent (Emergent). **Scope:** docs only.
+- `docs/neo/2026-09-27-session-completion-handoff.md`: three Phase 4 artifacts
+  listed as PROPOSED / NOT APPROVED / NOT APPLIED with hashes; verified git,
+  GitHub, Railway state (local branch is `conflict_260926_1408`, HEAD `ea93d21`;
+  GitHub main `ee0d180`; Railway `5177fd4`); uncommitted files; future phases;
+  first safe task for the next Neo.
+- Owner instruction recorded: no demo-flag apply, hashes not approved, no data
+  modification. **Boundaries held:** no SQL, no push, no merge, no deploy, no
+  Railway change, no purge.

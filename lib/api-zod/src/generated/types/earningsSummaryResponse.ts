@@ -6,10 +6,17 @@
  * OpenAPI spec version: 0.3.0
  */
 
+/**
+ * Invoice-based figures only. No payment backend is wired, so nothing here is confirmed money received unless an invoice was explicitly marked paid.
+ */
 export interface EarningsSummaryResponse {
-  /** Lifetime earnings in cents */
+  /** Invoiced value in cents across pending + paid invoices (NOT confirmed paid) */
   totalCents: number;
-  completedBookings: number;
-  /** Placeholder — Stripe Connect not yet active */
+  /** Sum of invoices marked paid */
+  paidCents: number;
+  /** Sum of invoices still pending (invoiced, not yet paid) */
   pendingPayoutCents: number;
+  /** Exact count of bookings with status completed */
+  completedBookings: number;
+  invoiceCount: number;
 }
