@@ -1,0 +1,1520 @@
+From bd210fa91f281b4a09bf6f05927839c3e35081e5 Mon Sep 17 00:00:00 2001
+From: e1-agent <agent@local.invalid>
+Date: Sun, 27 Sep 2026 17:19:30 +0000
+Subject: [PATCH] feat(leads): read-only Today's Leads shell (provider + admin)
+
+Adds the minimal read-only Today's Leads slice:
+- OpenAPI: LeadActivityItem/LeadActivityResponse + GET /providers/me/leads,
+  GET /admin/leads (no info.version bump); regenerated api-zod + api-client-react.
+- API: lead-activity adapter (NO_SOURCE default) + owner-scoped provider route
+  (requireProviderOperation) and admin route (requireRole('admin')).
+  Unconnected -> connected:false, emptyReason:'not_connected', items:[].
+- Web: /provider/leads (Daily Ground Game) + /admin/ground-game, one shared
+  read-only view (no action controls); provider dashboard entry link (no 7th tab).
+- Tests: adapter ownership/empty-state (fixtures only) + web view states.
+
+Read-only shell; lead ingestion not connected; not deployed.
+---
+ artifacts/api-server/package.json             |   2 +-
+ .../src/__tests__/lead-activity.test.ts       |  97 +++++++++++
+ artifacts/api-server/src/lib/lead-activity.ts | 100 +++++++++++
+ artifacts/api-server/src/routes/admin.ts      |   9 +
+ artifacts/api-server/src/routes/providers.ts  |  22 +++
+ artifacts/web/src/App.tsx                     |   4 +
+ .../web/src/__tests__/leads-view.test.tsx     | 114 +++++++++++++
+ .../components/leads/lead-activity-view.tsx   | 115 +++++++++++++
+ artifacts/web/src/lib/routes.ts               |   3 +
+ artifacts/web/src/pages/admin/ground-game.tsx |  69 ++++++++
+ artifacts/web/src/pages/portal/dashboard.tsx  |  15 ++
+ artifacts/web/src/pages/portal/leads.tsx      |  28 ++++
+ .../src/generated/api.schemas.ts              |  82 +++++++++
+ lib/api-client-react/src/generated/api.ts     | 157 +++++++++++++++++
+ lib/api-spec/openapi.yaml                     | 158 ++++++++++++++++++
+ lib/api-zod/src/generated/api.ts              |  68 ++++++++
+ lib/api-zod/src/generated/types/index.ts      |   8 +
+ .../src/generated/types/leadActivityItem.ts   |  37 ++++
+ .../types/leadActivityItemAttribution.ts      |  16 ++
+ .../types/leadActivityItemLastUpdate.ts       |  12 ++
+ .../types/leadActivityItemNextAction.ts       |  12 ++
+ .../types/leadActivityItemOwnerRole.ts        |  15 ++
+ .../generated/types/leadActivityItemSource.ts |  12 ++
+ .../generated/types/leadActivityResponse.ts   |  20 +++
+ .../types/leadActivityResponseEmptyReason.ts  |  21 +++
+ 25 files changed, 1195 insertions(+), 1 deletion(-)
+ create mode 100644 artifacts/api-server/src/__tests__/lead-activity.test.ts
+ create mode 100644 artifacts/api-server/src/lib/lead-activity.ts
+ create mode 100644 artifacts/web/src/__tests__/leads-view.test.tsx
+ create mode 100644 artifacts/web/src/components/leads/lead-activity-view.tsx
+ create mode 100644 artifacts/web/src/pages/admin/ground-game.tsx
+ create mode 100644 artifacts/web/src/pages/portal/leads.tsx
+ create mode 100644 lib/api-zod/src/generated/types/leadActivityItem.ts
+ create mode 100644 lib/api-zod/src/generated/types/leadActivityItemAttribution.ts
+ create mode 100644 lib/api-zod/src/generated/types/leadActivityItemLastUpdate.ts
+ create mode 100644 lib/api-zod/src/generated/types/leadActivityItemNextAction.ts
+ create mode 100644 lib/api-zod/src/generated/types/leadActivityItemOwnerRole.ts
+ create mode 100644 lib/api-zod/src/generated/types/leadActivityItemSource.ts
+ create mode 100644 lib/api-zod/src/generated/types/leadActivityResponse.ts
+ create mode 100644 lib/api-zod/src/generated/types/leadActivityResponseEmptyReason.ts
+
+diff --git a/artifacts/api-server/package.json b/artifacts/api-server/package.json
+index 09e1f39..a7475c0 100644
+--- a/artifacts/api-server/package.json
++++ b/artifacts/api-server/package.json
+@@ -11,7 +11,7 @@
+     "backfill:role-state": "node --enable-source-maps --import tsx/esm ./src/scripts/backfill-role-state.ts",
+     "replay:prevented-bookings": "node --enable-source-maps --import tsx/esm ./src/scripts/replay-prevented-bookings.ts",
+     "typecheck": "tsc -p tsconfig.json --noEmit",
+-    "test": "node --import tsx/esm --test src/__tests__/booking-state-machine.test.ts src/__tests__/reschedule-policy.test.ts src/__tests__/service-area.test.ts src/__tests__/cancellation-policy.test.ts src/__tests__/support-contact.test.ts src/__tests__/decision-emails.test.ts src/__tests__/provider-scorecard.test.ts",
++    "test": "node --import tsx/esm --test src/__tests__/booking-state-machine.test.ts src/__tests__/reschedule-policy.test.ts src/__tests__/service-area.test.ts src/__tests__/cancellation-policy.test.ts src/__tests__/support-contact.test.ts src/__tests__/decision-emails.test.ts src/__tests__/provider-scorecard.test.ts src/__tests__/lead-activity.test.ts",
+     "test:integration": "node --import tsx/esm --test src/__tests__/booking-concurrency.test.ts",
+     "test:lifecycle": "node --import tsx/esm --test src/__tests__/client-booking-lifecycle.integration.test.ts",
+     "test:reviews": "node --import tsx/esm --test src/__tests__/review.integration.test.ts",
+diff --git a/artifacts/api-server/src/__tests__/lead-activity.test.ts b/artifacts/api-server/src/__tests__/lead-activity.test.ts
+new file mode 100644
+index 0000000..3fbeba7
+--- /dev/null
++++ b/artifacts/api-server/src/__tests__/lead-activity.test.ts
+@@ -0,0 +1,97 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import {
++  getProviderLeadActivity,
++  getAdminLeadActivity,
++  NO_SOURCE,
++  type LeadActivityItem,
++  type LeadSource,
++} from "../lib/lead-activity.js";
++
++/**
++ * Fixture-based CONTRACT test for the Today's Leads adapter boundary.
++ *
++ * NOTE: this proves the adapter's ownership-filtering and empty-reason
++ * CONTRACT against test-only fixtures. It is NOT evidence of production lead
++ * isolation — no live lead source is connected in this slice.
++ */
++
++const item = (
++  id: string,
++  assignedProviderId: number | null,
++  ownerRole: "provider" | "admin",
++): LeadActivityItem => ({
++  id,
++  source: { name: "fixture", type: "test" },
++  attribution: "unknown",
++  vertical: "foot_care",
++  needSummary: "fixture need",
++  assignedProviderId,
++  ownerRole,
++  status: "new",
++  lastUpdate: { summary: "created", at: "2026-09-27T00:00:00.000Z" },
++  nextAction: { label: "review" },
++  origin: "fixture",
++});
++
++function fixtureSource(items: LeadActivityItem[]): LeadSource {
++  return { connected: true, list: async () => items };
++}
++
++test("unconnected: provider read returns connected:false, not_connected, empty", async () => {
++  const r = await getProviderLeadActivity(7, NO_SOURCE);
++  assert.equal(r.connected, false);
++  assert.equal(r.emptyReason, "not_connected");
++  assert.deepEqual(r.items, []);
++});
++
++test("unconnected: admin read returns connected:false, not_connected, empty", async () => {
++  const r = await getAdminLeadActivity(NO_SOURCE);
++  assert.equal(r.connected, false);
++  assert.equal(r.emptyReason, "not_connected");
++  assert.deepEqual(r.items, []);
++});
++
++test("default (no source argument) is the unconnected shell for both reads", async () => {
++  assert.equal((await getProviderLeadActivity(1)).emptyReason, "not_connected");
++  assert.equal((await getAdminLeadActivity()).emptyReason, "not_connected");
++});
++
++test("not_connected is DISTINCT from no_active_source (admin: connected but empty)", async () => {
++  const r = await getAdminLeadActivity(fixtureSource([]));
++  assert.equal(r.connected, true);
++  assert.equal(r.emptyReason, "no_active_source");
++  assert.notEqual(r.emptyReason, "not_connected");
++});
++
++test("provider scope returns ONLY leads assigned to that provider profile", async () => {
++  const items = [
++    item("a", 7, "provider"),
++    item("b", 9, "provider"),
++    item("c", 7, "provider"),
++    item("d", null, "admin"),
++  ];
++  const r = await getProviderLeadActivity(7, fixtureSource(items));
++  assert.equal(r.connected, true);
++  assert.deepEqual(
++    r.items.map((i) => i.id).sort(),
++    ["a", "c"],
++  );
++  assert.equal(r.emptyReason, null);
++});
++
++test("provider scope with no matching leads → no_tracked_inquiry (connected, empty)", async () => {
++  const r = await getProviderLeadActivity(7, fixtureSource([item("b", 9, "provider")]));
++  assert.equal(r.connected, true);
++  assert.deepEqual(r.items, []);
++  assert.equal(r.emptyReason, "no_tracked_inquiry");
++});
++
++test("admin scope returns all authorized + unassigned leads", async () => {
++  const items = [item("a", 7, "provider"), item("d", null, "admin")];
++  const r = await getAdminLeadActivity(fixtureSource(items));
++  assert.deepEqual(
++    r.items.map((i) => i.id).sort(),
++    ["a", "d"],
++  );
++});
+diff --git a/artifacts/api-server/src/lib/lead-activity.ts b/artifacts/api-server/src/lib/lead-activity.ts
+new file mode 100644
+index 0000000..3379a22
+--- /dev/null
++++ b/artifacts/api-server/src/lib/lead-activity.ts
+@@ -0,0 +1,100 @@
++/**
++ * Today's Leads — read-only adapter boundary.
++ *
++ * This slice connects NO lead source. Both provider- and admin-scoped reads
++ * return the honest unconnected shell: `connected:false`,
++ * `emptyReason:"not_connected"`, `items:[]`. The scope-aware functions below
++ * are the seam a future AUTHORIZED source plugs into; until then nothing
++ * fabricates leads, counts, traction or source attribution.
++ *
++ * Ownership filtering for the provider scope lives HERE (the adapter
++ * boundary) so it is unit-testable with test-only fixtures, independently of
++ * any live source. A fixture-based test of that filter proves a contract, not
++ * production lead isolation (there is no production source yet).
++ */
++
++export type LeadEmptyReason =
++  | "not_connected"
++  | "setup_incomplete"
++  | "no_active_source"
++  | "no_tracked_inquiry"
++  | "insufficient_data";
++
++export interface LeadActivityItem {
++  id: string;
++  source: { name: string; type: string };
++  offerRef?: string | null;
++  attribution: "known" | "reported" | "unknown";
++  vertical: string;
++  needSummary: string;
++  assignedProviderId?: number | null;
++  ownerRole: "provider" | "admin";
++  status: string;
++  lastUpdate: { summary: string; at: string };
++  nextAction: { label: string; dueAt?: string | null };
++  relatedBookingId?: number | null;
++  origin: string;
++}
++
++export interface LeadActivityResponse {
++  connected: boolean;
++  emptyReason: LeadEmptyReason | null;
++  items: LeadActivityItem[];
++}
++
++/**
++ * A future authorized source implements this. This Phase-1 slice ships no
++ * implementation; production always uses the unconnected result below.
++ */
++export interface LeadSource {
++  readonly connected: boolean;
++  list(): Promise<LeadActivityItem[]>;
++}
++
++/** No lead source is connected in this slice. */
++export const NO_SOURCE: LeadSource = {
++  connected: false,
++  async list(): Promise<LeadActivityItem[]> {
++    return [];
++  },
++};
++
++function unconnected(): LeadActivityResponse {
++  return { connected: false, emptyReason: "not_connected", items: [] };
++}
++
++/**
++ * Provider-scoped read: only leads assigned to this provider profile.
++ * `not_connected` (no source at all) is deliberately distinct from
++ * `no_tracked_inquiry` (a source IS connected but has no lead for you).
++ */
++export async function getProviderLeadActivity(
++  providerProfileId: number,
++  source: LeadSource = NO_SOURCE,
++): Promise<LeadActivityResponse> {
++  if (!source.connected) return unconnected();
++  const all = await source.list();
++  const items = all.filter((l) => l.assignedProviderId === providerProfileId);
++  return {
++    connected: true,
++    emptyReason: items.length === 0 ? "no_tracked_inquiry" : null,
++    items,
++  };
++}
++
++/**
++ * Admin-scoped read: all authorized + unassigned leads.
++ * `not_connected` (no source at all) is deliberately distinct from
++ * `no_active_source` (a source IS connected but no offer is active).
++ */
++export async function getAdminLeadActivity(
++  source: LeadSource = NO_SOURCE,
++): Promise<LeadActivityResponse> {
++  if (!source.connected) return unconnected();
++  const items = await source.list();
++  return {
++    connected: true,
++    emptyReason: items.length === 0 ? "no_active_source" : null,
++    items,
++  };
++}
+diff --git a/artifacts/api-server/src/routes/admin.ts b/artifacts/api-server/src/routes/admin.ts
+index 857c941..6eca386 100644
+--- a/artifacts/api-server/src/routes/admin.ts
++++ b/artifacts/api-server/src/routes/admin.ts
+@@ -18,6 +18,7 @@ import { logger } from "../lib/logger.js";
+ import { createApplicationNotification } from "../lib/application-notifications.js";
+ import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
+ import { sendApplicationDecisionEmail, type EmailOutcome } from "../lib/decision-emails.js";
++import { getAdminLeadActivity } from "../lib/lead-activity.js";
+ 
+ const router = Router();
+ 
+@@ -34,6 +35,14 @@ router.get("/system-status", async (_req: Request, res: Response): Promise<void>
+   res.json(await computeSystemStatus());
+ });
+ 
++// ── GET /admin/leads ──────────────────────────────────────────────────────────
++// Read-only Today's Leads / Ground Game across all authorized + unassigned
++// leads. No source is connected in this slice → connected:false,
++// emptyReason:"not_connected", items:[]. Never fabricates leads or counts.
++router.get("/leads", async (_req: Request, res: Response): Promise<void> => {
++  res.json(await getAdminLeadActivity());
++});
++
+ // ── Demo data (seed accounts + sample bookings) ──────────────────────────────
+ 
+ router.get("/demo-data", async (_req: Request, res: Response): Promise<void> => {
+diff --git a/artifacts/api-server/src/routes/providers.ts b/artifacts/api-server/src/routes/providers.ts
+index f08d0bb..cddb8ff 100644
+--- a/artifacts/api-server/src/routes/providers.ts
++++ b/artifacts/api-server/src/routes/providers.ts
+@@ -28,6 +28,7 @@ import {
+ } from "../middlewares/auth.js";
+ import { logger } from "../lib/logger.js";
+ import { isSchemaDriftError } from "../lib/schema-drift.js";
++import { getProviderLeadActivity } from "../lib/lead-activity.js";
+ import { createApplicationNotification } from "../lib/application-notifications.js";
+ import {
+   computeReadiness,
+@@ -3905,6 +3906,27 @@ router.get(
+   },
+ );
+ 
++// ── GET /providers/me/leads ───────────────────────────────────────────────────
++/**
++ * GET /providers/me/leads — read-only Today's Leads ("Daily Ground Game"),
++ * scoped to the authenticated approved provider's own profile. No lead source
++ * is connected in this slice, so this always returns connected:false,
++ * emptyReason:"not_connected", items:[]. Ownership filtering lives at the
++ * adapter boundary (lib/lead-activity.ts); nothing is fabricated here.
++ */
++router.get(
++  "/me/leads",
++  ...requireProviderOperation,
++  async (req: Request, res: Response): Promise<void> => {
++    const profile = await getOwnProfile(req.user!.sub);
++    if (!profile) {
++      res.status(404).json({ error: "Provider profile not found." });
++      return;
++    }
++    res.json(await getProviderLeadActivity(profile.id));
++  },
++);
++
+ // ── Public: Provider by ID ────────────────────────────────────────────────────
+ 
+ /** GET /providers/:providerId — Public provider profile */
+diff --git a/artifacts/web/src/App.tsx b/artifacts/web/src/App.tsx
+index 6f677e3..97a46e4 100644
+--- a/artifacts/web/src/App.tsx
++++ b/artifacts/web/src/App.tsx
+@@ -13,6 +13,7 @@ import PublicBookingPage from '@/pages/public-booking';
+ import ClientBookings from '@/pages/bookings';
+ import ClientBookingDetail from '@/pages/booking-detail';
+ import PortalDashboard from '@/pages/portal/dashboard';
++import PortalLeads from '@/pages/portal/leads';
+ import PortalBookings from '@/pages/portal/bookings';
+ import PortalServices from '@/pages/portal/services';
+ import PortalAvailability from '@/pages/portal/availability';
+@@ -26,6 +27,7 @@ import PortalListingPreview from '@/pages/portal/listing-preview';
+ import PortalTravelZones from '@/pages/portal/travel-zones';
+ import PortalServiceArea from '@/pages/portal/service-area';
+ import AdminHome from '@/pages/admin/index';
++import AdminGroundGame from '@/pages/admin/ground-game';
+ import AdminVerification from '@/pages/admin/verification';
+ import AdminPilot from '@/pages/admin/pilot';
+ import AdminSystem from '@/pages/admin/system';
+@@ -90,6 +92,7 @@ function Router() {
+         <Redirect to={ROUTES.provider.dashboard} />
+       </Route>
+       <Route path={ROUTES.provider.dashboard}>{providerRoute(PortalDashboard)}</Route>
++      <Route path={ROUTES.provider.leads}>{providerRoute(PortalLeads)}</Route>
+       <Route path={ROUTES.provider.bookings}>{providerRoute(PortalBookings)}</Route>
+       <Route path={ROUTES.provider.services}>{providerRoute(PortalServices)}</Route>
+       <Route path={ROUTES.provider.availability}>{providerRoute(PortalAvailability)}</Route>
+@@ -120,6 +123,7 @@ function Router() {
+ 
+       {/* ── Admin ────────────────────────────────────────────────────────── */}
+       <Route path={ROUTES.admin.root} component={AdminHome} />
++      <Route path={ROUTES.admin.groundGame} component={AdminGroundGame} />
+       <Route path={ROUTES.admin.verification} component={AdminVerification} />
+       <Route path={ROUTES.admin.pilot} component={AdminPilot} />
+       <Route path={ROUTES.admin.system} component={AdminSystem} />
+diff --git a/artifacts/web/src/__tests__/leads-view.test.tsx b/artifacts/web/src/__tests__/leads-view.test.tsx
+new file mode 100644
+index 0000000..b3248e5
+--- /dev/null
++++ b/artifacts/web/src/__tests__/leads-view.test.tsx
+@@ -0,0 +1,114 @@
++/**
++ * Today's Leads read-only shell — web tests.
++ *
++ * Covers: the honest unconnected empty state ("Lead activity isn't connected
++ * yet."), loading and error/retry states, the ABSENCE of any action controls
++ * on the provider view, and the admin page's 401/403 self-gate. The API hooks
++ * are mocked; no network. With no source connected these views render nothing
++ * but the empty state — this is a shell, not a working lead inbox.
++ */
++import React from 'react';
++import { describe, it, expect, vi, beforeEach } from 'vitest';
++import { render, screen } from '@testing-library/react';
++import { Router } from 'wouter';
++import PortalLeads from '../pages/portal/leads';
++import AdminGroundGame from '../pages/admin/ground-game';
++import { useGetMyLeads, useGetAdminLeads } from '@workspace/api-client-react';
++
++vi.mock('@workspace/api-client-react', () => ({
++  useGetMyLeads: vi.fn(),
++  useGetAdminLeads: vi.fn(),
++}));
++
++const unconnected = { connected: false, emptyReason: 'not_connected', items: [] };
++
++const withRouter = (ui: React.ReactElement) => render(<Router>{ui}</Router>);
++
++beforeEach(() => {
++  vi.mocked(useGetMyLeads).mockReturnValue({
++    data: unconnected,
++    isLoading: false,
++    isError: false,
++    error: null,
++    refetch: vi.fn(),
++  } as any);
++  vi.mocked(useGetAdminLeads).mockReturnValue({
++    data: unconnected,
++    isLoading: false,
++    isError: false,
++    error: null,
++    refetch: vi.fn(),
++  } as any);
++});
++
++describe("provider Today's Leads (read-only shell)", () => {
++  it('shows the honest empty state when no source is connected', () => {
++    withRouter(<PortalLeads />);
++    expect(screen.getByTestId('provider-leads-empty')).toBeInTheDocument();
++    expect(screen.getByText(/Lead activity isn't connected yet\./i)).toBeInTheDocument();
++  });
++
++  it('renders NO action controls (no reply/transfer/assign/status; no buttons)', () => {
++    withRouter(<PortalLeads />);
++    expect(screen.queryByRole('button')).toBeNull();
++    expect(screen.queryByText(/reply|transfer|assign|status change/i)).toBeNull();
++  });
++
++  it('shows a loading state', () => {
++    vi.mocked(useGetMyLeads).mockReturnValue({
++      data: undefined,
++      isLoading: true,
++      isError: false,
++      error: null,
++      refetch: vi.fn(),
++    } as any);
++    withRouter(<PortalLeads />);
++    expect(screen.getByTestId('provider-leads-loading')).toBeInTheDocument();
++  });
++
++  it('shows an error state with a retry control', () => {
++    vi.mocked(useGetMyLeads).mockReturnValue({
++      data: undefined,
++      isLoading: false,
++      isError: true,
++      error: null,
++      refetch: vi.fn(),
++    } as any);
++    withRouter(<PortalLeads />);
++    expect(screen.getByTestId('provider-leads-error')).toBeInTheDocument();
++    expect(screen.getByTestId('provider-leads-retry')).toBeInTheDocument();
++  });
++});
++
++describe('admin Ground Game (read-only shell)', () => {
++  it('shows the honest empty state', () => {
++    withRouter(<AdminGroundGame />);
++    expect(screen.getByTestId('admin-leads-empty')).toBeInTheDocument();
++    expect(screen.getByText(/Lead activity isn't connected yet\./i)).toBeInTheDocument();
++  });
++
++  it('self-gates on 403 (forbidden)', () => {
++    vi.mocked(useGetAdminLeads).mockReturnValue({
++      data: undefined,
++      isLoading: false,
++      isError: true,
++      error: { status: 403 },
++      refetch: vi.fn(),
++    } as any);
++    withRouter(<AdminGroundGame />);
++    expect(screen.getByTestId('admin-leads-access-denied')).toBeInTheDocument();
++  });
++
++  it('self-gates on 401 with a sign-in link', () => {
++    vi.mocked(useGetAdminLeads).mockReturnValue({
++      data: undefined,
++      isLoading: false,
++      isError: true,
++      error: { status: 401 },
++      refetch: vi.fn(),
++    } as any);
++    withRouter(<AdminGroundGame />);
++    expect(screen.getByTestId('admin-leads-auth-required')).toBeInTheDocument();
++    expect(screen.getByTestId('admin-leads-login-link')).toBeInTheDocument();
++  });
++});
+diff --git a/artifacts/web/src/components/leads/lead-activity-view.tsx b/artifacts/web/src/components/leads/lead-activity-view.tsx
+new file mode 100644
+index 0000000..8f10ab5
+--- /dev/null
++++ b/artifacts/web/src/components/leads/lead-activity-view.tsx
+@@ -0,0 +1,115 @@
++import React from 'react';
++import { Inbox } from 'lucide-react';
++import type { LeadActivityResponse, LeadActivityItem } from '@workspace/api-client-react';
++
++export interface LeadActivityViewProps {
++  title: string;
++  subtitle: string;
++  data?: LeadActivityResponse;
++  isLoading: boolean;
++  isError: boolean;
++  onRetry: () => void;
++  testId: string;
++}
++
++/**
++ * Shared read-only presentational component for the Today's Leads views
++ * (provider `/provider/leads` and admin `/admin/ground-game`).
++ *
++ * Read-only by design: there are NO action controls (no reply/transfer/assign/
++ * status-change). When no lead source is connected the list is empty and the
++ * view states the honest reason. It never renders fabricated leads, counts,
++ * traction or source attribution.
++ */
++export default function LeadActivityView({
++  title,
++  subtitle,
++  data,
++  isLoading,
++  isError,
++  onRetry,
++  testId,
++}: LeadActivityViewProps) {
++  if (isLoading) {
++    return (
++      <div
++        className="p-6 pt-10 pb-32 max-w-4xl mx-auto space-y-6"
++        data-testid={`${testId}-loading`}
++        aria-busy="true"
++        aria-label="Loading leads"
++      >
++        {[0, 1, 2].map((i) => (
++          <div key={i} className="bg-secondary/60 rounded-3xl animate-pulse h-24" />
++        ))}
++      </div>
++    );
++  }
++
++  if (isError || !data) {
++    return (
++      <div
++        className="p-6 pt-20 max-w-md mx-auto text-center space-y-4"
++        data-testid={`${testId}-error`}
++      >
++        <h1 className="text-xl font-serif font-semibold text-foreground">
++          We couldn't load leads
++        </h1>
++        <p className="text-sm text-muted-foreground">
++          Check your connection and try again.
++        </p>
++        <button
++          type="button"
++          data-testid={`${testId}-retry`}
++          onClick={onRetry}
++          className="px-5 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
++        >
++          Try again
++        </button>
++      </div>
++    );
++  }
++
++  const items: LeadActivityItem[] = data.items ?? [];
++
++  return (
++    <div className="p-6 pt-10 pb-32 max-w-4xl mx-auto space-y-8" data-testid={testId}>
++      <header className="space-y-2">
++        <h1 className="text-3xl font-serif font-bold text-foreground">{title}</h1>
++        <p className="text-muted-foreground">{subtitle}</p>
++      </header>
++
++      {items.length === 0 ? (
++        <div
++          data-testid={`${testId}-empty`}
++          className="text-center py-16 text-muted-foreground border-2 border-dashed border-border rounded-3xl space-y-2"
++        >
++          <Inbox className="w-8 h-8 mx-auto opacity-30" aria-hidden="true" />
++          <p className="text-sm font-medium text-foreground">
++            Lead activity isn't connected yet.
++          </p>
++          <p className="text-xs">
++            When a lead source is connected, incoming interest will appear here.
++            Nothing is tracked or measured yet.
++          </p>
++        </div>
++      ) : (
++        <ul
++          className="divide-y divide-border rounded-3xl border border-border bg-card"
++          data-testid={`${testId}-list`}
++        >
++          {items.map((item) => (
++            <li key={item.id} data-testid={`lead-row-${item.id}`} className="p-4 space-y-1">
++              <p className="text-sm font-medium text-foreground">{item.needSummary}</p>
++              <p className="text-xs text-muted-foreground">
++                {item.attribution === 'unknown' ? 'Source unknown' : item.source.name}
++                {' · '}
++                {item.status}
++              </p>
++              <p className="text-xs text-muted-foreground">Next: {item.nextAction.label}</p>
++            </li>
++          ))}
++        </ul>
++      )}
++    </div>
++  );
++}
+diff --git a/artifacts/web/src/lib/routes.ts b/artifacts/web/src/lib/routes.ts
+index 464627f..ef30100 100644
+--- a/artifacts/web/src/lib/routes.ts
++++ b/artifacts/web/src/lib/routes.ts
+@@ -22,6 +22,7 @@ export const ROUTES = {
+   provider: {
+     root: '/provider',
+     dashboard: '/provider/dashboard',
++    leads: '/provider/leads',
+     bookings: '/provider/bookings',
+     services: '/provider/services',
+     availability: '/provider/availability',
+@@ -49,6 +50,8 @@ export const ROUTES = {
+   admin: {
+     // Command-center landing page: what needs an administrator now.
+     root: '/admin',
++    // Read-only daily lead-activity view (Today's Leads / Ground Game).
++    groundGame: '/admin/ground-game',
+     verification: '/admin/verification',
+     // Platform-administrator-only pilot operations dashboard (Part 2).
+     pilot: '/admin/pilot',
+diff --git a/artifacts/web/src/pages/admin/ground-game.tsx b/artifacts/web/src/pages/admin/ground-game.tsx
+new file mode 100644
+index 0000000..bdb21f9
+--- /dev/null
++++ b/artifacts/web/src/pages/admin/ground-game.tsx
+@@ -0,0 +1,69 @@
++import React from 'react';
++import { Link } from 'wouter';
++import { Lock, ShieldAlert } from 'lucide-react';
++import { useGetAdminLeads } from '@workspace/api-client-react';
++import { ROUTES } from '@/lib/routes';
++import LeadActivityView from '@/components/leads/lead-activity-view';
++
++function errorStatus(error: unknown): number | undefined {
++  if (error && typeof error === 'object' && 'status' in error) {
++    const status = (error as { status: unknown }).status;
++    return typeof status === 'number' ? status : undefined;
++  }
++  return undefined;
++}
++
++/**
++ * /admin/ground-game — admin Today's Leads (read-only shell).
++ *
++ * Server-gated by requireAuth + requireRole('admin') on GET /api/admin/leads.
++ * This page also self-gates on 401/403 like the other admin pages. No lead
++ * source is connected in this slice → honest empty state.
++ */
++export default function AdminGroundGame() {
++  const { data, isLoading, isError, error, refetch } = useGetAdminLeads({
++    query: { queryKey: ['admin-leads'] },
++  });
++
++  const gate = errorStatus(error);
++  if (gate === 401 || gate === 403) {
++    return (
++      <main
++        className="min-h-screen bg-background p-6 max-w-md mx-auto text-center space-y-3"
++        data-testid={gate === 401 ? 'admin-leads-auth-required' : 'admin-leads-access-denied'}
++      >
++        {gate === 403 ? (
++          <ShieldAlert className="w-8 h-8 mx-auto text-muted-foreground" aria-hidden="true" />
++        ) : (
++          <Lock className="w-8 h-8 mx-auto text-muted-foreground" aria-hidden="true" />
++        )}
++        <p className="text-sm font-medium text-foreground">
++          {gate === 401
++            ? 'Sign in as a platform administrator to view leads.'
++            : 'This area is restricted to platform administrators.'}
++        </p>
++        {gate === 401 && (
++          <Link
++            href={ROUTES.login}
++            data-testid="admin-leads-login-link"
++            className="inline-block rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
++          >
++            Go to sign in
++          </Link>
++        )}
++      </main>
++    );
++  }
++
++  return (
++    <LeadActivityView
++      testId="admin-leads"
++      title="Ground Game"
++      subtitle="All incoming interest across the marketplace — source, position, owner, and next step."
++      data={data}
++      isLoading={isLoading}
++      isError={isError && !gate}
++      onRetry={() => refetch()}
++    />
++  );
++}
+diff --git a/artifacts/web/src/pages/portal/dashboard.tsx b/artifacts/web/src/pages/portal/dashboard.tsx
+index 06d8ce4..0d17d19 100644
+--- a/artifacts/web/src/pages/portal/dashboard.tsx
++++ b/artifacts/web/src/pages/portal/dashboard.tsx
+@@ -8,7 +8,9 @@
+  * from here are the existing booking-page publish/share actions.
+  */
+ import React from 'react';
++import { Link } from 'wouter';
+ import { useGetMyProviderDashboard } from '@workspace/api-client-react';
++import { ROUTES } from '@/lib/routes';
+ import { useMarketplaceTimezone, formatBookingDate, formatBookingTime } from '@/lib/marketplace-time';
+ import ReadinessSummaryCard from '@/components/readiness-summary-card';
+ import FirstBookingCard from '@/components/first-booking-card';
+@@ -144,6 +146,19 @@ export default function PortalDashboard() {
+ 
+       <QuickActions />
+ 
++      {/* Today's Leads entry (read-only shell). A dashboard link — not a 7th
++          mobile nav tab (the bottom bar is already at capacity). */}
++      <Link
++        href={ROUTES.provider.leads}
++        data-testid="dashboard-leads-link"
++        className="block bg-card border border-border rounded-3xl p-5 hover:bg-secondary/40 transition-colors"
++      >
++        <h2 className="text-sm font-semibold text-foreground">Today's Leads</h2>
++        <p className="text-xs text-muted-foreground mt-1">
++          Your daily ground game — incoming interest, its source, and the next step.
++        </p>
++      </Link>
++
+       {/* Activation readiness + first-booking conversion (server-computed) */}
+       <ReadinessSummaryCard />
+       <FirstBookingCard />
+diff --git a/artifacts/web/src/pages/portal/leads.tsx b/artifacts/web/src/pages/portal/leads.tsx
+new file mode 100644
+index 0000000..2ad5289
+--- /dev/null
++++ b/artifacts/web/src/pages/portal/leads.tsx
+@@ -0,0 +1,28 @@
++import React from 'react';
++import { useGetMyLeads } from '@workspace/api-client-react';
++import LeadActivityView from '@/components/leads/lead-activity-view';
++
++/**
++ * /provider/leads — "Daily Ground Game" (read-only shell).
++ *
++ * Owner-scoped read (GET /api/providers/me/leads). No lead source is connected
++ * in this slice, so the server returns connected:false, emptyReason
++ * "not_connected", items:[] and the view shows the honest empty state.
++ */
++export default function PortalLeads() {
++  const { data, isLoading, isError, refetch } = useGetMyLeads({
++    query: { queryKey: ['my-leads'] },
++  });
++
++  return (
++    <LeadActivityView
++      testId="provider-leads"
++      title="Today's Leads"
++      subtitle="Your daily ground game — incoming interest, its source, and the next step."
++      data={data}
++      isLoading={isLoading}
++      isError={isError}
++      onRetry={() => refetch()}
++    />
++  );
++}
+diff --git a/lib/api-client-react/src/generated/api.schemas.ts b/lib/api-client-react/src/generated/api.schemas.ts
+index 4a2c859..6c8bcae 100644
+--- a/lib/api-client-react/src/generated/api.schemas.ts
++++ b/lib/api-client-react/src/generated/api.schemas.ts
+@@ -5,6 +5,88 @@
+  * OnCall Foot API — foot rejuvenation marketplace
+  * OpenAPI spec version: 0.3.0
+  */
++export type LeadActivityItemSource = {
++  name: string;
++  type: string;
++};
++
++export type LeadActivityItemAttribution = typeof LeadActivityItemAttribution[keyof typeof LeadActivityItemAttribution];
++
++
++export const LeadActivityItemAttribution = {
++  known: 'known',
++  reported: 'reported',
++  unknown: 'unknown',
++} as const;
++
++export type LeadActivityItemOwnerRole = typeof LeadActivityItemOwnerRole[keyof typeof LeadActivityItemOwnerRole];
++
++
++export const LeadActivityItemOwnerRole = {
++  provider: 'provider',
++  admin: 'admin',
++} as const;
++
++export type LeadActivityItemLastUpdate = {
++  summary: string;
++  at: string;
++};
++
++export type LeadActivityItemNextAction = {
++  label: string;
++  dueAt?: string | null;
++};
++
++/**
++ * One lead-activity item for the read-only Today's Leads views. A source- agnostic display contract that a future authorized adapter populates. No demo/real classification is included until a reliable marker exists.
++ */
++export interface LeadActivityItem {
++  /** Stable, source-agnostic item identifier */
++  id: string;
++  source: LeadActivityItemSource;
++  /** Optional offer/listing reference; null when unknown */
++  offerRef?: string | null;
++  attribution: LeadActivityItemAttribution;
++  /** Vertical/service label (extensible; no vertical-specific UI) */
++  vertical: string;
++  /** Short need summary, sanitized for list display */
++  needSummary: string;
++  assignedProviderId?: number | null;
++  ownerRole: LeadActivityItemOwnerRole;
++  /** Current position/status label (extensible) */
++  status: string;
++  lastUpdate: LeadActivityItemLastUpdate;
++  nextAction: LeadActivityItemNextAction;
++  relatedBookingId?: number | null;
++  /** Data origin of this item (e.g. the adapter/source name) */
++  origin: string;
++}
++
++/**
++ * Distinct facts. not_connected = no source connected at all (this slice). no_active_source = a source IS connected but no offer is active (future). setup_incomplete / no_tracked_inquiry / insufficient_data are reserved for later slices.
++ */
++export type LeadActivityResponseEmptyReason = typeof LeadActivityResponseEmptyReason[keyof typeof LeadActivityResponseEmptyReason] | null;
++
++
++export const LeadActivityResponseEmptyReason = {
++  not_connected: 'not_connected',
++  setup_incomplete: 'setup_incomplete',
++  no_active_source: 'no_active_source',
++  no_tracked_inquiry: 'no_tracked_inquiry',
++  insufficient_data: 'insufficient_data',
++} as const;
++
++/**
++ * Envelope for a Today's Leads view. `connected` is false until an authorized lead source is wired; `emptyReason` names the fact behind an empty list. In this slice both routes always return connected:false, emptyReason:not_connected, items:[].
++ */
++export interface LeadActivityResponse {
++  /** Whether an authorized lead source is connected */
++  connected: boolean;
++  /** Distinct facts. not_connected = no source connected at all (this slice). no_active_source = a source IS connected but no offer is active (future). setup_incomplete / no_tracked_inquiry / insufficient_data are reserved for later slices. */
++  emptyReason?: LeadActivityResponseEmptyReason;
++  items: LeadActivityItem[];
++}
++
+ export interface HealthStatus {
+   status: string;
+ }
+diff --git a/lib/api-client-react/src/generated/api.ts b/lib/api-client-react/src/generated/api.ts
+index fa854b7..246dba3 100644
+--- a/lib/api-client-react/src/generated/api.ts
++++ b/lib/api-client-react/src/generated/api.ts
+@@ -68,6 +68,7 @@ import type {
+   HealthStatus,
+   InvoiceListResponse,
+   InvoiceResponse,
++  LeadActivityResponse,
+   ListAdminProviderApplicationEventsParams,
+   ListAdminProviderApplicationsParams,
+   ListAdminSupportEscalationsParams,
+@@ -7769,3 +7770,159 @@ export function useListProviderReviews<TData = Awaited<ReturnType<typeof listPro
+ 
+ 
+ 
++export const getGetMyLeadsUrl = () => {
++
++
++
++
++  return `/api/providers/me/leads`
++}
++
++/**
++ * Read-only lead-activity feed for the authenticated approved provider, scoped to leads assigned to their own provider profile. No lead source is connected in this slice, so the response is always connected:false, emptyReason:not_connected, items:[]. It never returns fabricated leads, counts, traction or source attribution.
++ * @summary Owner-scoped Today's Leads (read-only shell)
++ */
++export const getMyLeads = async ( options?: Parameters<typeof customFetch>[1]): Promise<LeadActivityResponse> => {
++
++  return customFetch<LeadActivityResponse>(getGetMyLeadsUrl(),
++  {
++    ...options,
++    method: 'GET'
++
++
++  }
++);}
++
++
++
++
++
++export const getGetMyLeadsQueryKey = () => {
++    return [
++    `/api/providers/me/leads`
++    ] as const;
++    }
++
++
++export const getGetMyLeadsQueryOptions = <TData = Awaited<ReturnType<typeof getMyLeads>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
++) => {
++
++const {query: queryOptions, request: requestOptions} = options ?? {};
++
++  const queryKey =  queryOptions?.queryKey ?? getGetMyLeadsQueryKey();
++
++
++
++    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyLeads>>> = ({ signal }) => getMyLeads({ signal, ...requestOptions });
++
++
++
++
++
++   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyLeads>>, TError, TData> & { queryKey: QueryKey }
++}
++
++export type GetMyLeadsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyLeads>>>
++export type GetMyLeadsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
++
++
++/**
++ * @summary Owner-scoped Today's Leads (read-only shell)
++ */
++
++export function useGetMyLeads<TData = Awaited<ReturnType<typeof getMyLeads>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
++  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
++
++ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
++
++  const queryOptions = getGetMyLeadsQueryOptions(options)
++
++  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
++
++  return withQueryKey(query, queryOptions.queryKey);
++}
++
++
++
++
++
++
++
++export const getGetAdminLeadsUrl = () => {
++
++
++
++
++  return `/api/admin/leads`
++}
++
++/**
++ * Read-only lead-activity feed for administrators across all authorized and unassigned leads. No lead source is connected in this slice, so the response is always connected:false, emptyReason:not_connected, items:[].
++ * @summary Admin Today's Leads / Ground Game (read-only shell)
++ */
++export const getAdminLeads = async ( options?: Parameters<typeof customFetch>[1]): Promise<LeadActivityResponse> => {
++
++  return customFetch<LeadActivityResponse>(getGetAdminLeadsUrl(),
++  {
++    ...options,
++    method: 'GET'
++
++
++  }
++);}
++
++
++
++
++
++export const getGetAdminLeadsQueryKey = () => {
++    return [
++    `/api/admin/leads`
++    ] as const;
++    }
++
++
++export const getGetAdminLeadsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminLeads>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
++) => {
++
++const {query: queryOptions, request: requestOptions} = options ?? {};
++
++  const queryKey =  queryOptions?.queryKey ?? getGetAdminLeadsQueryKey();
++
++
++
++    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminLeads>>> = ({ signal }) => getAdminLeads({ signal, ...requestOptions });
++
++
++
++
++
++   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminLeads>>, TError, TData> & { queryKey: QueryKey }
++}
++
++export type GetAdminLeadsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminLeads>>>
++export type GetAdminLeadsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
++
++
++/**
++ * @summary Admin Today's Leads / Ground Game (read-only shell)
++ */
++
++export function useGetAdminLeads<TData = Awaited<ReturnType<typeof getAdminLeads>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
++  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
++
++ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
++
++  const queryOptions = getGetAdminLeadsQueryOptions(options)
++
++  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
++
++  return withQueryKey(query, queryOptions.queryKey);
++}
++
++
++
++
++
++
++
+diff --git a/lib/api-spec/openapi.yaml b/lib/api-spec/openapi.yaml
+index 2d622ec..64a12bb 100644
+--- a/lib/api-spec/openapi.yaml
++++ b/lib/api-spec/openapi.yaml
+@@ -2872,6 +2872,54 @@ paths:
+         "404":
+           $ref: "#/components/responses/NotFound"
+ 
++  /providers/me/leads:
++    get:
++      operationId: getMyLeads
++      tags: [providers]
++      summary: Owner-scoped Today's Leads (read-only shell)
++      description: >-
++        Read-only lead-activity feed for the authenticated approved provider,
++        scoped to leads assigned to their own provider profile. No lead source
++        is connected in this slice, so the response is always
++        connected:false, emptyReason:not_connected, items:[]. It never returns
++        fabricated leads, counts, traction or source attribution.
++      security:
++        - bearerAuth: []
++      responses:
++        "200":
++          description: Lead activity (unconnected shell → empty)
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/LeadActivityResponse"
++        "401":
++          $ref: "#/components/responses/Unauthorized"
++        "403":
++          $ref: "#/components/responses/Forbidden"
++
++  /admin/leads:
++    get:
++      operationId: getAdminLeads
++      tags: [admin]
++      summary: Admin Today's Leads / Ground Game (read-only shell)
++      description: >-
++        Read-only lead-activity feed for administrators across all authorized
++        and unassigned leads. No lead source is connected in this slice, so the
++        response is always connected:false, emptyReason:not_connected, items:[].
++      security:
++        - bearerAuth: []
++      responses:
++        "200":
++          description: Lead activity (unconnected shell → empty)
++          content:
++            application/json:
++              schema:
++                $ref: "#/components/schemas/LeadActivityResponse"
++        "401":
++          $ref: "#/components/responses/Unauthorized"
++        "403":
++          $ref: "#/components/responses/Forbidden"
++
+ components:
+   securitySchemes:
+     bearerAuth:
+@@ -2912,6 +2960,116 @@ components:
+             $ref: "#/components/schemas/ErrorResponse"
+ 
+   schemas:
++    LeadActivityItem:
++      type: object
++      description: >-
++        One lead-activity item for the read-only Today's Leads views. A source-
++        agnostic display contract that a future authorized adapter populates.
++        No demo/real classification is included until a reliable marker exists.
++      properties:
++        id:
++          type: string
++          description: Stable, source-agnostic item identifier
++        source:
++          type: object
++          properties:
++            name:
++              type: string
++            type:
++              type: string
++          required: [name, type]
++        offerRef:
++          type: string
++          nullable: true
++          description: Optional offer/listing reference; null when unknown
++        attribution:
++          type: string
++          enum: [known, reported, unknown]
++        vertical:
++          type: string
++          description: Vertical/service label (extensible; no vertical-specific UI)
++        needSummary:
++          type: string
++          description: Short need summary, sanitized for list display
++        assignedProviderId:
++          type: integer
++          nullable: true
++        ownerRole:
++          type: string
++          enum: [provider, admin]
++        status:
++          type: string
++          description: Current position/status label (extensible)
++        lastUpdate:
++          type: object
++          properties:
++            summary:
++              type: string
++            at:
++              type: string
++              format: date-time
++          required: [summary, at]
++        nextAction:
++          type: object
++          properties:
++            label:
++              type: string
++            dueAt:
++              type: string
++              format: date-time
++              nullable: true
++          required: [label]
++        relatedBookingId:
++          type: integer
++          nullable: true
++        origin:
++          type: string
++          description: Data origin of this item (e.g. the adapter/source name)
++      required:
++        - id
++        - source
++        - attribution
++        - vertical
++        - needSummary
++        - ownerRole
++        - status
++        - lastUpdate
++        - nextAction
++        - origin
++
++    LeadActivityResponse:
++      type: object
++      description: >-
++        Envelope for a Today's Leads view. `connected` is false until an
++        authorized lead source is wired; `emptyReason` names the fact behind an
++        empty list. In this slice both routes always return
++        connected:false, emptyReason:not_connected, items:[].
++      properties:
++        connected:
++          type: boolean
++          description: Whether an authorized lead source is connected
++        emptyReason:
++          type: string
++          nullable: true
++          enum:
++            - not_connected
++            - setup_incomplete
++            - no_active_source
++            - no_tracked_inquiry
++            - insufficient_data
++          description: >-
++            Distinct facts. not_connected = no source connected at all (this
++            slice). no_active_source = a source IS connected but no offer is
++            active (future). setup_incomplete / no_tracked_inquiry /
++            insufficient_data are reserved for later slices.
++        items:
++          type: array
++          items:
++            $ref: "#/components/schemas/LeadActivityItem"
++      required:
++        - connected
++        - items
++
+     HealthStatus:
+       type: object
+       properties:
+diff --git a/lib/api-zod/src/generated/api.ts b/lib/api-zod/src/generated/api.ts
+index dd7ddb6..528ef66 100644
+--- a/lib/api-zod/src/generated/api.ts
++++ b/lib/api-zod/src/generated/api.ts
+@@ -3099,3 +3099,71 @@ export const ListProviderReviewsResponse = zod.object({
+ })
+ 
+ 
++/**
++ * Read-only lead-activity feed for the authenticated approved provider, scoped to leads assigned to their own provider profile. No lead source is connected in this slice, so the response is always connected:false, emptyReason:not_connected, items:[]. It never returns fabricated leads, counts, traction or source attribution.
++ * @summary Owner-scoped Today's Leads (read-only shell)
++ */
++export const GetMyLeadsResponse = zod.object({
++  "connected": zod.boolean().describe('Whether an authorized lead source is connected'),
++  "emptyReason": zod.enum(['not_connected', 'setup_incomplete', 'no_active_source', 'no_tracked_inquiry', 'insufficient_data']).nullish().describe('Distinct facts. not_connected = no source connected at all (this slice). no_active_source = a source IS connected but no offer is active (future). setup_incomplete \/ no_tracked_inquiry \/ insufficient_data are reserved for later slices.'),
++  "items": zod.array(zod.object({
++  "id": zod.string().describe('Stable, source-agnostic item identifier'),
++  "source": zod.object({
++  "name": zod.string(),
++  "type": zod.string()
++}),
++  "offerRef": zod.string().nullish().describe('Optional offer\/listing reference; null when unknown'),
++  "attribution": zod.enum(['known', 'reported', 'unknown']),
++  "vertical": zod.string().describe('Vertical\/service label (extensible; no vertical-specific UI)'),
++  "needSummary": zod.string().describe('Short need summary, sanitized for list display'),
++  "assignedProviderId": zod.int().nullish(),
++  "ownerRole": zod.enum(['provider', 'admin']),
++  "status": zod.string().describe('Current position\/status label (extensible)'),
++  "lastUpdate": zod.object({
++  "summary": zod.string(),
++  "at": zod.coerce.date()
++}),
++  "nextAction": zod.object({
++  "label": zod.string(),
++  "dueAt": zod.coerce.date().nullish()
++}),
++  "relatedBookingId": zod.int().nullish(),
++  "origin": zod.string().describe('Data origin of this item (e.g. the adapter\/source name)')
++}).describe('One lead-activity item for the read-only Today\'s Leads views. A source- agnostic display contract that a future authorized adapter populates. No demo\/real classification is included until a reliable marker exists.'))
++}).describe('Envelope for a Today\'s Leads view. `connected` is false until an authorized lead source is wired; `emptyReason` names the fact behind an empty list. In this slice both routes always return connected:false, emptyReason:not_connected, items:[].')
++
++
++/**
++ * Read-only lead-activity feed for administrators across all authorized and unassigned leads. No lead source is connected in this slice, so the response is always connected:false, emptyReason:not_connected, items:[].
++ * @summary Admin Today's Leads / Ground Game (read-only shell)
++ */
++export const GetAdminLeadsResponse = zod.object({
++  "connected": zod.boolean().describe('Whether an authorized lead source is connected'),
++  "emptyReason": zod.enum(['not_connected', 'setup_incomplete', 'no_active_source', 'no_tracked_inquiry', 'insufficient_data']).nullish().describe('Distinct facts. not_connected = no source connected at all (this slice). no_active_source = a source IS connected but no offer is active (future). setup_incomplete \/ no_tracked_inquiry \/ insufficient_data are reserved for later slices.'),
++  "items": zod.array(zod.object({
++  "id": zod.string().describe('Stable, source-agnostic item identifier'),
++  "source": zod.object({
++  "name": zod.string(),
++  "type": zod.string()
++}),
++  "offerRef": zod.string().nullish().describe('Optional offer\/listing reference; null when unknown'),
++  "attribution": zod.enum(['known', 'reported', 'unknown']),
++  "vertical": zod.string().describe('Vertical\/service label (extensible; no vertical-specific UI)'),
++  "needSummary": zod.string().describe('Short need summary, sanitized for list display'),
++  "assignedProviderId": zod.int().nullish(),
++  "ownerRole": zod.enum(['provider', 'admin']),
++  "status": zod.string().describe('Current position\/status label (extensible)'),
++  "lastUpdate": zod.object({
++  "summary": zod.string(),
++  "at": zod.coerce.date()
++}),
++  "nextAction": zod.object({
++  "label": zod.string(),
++  "dueAt": zod.coerce.date().nullish()
++}),
++  "relatedBookingId": zod.int().nullish(),
++  "origin": zod.string().describe('Data origin of this item (e.g. the adapter\/source name)')
++}).describe('One lead-activity item for the read-only Today\'s Leads views. A source- agnostic display contract that a future authorized adapter populates. No demo\/real classification is included until a reliable marker exists.'))
++}).describe('Envelope for a Today\'s Leads view. `connected` is false until an authorized lead source is wired; `emptyReason` names the fact behind an empty list. In this slice both routes always return connected:false, emptyReason:not_connected, items:[].')
++
++
+diff --git a/lib/api-zod/src/generated/types/index.ts b/lib/api-zod/src/generated/types/index.ts
+index 8a70867..3ee88f8 100644
+--- a/lib/api-zod/src/generated/types/index.ts
++++ b/lib/api-zod/src/generated/types/index.ts
+@@ -99,6 +99,14 @@ export * from './invoice';
+ export * from './invoiceListResponse';
+ export * from './invoiceResponse';
+ export * from './invoiceStatus';
++export * from './leadActivityItem';
++export * from './leadActivityItemAttribution';
++export * from './leadActivityItemLastUpdate';
++export * from './leadActivityItemNextAction';
++export * from './leadActivityItemOwnerRole';
++export * from './leadActivityItemSource';
++export * from './leadActivityResponse';
++export * from './leadActivityResponseEmptyReason';
+ export * from './listAdminProviderApplicationEventsParams';
+ export * from './listAdminProviderApplicationsParams';
+ export * from './listAdminProviderApplicationsStatus';
+diff --git a/lib/api-zod/src/generated/types/leadActivityItem.ts b/lib/api-zod/src/generated/types/leadActivityItem.ts
+new file mode 100644
+index 0000000..a0a114d
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/leadActivityItem.ts
+@@ -0,0 +1,37 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++import type { LeadActivityItemAttribution } from './leadActivityItemAttribution';
++import type { LeadActivityItemLastUpdate } from './leadActivityItemLastUpdate';
++import type { LeadActivityItemNextAction } from './leadActivityItemNextAction';
++import type { LeadActivityItemOwnerRole } from './leadActivityItemOwnerRole';
++import type { LeadActivityItemSource } from './leadActivityItemSource';
++
++/**
++ * One lead-activity item for the read-only Today's Leads views. A source- agnostic display contract that a future authorized adapter populates. No demo/real classification is included until a reliable marker exists.
++ */
++export interface LeadActivityItem {
++  /** Stable, source-agnostic item identifier */
++  id: string;
++  source: LeadActivityItemSource;
++  /** Optional offer/listing reference; null when unknown */
++  offerRef?: string | null;
++  attribution: LeadActivityItemAttribution;
++  /** Vertical/service label (extensible; no vertical-specific UI) */
++  vertical: string;
++  /** Short need summary, sanitized for list display */
++  needSummary: string;
++  assignedProviderId?: number | null;
++  ownerRole: LeadActivityItemOwnerRole;
++  /** Current position/status label (extensible) */
++  status: string;
++  lastUpdate: LeadActivityItemLastUpdate;
++  nextAction: LeadActivityItemNextAction;
++  relatedBookingId?: number | null;
++  /** Data origin of this item (e.g. the adapter/source name) */
++  origin: string;
++}
+diff --git a/lib/api-zod/src/generated/types/leadActivityItemAttribution.ts b/lib/api-zod/src/generated/types/leadActivityItemAttribution.ts
+new file mode 100644
+index 0000000..e419730
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/leadActivityItemAttribution.ts
+@@ -0,0 +1,16 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++
++export type LeadActivityItemAttribution = typeof LeadActivityItemAttribution[keyof typeof LeadActivityItemAttribution];
++
++
++export const LeadActivityItemAttribution = {
++  known: 'known',
++  reported: 'reported',
++  unknown: 'unknown',
++} as const;
+diff --git a/lib/api-zod/src/generated/types/leadActivityItemLastUpdate.ts b/lib/api-zod/src/generated/types/leadActivityItemLastUpdate.ts
+new file mode 100644
+index 0000000..bb3ce2e
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/leadActivityItemLastUpdate.ts
+@@ -0,0 +1,12 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++
++export type LeadActivityItemLastUpdate = {
++  summary: string;
++  at: Date;
++};
+diff --git a/lib/api-zod/src/generated/types/leadActivityItemNextAction.ts b/lib/api-zod/src/generated/types/leadActivityItemNextAction.ts
+new file mode 100644
+index 0000000..09c9dea
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/leadActivityItemNextAction.ts
+@@ -0,0 +1,12 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++
++export type LeadActivityItemNextAction = {
++  label: string;
++  dueAt?: Date | null;
++};
+diff --git a/lib/api-zod/src/generated/types/leadActivityItemOwnerRole.ts b/lib/api-zod/src/generated/types/leadActivityItemOwnerRole.ts
+new file mode 100644
+index 0000000..18af41c
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/leadActivityItemOwnerRole.ts
+@@ -0,0 +1,15 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++
++export type LeadActivityItemOwnerRole = typeof LeadActivityItemOwnerRole[keyof typeof LeadActivityItemOwnerRole];
++
++
++export const LeadActivityItemOwnerRole = {
++  provider: 'provider',
++  admin: 'admin',
++} as const;
+diff --git a/lib/api-zod/src/generated/types/leadActivityItemSource.ts b/lib/api-zod/src/generated/types/leadActivityItemSource.ts
+new file mode 100644
+index 0000000..b6d2e7f
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/leadActivityItemSource.ts
+@@ -0,0 +1,12 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++
++export type LeadActivityItemSource = {
++  name: string;
++  type: string;
++};
+diff --git a/lib/api-zod/src/generated/types/leadActivityResponse.ts b/lib/api-zod/src/generated/types/leadActivityResponse.ts
+new file mode 100644
+index 0000000..877a6cb
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/leadActivityResponse.ts
+@@ -0,0 +1,20 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++import type { LeadActivityItem } from './leadActivityItem';
++import type { LeadActivityResponseEmptyReason } from './leadActivityResponseEmptyReason';
++
++/**
++ * Envelope for a Today's Leads view. `connected` is false until an authorized lead source is wired; `emptyReason` names the fact behind an empty list. In this slice both routes always return connected:false, emptyReason:not_connected, items:[].
++ */
++export interface LeadActivityResponse {
++  /** Whether an authorized lead source is connected */
++  connected: boolean;
++  /** Distinct facts. not_connected = no source connected at all (this slice). no_active_source = a source IS connected but no offer is active (future). setup_incomplete / no_tracked_inquiry / insufficient_data are reserved for later slices. */
++  emptyReason?: LeadActivityResponseEmptyReason;
++  items: LeadActivityItem[];
++}
+diff --git a/lib/api-zod/src/generated/types/leadActivityResponseEmptyReason.ts b/lib/api-zod/src/generated/types/leadActivityResponseEmptyReason.ts
+new file mode 100644
+index 0000000..58c55f8
+--- /dev/null
++++ b/lib/api-zod/src/generated/types/leadActivityResponseEmptyReason.ts
+@@ -0,0 +1,21 @@
++/**
++ * Generated by orval v8.23.0 🍺
++ * Do not edit manually.
++ * Api
++ * OnCall Foot API — foot rejuvenation marketplace
++ * OpenAPI spec version: 0.3.0
++ */
++
++/**
++ * Distinct facts. not_connected = no source connected at all (this slice). no_active_source = a source IS connected but no offer is active (future). setup_incomplete / no_tracked_inquiry / insufficient_data are reserved for later slices.
++ */
++export type LeadActivityResponseEmptyReason = typeof LeadActivityResponseEmptyReason[keyof typeof LeadActivityResponseEmptyReason] | null;
++
++
++export const LeadActivityResponseEmptyReason = {
++  not_connected: 'not_connected',
++  setup_incomplete: 'setup_incomplete',
++  no_active_source: 'no_active_source',
++  no_tracked_inquiry: 'no_tracked_inquiry',
++  insufficient_data: 'insufficient_data',
++} as const;
+-- 
+2.39.5
+
