@@ -66,28 +66,28 @@ def test_provider_applications_admin_success(session, admin_token):
         timeout=15
     )
     assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
-    
+
     data = r.json()
     # Check response structure
     assert "items" in data, "Response missing 'items'"
     assert "total" in data, "Response missing 'total'"
     assert "limit" in data, "Response missing 'limit'"
     assert "offset" in data, "Response missing 'offset'"
-    
+
     assert isinstance(data["items"], list), "items should be a list"
     assert isinstance(data["total"], int), "total should be an integer"
     assert isinstance(data["limit"], int), "limit should be an integer"
     assert isinstance(data["offset"], int), "offset should be an integer"
-    
+
     # Check default status filter is under_review
     # (we can't assert items exist, but structure should be correct)
-    
+
     # If items exist, check structure
     if len(data["items"]) > 0:
         item = data["items"][0]
         assert "application" in item, "Item missing 'application'"
         assert "applicant" in item, "Item missing 'applicant'"
-        
+
         app = item["application"]
         assert "id" in app
         assert "status" in app
@@ -96,11 +96,11 @@ def test_provider_applications_admin_success(session, admin_token):
         assert "reviewedAt" in app
         assert "createdAt" in app
         assert "updatedAt" in app
-        
+
         # Must NOT contain sensitive fields
         assert "reviewerNotes" not in app, "Response must not contain reviewerNotes"
         assert "rejectionReason" not in app, "Response must not contain rejectionReason"
-        
+
         applicant = item["applicant"]
         assert "userId" in applicant
         assert "firstName" in applicant
@@ -109,7 +109,7 @@ def test_provider_applications_admin_success(session, admin_token):
         assert "providerProfileId" in applicant
         assert "city" in applicant
         assert "verificationStatus" in applicant
-        
+
         # Check ordering: submittedAt ascending (oldest first)
         if len(data["items"]) > 1:
             for i in range(len(data["items"]) - 1):
@@ -190,11 +190,11 @@ def test_provider_applications_events_admin_success(session, admin_token):
         timeout=15
     )
     assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
-    
+
     data = r.json()
     assert "items" in data, "Response missing 'items'"
     assert isinstance(data["items"], list), "items should be a list"
-    
+
     # If items exist, check structure
     if len(data["items"]) > 0:
         item = data["items"][0]
@@ -205,21 +205,21 @@ def test_provider_applications_events_admin_success(session, admin_token):
         assert "toStatus" in item
         assert "createdAt" in item
         assert "applicant" in item
-        
+
         # Check type is one of the allowed values
         assert item["type"] in ["submitted", "reset_to_draft", "approved", "rejected"], \
             f"Invalid event type: {item['type']}"
-        
+
         applicant = item["applicant"]
         assert "userId" in applicant
         assert "firstName" in applicant
         assert "lastName" in applicant
-        
+
         # Must NOT contain email addresses or reviewerNotes
         response_text = r.text
         assert "@" not in response_text, "Response must not contain email addresses"
         assert "reviewerNotes" not in response_text.lower(), "Response must not contain reviewerNotes"
-        
+
         # Check ordering: newest first by createdAt
         if len(data["items"]) > 1:
             for i in range(len(data["items"]) - 1):

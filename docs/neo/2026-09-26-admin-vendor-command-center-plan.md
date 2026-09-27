@@ -630,4 +630,3 @@ execute Phases 1–6.
 | Exclusions held | no support-escalation UI yet (next slice), no bulk actions, no new audit table (Phase 4), no DB writes by the agent |
 | Finished (E1, new workspace, same day) | Live end-to-end run on the QA account only (application #9): reject in browser (reason + private note) → event 6, provider sees reason but never notes → reset/resubmit (events 7, 8) → approve in browser → event 9; stale-state 409, 401/403 gates, list/events payloads free of `reviewerNotes`/emails; non-admin `/admin` shows access-denied. Independent testing agent 12/12 (`test_reports/iteration_2.json`). Fixed 390px horizontal overflow (`queue-card.tsx` `min-w-0`). Real applications #1/#5 left undecided for the owner |
 | STOP | Support escalation list + resolve action requires a fresh go-ahead |
-

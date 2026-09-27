@@ -4300,4 +4300,3 @@ recorded; 409 on stale state, 401/403 gates, no `reviewerNotes`/email leaks;
 independent testing agent 12/12, `test_reports/iteration_2.json`). Real
 applications #1 and #5 untouched. `origin/main` (`827ed81`, squash of #89/#90)
 merged in with our tree kept so Save to GitHub → PR lands without conflicts.
-

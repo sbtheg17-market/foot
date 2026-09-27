@@ -47,7 +47,7 @@ class ReadOnlyAPITester:
                 json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
                 timeout=10
             )
-            
+
             if response.status_code == 200:
                 data = response.json()
                 self.token = data.get("token")
@@ -74,7 +74,7 @@ class ReadOnlyAPITester:
                 params={"status": "under_review", "limit": 10},
                 timeout=10
             )
-            
+
             passed = response.status_code == 200
             if passed:
                 data = response.json()
@@ -107,7 +107,7 @@ class ReadOnlyAPITester:
                 params={"status": "under_review", "limit": 10},
                 timeout=10
             )
-            
+
             passed = response.status_code == 401
             if passed:
                 self.test(
@@ -136,21 +136,21 @@ class ReadOnlyAPITester:
         print(f"Base URL: {self.base_url}")
         print(f"Admin: {ADMIN_EMAIL}")
         print("CRITICAL: READ-ONLY tests only, no mutations")
-        
+
         # Login first
         if not self.login():
             print("\n❌ Login failed, cannot proceed with authenticated tests")
             return 1
-        
+
         # Run read-only tests
         self.test_provider_applications_without_auth()
         self.test_provider_applications_with_auth()
-        
+
         # Summary
         print("\n" + "=" * 70)
         print(f"📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
         print("=" * 70)
-        
+
         return 0 if self.tests_passed == self.tests_run else 1
 
 
