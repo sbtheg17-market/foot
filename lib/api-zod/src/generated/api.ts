@@ -1988,6 +1988,82 @@ export const ReviewVerificationDocResponse = zod.object({
 
 
 /**
+ * Documents that carry a reviewer decision (status approved or rejected), newest
+ * decision first. verification_docs has no separate event table, so this is the
+ * decision record itself — not a full audit trail. Reviewer notes and emails are
+ * never included.
+ * @summary Most recent credential (verification document) decisions (admin only, read-only)
+ */
+export const listAdminVerificationEventsQueryLimitDefault = 10;
+export const listAdminVerificationEventsQueryLimitMax = 50;
+
+
+
+export const ListAdminVerificationEventsQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listAdminVerificationEventsQueryLimitMax).default(listAdminVerificationEventsQueryLimitDefault)
+})
+
+export const ListAdminVerificationEventsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "docType": zod.string(),
+  "status": zod.enum(['approved', 'rejected']),
+  "submittedAt": zod.string(),
+  "reviewedAt": zod.string().nullable(),
+  "provider": zod.object({
+  "id": zod.int(),
+  "userId": zod.int(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "verificationStatus": zod.string()
+})
+}))
+})
+
+
+/**
+ * Default filter `unresolved` (open + in_progress), oldest first so nothing sits
+ * unanswered. Each row carries the requester's display name and role, message
+ * count and the latest message preview. Resolve via PATCH /support/escalations/{ticketId}.
+ * @summary Support tickets for the admin command center (admin only, read-only)
+ */
+export const listAdminSupportEscalationsQueryStatusDefault = `unresolved`;
+export const listAdminSupportEscalationsQueryLimitDefault = 50;
+export const listAdminSupportEscalationsQueryLimitMax = 200;
+
+
+
+export const ListAdminSupportEscalationsQueryParams = zod.object({
+  "status": zod.enum(['unresolved', 'open', 'in_progress', 'resolved', 'all']).default(listAdminSupportEscalationsQueryStatusDefault),
+  "limit": zod.coerce.number().int().min(1).max(listAdminSupportEscalationsQueryLimitMax).default(listAdminSupportEscalationsQueryLimitDefault)
+})
+
+export const ListAdminSupportEscalationsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "subject": zod.string(),
+  "status": zod.enum(['open', 'in_progress', 'resolved']),
+  "bookingId": zod.int().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string(),
+  "requester": zod.object({
+  "userId": zod.int(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "role": zod.string()
+}),
+  "messageCount": zod.int(),
+  "latestMessage": zod.object({
+  "message": zod.string(),
+  "createdAt": zod.string(),
+  "fromAdmin": zod.boolean()
+}).nullable()
+})),
+  "total": zod.int()
+})
+
+
+/**
  * Read-only queue feed for the admin command center. Returns the application
  * lifecycle fields plus a minimal applicant summary. Reviewer-private
  * `reviewerNotes` and the provider-visible `rejectionReason` are intentionally
@@ -2098,7 +2174,12 @@ export const ApproveProviderApplicationResponse = zod.object({
   "rejectionReason": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
-}).describe('Admin-scoped provider-application projection returned by reviewer\ndecision endpoints. Includes reviewer-private fields (`reviewedBy`,\n`reviewerNotes`); it is never returned on provider-facing surfaces.\n')
+}).describe('Admin-scoped provider-application projection returned by reviewer\ndecision endpoints. Includes reviewer-private fields (`reviewedBy`,\n`reviewerNotes`); it is never returned on provider-facing surfaces.\n'),
+  "email": zod.object({
+  "sent": zod.boolean(),
+  "id": zod.string().nullish(),
+  "reason": zod.enum(['not_configured', 'rejected_by_gate', 'provider_error', 'invalid_recipient']).optional()
+}).optional().describe('Whether the applicant was emailed about the decision (server-side templates; never blocks the decision)')
 })
 
 
@@ -2140,7 +2221,12 @@ export const RejectProviderApplicationResponse = zod.object({
   "rejectionReason": zod.string().nullable(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
-}).describe('Admin-scoped provider-application projection returned by reviewer\ndecision endpoints. Includes reviewer-private fields (`reviewedBy`,\n`reviewerNotes`); it is never returned on provider-facing surfaces.\n')
+}).describe('Admin-scoped provider-application projection returned by reviewer\ndecision endpoints. Includes reviewer-private fields (`reviewedBy`,\n`reviewerNotes`); it is never returned on provider-facing surfaces.\n'),
+  "email": zod.object({
+  "sent": zod.boolean(),
+  "id": zod.string().nullish(),
+  "reason": zod.enum(['not_configured', 'rejected_by_gate', 'provider_error', 'invalid_recipient']).optional()
+}).optional().describe('Whether the applicant was emailed about the decision (server-side templates; never blocks the decision)')
 })
 
 

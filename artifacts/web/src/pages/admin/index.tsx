@@ -5,14 +5,20 @@ import {
   useGetAdminVerificationQueue,
   useListAdminProviderApplications,
   useListAdminProviderApplicationEvents,
+  useListAdminVerificationEvents,
+  useListAdminSupportEscalations,
   useGetAdminSystemStatus,
   useGetAdminDemoData,
   getGetAdminVerificationQueueQueryKey,
   getListAdminProviderApplicationsQueryKey,
   getListAdminProviderApplicationEventsQueryKey,
+  getListAdminVerificationEventsQueryKey,
+  getListAdminSupportEscalationsQueryKey,
   getGetAdminSystemStatusQueryKey,
   getGetAdminDemoDataQueryKey,
   type AdminProviderApplicationListItem,
+  type AdminVerificationQueueItem,
+  type AdminSupportEscalation,
 } from '@workspace/api-client-react';
 import {
   Activity,
@@ -20,6 +26,7 @@ import {
   FileCheck2,
   FlaskConical,
   History,
+  LifeBuoy,
   Lock,
   RefreshCw,
   ShieldAlert,
@@ -34,6 +41,8 @@ import { ROUTES } from '@/lib/routes';
 import { timeAgo, daysSince } from '@/lib/time-ago';
 import QueueCard from '@/components/admin-home/queue-card';
 import ApplicationDecisionDialog from '@/components/admin-home/application-decision-dialog';
+import CredentialDecisionDialog from '@/components/admin-home/credential-decision-dialog';
+import EscalationResolveDialog from '@/components/admin-home/escalation-resolve-dialog';
 
 function errorStatus(error: unknown): number | undefined {
   if (error && typeof error === 'object' && 'status' in error) {
@@ -75,6 +84,13 @@ export default function AdminHome() {
   const events = useListAdminProviderApplicationEvents(eventParams, {
     query: { queryKey: getListAdminProviderApplicationEventsQueryKey(eventParams), refetchInterval: REFRESH_MS },
   });
+  const credentialEvents = useListAdminVerificationEvents(eventParams, {
+    query: { queryKey: getListAdminVerificationEventsQueryKey(eventParams), refetchInterval: REFRESH_MS },
+  });
+  const escalationParams = { status: 'unresolved', limit: 200 } as const;
+  const escalations = useListAdminSupportEscalations(escalationParams, {
+    query: { queryKey: getListAdminSupportEscalationsQueryKey(escalationParams), refetchInterval: REFRESH_MS },
+  });
   const system = useGetAdminSystemStatus({
     query: { queryKey: getGetAdminSystemStatusQueryKey(), refetchInterval: REFRESH_MS },
   });
@@ -82,7 +98,7 @@ export default function AdminHome() {
     query: { queryKey: getGetAdminDemoDataQueryKey(), refetchInterval: REFRESH_MS },
   });
 
-  const feeds = [verification, applications, events, system, demo];
+  const feeds = [verification, applications, events, credentialEvents, escalations, system, demo];
   const gateStatus = feeds.map((f) => errorStatus(f.error)).find((s) => s === 401 || s === 403);
   const anyFetching = feeds.some((f) => f.isFetching);
   const refreshAll = () => feeds.forEach((f) => void f.refetch());
@@ -105,6 +121,25 @@ export default function AdminHome() {
     void queryClient.invalidateQueries({ queryKey: getListAdminProviderApplicationEventsQueryKey(eventParams) });
     void queryClient.invalidateQueries({ queryKey: getGetAdminVerificationQueueQueryKey(verificationParams) });
   };
+
+  // ── Credential decisions (Phase 2 slice 2) ──────────────────────────────
+  const [selectedDoc, setSelectedDoc] = useState<AdminVerificationQueueItem | null>(null);
+  const [showAllDocs, setShowAllDocs] = useState(false);
+  const onCredentialDecided = () => {
+    void queryClient.invalidateQueries({ queryKey: getGetAdminVerificationQueueQueryKey(verificationParams) });
+    void queryClient.invalidateQueries({ queryKey: getListAdminVerificationEventsQueryKey(eventParams) });
+    void queryClient.invalidateQueries({ queryKey: getListAdminProviderApplicationsQueryKey(applicationParams) });
+  };
+
+  // ── Support escalations (Phase 2 slice 2) ───────────────────────────────
+  const [selectedTicket, setSelectedTicket] = useState<AdminSupportEscalation | null>(null);
+  const [showAllTickets, setShowAllTickets] = useState(false);
+  const onEscalationDecided = () => {
+    void queryClient.invalidateQueries({ queryKey: getListAdminSupportEscalationsQueryKey(escalationParams) });
+  };
+  const openTickets = escalations.data?.total ?? null;
+  const oldestTicket = escalations.data?.items[0]?.createdAt ?? null;
+  const oldestTicketDays = daysSince(oldestTicket);
 
   // ── Derived queue facts ────────────────────────────────────────────────
   const pendingDocs = verification.data?.total ?? null;
@@ -170,10 +205,44 @@ export default function AdminHome() {
               what={pendingDocs === 0 ? 'Every submitted credential has a decision.' : `${pendingDocs ?? '…'} document${pendingDocs === 1 ? '' : 's'} submitted by providers still need${pendingDocs === 1 ? 's' : ''} a reviewer.`}
               why="A provider cannot take bookings until their profile verification is approved, so each waiting document is a provider (and their clients) on hold."
               next={{ href: ROUTES.admin.verification, label: 'Open verification queue', testId: 'card-credentials-next' }}
-              success={`Queue at 0 and nothing waiting more than ${SLOW_DAYS} days.`}
+              success={`Queue at 0 and nothing waiting more than ${SLOW_DAYS} days. Tap a document below to decide.`}
               loading={verification.isLoading}
               error={feedError(verification, 'the verification queue')}
-            />
+            >
+              {verification.data && verification.data.items.length > 0 && (
+                <ul data-testid="credentials-preview" aria-label="Credentials awaiting review — tap to decide" className="divide-y divide-border rounded-xl border border-border bg-white/70">
+                  {(showAllDocs ? verification.data.items : verification.data.items.slice(0, QUEUE_PREVIEW)).map((row) => {
+                    const { doc, provider } = row;
+                    const waited = daysSince(doc.submittedAt);
+                    const isDemo = demoUserIds.has(provider.userId);
+                    return (
+                      <li key={doc.id} data-testid={`credential-row-${doc.id}`}>
+                        <button type="button" data-testid={`credential-open-${doc.id}`} onClick={() => setSelectedDoc(row)}
+                          aria-label={`Review credential ${doc.id} from ${provider.firstName} ${provider.lastName}`}
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-foreground truncate">
+                              {provider.firstName} {provider.lastName}
+                              {isDemo && <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Demo</span>}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate"><span className="capitalize">{doc.docType}</span> · profile {provider.verificationStatus.replace('_', ' ')}</p>
+                          </div>
+                          <span className={`text-xs font-medium tabular-nums ${waited >= SLOW_DAYS ? 'text-amber-700' : 'text-muted-foreground'}`}>{waited}d</span>
+                          <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                  {verification.data.items.length > QUEUE_PREVIEW && (
+                    <li className="px-3 py-2 text-xs">
+                      <button type="button" data-testid="credentials-toggle-all" onClick={() => setShowAllDocs((v) => !v)} className="text-primary hover:underline">
+                        {showAllDocs ? 'Show fewer' : `Show all ${verification.data.items.length}`}
+                      </button>
+                    </li>
+                  )}
+                </ul>
+              )}
+            </QueueCard>
 
             <QueueCard
               testId="card-applications"
@@ -222,6 +291,50 @@ export default function AdminHome() {
                     <li className="px-3 py-2 text-xs">
                       <button type="button" data-testid="applications-toggle-all" onClick={() => setShowAllApplications((v) => !v)} className="text-primary hover:underline">
                         {showAllApplications ? 'Show fewer' : `Show all ${applications.data.items.length}`}
+                      </button>
+                    </li>
+                  )}
+                </ul>
+              )}
+            </QueueCard>
+
+            <QueueCard
+              testId="card-support"
+              icon={<LifeBuoy className="w-5 h-5" />}
+              title="Support requests open"
+              headline={openTickets}
+              headlineLabel={oldestTicket ? `Oldest opened ${timeAgo(oldestTicket)}` : 'No open requests'}
+              tone={openTickets === null ? 'neutral' : openTickets === 0 ? 'ok' : oldestTicketDays >= SLOW_DAYS ? 'attention' : 'neutral'}
+              what={openTickets === 0 ? 'Every support request has been resolved.' : `${openTickets ?? '…'} request${openTickets === 1 ? '' : 's'} from providers or clients ${openTickets === 1 ? 'is' : 'are'} open or in progress.`}
+              why="An unanswered dispute or question is the fastest way to lose a provider or client during the pilot."
+              next={{ href: ROUTES.admin.root, label: 'Tap a request below to work it', testId: 'card-support-next' }}
+              success="Open count reads 0 and nothing waits more than a day."
+              loading={escalations.isLoading}
+              error={feedError(escalations, 'support requests')}
+            >
+              {escalations.data && escalations.data.items.length > 0 && (
+                <ul data-testid="escalations-preview" aria-label="Open support requests — tap to work" className="divide-y divide-border rounded-xl border border-border bg-white/70">
+                  {(showAllTickets ? escalations.data.items : escalations.data.items.slice(0, QUEUE_PREVIEW)).map((t) => {
+                    const waited = daysSince(t.createdAt);
+                    return (
+                      <li key={t.id} data-testid={`escalation-row-${t.id}`}>
+                        <button type="button" data-testid={`escalation-open-${t.id}`} onClick={() => setSelectedTicket(t)}
+                          aria-label={`Work support request ${t.id} from ${t.requester.firstName} ${t.requester.lastName}`}
+                          className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-secondary/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-foreground truncate">{t.subject}</p>
+                            <p className="text-xs text-muted-foreground truncate">{t.requester.firstName} {t.requester.lastName} · <span className="capitalize">{t.requester.role}</span> · {t.status.replace('_', ' ')}{t.latestMessage ? ` · “${t.latestMessage.message}”` : ''}</p>
+                          </div>
+                          <span className={`text-xs font-medium tabular-nums ${waited >= 1 ? 'text-amber-700' : 'text-muted-foreground'}`}>{waited}d</span>
+                          <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                  {escalations.data.items.length > QUEUE_PREVIEW && (
+                    <li className="px-3 py-2 text-xs">
+                      <button type="button" data-testid="escalations-toggle-all" onClick={() => setShowAllTickets((v) => !v)} className="text-primary hover:underline">
+                        {showAllTickets ? 'Show fewer' : `Show all ${escalations.data.items.length}`}
                       </button>
                     </li>
                   )}
@@ -302,6 +415,48 @@ export default function AdminHome() {
             )}
           </section>
 
+          {/* ── Recent credential decisions ──────────────────────────── */}
+          <section data-testid="recent-credential-decisions" className="rounded-2xl border border-border bg-white p-5 shadow-sm space-y-3">
+            <header className="flex flex-wrap items-center gap-2">
+              <FileCheck2 className="w-5 h-5 text-primary" aria-hidden="true" />
+              <h2 className="font-serif font-bold text-lg text-foreground">Recent credential decisions</h2>
+              <span className="basis-full sm:basis-auto sm:ml-auto text-xs text-muted-foreground">Document review records: approved · rejected</span>
+            </header>
+            {credentialEvents.isLoading ? (
+              <div role="status" data-testid="recent-credential-decisions-loading" className="flex justify-center py-8"><div className="w-6 h-6 rounded-full border-4 border-primary border-t-transparent animate-spin" /></div>
+            ) : credentialEvents.error ? (
+              <p role="alert" data-testid="recent-credential-decisions-error" className="text-sm text-destructive">Couldn't load credential decisions. Refresh to try again.</p>
+            ) : (credentialEvents.data?.items.length ?? 0) === 0 ? (
+              <div data-testid="recent-credential-decisions-empty" className="text-center py-8 text-muted-foreground border-2 border-dashed border-border rounded-2xl">
+                <ShieldCheck className="w-8 h-8 mx-auto mb-2 opacity-30" aria-hidden="true" />
+                <p className="text-sm font-medium">No credential has been decided yet</p>
+              </div>
+            ) : (
+              <ol className="divide-y divide-border">
+                {credentialEvents.data!.items.map((ev) => {
+                  const meta = EVENT_META[ev.status] ?? { label: ev.status, icon: null, tone: 'bg-secondary text-foreground' };
+                  const isDemo = demoUserIds.has(ev.provider.userId);
+                  return (
+                    <li key={ev.id} data-testid={`credential-event-row-${ev.id}`} className="flex flex-col gap-1 py-2.5 text-sm sm:flex-row sm:items-center sm:gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${meta.tone}`}>{meta.icon}{meta.label}</span>
+                        <time dateTime={ev.reviewedAt ?? undefined} className="ml-auto text-xs text-muted-foreground whitespace-nowrap sm:hidden">{timeAgo(ev.reviewedAt)}</time>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-foreground">
+                          {ev.provider.firstName} {ev.provider.lastName}
+                          {isDemo && <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Demo</span>}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Document #{ev.id} · <span className="capitalize">{ev.docType}</span> · profile now {ev.provider.verificationStatus.replace('_', ' ')}</p>
+                      </div>
+                      <time dateTime={ev.reviewedAt ?? undefined} className="hidden text-xs text-muted-foreground whitespace-nowrap sm:block">{timeAgo(ev.reviewedAt)}</time>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </section>
+
           <ApplicationDecisionDialog
             item={selected}
             open={selected !== null}
@@ -309,6 +464,22 @@ export default function AdminHome() {
             pendingDocs={selected ? (pendingDocsByProfile.get(selected.applicant.providerProfileId) ?? 0) : 0}
             isDemo={selected ? demoUserIds.has(selected.applicant.userId) : false}
             onDecided={onDecided}
+          />
+
+          <CredentialDecisionDialog
+            item={selectedDoc}
+            open={selectedDoc !== null}
+            onOpenChange={(open) => { if (!open) setSelectedDoc(null); }}
+            otherPendingDocs={selectedDoc ? Math.max(0, (pendingDocsByProfile.get(selectedDoc.provider.id) ?? 1) - 1) : 0}
+            isDemo={selectedDoc ? demoUserIds.has(selectedDoc.provider.userId) : false}
+            onDecided={onCredentialDecided}
+          />
+
+          <EscalationResolveDialog
+            item={selectedTicket}
+            open={selectedTicket !== null}
+            onOpenChange={(open) => { if (!open) setSelectedTicket(null); }}
+            onDecided={onEscalationDecided}
           />
 
           <p className="text-xs text-muted-foreground text-center" data-testid="home-footnote">

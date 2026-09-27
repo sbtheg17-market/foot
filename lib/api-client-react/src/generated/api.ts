@@ -25,6 +25,8 @@ import type {
   AdminProviderApplicationEventsResponse,
   AdminProviderApplicationResponse,
   AdminProviderApplicationsResponse,
+  AdminSupportEscalationsResponse,
+  AdminVerificationEventsResponse,
   AdminVerificationQueueResponse,
   ApplicationCompletionResponse,
   ApproveProviderApplicationRequest,
@@ -68,6 +70,8 @@ import type {
   InvoiceResponse,
   ListAdminProviderApplicationEventsParams,
   ListAdminProviderApplicationsParams,
+  ListAdminSupportEscalationsParams,
+  ListAdminVerificationEventsParams,
   ListBookingsParams,
   ListInvoicesParams,
   ListProviderReviewsParams,
@@ -5145,6 +5149,181 @@ export const useReviewVerificationDoc = <TError = ErrorType<BadRequestResponse |
       > => {
       return useMutation(getReviewVerificationDocMutationOptions(options));
     }
+
+export const getListAdminVerificationEventsUrl = (params?: ListAdminVerificationEventsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/verification/events?${stringifiedParams}` : `/api/admin/verification/events`
+}
+
+/**
+ * Documents that carry a reviewer decision (status approved or rejected), newest
+ * decision first. verification_docs has no separate event table, so this is the
+ * decision record itself — not a full audit trail. Reviewer notes and emails are
+ * never included.
+ * @summary Most recent credential (verification document) decisions (admin only, read-only)
+ */
+export const listAdminVerificationEvents = async (params?: ListAdminVerificationEventsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminVerificationEventsResponse> => {
+
+  return customFetch<AdminVerificationEventsResponse>(getListAdminVerificationEventsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminVerificationEventsQueryKey = (params?: ListAdminVerificationEventsParams,) => {
+    return [
+    `/api/admin/verification/events`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminVerificationEventsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminVerificationEvents>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(params?: ListAdminVerificationEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminVerificationEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminVerificationEventsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminVerificationEvents>>> = ({ signal }) => listAdminVerificationEvents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminVerificationEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminVerificationEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminVerificationEvents>>>
+export type ListAdminVerificationEventsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Most recent credential (verification document) decisions (admin only, read-only)
+ */
+
+export function useListAdminVerificationEvents<TData = Awaited<ReturnType<typeof listAdminVerificationEvents>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(
+ params?: ListAdminVerificationEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminVerificationEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminVerificationEventsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminSupportEscalationsUrl = (params?: ListAdminSupportEscalationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/support/escalations?${stringifiedParams}` : `/api/admin/support/escalations`
+}
+
+/**
+ * Default filter `unresolved` (open + in_progress), oldest first so nothing sits
+ * unanswered. Each row carries the requester's display name and role, message
+ * count and the latest message preview. Resolve via PATCH /support/escalations/{ticketId}.
+ * @summary Support tickets for the admin command center (admin only, read-only)
+ */
+export const listAdminSupportEscalations = async (params?: ListAdminSupportEscalationsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminSupportEscalationsResponse> => {
+
+  return customFetch<AdminSupportEscalationsResponse>(getListAdminSupportEscalationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminSupportEscalationsQueryKey = (params?: ListAdminSupportEscalationsParams,) => {
+    return [
+    `/api/admin/support/escalations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminSupportEscalationsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminSupportEscalations>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(params?: ListAdminSupportEscalationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminSupportEscalations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminSupportEscalationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminSupportEscalations>>> = ({ signal }) => listAdminSupportEscalations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminSupportEscalations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminSupportEscalationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminSupportEscalations>>>
+export type ListAdminSupportEscalationsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Support tickets for the admin command center (admin only, read-only)
+ */
+
+export function useListAdminSupportEscalations<TData = Awaited<ReturnType<typeof listAdminSupportEscalations>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(
+ params?: ListAdminSupportEscalationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminSupportEscalations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminSupportEscalationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListAdminProviderApplicationsUrl = (params?: ListAdminProviderApplicationsParams,) => {
   const normalizedParams = new URLSearchParams();

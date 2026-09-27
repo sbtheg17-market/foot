@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.3.0
  */
 import type { AdminProviderApplicationView } from './adminProviderApplicationView';
+import type { DecisionEmailOutcome } from './decisionEmailOutcome';
 
 export interface AdminProviderApplicationResponse {
   application: AdminProviderApplicationView;
+  email?: DecisionEmailOutcome;
 }

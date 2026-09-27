@@ -21,6 +21,10 @@ const ENV_VARS: ReadonlyArray<{ name: string; required: boolean; purpose: string
   { name: "PILOT_END_DATE", required: false, purpose: "Pilot window end" },
   { name: "PILOT_PROVIDER_TARGET", required: false, purpose: "Pilot provider target" },
   { name: "WEB_DIST_PATH", required: false, purpose: "Override for the built web app path" },
+  { name: "EMERGENT_EMAIL_KEY", required: false, purpose: "Applicant decision emails (managed email proxy key) — emails are skipped when unset" },
+  { name: "EMAIL_FROM_NAME", required: false, purpose: "Sender display name on decision emails (this app's brand)" },
+  { name: "EMAIL_REPLY_TO", required: false, purpose: "Reply-To inbox on decision emails" },
+  { name: "PUBLIC_APP_URL", required: false, purpose: "Public https origin used for links inside emails" },
 ];
 
 type Probe =
