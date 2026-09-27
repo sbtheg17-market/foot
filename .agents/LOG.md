@@ -4380,3 +4380,43 @@ logged. Owner publishes via Save to GitHub → PR (Railway deploys `main`).
 - Owner instruction recorded: no demo-flag apply, hashes not approved, no data
   modification. **Boundaries held:** no SQL, no push, no merge, no deploy, no
   Railway change, no purge.
+
+---
+
+### Session — Read-only reconciliation in a rebuilt workspace + publication proposal (2026-09-27)
+**Agent:** E2 Agent (Emergent). **Scope:** `S` (docs only; no product code, schema, SQL, push, merge, deploy).
+
+**Found:** workspace had been rebuilt on the stale branch `chore/add-graphify-continuity-workflow`
+(`1ff28e9`, Aug 27) with no `.env` / `memory/`, both preview shims FATAL, no `pnpm`; `origin`
+present with an embedded GitHub token (flagged for rotation, never echoed). Restored
+`conflict_260926_1408` from origin (tip `f488d906467fd93b207af426d6a17ad9de0637bf` — the handoff
+commit; the four "not on GitHub" commits ARE on GitHub on this branch). `origin/main` =
+`ee0d1805d611e9517d6aa02909c34d30bc7f6501` (#93); merge-base `5177fd4512c8b7d416ece539a1792ec43d722494`
+(= Railway's live build). Content diff main→branch = exactly the four handoff commits (40 files,
+no `lib/db` change).
+
+**Verified:** Phase 4 SQL hashes byte-identical to the handoff (`0c4c6097…`, `e4e840ce…`, `6d015f1d…`),
+still PROPOSED / NOT APPROVED / NOT APPLIED and **not executed anywhere, including scratch**.
+Railway public probes: bundle `index-DsoWasjk.js` unchanged since 03:34Z, scorecard unauth 404 →
+still `5177fd4`; the #93 merge has not deployed (source trigger suspected off — owner action).
+
+**Rebuilt (workspace only):** corepack pnpm 10.18.3, `pnpm install --frozen-lockfile`, disposable
+local PostgreSQL 15 (`127.0.0.1:5433`, `oncallfoot_scratch`) + `db:push` + `seed`, gitignored `.env`
+(local values, fresh JWT secret, no email key) and `memory/` (PRD, test credentials: seed demo
+password only). `build:deploy` PASS; preview `https://phase-4-preview.preview.emergentagent.com`
+up: healthz 200, admin system-status healthy with 10/10 frozen artifacts on scratch, scorecard route
+401 unauth, provider dashboard with scorecard card rendered.
+
+**Validation:** typecheck PASS · api-server **143/143** · web **267/267** · read-only pytests
+**36 passed / 25 skipped (QA/Orbite creds absent by design) / 1 failed** (`test_providers_list`
+expects ≥ 8 providers — managed-data assumption; scratch seed has 2; test left unedited) ·
+`git diff --check` clean.
+
+**Written:** `docs/neo/2026-09-27-reconciliation-evidence.md` (evidence tables §1–§6 and the
+Phase 1 proposal packet §7: publish `conflict_260926_1408` → `main` via PR — owner click; optional
+AGENTS.md clarification on platform checkpoint branches with a merge base). This entry.
+
+**Stopped for review.** Open owner decisions: (A) open/merge the PR; (B) AGENTS.md clarification
+yes/no; (C) next gated item — Phase 4 scratch rehearsal vs Ground Game §8 answers. Outstanding
+owner hygiene: revoke Railway project token, delete stale `JWT`, fix Railway source trigger,
+rotate the GitHub token embedded in the workspace remote.
