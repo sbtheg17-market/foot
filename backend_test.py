@@ -9,7 +9,7 @@ import requests
 import sys
 from typing import Optional
 
-BASE_URL = "https://oncall-operations.preview.emergentagent.com"
+BASE_URL = "https://8f3f5a3f-d59c-4ffd-8b8a-8c0d683fb9e8.preview.emergentagent.com"
 ADMIN_EMAIL = "admin@oncallfoot.com"
 ADMIN_PASSWORD = "demo1234"
 

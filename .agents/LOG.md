@@ -4300,3 +4300,27 @@ recorded; 409 on stale state, 401/403 gates, no `reviewerNotes`/email leaks;
 independent testing agent 12/12, `test_reports/iteration_2.json`). Real
 applications #1 and #5 untouched. `origin/main` (`827ed81`, squash of #89/#90)
 merged in with our tree kept so Save to GitHub → PR lands without conflicts.
+
+### Session — Phase 2 slices 2 + 3 finished: credential + support dialogs, decision email (2026-09-27)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `M` (web UI + 2 read-only admin feeds + decision email lib; contract-first; no schema change)
+
+**Baseline:** local `main` = `92331da` (all implementation files identical to the
+previous code-server workspace; `.env` + `memory/` recovered from it).
+Toolchain rebuilt: corepack pnpm@10.18.3, `pnpm install --frozen-lockfile`,
+`pnpm run build:deploy`; preview shims unchanged.
+
+**Finished this session.**
+- Component tests for the two new dialogs (7 + 5, incl. axe) and a node:test
+  suite for `decision-emails.ts` (added to the api `test` script). Web 263/263,
+  api unit 137/137, typecheck + `build:deploy` green.
+- Read-only preview regression `backend/tests/test_admin_phase2_feeds.py`
+  (14/14) for `GET /admin/verification/events` and `GET /admin/support/escalations`.
+- Live browser run on QA/demo data only: credential #5 approved (profile flip
+  unticked → profile unchanged), demo ticket #1 → in progress, #2 → resolved
+  with admin outcome message. Real accounts untouched.
+- Plan doc Appendix F records slices 2 + 3; `memory/PRD.md` and
+  `memory/test_credentials.md` updated (preview URL now this workspace).
+
+**Boundaries held:** no DDL, no push, no secret printed; `.env` values never
+logged. Owner publishes via Save to GitHub → PR (Railway deploys `main`).
