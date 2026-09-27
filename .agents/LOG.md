@@ -4463,3 +4463,12 @@ case/booking/lead/conversation definitions; 9-step acceptance tests; simulated-v
 exact SQL as review artifact (CASES_HANDOFF_V1, NOT written to docs/migrations, NOT applied); C1–C8.
 
 **Stopped for approval.**
+- Rev 2 of the case-handoff packet (same session, owner review — NOT approval): C1–C8 pasted in full
+  with proposed defaults; three distinct handoff facts as separate contract/DB fields
+  (`human_attested_offplatform_connection` — the only one Phase 1 may set; `platform_transfer_initiated`,
+  `platform_transfer_confirmed` — always false; `platform_sent` always false) with CHECKs
+  transferred⇒evidence, confirmed⇒initiated, attestation⇒attester; UI uses the word "transferred" only
+  when fact 3 is true. First vertical slice reduced to 5 endpoints / 3 screens (create case → context →
+  assigned human sees it → honest handoff → context on next interaction); aggregates, QueueCard,
+  dashboard card, booking picker, metrics deferred. Visual comparison marked UNVERIFIED (screenshots
+  never reached this job). SQL remains an in-document review artifact only; no file, no code, no DB change.
