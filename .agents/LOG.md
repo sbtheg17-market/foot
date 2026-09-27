@@ -4369,3 +4369,14 @@ logged. Owner publishes via Save to GitHub → PR (Railway deploys `main`).
 - Phase 4 demo-flag/audit-log apply: NOT performed (confirmation superseded).
 - **Boundaries held:** no DB connection, no DDL, no push, no deploy, no
   Railway change, no purge. STOP for owner review.
+
+### Session completion — read-only handoff written (2026-09-27)
+**Agent:** E1 Agent (Emergent). **Scope:** docs only.
+- `docs/neo/2026-09-27-session-completion-handoff.md`: three Phase 4 artifacts
+  listed as PROPOSED / NOT APPROVED / NOT APPLIED with hashes; verified git,
+  GitHub, Railway state (local branch is `conflict_260926_1408`, HEAD `ea93d21`;
+  GitHub main `ee0d180`; Railway `5177fd4`); uncommitted files; future phases;
+  first safe task for the next Neo.
+- Owner instruction recorded: no demo-flag apply, hashes not approved, no data
+  modification. **Boundaries held:** no SQL, no push, no merge, no deploy, no
+  Railway change, no purge.
