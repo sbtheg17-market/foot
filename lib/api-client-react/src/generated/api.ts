@@ -22,7 +22,9 @@ import type {
 import type {
   AcceptRescheduleResponse,
   AddServiceAreaPrefixRequest,
+  AdminProviderApplicationEventsResponse,
   AdminProviderApplicationResponse,
+  AdminProviderApplicationsResponse,
   AdminVerificationQueueResponse,
   ApplicationCompletionResponse,
   ApproveProviderApplicationRequest,
@@ -64,6 +66,8 @@ import type {
   HealthStatus,
   InvoiceListResponse,
   InvoiceResponse,
+  ListAdminProviderApplicationEventsParams,
+  ListAdminProviderApplicationsParams,
   ListBookingsParams,
   ListInvoicesParams,
   ListProviderReviewsParams,
@@ -5141,6 +5145,182 @@ export const useReviewVerificationDoc = <TError = ErrorType<BadRequestResponse |
       > => {
       return useMutation(getReviewVerificationDocMutationOptions(options));
     }
+
+export const getListAdminProviderApplicationsUrl = (params?: ListAdminProviderApplicationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/provider-applications?${stringifiedParams}` : `/api/admin/provider-applications`
+}
+
+/**
+ * Read-only queue feed for the admin command center. Returns the application
+ * lifecycle fields plus a minimal applicant summary. Reviewer-private
+ * `reviewerNotes` and the provider-visible `rejectionReason` are intentionally
+ * NOT included in this list projection; use the decision endpoints' responses
+ * for those.
+ * @summary List provider applications by status with an applicant summary (admin only, read-only)
+ */
+export const listAdminProviderApplications = async (params?: ListAdminProviderApplicationsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminProviderApplicationsResponse> => {
+
+  return customFetch<AdminProviderApplicationsResponse>(getListAdminProviderApplicationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminProviderApplicationsQueryKey = (params?: ListAdminProviderApplicationsParams,) => {
+    return [
+    `/api/admin/provider-applications`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminProviderApplicationsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminProviderApplications>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(params?: ListAdminProviderApplicationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminProviderApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminProviderApplicationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminProviderApplications>>> = ({ signal }) => listAdminProviderApplications(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminProviderApplications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminProviderApplicationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminProviderApplications>>>
+export type ListAdminProviderApplicationsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List provider applications by status with an applicant summary (admin only, read-only)
+ */
+
+export function useListAdminProviderApplications<TData = Awaited<ReturnType<typeof listAdminProviderApplications>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(
+ params?: ListAdminProviderApplicationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminProviderApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminProviderApplicationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminProviderApplicationEventsUrl = (params?: ListAdminProviderApplicationEventsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/provider-applications/events?${stringifiedParams}` : `/api/admin/provider-applications/events`
+}
+
+/**
+ * Newest-first slice of `provider_application_events` (submitted, reset_to_draft,
+ * approved, rejected). Only these four transitions have server code paths, so
+ * this is not a complete lifecycle history.
+ * @summary Most recent provider-application lifecycle events (admin only, read-only)
+ */
+export const listAdminProviderApplicationEvents = async (params?: ListAdminProviderApplicationEventsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminProviderApplicationEventsResponse> => {
+
+  return customFetch<AdminProviderApplicationEventsResponse>(getListAdminProviderApplicationEventsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminProviderApplicationEventsQueryKey = (params?: ListAdminProviderApplicationEventsParams,) => {
+    return [
+    `/api/admin/provider-applications/events`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminProviderApplicationEventsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminProviderApplicationEvents>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(params?: ListAdminProviderApplicationEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminProviderApplicationEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminProviderApplicationEventsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminProviderApplicationEvents>>> = ({ signal }) => listAdminProviderApplicationEvents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminProviderApplicationEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminProviderApplicationEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminProviderApplicationEvents>>>
+export type ListAdminProviderApplicationEventsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Most recent provider-application lifecycle events (admin only, read-only)
+ */
+
+export function useListAdminProviderApplicationEvents<TData = Awaited<ReturnType<typeof listAdminProviderApplicationEvents>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(
+ params?: ListAdminProviderApplicationEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminProviderApplicationEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminProviderApplicationEventsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getApproveProviderApplicationUrl = (applicationId: number,) => {
 

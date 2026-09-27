@@ -26,7 +26,7 @@ export default function Login() {
                  ? ROUTES.provider.applicationStatus
                  : ROUTES.onboarding.provider);
            } else if (res.user.role === 'admin') {
-             setLocation(ROUTES.admin.verification);
+             setLocation(ROUTES.admin.root);
            } else {
              setLocation(ROUTES.client.discover);
            }

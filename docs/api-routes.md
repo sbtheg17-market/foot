@@ -174,6 +174,8 @@ confirmed bookings are never silently cancelled by coverage changes.
 | Method | Path | Access | Description |
 |--------|------|--------|-------------|
 | GET | /admin/metrics | admin | Platform health metrics |
+| GET | /admin/provider-applications?status=&limit=&offset= | admin | Read-only queue feed for the `/admin` command center: applications in one status (default `under_review`), oldest submission first, with a minimal applicant summary. Excludes `reviewerNotes` and `rejectionReason`. |
+| GET | /admin/provider-applications/events?limit= | admin | Newest-first slice (1–50) of `provider_application_events` with applicant display name only (no email). Only submitted/approved/rejected/reset_to_draft are ever recorded. |
 | GET | /admin/pilot/metrics | admin | Pilot operations metrics: window, summary, per-provider activation milestones/outcomes/risk flags, source attribution. Privacy-redacted (no client identity, addresses, notes, or document references). Access audit-logged. `docs/pilot/pilot-metrics-dashboard.md` |
 | PATCH | /admin/pilot/providers/:providerId/retention | admin | Upsert provider retention intent (`yes`/`no`/`unknown`); admin actor recorded in `updated_by` |
 | GET | /admin/users | admin | All users (paginated) |

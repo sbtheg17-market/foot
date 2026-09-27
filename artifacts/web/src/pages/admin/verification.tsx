@@ -85,6 +85,7 @@ export default function AdminVerification() {
           <p className="text-sm text-muted-foreground">Admin · Provider Credentials</p>
         </div>
         <nav className="ml-auto flex items-center gap-2 text-sm">
+          <Link href={ROUTES.admin.root} data-testid="verification-nav-home" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">Home</Link>
           <Link href={ROUTES.admin.pilot} data-testid="verification-nav-pilot" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">Pilot</Link>
           <Link href={ROUTES.admin.system} data-testid="verification-nav-system" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">System</Link>
         </nav>

@@ -43,6 +43,7 @@ export default function AdminSystem() {
           <p className="text-sm text-muted-foreground">Platform administrator · Deployment configuration health</p>
         </div>
         <nav className="ml-auto flex items-center gap-2 text-sm">
+          <Link href={ROUTES.admin.root} data-testid="system-nav-home" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">Home</Link>
           <Link href={ROUTES.admin.verification} data-testid="system-nav-verification" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">Verification</Link>
           <Link href={ROUTES.admin.pilot} data-testid="system-nav-pilot" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">Pilot</Link>
           <button type="button" onClick={() => refetch()} disabled={isFetching} data-testid="system-refresh-btn" className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-primary-foreground hover:bg-primary/90 disabled:opacity-50">

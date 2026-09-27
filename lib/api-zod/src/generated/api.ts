@@ -1988,6 +1988,83 @@ export const ReviewVerificationDocResponse = zod.object({
 
 
 /**
+ * Read-only queue feed for the admin command center. Returns the application
+ * lifecycle fields plus a minimal applicant summary. Reviewer-private
+ * `reviewerNotes` and the provider-visible `rejectionReason` are intentionally
+ * NOT included in this list projection; use the decision endpoints' responses
+ * for those.
+ * @summary List provider applications by status with an applicant summary (admin only, read-only)
+ */
+export const listAdminProviderApplicationsQueryStatusDefault = `under_review`;
+export const listAdminProviderApplicationsQueryLimitDefault = 50;
+export const listAdminProviderApplicationsQueryOffsetDefault = 0;
+
+export const ListAdminProviderApplicationsQueryParams = zod.object({
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']).default(listAdminProviderApplicationsQueryStatusDefault),
+  "limit": zod.coerce.number().int().default(listAdminProviderApplicationsQueryLimitDefault),
+  "offset": zod.coerce.number().int().default(listAdminProviderApplicationsQueryOffsetDefault)
+})
+
+export const ListAdminProviderApplicationsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "application": zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['draft', 'under_review', 'approved', 'rejected', 'suspended']),
+  "currentStep": zod.string(),
+  "submittedAt": zod.string().nullable(),
+  "reviewedAt": zod.string().nullable(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+}),
+  "applicant": zod.object({
+  "userId": zod.int(),
+  "firstName": zod.string(),
+  "lastName": zod.string(),
+  "email": zod.string(),
+  "providerProfileId": zod.int(),
+  "city": zod.string(),
+  "verificationStatus": zod.string()
+})
+})),
+  "total": zod.int(),
+  "limit": zod.int(),
+  "offset": zod.int()
+})
+
+
+/**
+ * Newest-first slice of `provider_application_events` (submitted, reset_to_draft,
+ * approved, rejected). Only these four transitions have server code paths, so
+ * this is not a complete lifecycle history.
+ * @summary Most recent provider-application lifecycle events (admin only, read-only)
+ */
+export const listAdminProviderApplicationEventsQueryLimitDefault = 10;
+export const listAdminProviderApplicationEventsQueryLimitMax = 50;
+
+
+
+export const ListAdminProviderApplicationEventsQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listAdminProviderApplicationEventsQueryLimitMax).default(listAdminProviderApplicationEventsQueryLimitDefault)
+})
+
+export const ListAdminProviderApplicationEventsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "providerApplicationId": zod.int(),
+  "type": zod.enum(['submitted', 'reset_to_draft', 'approved', 'rejected']),
+  "fromStatus": zod.string(),
+  "toStatus": zod.string(),
+  "createdAt": zod.string(),
+  "applicant": zod.object({
+  "userId": zod.int(),
+  "firstName": zod.string(),
+  "lastName": zod.string()
+})
+}))
+})
+
+
+/**
  * Reviewer decision endpoint. Valid only when the application is
  * `under_review`; any other state — including a repeated decision —
  * fails with `409` and produces no side effects. Approving persists

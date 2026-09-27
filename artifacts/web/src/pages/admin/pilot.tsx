@@ -47,12 +47,17 @@ export default function AdminPilot() {
             Platform administrator · Internal pilot dashboard — never shown to providers or clients
           </p>
         </div>
+        <nav className="ml-auto flex items-center gap-2 text-sm">
+          <Link href={ROUTES.admin.root} data-testid="pilot-nav-home" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">Home</Link>
+          <Link href={ROUTES.admin.verification} data-testid="pilot-nav-verification" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">Verification</Link>
+          <Link href={ROUTES.admin.system} data-testid="pilot-nav-system" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">System</Link>
+        </nav>
         {data && (
           <button
             type="button"
             data-testid="pilot-csv-export-btn"
             onClick={() => downloadPilotMetricsCsv(data)}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <Download className="w-4 h-4" aria-hidden="true" />
             Export CSV

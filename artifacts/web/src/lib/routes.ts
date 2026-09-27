@@ -47,6 +47,8 @@ export const ROUTES = {
 
   // ── Admin ───────────────────────────────────────────────────────────────────
   admin: {
+    // Command-center landing page: what needs an administrator now.
+    root: '/admin',
     verification: '/admin/verification',
     // Platform-administrator-only pilot operations dashboard (Part 2).
     pilot: '/admin/pilot',

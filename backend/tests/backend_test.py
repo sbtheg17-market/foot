@@ -1,11 +1,11 @@
-"""OnCall Foot - backend API smoke tests against public preview URL."""
-import os
+"""OnCall Foot - backend API smoke tests against the public preview URL.
+
+Credentials are loaded from the environment (see _creds.py); none are stored here.
+"""
 import pytest
 import requests
 
-BASE_URL = "https://785221eb-8dfb-4b06-bfc8-c01c12209808.preview.emergentagent.com"
-QA_EMAIL = "qa.provider@oncallfoot.test"
-QA_PASSWORD = "Test1234!"
+from _creds import BASE_URL, QA_EMAIL, qa_credentials
 
 
 @pytest.fixture(scope="session")
@@ -17,8 +17,9 @@ def session():
 
 @pytest.fixture(scope="session")
 def token(session):
+    email, password = qa_credentials()
     r = session.post(f"{BASE_URL}/api/auth/login",
-                     json={"email": QA_EMAIL, "password": QA_PASSWORD}, timeout=15)
+                     json={"email": email, "password": password}, timeout=15)
     assert r.status_code == 200, r.text
     return r.json()["token"]
 
@@ -42,8 +43,9 @@ def test_providers_list(session):
 
 # --- Auth flows ---
 def test_login_success(session):
+    email, password = qa_credentials()
     r = session.post(f"{BASE_URL}/api/auth/login",
-                     json={"email": QA_EMAIL, "password": QA_PASSWORD}, timeout=15)
+                     json={"email": email, "password": password}, timeout=15)
     assert r.status_code == 200
     data = r.json()
     assert isinstance(data.get("token"), str) and len(data["token"]) > 0

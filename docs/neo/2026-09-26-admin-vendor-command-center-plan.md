@@ -593,3 +593,40 @@ execute Phases 1–6.
 | Preview regression: approval, verification, bookings pages, reschedule cards render | [VERIFIED-PRIOR, preview only] `test_reports/iteration_3.json`, `iteration_4.json`; not re-run on Railway |
 | All 10 migration artifacts applied; schema parity 260/260 | [VERIFIED-PRIOR at apply time]; re-verify in Phase 0 via `/admin/system` in preview (read-only) |
 | Remote branch `docs/admin-handoff-2026-09-26` identical to `origin/main` | [VERIFIED-PRIOR]; not inspectable from this workspace (no remote) |
+
+## Appendix C — Phase 0 result (2026-09-26, E2 session)
+
+| Item | Result |
+|---|---|
+| Live Railway `/api/healthz` | 200 at 2026-09-26T17:28Z [VERIFIED] |
+| Live bundle | `index-C2Z5U7C7.js`; grep hits: `/admin/system` 0, `system-status` 0, `demo-data` 0, `/admin/verification` 1, `/admin/pilot` 1 [VERIFIED] — `/admin/system` still not deployed |
+| Local build bundle | `index-CVNSPxq3.js` (contains the admin/system work) |
+| Migration ledger | copied to `docs/migrations/APPLIED_LEDGER_2026-09-26.md`; 8/8 hashes match checkout [VERIFIED] |
+| Credentials in tracked tests | redacted in commit `7e41646` (`backend/tests/_creds.py`); history unchanged → owner rotates the real password |
+| `docs/commit-strategy.md` constraint | lifted by owner decision 2026-09-26 (admin work scoped to this plan) |
+| `.agents/LOG.md` | 2026-09-26 entry back-filled; Current Build State rows added |
+| Workspace | transferred to a new Emergent workspace; `origin` = GitHub; local `main` ahead of `origin/main` (squash divergence); no push |
+| Owner decisions recorded | ship `/admin/system` + demo-data as-is via Save to Github → PR; proceed with Phase 1 smallest slice |
+
+## Appendix D — Phase 1 result (2026-09-26, E2 session; owner-authorized)
+
+| Item | Result |
+|---|---|
+| Delivered | `/admin` landing page (`artifacts/web/src/pages/admin/index.tsx`, `components/admin-home/queue-card.tsx`): cards for credentials awaiting review, applications under review (with Demo tags), system health, demo data; recent application activity; nav + Home links on the three existing admin pages; admin login now lands on `/admin` |
+| New read-only APIs (contract first) | `GET /admin/provider-applications?status&limit&offset` and `GET /admin/provider-applications/events?limit` in `routes/admin.ts`; `openapi.yaml` + orval codegen; both behind the router-wide admin gate; 400 on bad input; no `reviewerNotes`/`rejectionReason`/email in list/event payloads. Deviation from the plan's "one endpoint": two, both read-only |
+| Tests | `admin-overview.integration.test.ts` (node:test; run only against a scratch/test DB — NOT run against Supabase), `time-ago.test.ts`; full typecheck; api unit 132/132; web 246/246; `build:deploy` pass; preview pytest 41/41 read-only incl. `test_admin_provider_applications.py`; independent testing agent 100% (`test_reports/iteration_1.json`, workspace-only) |
+| Observed on live data | 2 real applications under review since 2026-08-14 and 2026-08-27 (43 and 30 days) — the queue is working as intended; owner action needed |
+| Exclusions held | no approve/reject UI, no new tables, no funnel/revenue figures, no DB writes by the agent |
+| Commits (local, unpushed) | `7e41646` redaction · `7885cc9` Phase 0 docs · `957623d` Phase 1 · `cb765d3` regression test |
+| STOP | Phase 2 (approve/reject drawer, support escalation list) requires a fresh owner go-ahead |
+
+## Appendix E — Phase 2, slice 1 result (2026-09-26, E2 session; owner-authorized)
+
+| Item | Result |
+|---|---|
+| Delivered | Approve/reject from `/admin`: tapping an applicant opens `components/admin-home/application-decision-dialog.tsx` (applicant facts, pending-doc count, explicit two-part activation gate, Approve with private notes / Reject with required provider-visible reason + private notes, plain-language 409/403/404/401 handling, in-flight lock). Queue, events and verification feeds refresh after a decision; success toast names the next step (credentials) when verification is still pending. "Show all" toggle for long queues |
+| APIs | none new — reuses `POST /admin/provider-applications/:id/approve|reject` (transactional event + notification + activation events, self-review 403, non-`under_review` 409) |
+| Tests | `application-decision-dialog.test.tsx` 5/5 (facts/gate/axe, approve payload, reject validation + payload, 409 message, in-flight lock); web suite 251/251; typecheck; `build:deploy`; browser check on live data at 390px/1920px with **no decision submitted** (Cancel/Esc only) |
+| Exclusions held | no support-escalation UI yet (next slice), no bulk actions, no new audit table (Phase 4), no DB writes by the agent |
+| Finished (E1, new workspace, same day) | Live end-to-end run on the QA account only (application #9): reject in browser (reason + private note) → event 6, provider sees reason but never notes → reset/resubmit (events 7, 8) → approve in browser → event 9; stale-state 409, 401/403 gates, list/events payloads free of `reviewerNotes`/emails; non-admin `/admin` shows access-denied. Independent testing agent 12/12 (`test_reports/iteration_2.json`). Fixed 390px horizontal overflow (`queue-card.tsx` `min-w-0`). Real applications #1/#5 left undecided for the owner |
+| STOP | Support escalation list + resolve action requires a fresh go-ahead |

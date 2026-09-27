@@ -1817,6 +1817,83 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /admin/provider-applications:
+    get:
+      operationId: listAdminProviderApplications
+      tags: [admin]
+      summary: List provider applications by status with an applicant summary (admin only, read-only)
+      description: |
+        Read-only queue feed for the admin command center. Returns the application
+        lifecycle fields plus a minimal applicant summary. Reviewer-private
+        `reviewerNotes` and the provider-visible `rejectionReason` are intentionally
+        NOT included in this list projection; use the decision endpoints' responses
+        for those.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, under_review, approved, rejected, suspended]
+            default: under_review
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Applications in the requested status, oldest submission first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProviderApplicationsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/provider-applications/events:
+    get:
+      operationId: listAdminProviderApplicationEvents
+      tags: [admin]
+      summary: Most recent provider-application lifecycle events (admin only, read-only)
+      description: |
+        Newest-first slice of `provider_application_events` (submitted, reset_to_draft,
+        approved, rejected). Only these four transitions have server code paths, so
+        this is not a complete lifecycle history.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+      responses:
+        "200":
+          description: Recent lifecycle events with applicant display name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProviderApplicationEventsResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /admin/provider-applications/{applicationId}/approve:
     post:
       operationId: approveProviderApplication
@@ -5882,6 +5959,75 @@ components:
               percentage: { type: number, nullable: true }
             required: [source, bookings, percentage]
       required: [pilot, summary, providers, sourceAttribution]
+
+    AdminProviderApplicationApplicant:
+      type: object
+      properties:
+        userId: { type: integer }
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string }
+        providerProfileId: { type: integer }
+        city: { type: string }
+        verificationStatus: { type: string }
+      required: [userId, firstName, lastName, email, providerProfileId, city, verificationStatus]
+
+    AdminProviderApplicationListItem:
+      type: object
+      properties:
+        application:
+          type: object
+          properties:
+            id: { type: integer }
+            status: { type: string, enum: [draft, under_review, approved, rejected, suspended] }
+            currentStep: { type: string }
+            submittedAt: { type: string, nullable: true }
+            reviewedAt: { type: string, nullable: true }
+            createdAt: { type: string }
+            updatedAt: { type: string }
+          required: [id, status, currentStep, submittedAt, reviewedAt, createdAt, updatedAt]
+        applicant:
+          $ref: "#/components/schemas/AdminProviderApplicationApplicant"
+      required: [application, applicant]
+
+    AdminProviderApplicationsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminProviderApplicationListItem"
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+      required: [items, total, limit, offset]
+
+    AdminProviderApplicationEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        providerApplicationId: { type: integer }
+        type: { type: string, enum: [submitted, reset_to_draft, approved, rejected] }
+        fromStatus: { type: string }
+        toStatus: { type: string }
+        createdAt: { type: string }
+        applicant:
+          type: object
+          properties:
+            userId: { type: integer }
+            firstName: { type: string }
+            lastName: { type: string }
+          required: [userId, firstName, lastName]
+      required: [id, providerApplicationId, type, fromStatus, toStatus, createdAt, applicant]
+
+    AdminProviderApplicationEventsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminProviderApplicationEvent"
+      required: [items]
 
     AdminVerificationQueueItem:
       type: object

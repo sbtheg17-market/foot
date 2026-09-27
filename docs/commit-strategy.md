@@ -66,7 +66,7 @@ If a checkpoint is large, split it into:
 
 The following constraints apply until the owner lifts them:
 
-- **Provider-first scope only** — do not build client or admin portals yet
+- **Provider-first scope, admin operations now in scope (owner decision 2026-09-26)** — the client portal remains secondary; admin work is limited to the phased plan in `docs/neo/2026-09-26-admin-vendor-command-center-plan.md` (one phase per reviewed increment, stop for review after each)
 - **No monetization UI** — Stripe Connect and subscriptions are future work (see `docs/future-monetization.md`)
 - **No new seed data** unless it is required for the current checkpoint
 - **Separate refactors from feature work** — if a route restructure is needed, commit it alone first
