@@ -4443,3 +4443,23 @@ one additive artifact `GROUND_GAME_LEADS_V1.sql` (NOT written), independent of P
   bookings / adapters), the service vs product "feeler" walk-through on the one shared workflow, and the
   four-cause `emptyReason` rule (setup_incomplete → no_active_source → no_tracked_inquiry →
   insufficient_data) distinct from "not yet measured". Still design only; no file created.
+
+---
+
+### Session — Ground Game Phase 1 SCOPE CORRECTION → caller context & handoff packet (2026-09-27)
+**Agent:** E2 Agent (Emergent). **Scope:** `S` docs only. No code, schema, migration, SQL, provider connection, push, merge, deploy.
+
+Owner narrowed Phase 1 to a lightweight caller/case context + handoff tool (9-step flow), explicitly
+not a CRM/campaign suite/AI agent/omnichannel inbox. Repo check: no telephony/voice provider exists
+(Twilio/Fish Audio only in design docs). No image assets reached this job (asset store empty) —
+designed from the written steps. Wrote `docs/neo/2026-09-27-ground-game-phase1-case-handoff-packet.md`
+(replaces v2 Phase 1 scope): 3 additive tables `contacts`, `cases`, `case_interactions` (no `sources`
+table; entry_point + source_ref instead); safe reuse = users/provider_profiles/bookings by reference,
+auth middleware, QueueCard; `support_*` and `marketplace_events` explicitly NOT reused; exact routes
+and screens (New case wizard, provider /provider/cases, admin /admin/cases, one QueueCard, one
+dashboard card); permission model; handoff state machine with do-not-claim rules
+(`platform_sent`/`platform_transferred` server-set, always false in Phase 1; resolved requires human);
+case/booking/lead/conversation definitions; 9-step acceptance tests; simulated-vs-later table;
+exact SQL as review artifact (CASES_HANDOFF_V1, NOT written to docs/migrations, NOT applied); C1–C8.
+
+**Stopped for approval.**
