@@ -38,20 +38,27 @@ export default function PortalEarnings() {
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2 text-primary-foreground/80 font-medium">
             <DollarSign className="w-5 h-5" />
-            <span>Lifetime Earnings</span>
+            <span>Invoiced value</span>
           </div>
-          <h2 className="text-5xl font-serif font-bold mb-8">
+          <h2 className="text-5xl font-serif font-bold mb-2" data-testid="earnings-invoiced-total">
             ${((earnings?.totalCents || 0) / 100).toFixed(2)}
           </h2>
-          
-          <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/20">
+          <p className="text-xs text-primary-foreground/80 mb-8" data-testid="earnings-honesty-note">
+            Sum of your pending and paid invoices ({earnings?.invoiceCount ?? 0} invoice{earnings?.invoiceCount === 1 ? '' : 's'}). Payments are not processed by the platform — only invoices you mark paid count as received.
+          </p>
+
+          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/20">
             <div>
-              <p className="text-primary-foreground/70 text-sm mb-1 font-medium">Pending Payout</p>
-              <p className="text-xl font-bold">${((earnings?.pendingPayoutCents || 0) / 100).toFixed(2)}</p>
+              <p className="text-primary-foreground/70 text-sm mb-1 font-medium">Marked paid</p>
+              <p className="text-xl font-bold" data-testid="earnings-paid">${((earnings?.paidCents || 0) / 100).toFixed(2)}</p>
             </div>
             <div>
-              <p className="text-primary-foreground/70 text-sm mb-1 font-medium">Completed Jobs</p>
-              <p className="text-xl font-bold">{earnings?.completedBookings || 0}</p>
+              <p className="text-primary-foreground/70 text-sm mb-1 font-medium">Unpaid invoices</p>
+              <p className="text-xl font-bold" data-testid="earnings-pending">${((earnings?.pendingPayoutCents || 0) / 100).toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-primary-foreground/70 text-sm mb-1 font-medium">Completed visits</p>
+              <p className="text-xl font-bold" data-testid="earnings-completed">{earnings?.completedBookings || 0}</p>
             </div>
           </div>
         </div>

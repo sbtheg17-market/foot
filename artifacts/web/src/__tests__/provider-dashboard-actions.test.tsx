@@ -31,6 +31,9 @@ vi.mock('@workspace/api-client-react', () => ({
   useGetMyProviderActivationStatus: vi.fn(),
   getGetMyProviderActivationStatusQueryKey: () => ['/providers/me/activation-status'],
 }));
+vi.mock('@/components/dashboard/scorecard-card', () => ({
+  default: () => <div data-testid="mock-scorecard-card" />,
+}));
 vi.mock('@/components/readiness-summary-card', () => ({
   default: () => <div data-testid="mock-readiness-card" />,
 }));

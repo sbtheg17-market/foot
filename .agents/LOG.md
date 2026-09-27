@@ -4324,3 +4324,18 @@ Toolchain rebuilt: corepack pnpm@10.18.3, `pnpm install --frozen-lockfile`,
 
 **Boundaries held:** no DDL, no push, no secret printed; `.env` values never
 logged. Owner publishes via Save to GitHub → PR (Railway deploys `main`).
+
+### Session — Phase 3: provider scorecard, earnings correction, Railway email vars (2026-09-27)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `M` (1 new owner-scoped endpoint + earnings response change, contract-first; no schema change)
+
+- `GET /providers/me/scorecard` + `lib/provider-scorecard.ts` (pure, unit-tested 6/6):
+  exact counts last-30-days (by scheduled time) and all-time, rates only past 5
+  resolved visits, one suggestion per gap from own data only, `isDemo`.
+- `GET /providers/me/earnings` corrected: invoiced (pending+paid) vs paid vs
+  pending, real completed-booking count; `/provider/earnings` relabelled.
+- `ScorecardCard` on `/provider/dashboard`; web 267/267, api 143/143, typecheck,
+  `build:deploy`, preview pytest 7/7 read-only, 390 px check.
+- Railway: three email vars upserted on the `foot` service via owner token;
+  redeploy SUCCESS, healthz 200. Token should now be revoked by the owner.
+- Plan doc Appendix G. **Boundaries held:** no DDL, no push, no secret printed.

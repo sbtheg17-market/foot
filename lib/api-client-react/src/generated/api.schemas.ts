@@ -1543,12 +1543,19 @@ export interface InvoiceListResponse {
   offset: number;
 }
 
+/**
+ * Invoice-based figures only. No payment backend is wired, so nothing here is confirmed money received unless an invoice was explicitly marked paid.
+ */
 export interface EarningsSummaryResponse {
-  /** Lifetime earnings in cents */
+  /** Invoiced value in cents across pending + paid invoices (NOT confirmed paid) */
   totalCents: number;
-  completedBookings: number;
-  /** Placeholder — Stripe Connect not yet active */
+  /** Sum of invoices marked paid */
+  paidCents: number;
+  /** Sum of invoices still pending (invoiced, not yet paid) */
   pendingPayoutCents: number;
+  /** Exact count of bookings with status completed */
+  completedBookings: number;
+  invoiceCount: number;
 }
 
 export interface EarningsExportItem {
@@ -1720,6 +1727,73 @@ export interface ProviderDashboardResponse {
 
 export interface ProviderMetricsResponse {
   metrics: ProviderPerformanceMetrics;
+  updatedAt: string;
+}
+
+/**
+ * Shares of resolved visits (0–1). Present only when resolved >= minimumForRates.
+ */
+export interface ProviderScorecardRates {
+  completion: number;
+  cancellation: number;
+  noShow: number;
+}
+
+export interface ProviderScorecardReviews {
+  count: number;
+  /** Mean of 1–5 ratings, one decimal; null when there are no reviews */
+  averageRating: number | null;
+}
+
+/**
+ * Exact counts of the provider's own bookings by current status. In the 30-day window a booking is included when its scheduled time falls inside the window; reviews are counted by the time they were written.
+ */
+export interface ProviderScorecardCounts {
+  total: number;
+  completed: number;
+  cancelled: number;
+  noShow: number;
+  /** Visits still `requested`, `confirmed` or `rescheduled` (in the 30-day window these are past visits without a recorded outcome) */
+  awaitingOutcome: number;
+  /** completed + cancelled + noShow — the denominator for rates */
+  resolved: number;
+  /** Distinct clients with at least one completed visit */
+  distinctClients: number;
+  /** Distinct clients with two or more completed visits */
+  repeatClients: number;
+  reviews: ProviderScorecardReviews;
+  rates: ProviderScorecardRates | null;
+}
+
+export type ProviderScorecardSuggestionGap = typeof ProviderScorecardSuggestionGap[keyof typeof ProviderScorecardSuggestionGap];
+
+
+export const ProviderScorecardSuggestionGap = {
+  unresolved_past_visits: 'unresolved_past_visits',
+  no_recent_visits: 'no_recent_visits',
+  no_shows: 'no_shows',
+  cancellations: 'cancellations',
+  no_repeat_clients: 'no_repeat_clients',
+  no_reviews: 'no_reviews',
+} as const;
+
+export interface ProviderScorecardSuggestion {
+  gap: ProviderScorecardSuggestionGap;
+  /** One practical next step, computed from the provider's own data only */
+  message: string;
+}
+
+export interface ProviderScorecardResponse {
+  windowDays: number;
+  windowStart: string;
+  windowEnd: string;
+  /** Resolved visits needed before rates are shown */
+  minimumForRates: number;
+  /** True for seed/demo provider accounts */
+  isDemo: boolean;
+  last30: ProviderScorecardCounts;
+  allTime: ProviderScorecardCounts;
+  suggestions: ProviderScorecardSuggestion[];
   updatedAt: string;
 }
 

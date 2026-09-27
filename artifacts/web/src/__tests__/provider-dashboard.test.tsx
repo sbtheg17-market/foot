@@ -18,6 +18,9 @@ import { axeViolations } from '../test/axe';
 vi.mock('@workspace/api-client-react', () => ({
   useGetMyProviderDashboard: vi.fn(),
 }));
+vi.mock('@/components/dashboard/scorecard-card', () => ({
+  default: () => <div data-testid="mock-scorecard-card" />,
+}));
 vi.mock('@/components/readiness-summary-card', () => ({
   default: () => <div data-testid="mock-readiness-card" />,
 }));
