@@ -19,6 +19,57 @@ merge / Railway / purge without separate authorisation.
 
 ---
 
+## A. Alignment with the admin/vendor command-center architecture
+
+Ground Game is **not a separate product**. It is one shared operational layer
+inside the existing admin/vendor architecture
+(`docs/neo/2026-09-26-admin-vendor-command-center-plan.md`). It adds **one
+entry point** — "Leads / Ground Game" — and connects Bookings, Services,
+Credentials and Profile; it replaces none of them.
+
+### A.1 Responsibility matrix (who reads / owns what in this layer)
+
+| Surface | Owns / shows | Reads from | Phase |
+|---|---|---|---|
+| **Admin Command Center** (`/admin`, `/admin/ground-game`) | source setup; campaign/offer attribution; unassigned leads; escalations; stalled conversations; source performance; failed routing; marketplace-wide oversight | `sources`, `leads` (all), `lead_messages` (incl. `admin_only`), `lead_events`, existing support feed | 1 |
+| **Provider Dashboard** (`/provider/dashboard` card + `/provider/leads`) | only the provider's **assigned/authorised** leads: messages and call notes (`shared` only), response deadlines, next actions, outcomes | `leads` where `assigned_provider_profile_id = own`, `lead_messages.visibility = shared`, own `bookings` | 1 |
+| **Vendor scorecard** (`GET /providers/me/scorecard`, existing) | later adds verified lead / response / booking / cancellation / review / outcome counts | `leads`, `lead_events`, existing booking/review data — **exact counts only**, "n of 5 so far" rule kept | later (after D7) |
+| **Admin analytics** (`/admin/pilot`, future) | later aggregates source → inquiry → qualified → booking/sale; shows **"not yet measured"** wherever instrumentation is absent (offer views, response time, delivery) | `sources`, `leads`, `lead_events`, `bookings.source` facts | later |
+| **Existing Bookings** | a lead may **link** to an existing booking (`leads.booking_id`); linking sets `client_user_id = booking.client_id`. The layer **never creates** a person, vendor or booking | `bookings`, `users` (read) | 1 |
+| **Vertical adapters** | terminology + qualification fields + guards only: foot care = service/provider/client; tire sourcing = item/buyer/shop/quantity. **Workflow, tables, routes and permissions are identical** across verticals | `ground-game-adapters.ts` | 1 (foot UI; tire config + tests) |
+
+### A.2 The two feelers through the one shared workflow
+
+| Step | Service feeler (OnCall Foot) | Product / sourcing feeler (tire) |
+|---|---|---|
+| Source | `sources{vertical:'foot_care', source_type:'facebook', offer_title:'Mobile foot care — Scarborough, this month'}` owned by admin, optionally tied to one provider | `sources{vertical:'tire_sourcing', source_type:'kijiji', offer_title:'205/55R16 winter set — sourced on request', campaign_ref:<listing id>}` |
+| Lead | client inquiry: stated need, area, timing, `requested_service` from the provider's `services`; `accessibility_notes` sensitive | buyer request: `tire_size, quantity, season_type, buyer_area, budget_cents`; `availability_state='unverified'` by default |
+| Conversation | inbound platform message pasted verbatim; provider's reply recorded as `outbound`, `sent_by_platform=false` ("sent outside the platform") | buyer inbound; **shop outreach recorded as `outbound` to the shop and the shop's answer as `inbound`** referencing the shop; a shop reply never becomes a buyer offer until a human sets `shop_confirmed` + `confirmed_price_cents` |
+| Qualify / route | admin assigns → `owner_role=provider`; provider accepts / requests details / refers back | admin (or vendor-role provider) owns until a shop confirms; missing-info list drives next action |
+| Close the loop | link existing booking (no new client); outcome `booked` / `declined` / `no_fit` … | outcome `sold` only with `on_hand` or `shop_confirmed`; `referred` when handed to a shop; buyer never told "sold" unless true |
+| Truth rules | never claims a reply was sent by the platform | never shows unconfirmed stock as available; never implies the platform owns the tires |
+
+Both feelers use the same four tables, the same routes, the same permission
+filter and the same `owner_role` / `next_action` invariant.
+
+### A.3 Empty-state rule (provider and admin views)
+
+If there are no leads to show, the view **names the cause** — never a blank
+list — choosing the first that applies (evaluated server-side and returned as
+`emptyReason`):
+
+| `emptyReason` | Condition | Copy (provider) | Copy (admin) |
+|---|---|---|---|
+| `setup_incomplete` | provider not approved / no published service / no service area | "Finish setup before leads can be routed to you" → existing readiness link | "Provider <name> can't receive leads until setup is complete" |
+| `no_active_source` | no `sources.status='active'` for the vertical (or for this provider) | "No offer is active yet — ask your admin to activate one" | "No active source — create or activate an offer" → source form |
+| `no_tracked_inquiry` | active source exists, zero leads recorded | "No inquiry has been recorded yet — record one with Add lead" | "No inquiries recorded for <n> active offers" |
+| `insufficient_data` | leads exist but the section's rule cannot be computed (e.g. funnel needs a closed lead) | "Not enough leads yet to show this" | "Not enough data yet — shows after the first closed lead" |
+
+An unmeasured metric (offer views, response time, delivery) is a **separate**
+state — "not yet measured" — and is never rendered as `0` or as an empty list.
+
+---
+
 ## 0. Phase 0 — read-only reconciliation
 
 Done in this workspace; full evidence table in
@@ -187,7 +238,7 @@ brief's full Phase 1 views.
 |---|---|---|---|
 | 1 | `docs/migrations/GROUND_GAME_LEADS_V1.sql` | Core | frozen artifact (after approval) |
 | 2 | `lib/db/src/schema/ground-game.ts` + export in `schema/index.ts` | Core | Drizzle mirror, **after** apply |
-| 3 | `lib/api-spec/openapi.yaml` (+ orval codegen into `lib/api-client-react`, `lib/api-zod`) | Core | `GET/POST /admin/sources`, `PATCH /admin/sources/:id`; `GET /leads` (server-scoped), `POST /leads`, `GET /leads/:id`, `PATCH /leads/:id` (assign / status / owner / next action / outcome / link booking / link ticket / attribution); `GET,POST /leads/:id/messages`; `GET /admin/leads/:id/events`; `GET /providers/me/ground-game`; `GET /admin/ground-game` |
+| 3 | `lib/api-spec/openapi.yaml` (+ orval codegen into `lib/api-client-react`, `lib/api-zod`) | Core | `GET/POST /admin/sources`, `PATCH /admin/sources/:id`; `GET /leads` (server-scoped), `POST /leads`, `GET /leads/:id`, `PATCH /leads/:id` (assign / status / owner / next action / outcome / link booking / link ticket / attribution); `GET,POST /leads/:id/messages`; `GET /admin/leads/:id/events`; `GET /providers/me/ground-game`; `GET /admin/ground-game` — both aggregates return `emptyReason` (§A.3) and `{ state: 'not_measured' }` sentinels |
 | 4 | `artifacts/api-server/src/lib/ground-game-adapters.ts` | Core | `VerticalAdapter` registry: labels, qualification fields (+ `sensitive`), outcome vocabulary, `missingInfo()`, guards; `foot_care` + `tire_sourcing`; source→booking-source mapping |
 | 5 | `artifacts/api-server/src/lib/ground-game.ts` | Core | pure helpers: visibility filter, contact masking, sensitive-key stripping, attribution validation (exact ⇒ evidence, inferred ⇒ reason), due/overdue classification, `notMeasured()` builders, owner/next-action invariant |
 | 6 | `artifacts/api-server/src/routes/ground-game.ts` (mounted in `routes/index.ts` at `/leads`, `/admin/sources`, `/admin/ground-game`, `/providers/me/ground-game`) | Core | every lead read filtered to `assigned_provider_profile_id = caller profile` unless admin; `admin_only` messages stripped; `sent_by_platform` never read from the body; composes its own `[requireAuth, requireRole("provider"), requireApprovedProvider]` |
@@ -306,6 +357,7 @@ non-closed lead has exactly one `owner_role` and a non-empty `next_action`
 | Tire record cannot show unconfirmed stock | #7 guards → 422 with plain reason; buyer summary omits unverified/possible |
 | Foot-care sensitive info hidden | #7 list payload lacks `accessibility_notes`; #8 unassigned provider → 404; admin single read → present |
 | Unmeasured metric says "not yet measured" | #7 `notMeasured()` shape; #15 renders the phrase, never `0` |
+| Empty state names the cause (§A.3) | #7 `emptyReason` precedence unit test; #15 renders the matching copy for each of the four causes |
 | Existing suites still pass | typecheck, api 143+, web 267+, preview pytests |
 
 ---

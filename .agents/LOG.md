@@ -4438,3 +4438,8 @@ actions open mailto/tel then record an outbound note; `/admin` gets one QueueCar
 one additive artifact `GROUND_GAME_LEADS_V1.sql` (NOT written), independent of Phase 4.
 
 **Stopped for review**: owner answers D1–D10 before any file is created.
+- Addendum (same session): folded the owner's admin/vendor alignment note into the packet as §A —
+  responsibility matrix (command center / provider dashboard / vendor scorecard / admin analytics /
+  bookings / adapters), the service vs product "feeler" walk-through on the one shared workflow, and the
+  four-cause `emptyReason` rule (setup_incomplete → no_active_source → no_tracked_inquiry →
+  insufficient_data) distinct from "not yet measured". Still design only; no file created.
