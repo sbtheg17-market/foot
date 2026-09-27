@@ -655,3 +655,14 @@ execute Phases 1–6.
 | Exclusions held | no cross-provider benchmark, no response-time metric, no forecast, no new tables, no DB writes by the agent |
 | Also this session | Railway `foot` service: `EMERGENT_EMAIL_KEY`, `EMAIL_FROM_NAME`, `PUBLIC_APP_URL=https://foot-production-9784.up.railway.app` upserted with the owner's project token (`scripts/railway-set-email-vars.py`, values read from `.env`, never printed); auto-redeploy `SUCCESS`, `/api/healthz` 200. Owner should revoke that token. Decision emails go live in production once `main` contains the Phase 2 code (Save to GitHub → PR → merge) |
 | STOP | Phase 4 (`users.is_demo`, `admin_audit_log` artifacts, metric definitions doc) requires a fresh owner go-ahead |
+
+## Appendix H — Phase 4 proposal: demo flag + admin audit log (2026-09-27, E1 session; owner-authorized to PROPOSE only)
+
+| Item | Result |
+|---|---|
+| Proposed (NOT applied) | `docs/migrations/USERS_IS_DEMO_V1.sql` (sha256 `0c4c6097…818f28`), `USERS_IS_DEMO_BACKFILL_V1.sql` (DML, idempotent, fixed 6-address allowlist; `e4e840ce…f714a9`), `ADMIN_AUDIT_LOG_V1.sql` (`6d015f1d…8c43a9`). Full hashes, design notes and the 6-step post-approval sequence in `docs/migrations/PROPOSED_2026-09-27_DEMO_FLAG_AUDIT_LOG.md` |
+| Validation | libpg_query grammar parse of every statement — syntax only. No scratch PostgreSQL in this workspace; disposable-DB rehearsal remains a precondition to any managed apply |
+| Metric definitions | `docs/metrics-definitions.md` — every displayed figure (scorecard, performance metrics, earnings, admin cards) with rule, SQL and the fixture test that pins it; "not shown by decision" list |
+| Deliberately deferred | Drizzle mirror declarations (would break `select()` on `users` before the column exists), seed `is_demo`, switching `DEMO_EMAILS` consumers to the flag, audit write path + `GET /admin/audit-log`, `system-status` probes — each after the managed apply, as separate reviewed steps |
+| Boundaries held | no DDL, no DML, no DB connection opened, no push |
+| STOP | Applying any artifact requires a fresh operator approval quoting the SHA-256 |

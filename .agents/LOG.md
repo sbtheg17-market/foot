@@ -4339,3 +4339,14 @@ logged. Owner publishes via Save to GitHub → PR (Railway deploys `main`).
 - Railway: three email vars upserted on the `foot` service via owner token;
   redeploy SUCCESS, healthz 200. Token should now be revoked by the owner.
 - Plan doc Appendix G. **Boundaries held:** no DDL, no push, no secret printed.
+
+### Session — Phase 4 proposal: users.is_demo + admin_audit_log artifacts, metric definitions (2026-09-27)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (docs + frozen SQL artifacts; NOT applied; no runtime change)
+
+- Frozen for review: `USERS_IS_DEMO_V1.sql`, `USERS_IS_DEMO_BACKFILL_V1.sql`,
+  `ADMIN_AUDIT_LOG_V1.sql`; hashes + design + sequencing in
+  `docs/migrations/PROPOSED_2026-09-27_DEMO_FLAG_AUDIT_LOG.md`; gate doc updated.
+- Syntax-validated with libpg_query only; local scratch rehearsal outstanding.
+- `docs/metrics-definitions.md` written (Phase 4 acceptance item).
+- **Boundaries held:** no DB connection, no DDL/DML, no schema declaration, no push.
