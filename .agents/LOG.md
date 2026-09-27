@@ -4503,3 +4503,12 @@ exact SQL as review artifact (CASES_HANDOFF_V1, NOT written to docs/migrations, 
   (same unconnected body).
 - **Still not connected:** `LeadSource` adapter (`lib/lead-activity.ts`, `NO_SOURCE`) — no ingestion, table,
   SQL, migration, scraping, messaging, AI or deployment. Production always renders the unconnected shell.
+- (same session) **Docs only:** `docs/neo/2026-09-27-todays-leads-connected-flow-proposal.md` — how
+  `LeadActivityItem`/`LeadActivityResponse` would expand (additive, optional fields only; `required`
+  sets unchanged; `NO_SOURCE` byte-identical) to carry one connected active case: entry point, contact
+  (permitted-only), request, history, urgency/needed-by, tried-already, adapter `facts`, provenance-
+  labelled `exchange`, notes (provider = shared only), `handoff` bound to the three facts (platform
+  transfer always false), server-computed `capabilities` (controls render only when true), admin-only
+  `oversight`, adapter `labels`; empty-reason precedence/copy; provider/admin visibility matrix;
+  foot_care vs tire_sourcing label/fact swap; 390px component blueprint; fixture-only acceptance tests.
+  NOT implemented, NOT approved; no code/contract/DB/channel change. Stop.
