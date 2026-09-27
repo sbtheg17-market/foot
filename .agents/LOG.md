@@ -4350,3 +4350,22 @@ logged. Owner publishes via Save to GitHub → PR (Railway deploys `main`).
 - Syntax-validated with libpg_query only; local scratch rehearsal outstanding.
 - `docs/metrics-definitions.md` written (Phase 4 acceptance item).
 - **Boundaries held:** no DB connection, no DDL/DML, no schema declaration, no push.
+
+### Session — Ground Game (source-to-lead layer) Phase 0 + design for review (2026-09-27)
+**Agent:** E1 Agent (Emergent)
+**Scope:** `S` (docs only; no code, no migration, no schema declaration)
+
+- Read-only reconciliation (evidence table in
+  `docs/neo/2026-09-27-ground-game-design.md`): GitHub `main` = `ee0d180`
+  (PR #93 merged 03:22Z = `92331da`, Phase 2 code); Railway last deploy still
+  `5177fd4` at 02:52Z → merge did not trigger a deploy (owner to check);
+  `JWT_SECRET` present and working (stale `JWT` remains); local commits
+  `7b2bb2c..933d165` (scorecard, Phase 4 proposals) not yet on GitHub.
+- Design delivered: inventory (28 tables, routers, role checks; no
+  profiles/tenant/lead tables), 4-table additive model (`sources`, `leads`,
+  `lead_messages`, `lead_events`), 14-file Phase 1 list, permission/privacy
+  boundaries, adapter config (foot_care / tire_sourcing), acceptance-test map,
+  8 unresolved decisions, deferred list.
+- Phase 4 demo-flag/audit-log apply: NOT performed (confirmation superseded).
+- **Boundaries held:** no DB connection, no DDL, no push, no deploy, no
+  Railway change, no purge. STOP for owner review.
