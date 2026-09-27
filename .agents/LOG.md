@@ -4472,3 +4472,12 @@ exact SQL as review artifact (CASES_HANDOFF_V1, NOT written to docs/migrations, 
   assigned human sees it → honest handoff → context on next interaction); aggregates, QueueCard,
   dashboard card, booking picker, metrics deferred. Visual comparison marked UNVERIFIED (screenshots
   never reached this job). SQL remains an in-document review artifact only; no file, no code, no DB change.
+- Rev 2a (same session): owner reviewed rev 2 via GitHub connector — NOT approval. Verified: GitHub
+  `conflict_260926_1408` = `b10719e` = rev 1 of the packet; rev 2 (`7af8af3`) was local-only until the
+  next Save-to-GitHub checkpoint, so the SHA the owner saw was rev 1. `origin/main` = `1213110` (#94,
+  04:36Z) now carries scorecard + Phase 4 proposals + handoff; not on main: reconciliation evidence,
+  both Ground Game packets, later LOG entries. Railway still on `index-DsoWasjk.js` (trigger still off).
+  Added §4.0 "Minimum slice" (4 resource endpoints: GET /cases/context, POST /cases, GET /cases[/:id],
+  PATCH /cases/:id; 2 screens; interactions POST and notes deferred to the second delivery). Pasted
+  C1–C8 and §10 SQL verbatim into the reply for direct review. Re-added `origin` read-only (tokenless).
+  Still docs only; no code, migration file, or DB change.

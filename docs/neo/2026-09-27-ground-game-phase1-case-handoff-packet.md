@@ -137,7 +137,41 @@ database: **manually create a case → capture context → show the assigned
 human the case → record an honest handoff state → retrieve that context on the
 next interaction.**
 
-### 4.1 Slice endpoints (5 of the 8)
+### 4.0 Minimum slice (rev 2a — proposed as the *first* delivery; 4 resource endpoints, 2 screens)
+
+Owner review of rev 2 asked whether five endpoints / three screens is still
+more than the acceptance target needs. The following is the smallest set that
+still walks the target path honestly; §4.1–§4.3 become the *second* delivery.
+
+| Target step | Minimum mechanism |
+|---|---|
+| Create a case | `POST /cases` — body carries `newContact{displayName, phone?, email?, consentStatus?}` **or** `contactId`, adapter answers, problem/urgency/needed_by/tried, `handoffRequested`; server composes `summary`, sets initial `handoff_status`, writes the `created` system_event, updates `contacts.last_case_id/last_interaction_at` |
+| Capture context | `GET /cases/context?phone=&email=` — returns `{found, contact{displayName, preferredChannel, consentStatus, preferences}, lastCase{id, summary, status, handoffStatus, nextAction, createdAt}, lastInteractionAt}` or `{found:false}`; provider callers get a match only if `lastCase` is assigned to them |
+| Assigned human reads it | `GET /cases` (server-scoped list; admin all, provider own) and `GET /cases/:id` (summary, context, system_event timeline). Providers never receive admin `internal_note` rows (none exist in the minimum slice anyway) |
+| Record an honest handoff | `PATCH /cases/:id` — admin: `assignedUserId`; both: `handoffStatus` transition, `attestOffplatformConnection:true` (server stamps attester + time, sets fact 1), `nextAction`, `nextActionDueAt`, `status` (`waiting`/`resolved`). Facts 2–3 and `platformSent` are rejected with 400 if present |
+| Retrieve context next time | same `GET /cases/context` — the previous case appears as `lastCase` |
+
+**Screens (2):** the **New case wizard** (identify → questions → need → summary
+→ "wants a human?" → done) and one **Cases page** (list; a row expands inline
+to show summary, context strip, timeline, handoff panel, next-action editor,
+admin-only assign). No drawer component, no separate detail route.
+
+**Deferred from the minimum slice → second delivery (§4.1–4.3):**
+`POST /cases/:id/interactions` (free-text call/message notes — in the minimum
+slice the only interaction rows are system_events written by the server),
+`PATCH /contacts/:id`, `internal_note` visibility rule (no notes yet), the
+drawer component, booking link UI, tire adapter *screens* (config + unit tests
+stay), aggregates, QueueCard, dashboard card, metrics.
+
+**File count for the minimum slice:** SQL artifact (after approval) · Drizzle
+file · OpenAPI (4 endpoints) + codegen · `case-adapters.ts` · `cases.ts`
+helpers · `routes/cases.ts` · 2 api tests · `routes.ts`/`App.tsx`/nav ·
+`pages/cases/new-case.tsx` · `pages/cases/cases.tsx` · 4 components
+(context-strip, question-form, summary-card, handoff-panel) · web tests ·
+`docs/cases-handoff.md`. The same acceptance tests in §8 apply, minus the
+"outbound note" assertion (no notes in the minimum slice).
+
+### 4.1 Second delivery — slice endpoints (5 of the 8)
 
 | Method + path | Who | Purpose in the slice |
 |---|---|---|
@@ -154,7 +188,7 @@ next interaction.**
 link picker (column exists; UI later), outcome vocabulary UI, "not yet
 measured" metric tiles (no metrics are shown in the slice at all).
 
-### 4.2 Slice screens
+### 4.2 Second delivery — slice screens
 
 | Screen | Content |
 |---|---|
@@ -167,7 +201,7 @@ Route changes: `routes.ts` (`provider.cases`, `provider.newCase`, `admin.cases`,
 to Bookings, Services, Credentials, Profile, `/admin` home or the provider
 dashboard in the slice.
 
-### 4.3 Slice file list
+### 4.3 Second delivery — slice file list
 
 | # | File |
 |---|---|
