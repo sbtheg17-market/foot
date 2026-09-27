@@ -5,6 +5,88 @@
  * OnCall Foot API — foot rejuvenation marketplace
  * OpenAPI spec version: 0.3.0
  */
+export type LeadActivityItemSource = {
+  name: string;
+  type: string;
+};
+
+export type LeadActivityItemAttribution = typeof LeadActivityItemAttribution[keyof typeof LeadActivityItemAttribution];
+
+
+export const LeadActivityItemAttribution = {
+  known: 'known',
+  reported: 'reported',
+  unknown: 'unknown',
+} as const;
+
+export type LeadActivityItemOwnerRole = typeof LeadActivityItemOwnerRole[keyof typeof LeadActivityItemOwnerRole];
+
+
+export const LeadActivityItemOwnerRole = {
+  provider: 'provider',
+  admin: 'admin',
+} as const;
+
+export type LeadActivityItemLastUpdate = {
+  summary: string;
+  at: string;
+};
+
+export type LeadActivityItemNextAction = {
+  label: string;
+  dueAt?: string | null;
+};
+
+/**
+ * One lead-activity item for the read-only Today's Leads views. A source- agnostic display contract that a future authorized adapter populates. No demo/real classification is included until a reliable marker exists.
+ */
+export interface LeadActivityItem {
+  /** Stable, source-agnostic item identifier */
+  id: string;
+  source: LeadActivityItemSource;
+  /** Optional offer/listing reference; null when unknown */
+  offerRef?: string | null;
+  attribution: LeadActivityItemAttribution;
+  /** Vertical/service label (extensible; no vertical-specific UI) */
+  vertical: string;
+  /** Short need summary, sanitized for list display */
+  needSummary: string;
+  assignedProviderId?: number | null;
+  ownerRole: LeadActivityItemOwnerRole;
+  /** Current position/status label (extensible) */
+  status: string;
+  lastUpdate: LeadActivityItemLastUpdate;
+  nextAction: LeadActivityItemNextAction;
+  relatedBookingId?: number | null;
+  /** Data origin of this item (e.g. the adapter/source name) */
+  origin: string;
+}
+
+/**
+ * Distinct facts. not_connected = no source connected at all (this slice). no_active_source = a source IS connected but no offer is active (future). setup_incomplete / no_tracked_inquiry / insufficient_data are reserved for later slices.
+ */
+export type LeadActivityResponseEmptyReason = typeof LeadActivityResponseEmptyReason[keyof typeof LeadActivityResponseEmptyReason] | null;
+
+
+export const LeadActivityResponseEmptyReason = {
+  not_connected: 'not_connected',
+  setup_incomplete: 'setup_incomplete',
+  no_active_source: 'no_active_source',
+  no_tracked_inquiry: 'no_tracked_inquiry',
+  insufficient_data: 'insufficient_data',
+} as const;
+
+/**
+ * Envelope for a Today's Leads view. `connected` is false until an authorized lead source is wired; `emptyReason` names the fact behind an empty list. In this slice both routes always return connected:false, emptyReason:not_connected, items:[].
+ */
+export interface LeadActivityResponse {
+  /** Whether an authorized lead source is connected */
+  connected: boolean;
+  /** Distinct facts. not_connected = no source connected at all (this slice). no_active_source = a source IS connected but no offer is active (future). setup_incomplete / no_tracked_inquiry / insufficient_data are reserved for later slices. */
+  emptyReason?: LeadActivityResponseEmptyReason;
+  items: LeadActivityItem[];
+}
+
 export interface HealthStatus {
   status: string;
 }

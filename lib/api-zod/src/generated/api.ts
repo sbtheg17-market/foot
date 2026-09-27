@@ -3099,3 +3099,71 @@ export const ListProviderReviewsResponse = zod.object({
 })
 
 
+/**
+ * Read-only lead-activity feed for the authenticated approved provider, scoped to leads assigned to their own provider profile. No lead source is connected in this slice, so the response is always connected:false, emptyReason:not_connected, items:[]. It never returns fabricated leads, counts, traction or source attribution.
+ * @summary Owner-scoped Today's Leads (read-only shell)
+ */
+export const GetMyLeadsResponse = zod.object({
+  "connected": zod.boolean().describe('Whether an authorized lead source is connected'),
+  "emptyReason": zod.enum(['not_connected', 'setup_incomplete', 'no_active_source', 'no_tracked_inquiry', 'insufficient_data']).nullish().describe('Distinct facts. not_connected = no source connected at all (this slice). no_active_source = a source IS connected but no offer is active (future). setup_incomplete \/ no_tracked_inquiry \/ insufficient_data are reserved for later slices.'),
+  "items": zod.array(zod.object({
+  "id": zod.string().describe('Stable, source-agnostic item identifier'),
+  "source": zod.object({
+  "name": zod.string(),
+  "type": zod.string()
+}),
+  "offerRef": zod.string().nullish().describe('Optional offer\/listing reference; null when unknown'),
+  "attribution": zod.enum(['known', 'reported', 'unknown']),
+  "vertical": zod.string().describe('Vertical\/service label (extensible; no vertical-specific UI)'),
+  "needSummary": zod.string().describe('Short need summary, sanitized for list display'),
+  "assignedProviderId": zod.int().nullish(),
+  "ownerRole": zod.enum(['provider', 'admin']),
+  "status": zod.string().describe('Current position\/status label (extensible)'),
+  "lastUpdate": zod.object({
+  "summary": zod.string(),
+  "at": zod.coerce.date()
+}),
+  "nextAction": zod.object({
+  "label": zod.string(),
+  "dueAt": zod.coerce.date().nullish()
+}),
+  "relatedBookingId": zod.int().nullish(),
+  "origin": zod.string().describe('Data origin of this item (e.g. the adapter\/source name)')
+}).describe('One lead-activity item for the read-only Today\'s Leads views. A source- agnostic display contract that a future authorized adapter populates. No demo\/real classification is included until a reliable marker exists.'))
+}).describe('Envelope for a Today\'s Leads view. `connected` is false until an authorized lead source is wired; `emptyReason` names the fact behind an empty list. In this slice both routes always return connected:false, emptyReason:not_connected, items:[].')
+
+
+/**
+ * Read-only lead-activity feed for administrators across all authorized and unassigned leads. No lead source is connected in this slice, so the response is always connected:false, emptyReason:not_connected, items:[].
+ * @summary Admin Today's Leads / Ground Game (read-only shell)
+ */
+export const GetAdminLeadsResponse = zod.object({
+  "connected": zod.boolean().describe('Whether an authorized lead source is connected'),
+  "emptyReason": zod.enum(['not_connected', 'setup_incomplete', 'no_active_source', 'no_tracked_inquiry', 'insufficient_data']).nullish().describe('Distinct facts. not_connected = no source connected at all (this slice). no_active_source = a source IS connected but no offer is active (future). setup_incomplete \/ no_tracked_inquiry \/ insufficient_data are reserved for later slices.'),
+  "items": zod.array(zod.object({
+  "id": zod.string().describe('Stable, source-agnostic item identifier'),
+  "source": zod.object({
+  "name": zod.string(),
+  "type": zod.string()
+}),
+  "offerRef": zod.string().nullish().describe('Optional offer\/listing reference; null when unknown'),
+  "attribution": zod.enum(['known', 'reported', 'unknown']),
+  "vertical": zod.string().describe('Vertical\/service label (extensible; no vertical-specific UI)'),
+  "needSummary": zod.string().describe('Short need summary, sanitized for list display'),
+  "assignedProviderId": zod.int().nullish(),
+  "ownerRole": zod.enum(['provider', 'admin']),
+  "status": zod.string().describe('Current position\/status label (extensible)'),
+  "lastUpdate": zod.object({
+  "summary": zod.string(),
+  "at": zod.coerce.date()
+}),
+  "nextAction": zod.object({
+  "label": zod.string(),
+  "dueAt": zod.coerce.date().nullish()
+}),
+  "relatedBookingId": zod.int().nullish(),
+  "origin": zod.string().describe('Data origin of this item (e.g. the adapter\/source name)')
+}).describe('One lead-activity item for the read-only Today\'s Leads views. A source- agnostic display contract that a future authorized adapter populates. No demo\/real classification is included until a reliable marker exists.'))
+}).describe('Envelope for a Today\'s Leads view. `connected` is false until an authorized lead source is wired; `emptyReason` names the fact behind an empty list. In this slice both routes always return connected:false, emptyReason:not_connected, items:[].')
+
+

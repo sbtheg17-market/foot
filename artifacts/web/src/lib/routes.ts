@@ -22,6 +22,7 @@ export const ROUTES = {
   provider: {
     root: '/provider',
     dashboard: '/provider/dashboard',
+    leads: '/provider/leads',
     bookings: '/provider/bookings',
     services: '/provider/services',
     availability: '/provider/availability',
@@ -49,6 +50,8 @@ export const ROUTES = {
   admin: {
     // Command-center landing page: what needs an administrator now.
     root: '/admin',
+    // Read-only daily lead-activity view (Today's Leads / Ground Game).
+    groundGame: '/admin/ground-game',
     verification: '/admin/verification',
     // Platform-administrator-only pilot operations dashboard (Part 2).
     pilot: '/admin/pilot',

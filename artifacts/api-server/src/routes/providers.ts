@@ -28,6 +28,7 @@ import {
 } from "../middlewares/auth.js";
 import { logger } from "../lib/logger.js";
 import { isSchemaDriftError } from "../lib/schema-drift.js";
+import { getProviderLeadActivity } from "../lib/lead-activity.js";
 import { createApplicationNotification } from "../lib/application-notifications.js";
 import {
   computeReadiness,
@@ -3902,6 +3903,27 @@ router.get(
       isDemo: (DEMO_EMAILS as readonly string[]).includes(email),
       updatedAt: now.toISOString(),
     });
+  },
+);
+
+// ── GET /providers/me/leads ───────────────────────────────────────────────────
+/**
+ * GET /providers/me/leads — read-only Today's Leads ("Daily Ground Game"),
+ * scoped to the authenticated approved provider's own profile. No lead source
+ * is connected in this slice, so this always returns connected:false,
+ * emptyReason:"not_connected", items:[]. Ownership filtering lives at the
+ * adapter boundary (lib/lead-activity.ts); nothing is fabricated here.
+ */
+router.get(
+  "/me/leads",
+  ...requireProviderOperation,
+  async (req: Request, res: Response): Promise<void> => {
+    const profile = await getOwnProfile(req.user!.sub);
+    if (!profile) {
+      res.status(404).json({ error: "Provider profile not found." });
+      return;
+    }
+    res.json(await getProviderLeadActivity(profile.id));
   },
 );
 

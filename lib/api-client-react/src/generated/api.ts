@@ -68,6 +68,7 @@ import type {
   HealthStatus,
   InvoiceListResponse,
   InvoiceResponse,
+  LeadActivityResponse,
   ListAdminProviderApplicationEventsParams,
   ListAdminProviderApplicationsParams,
   ListAdminSupportEscalationsParams,
@@ -7757,6 +7758,162 @@ export function useListProviderReviews<TData = Awaited<ReturnType<typeof listPro
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListProviderReviewsQueryOptions(providerId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyLeadsUrl = () => {
+
+
+
+
+  return `/api/providers/me/leads`
+}
+
+/**
+ * Read-only lead-activity feed for the authenticated approved provider, scoped to leads assigned to their own provider profile. No lead source is connected in this slice, so the response is always connected:false, emptyReason:not_connected, items:[]. It never returns fabricated leads, counts, traction or source attribution.
+ * @summary Owner-scoped Today's Leads (read-only shell)
+ */
+export const getMyLeads = async ( options?: Parameters<typeof customFetch>[1]): Promise<LeadActivityResponse> => {
+
+  return customFetch<LeadActivityResponse>(getGetMyLeadsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyLeadsQueryKey = () => {
+    return [
+    `/api/providers/me/leads`
+    ] as const;
+    }
+
+
+export const getGetMyLeadsQueryOptions = <TData = Awaited<ReturnType<typeof getMyLeads>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyLeadsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyLeads>>> = ({ signal }) => getMyLeads({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyLeads>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyLeadsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyLeads>>>
+export type GetMyLeadsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Owner-scoped Today's Leads (read-only shell)
+ */
+
+export function useGetMyLeads<TData = Awaited<ReturnType<typeof getMyLeads>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyLeadsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminLeadsUrl = () => {
+
+
+
+
+  return `/api/admin/leads`
+}
+
+/**
+ * Read-only lead-activity feed for administrators across all authorized and unassigned leads. No lead source is connected in this slice, so the response is always connected:false, emptyReason:not_connected, items:[].
+ * @summary Admin Today's Leads / Ground Game (read-only shell)
+ */
+export const getAdminLeads = async ( options?: Parameters<typeof customFetch>[1]): Promise<LeadActivityResponse> => {
+
+  return customFetch<LeadActivityResponse>(getGetAdminLeadsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminLeadsQueryKey = () => {
+    return [
+    `/api/admin/leads`
+    ] as const;
+    }
+
+
+export const getGetAdminLeadsQueryOptions = <TData = Awaited<ReturnType<typeof getAdminLeads>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminLeadsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminLeads>>> = ({ signal }) => getAdminLeads({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminLeads>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminLeadsQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminLeads>>>
+export type GetAdminLeadsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Admin Today's Leads / Ground Game (read-only shell)
+ */
+
+export function useGetAdminLeads<TData = Awaited<ReturnType<typeof getAdminLeads>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminLeads>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminLeadsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

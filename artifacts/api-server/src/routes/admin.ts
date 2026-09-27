@@ -18,6 +18,7 @@ import { logger } from "../lib/logger.js";
 import { createApplicationNotification } from "../lib/application-notifications.js";
 import { emitProviderActivationEvents } from "../lib/marketplace-events.js";
 import { sendApplicationDecisionEmail, type EmailOutcome } from "../lib/decision-emails.js";
+import { getAdminLeadActivity } from "../lib/lead-activity.js";
 
 const router = Router();
 
@@ -32,6 +33,14 @@ router.use("/pilot", adminPilotRouter);
 
 router.get("/system-status", async (_req: Request, res: Response): Promise<void> => {
   res.json(await computeSystemStatus());
+});
+
+// ── GET /admin/leads ──────────────────────────────────────────────────────────
+// Read-only Today's Leads / Ground Game across all authorized + unassigned
+// leads. No source is connected in this slice → connected:false,
+// emptyReason:"not_connected", items:[]. Never fabricates leads or counts.
+router.get("/leads", async (_req: Request, res: Response): Promise<void> => {
+  res.json(await getAdminLeadActivity());
 });
 
 // ── Demo data (seed accounts + sample bookings) ──────────────────────────────

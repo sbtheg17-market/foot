@@ -13,6 +13,7 @@ import PublicBookingPage from '@/pages/public-booking';
 import ClientBookings from '@/pages/bookings';
 import ClientBookingDetail from '@/pages/booking-detail';
 import PortalDashboard from '@/pages/portal/dashboard';
+import PortalLeads from '@/pages/portal/leads';
 import PortalBookings from '@/pages/portal/bookings';
 import PortalServices from '@/pages/portal/services';
 import PortalAvailability from '@/pages/portal/availability';
@@ -26,6 +27,7 @@ import PortalListingPreview from '@/pages/portal/listing-preview';
 import PortalTravelZones from '@/pages/portal/travel-zones';
 import PortalServiceArea from '@/pages/portal/service-area';
 import AdminHome from '@/pages/admin/index';
+import AdminGroundGame from '@/pages/admin/ground-game';
 import AdminVerification from '@/pages/admin/verification';
 import AdminPilot from '@/pages/admin/pilot';
 import AdminSystem from '@/pages/admin/system';
@@ -90,6 +92,7 @@ function Router() {
         <Redirect to={ROUTES.provider.dashboard} />
       </Route>
       <Route path={ROUTES.provider.dashboard}>{providerRoute(PortalDashboard)}</Route>
+      <Route path={ROUTES.provider.leads}>{providerRoute(PortalLeads)}</Route>
       <Route path={ROUTES.provider.bookings}>{providerRoute(PortalBookings)}</Route>
       <Route path={ROUTES.provider.services}>{providerRoute(PortalServices)}</Route>
       <Route path={ROUTES.provider.availability}>{providerRoute(PortalAvailability)}</Route>
@@ -120,6 +123,7 @@ function Router() {
 
       {/* ── Admin ────────────────────────────────────────────────────────── */}
       <Route path={ROUTES.admin.root} component={AdminHome} />
+      <Route path={ROUTES.admin.groundGame} component={AdminGroundGame} />
       <Route path={ROUTES.admin.verification} component={AdminVerification} />
       <Route path={ROUTES.admin.pilot} component={AdminPilot} />
       <Route path={ROUTES.admin.system} component={AdminSystem} />

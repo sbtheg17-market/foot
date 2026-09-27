@@ -8,7 +8,9 @@
  * from here are the existing booking-page publish/share actions.
  */
 import React from 'react';
+import { Link } from 'wouter';
 import { useGetMyProviderDashboard } from '@workspace/api-client-react';
+import { ROUTES } from '@/lib/routes';
 import { useMarketplaceTimezone, formatBookingDate, formatBookingTime } from '@/lib/marketplace-time';
 import ReadinessSummaryCard from '@/components/readiness-summary-card';
 import FirstBookingCard from '@/components/first-booking-card';
@@ -143,6 +145,19 @@ export default function PortalDashboard() {
       )}
 
       <QuickActions />
+
+      {/* Today's Leads entry (read-only shell). A dashboard link — not a 7th
+          mobile nav tab (the bottom bar is already at capacity). */}
+      <Link
+        href={ROUTES.provider.leads}
+        data-testid="dashboard-leads-link"
+        className="block bg-card border border-border rounded-3xl p-5 hover:bg-secondary/40 transition-colors"
+      >
+        <h2 className="text-sm font-semibold text-foreground">Today's Leads</h2>
+        <p className="text-xs text-muted-foreground mt-1">
+          Your daily ground game — incoming interest, its source, and the next step.
+        </p>
+      </Link>
 
       {/* Activation readiness + first-booking conversion (server-computed) */}
       <ReadinessSummaryCard />
