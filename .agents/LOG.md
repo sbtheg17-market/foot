@@ -4481,3 +4481,25 @@ exact SQL as review artifact (CASES_HANDOFF_V1, NOT written to docs/migrations, 
   PATCH /cases/:id; 2 screens; interactions POST and notes deferred to the second delivery). Pasted
   C1–C8 and §10 SQL verbatim into the reply for direct review. Re-added `origin` read-only (tokenless).
   Still docs only; no code, migration file, or DB change.
+
+### Session — Today's Leads read-only shell: recovery, admin entry, HTTP authz verified (2026-09-27)
+- **Recovery (new workspace):** `/app/foot` was empty; `todays-leads-review.bundle`
+  (`ba4fc0ea…8b778a0`) and `.patch` (`b5f38fea…dbd6bc`) checksums matched. Fetched the bundle into
+  the code repo → `review/todays-leads-shell` @ `bd210fa` (parent `b9af356`), 25 individual files,
+  `git ls-tree -r` shows no `160000` gitlink; regenerated `format-patch` content equals the saved patch.
+  `/app/foot` is now a `git worktree` of that branch (same object store), not a separate clone.
+- **Entries:** provider dashboard card `dashboard-leads-link` relabelled "Daily Ground Game" → `/provider/leads`
+  (bottom nav unchanged, 6 tabs). Admin: `/admin/ground-game` had NO entry; added one nav link
+  `home-nav-ground-game` ("Ground Game") to the Admin Command Center header nav in `pages/admin/index.tsx`.
+  No other admin surface changed.
+- **Checks (this branch):** `pnpm run typecheck` PASS · api-server 150/150 · web 274/274 (25 files) ·
+  `build:deploy` PASS. Rendered on the preview (scratch DB): admin nav link, `/admin/ground-game` and
+  `/provider/leads` both show "Lead activity isn't connected yet."; no action controls; no overflow at 390px.
+- **HTTP authorization — now VERIFIED** on a disposable LOCAL PostgreSQL 15 (`127.0.0.1:5433`, `db:push` +
+  `seed`, plus one fresh provider registration with a draft application; no managed DB touched):
+  `GET /api/providers/me/leads` → anon 401 · client 403 · unapproved provider 403 · approved provider 200
+  `{connected:false,emptyReason:"not_connected",items:[]}` · admin 403.
+  `GET /api/admin/leads` → anon 401 · client 403 · unapproved provider 403 · approved provider 403 · admin 200
+  (same unconnected body).
+- **Still not connected:** `LeadSource` adapter (`lib/lead-activity.ts`, `NO_SOURCE`) — no ingestion, table,
+  SQL, migration, scraping, messaging, AI or deployment. Production always renders the unconnected shell.

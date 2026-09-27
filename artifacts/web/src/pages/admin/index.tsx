@@ -170,6 +170,7 @@ export default function AdminHome() {
           <p className="text-sm text-muted-foreground">Platform administrator · What needs you now</p>
         </div>
         <nav aria-label="Admin sections" className="ml-auto flex flex-wrap items-center gap-2 text-sm">
+          <Link href={ROUTES.admin.groundGame} data-testid="home-nav-ground-game" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">Ground Game</Link>
           <Link href={ROUTES.admin.verification} data-testid="home-nav-verification" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">Verification</Link>
           <Link href={ROUTES.admin.pilot} data-testid="home-nav-pilot" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">Pilot</Link>
           <Link href={ROUTES.admin.system} data-testid="home-nav-system" className="rounded-xl border border-border px-3 py-1.5 hover:bg-secondary">System</Link>

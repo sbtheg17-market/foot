@@ -153,9 +153,9 @@ export default function PortalDashboard() {
         data-testid="dashboard-leads-link"
         className="block bg-card border border-border rounded-3xl p-5 hover:bg-secondary/40 transition-colors"
       >
-        <h2 className="text-sm font-semibold text-foreground">Today's Leads</h2>
+        <h2 className="text-sm font-semibold text-foreground">Daily Ground Game</h2>
         <p className="text-xs text-muted-foreground mt-1">
-          Your daily ground game — incoming interest, its source, and the next step.
+          Today's leads — incoming interest, its source, and the next step.
         </p>
       </Link>
 
